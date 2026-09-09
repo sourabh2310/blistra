@@ -4,7 +4,7 @@ import com.blistra.AbstractIntegrationTest;
 import com.blistra.auth.dto.LoginRequest;
 import com.blistra.auth.dto.RegisterRequest;
 import com.blistra.users.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +24,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @Autowired
     private UserRepository userRepository;
@@ -49,7 +49,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post(REGISTER_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .content(jsonMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNotEmpty())
                 .andExpect(jsonPath("$.email").value("test@example.com"))
@@ -65,12 +65,12 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post(REGISTER_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .content(jsonMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post(REGISTER_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .content(jsonMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict());
     }
 
@@ -83,7 +83,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post(REGISTER_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .content(jsonMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -96,7 +96,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
         MvcResult result = mockMvc.perform(post(REGISTER_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .content(jsonMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andReturn();
 
@@ -113,7 +113,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post(REGISTER_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerRequest)))
+                .content(jsonMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isCreated());
 
         LoginRequest loginRequest = LoginRequest.builder()
@@ -123,7 +123,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post(LOGIN_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+                .content(jsonMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"));
@@ -138,7 +138,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post(REGISTER_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerRequest)))
+                .content(jsonMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isCreated());
 
         LoginRequest loginRequest = LoginRequest.builder()
@@ -148,7 +148,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post(LOGIN_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+                .content(jsonMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -161,7 +161,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post(LOGIN_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .content(jsonMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
     }
 }

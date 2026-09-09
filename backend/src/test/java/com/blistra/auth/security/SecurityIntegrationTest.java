@@ -1,9 +1,10 @@
 package com.blistra.auth.security;
 
 import com.blistra.AbstractIntegrationTest;
+import com.blistra.auth.dto.LoginRequest;
 import com.blistra.auth.dto.RegisterRequest;
 import com.blistra.users.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class SecurityIntegrationTest extends AbstractIntegrationTest {
@@ -23,7 +25,7 @@ class SecurityIntegrationTest extends AbstractIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @Autowired
     private UserRepository userRepository;
@@ -53,17 +55,22 @@ class SecurityIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post(REGISTER_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerRequest)))
+                .content(jsonMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isCreated());
+
+        LoginRequest loginRequest = LoginRequest.builder()
+                .email("test@example.com")
+                .password("password123")
+                .build();
 
         MvcResult loginResult = mockMvc.perform(post(LOGIN_URL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString("{\"email\": \"test@example.com\", \"password\": \"password123\"}")))
+                .content(jsonMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
                 .andReturn();
 
         String responseBody = loginResult.getResponse().getContentAsString();
-        String token = objectMapper.readTree(responseBody).get("token").asText();
+        String token = jsonMapper.readTree(responseBody).get("token").asText();
 
         assertThat(token).isNotEmpty();
         String[] tokenParts = token.split("\\.");
@@ -73,6 +80,10 @@ class SecurityIntegrationTest extends AbstractIntegrationTest {
     @Test
     void testAccessPublicSwaggerUiWithoutAuthentication() throws Exception {
         mockMvc.perform(get("/swagger-ui.html"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/swagger-ui/index.html"));
+
+        mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().isOk());
     }
 }
