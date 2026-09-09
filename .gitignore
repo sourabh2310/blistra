@@ -1,0 +1,38 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Backend - Maven
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Java / IDE
+*.class
+.idea/
+*.iml
+.vscode/
+*.log
+
+# Frontend - Flutter
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.packages
+frontend/build/
+frontend/.pub-cache/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/ios/Pods/
+frontend/macos/Pods/
+
+# Generated Flutter files
+frontend/**/Generated.xcconfig
+frontend/**/flutter_export_environment.sh
+
+# Local development
+classpath.txt
