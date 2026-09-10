@@ -57,6 +57,7 @@ public class HabitCompletionService {
     public CompletionResponse record(UUID habitId, CompletionRequest request) {
         Habit habit = getOwned(habitId);
         validateShape(habit, request);
+        validateNotFuture(request);
         HabitCompletion completion = completionRepository
                 .findByHabitIdAndCompletedOn(habitId, request.getCompletedOn())
                 .orElseGet(() -> new HabitCompletion(habit, request.getCompletedOn()));
@@ -102,6 +103,12 @@ public class HabitCompletionService {
                 .bestStreak(HabitStreakCalculator.bestStreak(schedule, completedDays, lowerBound, today))
                 .lastCompletedOn(lastCompleted)
                 .build();
+    }
+
+    private void validateNotFuture(CompletionRequest request) {
+        if (request.getCompletedOn() != null && request.getCompletedOn().isAfter(userTime.today())) {
+            throw new BadRequestException("Completed on cannot be in the future");
+        }
     }
 
     private void validateShape(Habit habit, CompletionRequest request) {

@@ -87,7 +87,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMethodArgumentTypeMismatch(
             MethodArgumentTypeMismatchException ex,
             HttpServletRequest request) {
-        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", ex.getMessage(), request);
+        log.debug("Invalid request argument: {}", ex.getName(), ex);
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT",
+                "Invalid request argument", request);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -95,7 +97,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMissingParameter(
             MissingServletRequestParameterException ex,
             HttpServletRequest request) {
-        return errorResponse(HttpStatus.BAD_REQUEST, "MISSING_PARAMETER", ex.getMessage(), request);
+        log.debug("Missing request parameter", ex);
+        return errorResponse(HttpStatus.BAD_REQUEST, "MISSING_PARAMETER",
+                "Required request parameter is missing", request);
     }
 
     @ExceptionHandler(MissingServletRequestPartException.class)
@@ -103,7 +107,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMissingPart(
             MissingServletRequestPartException ex,
             HttpServletRequest request) {
-        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", ex.getMessage(), request);
+        log.debug("Missing request part", ex);
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+                "Required request part is missing", request);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -111,7 +117,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMaxUploadSize(
             MaxUploadSizeExceededException ex,
             HttpServletRequest request) {
-        return errorResponse(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", ex.getMessage(), request);
+        log.debug("Upload too large", ex);
+        return errorResponse(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE",
+                "Uploaded file is too large", request);
     }
 
     @ExceptionHandler(com.blistra.documents.storage.DocumentTooLargeException.class)
@@ -130,7 +138,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleNotReadable(
             HttpMessageNotReadableException ex,
             HttpServletRequest request) {
-        return errorResponse(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST", ex.getMessage(), request);
+        log.debug("Malformed request body", ex);
+        return errorResponse(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST",
+                "Malformed request body", request);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

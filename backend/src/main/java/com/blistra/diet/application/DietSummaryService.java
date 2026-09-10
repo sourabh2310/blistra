@@ -129,7 +129,7 @@ public class DietSummaryService {
 
     private BigDecimal toMilliliters(WaterResponse entry) {
         return switch (entry.getUnit()) {
-            case "ml", "mL" -> entry.getAmount();
+            case "ml", "mL", "ML" -> entry.getAmount();
             case "L", "l" -> entry.getAmount().multiply(BigDecimal.valueOf(1000));
             default -> null;
         };

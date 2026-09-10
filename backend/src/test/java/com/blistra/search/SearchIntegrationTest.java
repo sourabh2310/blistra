@@ -177,7 +177,7 @@ class SearchIntegrationTest extends AbstractIntegrationTest {
                 UUID.randomUUID(), userId, "VEGAN", marker + " vegan", ts("2026-09-11T09:00:00"));
         jdbcTemplate.update(
                 "INSERT INTO water_intake (id, user_id, amount, unit, consumed_at) VALUES (?, ?, ?, ?, ?)",
-                UUID.randomUUID(), userId, new java.math.BigDecimal("250.00"), "ml",
+                UUID.randomUUID(), userId, new java.math.BigDecimal("250.00"), "ML",
                 odt("2026-09-11T10:00:00Z"));
 
         // HABITS
