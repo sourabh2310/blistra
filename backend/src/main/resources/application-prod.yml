@@ -19,6 +19,15 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 15MB
+
+blistra:
+  documents:
+    storage-root: ${DOCUMENTS_STORAGE_ROOT}
+    max-file-size: ${DOCUMENTS_MAX_FILE_SIZE:10MB}
 
 logging:
   level:

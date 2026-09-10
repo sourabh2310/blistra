@@ -16,6 +16,15 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 15MB
+
+blistra:
+  documents:
+    storage-root: ${DOCUMENTS_STORAGE_ROOT:${java.io.tmpdir}/blistra-documents}
+    max-file-size: 10MB
 
 springdoc:
   swagger-ui:
