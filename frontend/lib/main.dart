@@ -1,37 +1,49 @@
-/// Blistra app entry point with auth gating and dependency injection.
-library;
-
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'core/api/api_client.dart';
-import 'core/api/api_config.dart';
-import 'core/auth/auth_state.dart';
-import 'dashboard/dashboard_api.dart';
-import 'dashboard/dashboard_controller.dart';
-import 'dashboard/screens/dashboard_screen.dart';
-import 'features/app_scope.dart';
-import 'features/auth/login_page.dart';
-import 'planner/planner_api.dart';
-import 'planner/planner_controller.dart';
+import 'core/api_client.dart';
+import 'core/config.dart';
+import 'core/theme.dart';
+import 'auth/auth_controller.dart'
+import 'auth/token_store.dart'
+import 'auth/repository.dart'
+import 'diet/diet_api.dart'
+import 'diet/diet_controller.dart'
+import 'diet/screens/today_screen.dart'
+import 'auth/screens/login_screen.dart'
 
-void main() {
-  final apiClient = ApiClient(baseUrl: AppConfig.apiBaseUrl);
-  final authState = AuthState(apiClient: apiClient);
-  final authController = AuthController(authState: authState);
-  final plannerController = PlannerController(
-    PlannerApi(apiClient),
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // SharedPreferences must be initialized before TokenStore.load()
+  await SharedPreferences.getInstance();
+  await TokenStore.reset(); // Clean start for development; remove in prod
+
+  final tokenStore = await TokenStore.load();
+  final apiClient = ApiClient(
+    baseUrl: AppConfig.apiBaseUrl,
+    tokenProvider: () => tokenStore.token,
   );
-  final dashboardController = DashboardController(
-    DashboardApi(apiClient: apiClient),
+  final authRepository = AuthRepository(apiClient);
+  final authController = AuthController(
+    repository: authRepository,
+    tokenStore: tokenStore,
   );
+  final dietApi = HttpDietApi(apiClient);
+  final dietController = DietController(
+    dietApi,
+    onUnauthorized: () => authController.forceLogout(),
+  );
+
+  await authController.restore();
 
   runApp(
-    AppScope(
-      apiClient: apiClient,
-      authState: authState,
-      auth: authController,
-      planner: plannerController,
-      dashboard: dashboardController,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: authController),
+        ChangeNotifierProvider.value(value: dietController),
+      ],
       child: const BlistraApp(),
     ),
   );
@@ -45,47 +57,27 @@ class BlistraApp extends StatelessWidget {
     return MaterialApp(
       title: 'Blistra',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: Colors.teal,
-        useMaterial3: true,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: const AuthGate(),
+      theme: AppTheme.light(),
+      home: const _AuthGate(),
     );
   }
 }
 
-class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+/// Routes based on [AuthController.status]. Shows LoginScreen while
+/// unauthenticated and TodayScreen once authenticated.
+class _AuthGate extends StatelessWidget {
+  const _AuthGate();
 
   @override
   Widget build(BuildContext context) {
-    final authController = AppScope.of(context).auth;
+    final status = context.watch<AuthController>().status;
 
-    return ListenableBuilder(
-      listenable: authController,
-      builder: (context, _) {
-        switch (authController.status) {
-          case AuthStatus.authenticated:
-            return const DashboardScreen();
-          case AuthStatus.unauthenticated:
-            return const LoginPage();
-          case AuthStatus.unknown:
-          case AuthStatus.busy:
-            return const _LoadingScaffold();
-        }
-      },
-    );
-  }
-}
-
-class _LoadingScaffold extends StatelessWidget {
-  const _LoadingScaffold({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return switch (status) {
+      AuthStatus.restoring => const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      AuthStatus.unauthenticated => const LoginScreen(),
+      AuthStatus.authenticated => const TodayScreen(),
+    };
   }
 }
