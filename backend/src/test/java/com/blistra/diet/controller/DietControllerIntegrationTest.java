@@ -526,6 +526,42 @@ class DietControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.meals[0].title").value("Next day +5:30"));
     }
 
+    @Test
+    void midnightExactMealBelongsToExactlyOneDay() throws Exception {
+        // Exactly IST midnight starting 2026-08-16 == 2026-08-15T18:30Z.
+        // Half-open windows [start, end): the row opens day 16 and must NOT
+        // also close day 15 (the old inclusive-BETWEEN query double-counted it).
+        createMeal(userAToken, "Midnight boundary", OffsetDateTime.parse("2026-08-15T18:30:00Z"));
+
+        mockMvc.perform(get(SUMMARY)
+                        .header("Authorization", "Bearer " + userAToken)
+                        .param("date", "2026-08-16")
+                        .param("offsetMinutes", "330"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mealCount").value(1));
+
+        mockMvc.perform(get(SUMMARY)
+                        .header("Authorization", "Bearer " + userAToken)
+                        .param("date", "2026-08-15")
+                        .param("offsetMinutes", "330"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mealCount").value(0));
+
+        mockMvc.perform(get(MEALS)
+                        .header("Authorization", "Bearer " + userAToken)
+                        .param("date", "2026-08-16")
+                        .param("offsetMinutes", "330"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1));
+
+        mockMvc.perform(get(MEALS)
+                        .header("Authorization", "Bearer " + userAToken)
+                        .param("date", "2026-08-15")
+                        .param("offsetMinutes", "330"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
     // ------------------------------------------------------------------
     // 18. Meal-item ownership is enforced through meal ownership
     // ------------------------------------------------------------------

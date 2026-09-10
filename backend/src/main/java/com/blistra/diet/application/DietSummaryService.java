@@ -51,8 +51,8 @@ public class DietSummaryService {
         DayRange range = DayRange.of(date, offsetMinutes);
 
         List<Meal> meals = mealRepository
-                .findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtAsc(userId,
-                        range.start(), range.end());
+                .findAllByUserIdAndConsumedAtGreaterThanEqualAndConsumedAtLessThanOrderByConsumedAtAsc(
+                        userId, range.start(), range.end());
         List<UUID> mealIds = meals.stream().map(Meal::getId).toList();
         List<MealItem> items = mealIds.isEmpty()
                 ? List.of()
@@ -66,8 +66,8 @@ public class DietSummaryService {
                 .toList();
 
         List<WaterResponse> water = waterIntakeRepository
-                .findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtAsc(userId,
-                        range.start(), range.end()).stream()
+                .findAllByUserIdAndConsumedAtGreaterThanEqualAndConsumedAtLessThanOrderByConsumedAtAsc(
+                        userId, range.start(), range.end()).stream()
                 .map(WaterMapper::toResponse)
                 .toList();
 

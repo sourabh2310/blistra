@@ -1,4 +1,4 @@
-import '../core/api_client.dart';
+import '../../core/api/api_client.dart';
 import 'models/page_response.dart';
 import 'models/planner_event.dart';
 import 'models/task.dart';
@@ -80,17 +80,17 @@ class PlannerApi {
   }
 
   Future<PlannerTask> completeTask(String taskId) async {
-    final data = await _api.post('/api/v1/planner/tasks/$taskId/complete');
+    final data = await _api.post('/api/v1/planner/tasks/$taskId/complete', expectStatus: 200);
     return PlannerTask.fromJson(data as Map<String, dynamic>);
   }
 
   Future<PlannerTask> reopenTask(String taskId) async {
-    final data = await _api.post('/api/v1/planner/tasks/$taskId/reopen');
+    final data = await _api.post('/api/v1/planner/tasks/$taskId/reopen', expectStatus: 200);
     return PlannerTask.fromJson(data as Map<String, dynamic>);
   }
 
   Future<PlannerTask> cancelTask(String taskId) async {
-    final data = await _api.post('/api/v1/planner/tasks/$taskId/cancel');
+    final data = await _api.post('/api/v1/planner/tasks/$taskId/cancel', expectStatus: 200);
     return PlannerTask.fromJson(data as Map<String, dynamic>);
   }
 
@@ -103,11 +103,10 @@ class PlannerApi {
   // ---------------------------------------------------------------------------
 
   Future<List<TaskList>> listTaskLists() async {
-    final data = await _api.get('/api/v1/planner/lists');
+    final List<dynamic> data = await _api.getList('/api/v1/planner/lists');
     return [
-      if (data is List)
-        for (final item in data)
-          if (item is Map<String, dynamic>) TaskList.fromJson(item),
+      for (final item in data)
+        if (item is Map<String, dynamic>) TaskList.fromJson(item),
     ];
   }
 

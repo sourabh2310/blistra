@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/notifications/models/reminder.dart';
-import 'package:frontend/notifications/models/reminder_type.dart';
+import 'package:frontend/features/notifications/models/reminder.dart';
+import 'package:frontend/features/notifications/models/reminder_type.dart';
 import 'package:intl/intl.dart';
 
 import '../state/reminders_controller.dart';

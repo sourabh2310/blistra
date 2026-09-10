@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../core/errors.dart';
+import '../../core/api/api_exception.dart';
 import 'diet_api.dart';
 import 'models/diet_profile.dart';
 import 'models/dietary_preference.dart';

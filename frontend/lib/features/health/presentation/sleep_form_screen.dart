@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import 'widgets.dart';
@@ -48,7 +48,7 @@ class _SleepFormScreenState extends State<SleepFormScreen> {
     if (_endedAt.isBefore(_startedAt)) {
       showError(
         context,
-        const ApiException(400, 'BAD_REQUEST', 'End time must be after start time'),
+        ApiException(400, 'BAD_REQUEST', 'End time must be after start time'),
       );
       return;
     }

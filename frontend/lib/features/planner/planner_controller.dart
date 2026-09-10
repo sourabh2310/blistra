@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../core/api_exception.dart';
+import '../../core/api/api_exception.dart';
 import 'models/planner_event.dart';
 import 'models/task.dart';
 import 'models/task_list.dart';

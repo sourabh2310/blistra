@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../../core/api/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 import 'token_store.dart';
 
 /// Thin HTTP client for the Blistra backend.

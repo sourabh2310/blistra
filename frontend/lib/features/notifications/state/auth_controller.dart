@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'package:frontend/notifications/api/auth_api.dart';
-import 'package:frontend/notifications/api/blistra_api_client.dart';
-import 'package:frontend/notifications/api/token_store.dart';
-import 'package:frontend/notifications/services/reminder_sync_service.dart';
+import 'package:frontend/features/notifications/api/auth_api.dart';
+import 'package:frontend/features/notifications/api/blistra_api_client.dart';
+import 'package:frontend/features/notifications/api/token_store.dart';
+import 'package:frontend/features/notifications/services/reminder_sync_service.dart';
 
-import '../../core/api/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 
 /// Holds the authentication session state for the UI.
 ///

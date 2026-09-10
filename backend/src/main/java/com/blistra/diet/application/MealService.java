@@ -82,8 +82,9 @@ public class MealService {
         Page<Meal> result;
         if (date != null) {
             DayRange range = DayRange.of(date, offsetMinutes);
-            result = mealRepository.findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtDesc(
-                    userId, range.start(), range.end(), pageable);
+            result = mealRepository
+                    .findAllByUserIdAndConsumedAtGreaterThanEqualAndConsumedAtLessThanOrderByConsumedAtDesc(
+                            userId, range.start(), range.end(), pageable);
         } else {
             result = mealRepository.findAllByUserIdOrderByConsumedAtDesc(userId, pageable);
         }

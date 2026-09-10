@@ -114,6 +114,17 @@ public class GlobalExceptionHandler {
         return errorResponse(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", ex.getMessage(), request);
     }
 
+    @ExceptionHandler(com.blistra.documents.storage.DocumentTooLargeException.class)
+    @ResponseStatus(HttpStatus.PAYLOAD_TOO_LARGE)
+    public ResponseEntity<ApiErrorResponse> handleDocumentTooLarge(
+            com.blistra.documents.storage.DocumentTooLargeException ex,
+            HttpServletRequest request) {
+        // Lives here (not in DocumentsExceptionHandler) because the generic
+        // Exception handler below would otherwise shadow it: Spring consults
+        // each advice in turn and the catch-all matches first.
+        return errorResponse(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", ex.getMessage(), request);
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<ApiErrorResponse> handleNotReadable(

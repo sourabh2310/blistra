@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import 'widgets.dart';

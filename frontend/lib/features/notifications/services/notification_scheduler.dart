@@ -1,4 +1,4 @@
-import 'package:frontend/notifications/models/scheduled_notification.dart';
+import 'package:frontend/features/notifications/models/scheduled_notification.dart';
 
 /// Abstraction over the device's local-notification scheduling.
 ///

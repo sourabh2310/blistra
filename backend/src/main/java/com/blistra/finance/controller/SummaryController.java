@@ -1,5 +1,6 @@
 package com.blistra.finance.controller;
 
+import com.blistra.common.time.UserTime;
 import com.blistra.finance.application.SummaryService;
 import com.blistra.finance.dto.SummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,9 +19,11 @@ import java.time.LocalDate;
 public class SummaryController {
 
     private final SummaryService summaryService;
+    private final UserTime userTime;
 
-    public SummaryController(SummaryService summaryService) {
+    public SummaryController(SummaryService summaryService, UserTime userTime) {
         this.summaryService = summaryService;
+        this.userTime = userTime;
     }
 
     @GetMapping
@@ -32,7 +35,7 @@ public class SummaryController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        LocalDate end = to != null ? to : LocalDate.now();
+        LocalDate end = to != null ? to : userTime.today();
         LocalDate start = from != null ? from : end.withDayOfMonth(1);
         return summaryService.summary(start, end);
     }

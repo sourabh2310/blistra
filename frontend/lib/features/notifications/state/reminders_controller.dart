@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:frontend/notifications/api/notifications_api.dart';
-import 'package:frontend/notifications/models/reminder.dart';
-import 'package:frontend/notifications/models/reminder_type.dart';
+import 'package:frontend/features/notifications/api/notifications_api.dart';
+import 'package:frontend/features/notifications/models/reminder.dart';
+import 'package:frontend/features/notifications/models/reminder_type.dart';
 
-import '../../core/api/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 
 /// Backs the reminders list screen: loading, create/update/cancel (soft
 /// delete) and an in-memory refresh of the current user's SCHEDULED reminders.

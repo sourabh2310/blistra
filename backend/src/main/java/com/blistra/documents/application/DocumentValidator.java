@@ -2,6 +2,7 @@ package com.blistra.documents.application;
 
 import com.blistra.common.exception.InvalidRequestException;
 import com.blistra.documents.config.DocumentsProperties;
+import com.blistra.documents.storage.DocumentTooLargeException;
 import com.blistra.documents.support.AllowedDocumentType;
 import com.blistra.documents.support.FilenameSanitizer;
 import org.springframework.http.MediaType;
@@ -37,10 +38,11 @@ public class DocumentValidator {
         String extension = extractExtension(originalFilename);
         AllowedDocumentType byExt = AllowedDocumentType.fromExtension(extension);
 
-        // 1. Check declared size upfront (may be -1 if unknown)
+        // 1. Check declared size upfront (may be -1 if unknown). Mapped to
+        // HTTP 413 so clients can distinguish "too large" from "invalid".
         long declaredSize = file.getSize();
         if (declaredSize != -1 && declaredSize > maxBytes) {
-            throw new InvalidRequestException(
+            throw new DocumentTooLargeException(
                     "File exceeds maximum allowed size of " + formatBytes(maxBytes));
         }
 

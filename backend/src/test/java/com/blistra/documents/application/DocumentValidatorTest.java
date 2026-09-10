@@ -109,7 +109,7 @@ class DocumentValidatorTest {
                 "file", "big.pdf", "application/pdf", new byte[2048]);
 
         assertThatThrownBy(() -> validator.validateAndDetect(file))
-                .isInstanceOf(InvalidRequestException.class)
+                .isInstanceOf(com.blistra.documents.storage.DocumentTooLargeException.class)
                 .hasMessageContaining("exceeds maximum allowed size");
     }
 

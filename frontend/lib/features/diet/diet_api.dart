@@ -1,4 +1,4 @@
-import '../core/api_client.dart';
+import '../../core/api/api_client.dart';
 import 'models/diet_profile.dart';
 import 'models/meal.dart';
 import 'models/paged.dart';
@@ -86,13 +86,13 @@ class HttpDietApi implements DietApi {
 
   @override
   Future<DietProfile> getProfile() async {
-    final json = await _client.getJson('/api/v1/diet/profile');
+    final json = await _client.get('/api/v1/diet/profile');
     return DietProfile.fromJson(_map(json));
   }
 
   @override
   Future<DietProfile> upsertProfile(DietProfile profile) async {
-    final json = await _client.putJson('/api/v1/diet/profile', body: profile.toRequest());
+    final json = await _client.put('/api/v1/diet/profile', body: profile.toRequest());
     return DietProfile.fromJson(_map(json));
   }
 
@@ -104,7 +104,7 @@ class HttpDietApi implements DietApi {
     required DateTime consumedAt,
     required List<MealItem> items,
   }) async {
-    final json = await _client.postJson('/api/v1/diet/meals', body: {
+    final json = await _client.post('/api/v1/diet/meals', body: {
       'title': title,
       'mealType': mealType,
       'notes': notes,
@@ -122,7 +122,7 @@ class HttpDietApi implements DietApi {
     String? notes,
     required DateTime consumedAt,
   }) async {
-    final json = await _client.putJson('/api/v1/diet/meals/$id', body: {
+    final json = await _client.put('/api/v1/diet/meals/$id', body: {
       'title': title,
       'mealType': mealType,
       'notes': notes,
@@ -133,7 +133,7 @@ class HttpDietApi implements DietApi {
 
   @override
   Future<Meal> getMeal(String id) async {
-    final json = await _client.getJson('/api/v1/diet/meals/$id');
+    final json = await _client.get('/api/v1/diet/meals/$id');
     return Meal.fromJson(_map(json));
   }
 
@@ -150,18 +150,18 @@ class HttpDietApi implements DietApi {
       'size': '$size',
       if (date != null) 'date': _dateParam(date),
     };
-    final json = await _client.getJson('/api/v1/diet/meals', query: query);
+    final json = await _client.get('/api/v1/diet/meals', query: query);
     return PageResult.fromJson(_map(json), MealSummary.fromJson);
   }
 
   @override
   Future<void> deleteMeal(String id) async {
-    await _client.deleteJson('/api/v1/diet/meals/$id');
+    await _client.delete('/api/v1/diet/meals/$id');
   }
 
   @override
   Future<MealItem> addMealItem(String mealId, MealItem item) async {
-    final json = await _client.postJson(
+    final json = await _client.post(
       '/api/v1/diet/meals/$mealId/items',
       body: item.toItemRequest(),
     );
@@ -171,7 +171,7 @@ class HttpDietApi implements DietApi {
   @override
   Future<MealItem> updateMealItem(
       String mealId, String itemId, MealItem item) async {
-    final json = await _client.putJson(
+    final json = await _client.put(
       '/api/v1/diet/meals/$mealId/items/$itemId',
       body: item.toItemRequest(),
     );
@@ -180,7 +180,7 @@ class HttpDietApi implements DietApi {
 
   @override
   Future<void> deleteMealItem(String mealId, String itemId) async {
-    await _client.deleteJson('/api/v1/diet/meals/$mealId/items/$itemId');
+    await _client.delete('/api/v1/diet/meals/$mealId/items/$itemId');
   }
 
   @override
@@ -196,7 +196,7 @@ class HttpDietApi implements DietApi {
       'size': '$size',
       if (date != null) 'date': _dateParam(date),
     };
-    final json = await _client.getJson('/api/v1/diet/water', query: query);
+    final json = await _client.get('/api/v1/diet/water', query: query);
     return PageResult.fromJson(_map(json), WaterRecord.fromJson);
   }
 
@@ -206,7 +206,7 @@ class HttpDietApi implements DietApi {
     required String unit,
     required DateTime consumedAt,
   }) async {
-    final json = await _client.postJson('/api/v1/diet/water', body: {
+    final json = await _client.post('/api/v1/diet/water', body: {
       'amount': amount,
       'unit': unit,
       'consumedAt': isoWithOffset(consumedAt),
@@ -221,7 +221,7 @@ class HttpDietApi implements DietApi {
     required String unit,
     required DateTime consumedAt,
   }) async {
-    final json = await _client.putJson('/api/v1/diet/water/$id', body: {
+    final json = await _client.put('/api/v1/diet/water/$id', body: {
       'amount': amount,
       'unit': unit,
       'consumedAt': isoWithOffset(consumedAt),
@@ -231,12 +231,12 @@ class HttpDietApi implements DietApi {
 
   @override
   Future<void> deleteWater(String id) async {
-    await _client.deleteJson('/api/v1/diet/water/$id');
+    await _client.delete('/api/v1/diet/water/$id');
   }
 
   @override
   Future<DietSummary> dailySummary(DateTime date, {int offsetMinutes = 0}) async {
-    final json = await _client.getJson('/api/v1/diet/summary', query: {
+    final json = await _client.get('/api/v1/diet/summary', query: {
       'date': _dateParam(date),
       'offsetMinutes': '$offsetMinutes',
     });

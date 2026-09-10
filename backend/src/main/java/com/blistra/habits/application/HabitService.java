@@ -9,6 +9,7 @@ import com.blistra.habits.dto.HabitResponse;
 import com.blistra.habits.dto.HabitTodayResponse;
 import com.blistra.habits.dto.PageResponse;
 import com.blistra.habits.dto.ScheduleResponse;
+import com.blistra.common.time.UserTime;
 import com.blistra.habits.repository.HabitCompletionRepository;
 import com.blistra.habits.repository.HabitRepository;
 import com.blistra.habits.repository.HabitScheduleRepository;
@@ -37,15 +38,18 @@ public class HabitService {
     private final HabitScheduleRepository scheduleRepository;
     private final HabitCompletionRepository completionRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final UserTime userTime;
 
     public HabitService(HabitRepository habitRepository,
                         HabitScheduleRepository scheduleRepository,
                         HabitCompletionRepository completionRepository,
-                        CurrentUserProvider currentUserProvider) {
+                        CurrentUserProvider currentUserProvider,
+                        UserTime userTime) {
         this.habitRepository = habitRepository;
         this.scheduleRepository = scheduleRepository;
         this.completionRepository = completionRepository;
         this.currentUserProvider = currentUserProvider;
+        this.userTime = userTime;
     }
 
     @Transactional(readOnly = true)
@@ -97,7 +101,7 @@ public class HabitService {
     @Transactional(readOnly = true)
     public List<HabitTodayResponse> today() {
         User user = currentUserProvider.getCurrentUser();
-        LocalDate today = LocalDate.now();
+        LocalDate today = userTime.today();
         List<Habit> habits = habitRepository
                 .findAllByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), HabitStatus.ACTIVE);
         List<HabitTodayResponse> result = new ArrayList<>();

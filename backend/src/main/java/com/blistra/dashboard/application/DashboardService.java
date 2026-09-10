@@ -1,5 +1,6 @@
 package com.blistra.dashboard.application;
 
+import com.blistra.common.time.UserTime;
 import com.blistra.dashboard.dto.DashboardResponse;
 import com.blistra.diet.application.DietSummaryService;
 import com.blistra.diet.dto.DietSummaryResponse;
@@ -14,8 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -35,6 +34,7 @@ public class DashboardService {
     private final HabitService habitService;
     private final HealthSummaryProvider healthSummaryProvider;
     private final MedicineSummaryProvider medicineSummaryProvider;
+    private final UserTime userTime;
 
     public DashboardService(CurrentUserProvider currentUserProvider,
                             PlannerTodayService plannerTodayService,
@@ -42,7 +42,8 @@ public class DashboardService {
                             DietSummaryService dietSummaryService,
                             HabitService habitService,
                             HealthSummaryProvider healthSummaryProvider,
-                            MedicineSummaryProvider medicineSummaryProvider) {
+                            MedicineSummaryProvider medicineSummaryProvider,
+                            UserTime userTime) {
         this.currentUserProvider = currentUserProvider;
         this.plannerTodayService = plannerTodayService;
         this.financeSummaryService = financeSummaryService;
@@ -50,6 +51,7 @@ public class DashboardService {
         this.habitService = habitService;
         this.healthSummaryProvider = healthSummaryProvider;
         this.medicineSummaryProvider = medicineSummaryProvider;
+        this.userTime = userTime;
     }
 
     public DashboardResponse getDashboard(LocalDate date, int offsetMinutes) {
@@ -75,7 +77,7 @@ public class DashboardService {
 
         return DashboardResponse.builder()
                 .date(date)
-                .generatedAt(OffsetDateTime.now())
+                .generatedAt(userTime.now())
                 .planner(planner)
                 .finance(finance)
                 .diet(diet)

@@ -7,6 +7,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -125,8 +126,79 @@ class ApiClient {
         'Expected a JSON object');
   }
 
+  Future<Map<String, dynamic>> patch(String path,
+      {Map<String, dynamic>? body, int expectStatus = 200}) async {
+    final Object? decoded = await _send('PATCH', path,
+        body: body, expectStatus: expectStatus);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+    throw ApiException(expectStatus, 'UNEXPECTED_RESPONSE',
+        'Expected a JSON object');
+  }
+
   Future<void> delete(String path) async {
     await _send('DELETE', path);
+  }
+
+  /// Raw-bytes GET for binary downloads (documents). Throws [ApiException]
+  /// on non-2xx, mirroring the backend error contract.
+  Future<Uint8List> getBytes(String path) async {
+    final Uri uri = Uri.parse('$baseUrl$path');
+    final http.Request request = http.Request('GET', uri)
+      ..headers.addAll(_headers());
+    try {
+      final http.StreamedResponse streamed = await _http.send(request);
+      final http.Response response =
+          await http.Response.fromStream(streamed);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw _toApiException(
+            response.statusCode, _tryDecode(response.body));
+      }
+      return response.bodyBytes;
+    } on ApiException {
+      rethrow;
+    } catch (error) {
+      throw NetworkException(error);
+    }
+  }
+
+  /// Multipart file upload. Returns the decoded JSON object on success.
+  ///
+  /// Upload progress is indeterminate with package:http, so [onProgress] is
+  /// invoked once with 1.0 when the upload completes; callers should show an
+  /// indeterminate indicator until then.
+  Future<Map<String, dynamic>> uploadMultipart(
+    String path, {
+    required Map<String, String> fields,
+    required List<http.MultipartFile> files,
+    void Function(double progress)? onProgress,
+    int expectStatus = 201,
+  }) async {
+    final Uri uri = Uri.parse('$baseUrl$path');
+    final http.MultipartRequest request = http.MultipartRequest('POST', uri)
+      ..headers.addAll(_headers())
+      ..fields.addAll(fields)
+      ..files.addAll(files);
+    try {
+      final http.StreamedResponse streamed = await _http.send(request);
+      final http.Response response =
+          await http.Response.fromStream(streamed);
+      final Object? decoded = _tryDecode(response.body);
+      if (response.statusCode != expectStatus) {
+        throw _toApiException(response.statusCode, decoded);
+      }
+      if (decoded is Map<String, dynamic>) {
+        onProgress?.call(1.0);
+        return decoded;
+      }
+      throw ApiException(expectStatus, 'UNEXPECTED_RESPONSE',
+          'Expected a JSON object');
+    } on ApiException {
+      rethrow;
+    } catch (error) {
+      throw NetworkException(error);
+    }
   }
 
   Future<Object?> _send(

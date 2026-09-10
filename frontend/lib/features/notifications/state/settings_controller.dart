@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:frontend/notifications/api/notifications_api.dart';
-import 'package:frontend/notifications/models/notification_preferences.dart';
-import 'package:frontend/notifications/services/reminder_sync_service.dart';
+import 'package:frontend/features/notifications/api/notifications_api.dart';
+import 'package:frontend/features/notifications/models/notification_preferences.dart';
+import 'package:frontend/features/notifications/services/reminder_sync_service.dart';
 
-import '../../core/api/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 
 /// Backs the notification settings screen and keeps preferences in sync with
 /// the backend. After each change the local schedule is recalculated so toggles

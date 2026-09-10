@@ -12,7 +12,7 @@ import com.blistra.documents.dto.DocumentUpdateRequest;
 import com.blistra.documents.repository.DocumentRepository;
 import com.blistra.documents.storage.DocumentStorageService;
 import com.blistra.documents.storage.DocumentStorageException;
-import com.blistra.documents.storage.DocumentTooLargeException;
+import com.blistra.documents.support.FilenameSanitizer;
 import com.blistra.users.domain.User;
 import com.blistra.users.repository.UserRepository;
 import org.slf4j.Logger;
@@ -72,6 +72,18 @@ public class DocumentService {
 
     /**
      * Uploads a new document.
+     *
+     * <p>Filesystem and database operations are <em>not</em> atomic, so the
+     * steps are ordered to make partial failure safe:
+     * <ol>
+     *   <li>file bytes are streamed to storage under a server-generated UUID
+     *       key (never derived from the client filename);</li>
+     *   <li>metadata is persisted afterwards;</li>
+     *   <li>if persistence fails, the orphaned file is deleted on a
+     *       best-effort basis and the original error propagates.</li>
+     * </ol>
+     * A leftover orphan is possible only if both the insert <em>and</em> the
+     * compensating file delete fail; that case is logged with the object key.
      */
     public DocumentResponse upload(MultipartFile file,
                                    DocumentCategory category,
@@ -88,7 +100,11 @@ public class DocumentService {
         // Generate unique storage key (never derived from the filename)
         String objectKey = UUID.randomUUID().toString();
 
-        String originalFilename = file.getOriginalFilename();
+        // Sanitize the client-supplied name before persisting it as metadata:
+        // strip path components and control characters so a hostile filename
+        // can never become a storage path, a header value, or a DB surprise.
+        String originalFilename = FilenameSanitizer.sanitize(
+                file != null ? file.getOriginalFilename() : null);
 
         // Compute SHA-256 hash and store in one pass
         String contentHash;
@@ -99,8 +115,6 @@ public class DocumentService {
                 size = storage.store(objectKey, dis, maxBytes());
             }
             contentHash = HexFormat.of().formatHex(sha256.digest());
-        } catch (DocumentTooLargeException e) {
-            throw new InvalidRequestException(e.getMessage());
         } catch (DocumentStorageException e) {
             throw new InvalidRequestException("Failed to store document", e);
         } catch (IOException e) {
@@ -186,6 +200,22 @@ public class DocumentService {
         return toResponse(doc);
     }
 
+    /**
+     * Deletes a document's metadata and its stored file.
+     *
+     * <p>Filesystem and database operations are <em>not</em> atomic. The
+     * ordering is deliberate: metadata is deleted first, then the file.
+     * <ul>
+     *   <li>If the metadata delete fails, the file is never touched (no
+     *       orphaned metadata, file intact).</li>
+     *   <li>If the file delete fails, this method throws and the surrounding
+     *       transaction rolls back, restoring the metadata row — the document
+     *       remains fully present and the delete can be retried. The metadata
+     *       is therefore <em>not</em> lost in this path.</li>
+     *   <li>File deletion is idempotent: an already-absent file is not an
+     *       error.</li>
+     * </ul>
+     */
     public void delete(UUID id) {
         User user = getCurrentUser();
         Document doc = getOwned(id, user.getId());
@@ -198,7 +228,8 @@ public class DocumentService {
             storage.delete(doc.getStoredObjectKey());
         } catch (DocumentStorageException e) {
             log.warn("Failed to delete physical file for document {}", id);
-            throw new DocumentStorageException("Document metadata deleted but physical file removal failed", e);
+            throw new DocumentStorageException(
+                    "Failed to delete document file; metadata change was rolled back", e);
         }
     }
 

@@ -2,8 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:blistra/features/documents/models/document.dart';
-import 'package:blistra/features/documents/providers/documents_provider.dart';
+import 'package:frontend/features/documents/models/document.dart';
+import 'package:frontend/features/documents/providers/documents_provider.dart';
 
 class UploadDocumentPage extends StatefulWidget {
   const UploadDocumentPage({super.key});

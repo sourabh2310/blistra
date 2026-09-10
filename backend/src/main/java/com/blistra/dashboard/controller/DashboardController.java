@@ -1,5 +1,6 @@
 package com.blistra.dashboard.controller;
 
+import com.blistra.common.time.UserTime;
 import com.blistra.dashboard.application.DashboardService;
 import com.blistra.dashboard.dto.DashboardResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,8 +18,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 
 /**
  * Dashboard aggregation endpoint.
@@ -33,9 +32,11 @@ import java.time.ZoneOffset;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+    private final UserTime userTime;
 
-    public DashboardController(DashboardService dashboardService) {
+    public DashboardController(DashboardService dashboardService, UserTime userTime) {
         this.dashboardService = dashboardService;
+        this.userTime = userTime;
     }
 
     @GetMapping
@@ -54,7 +55,9 @@ public class DashboardController {
             @Parameter(description = "Client UTC offset in minutes (e.g., 330 for IST, -300 for EST). Used to compute the local calendar day boundaries. Defaults to 0 (UTC).")
             @RequestParam(required = false, defaultValue = "0") int offsetMinutes) {
 
-        LocalDate targetDate = (date != null) ? date : OffsetDateTime.now(ZoneOffset.ofTotalSeconds(offsetMinutes * 60)).toLocalDate();
+        // Server-side default comes from the authoritative user zone; the
+        // request-scoped offsetMinutes only shapes downstream day windows.
+        LocalDate targetDate = (date != null) ? date : userTime.today();
 
         DashboardResponse response = dashboardService.getDashboard(targetDate, offsetMinutes);
         return ResponseEntity.ok(response);

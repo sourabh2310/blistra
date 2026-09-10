@@ -1,15 +1,15 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../api/auth_api.dart';
-import '../api/blistra_api_client.dart';
-import '../api/notifications_api.dart';
-import '../api/token_store.dart';
-import '../services/flutter_notification_scheduler.dart';
-import '../services/notification_scheduler.dart';
-import '../services/reminder_sync_service.dart';
-import '../state/auth_controller.dart';
-import '../state/reminders_controller.dart';
-import '../state/settings_controller.dart';
+import 'api/auth_api.dart';
+import 'api/blistra_api_client.dart';
+import 'api/notifications_api.dart';
+import 'api/token_store.dart';
+import 'services/flutter_notification_scheduler.dart';
+import 'services/notification_scheduler.dart';
+import 'services/reminder_sync_service.dart';
+import 'state/auth_controller.dart';
+import 'state/reminders_controller.dart';
+import 'state/settings_controller.dart';
 
 /// Dependency container for the notifications feature.
 ///

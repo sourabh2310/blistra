@@ -59,6 +59,9 @@ class DashboardServiceTest {
     @Mock
     private com.blistra.users.application.CurrentUserProvider currentUserProvider;
 
+    @Mock
+    private com.blistra.common.time.UserTime userTime;
+
     private DashboardService dashboardService;
     private User testUser;
 
@@ -71,12 +74,15 @@ class DashboardServiceTest {
                 dietSummaryService,
                 habitService,
                 healthSummaryProvider,
-                medicineSummaryProvider
+                medicineSummaryProvider,
+                userTime
         );
 
         testUser = new User();
         testUser.setId(UUID.randomUUID());
         testUser.setEmail("test@example.com");
+
+        lenient().when(userTime.now()).thenReturn(OffsetDateTime.now());
     }
 
     @Test

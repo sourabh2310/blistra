@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../auth/auth_controller.dart';
+import '../../../core/auth/auth_state.dart';
 import '../diet_controller.dart';
 import '../models/water.dart';
 import '../validators.dart';
@@ -100,7 +100,7 @@ class _TodayScreenState extends State<TodayScreen> {
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'logout') {
-                context.read<AuthController>().logout();
+                context.read<AuthState>().logout();
               }
             },
             itemBuilder: (context) => const [

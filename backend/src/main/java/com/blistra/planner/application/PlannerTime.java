@@ -1,6 +1,6 @@
 package com.blistra.planner.application;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.blistra.common.time.UserTime;
 import org.springframework.stereotype.Component;
 
 import java.time.*;
@@ -10,17 +10,18 @@ import java.time.temporal.ChronoUnit;
  * Minimal, injectable time foundation for Planner.
  *
  * <p>Planner is date/time sensitive. User-facing boundaries ("today", "overdue")
- * are computed in a configured user timezone - never the server-local zone - so
- * a user-local calendar day is interpreted correctly. A per-user timezone
- * setting will replace the global default once a user profile exists.</p>
+ * are computed in the {@link UserTime} zone - never the server-local zone - so
+ * a user-local calendar day is interpreted correctly. This class only adds
+ * Planner-specific day arithmetic; the zone itself is owned by
+ * {@link UserTime}.</p>
  */
 @Component
 public class PlannerTime {
 
     private final ZoneId userZone;
 
-    public PlannerTime(@Value("${planner.user-timezone:Asia/Kolkata}") String userTimezone) {
-        this.userZone = ZoneId.of(userTimezone);
+    public PlannerTime(UserTime userTime) {
+        this.userZone = userTime.zone();
     }
 
     public ZoneId userZone() {

@@ -8,6 +8,7 @@ import com.blistra.finance.domain.Money;
 import com.blistra.finance.dto.PageResponse;
 import com.blistra.finance.dto.TransferRequest;
 import com.blistra.finance.dto.TransferResponse;
+import com.blistra.common.time.UserTime;
 import com.blistra.finance.repository.AccountRepository;
 import com.blistra.finance.repository.FinanceTransferRepository;
 import com.blistra.finance.repository.FinanceTransferSpecifications;
@@ -33,15 +34,18 @@ public class TransferService {
     private final AccountRepository accountRepository;
     private final CurrentUserProvider currentUserProvider;
     private final FinanceMapper mapper;
+    private final UserTime userTime;
 
     public TransferService(FinanceTransferRepository transferRepository,
                            AccountRepository accountRepository,
                            CurrentUserProvider currentUserProvider,
-                           FinanceMapper mapper) {
+                           FinanceMapper mapper,
+                           UserTime userTime) {
         this.transferRepository = transferRepository;
         this.accountRepository = accountRepository;
         this.currentUserProvider = currentUserProvider;
         this.mapper = mapper;
+        this.userTime = userTime;
     }
 
     @Transactional
@@ -57,7 +61,7 @@ public class TransferService {
                     "Transfer between accounts of different currencies is not supported");
         }
         BigDecimal amount = requirePositiveAmount(request.getAmount());
-        LocalDate date = request.getTransferredAt() != null ? request.getTransferredAt() : LocalDate.now();
+        LocalDate date = request.getTransferredAt() != null ? request.getTransferredAt() : userTime.today();
         var transfer = new com.blistra.finance.domain.FinanceTransfer(
                 user, source, destination, amount, source.getCurrency(), date, request.getNote());
         return mapper.toTransferResponse(transferRepository.save(transfer));
@@ -102,7 +106,10 @@ public class TransferService {
             throw new BadRequestException(
                     "Transfer between accounts of different currencies is not supported");
         }
+        transfer.setSourceAccount(source);
+        transfer.setDestinationAccount(destination);
         transfer.setAmount(requirePositiveAmount(request.getAmount()));
+        transfer.setCurrency(source.getCurrency());
         transfer.setTransferredAt(request.getTransferredAt() != null
                 ? request.getTransferredAt() : transfer.getTransferredAt());
         transfer.setNote(request.getNote());

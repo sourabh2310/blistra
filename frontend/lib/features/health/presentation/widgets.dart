@@ -8,7 +8,7 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../core/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 import '../health_models.dart';
 
 // ---------------------------------------------------------------------------

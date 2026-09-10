@@ -65,13 +65,14 @@ public class SearchService {
 
         long totalElements = repository.count(userId, modules, term, from, to);
         int totalPages = (int) Math.ceil((double) totalElements / size);
-        int fromIndex = page * size;
+        // Long arithmetic: page * size can overflow int for adversarial input.
+        long offsetLong = (long) page * (long) size;
 
         List<SearchResult> pageResults;
-        if (fromIndex >= totalElements) {
+        if (offsetLong >= totalElements || offsetLong > Integer.MAX_VALUE) {
             pageResults = List.of();
         } else {
-            pageResults = repository.findPage(userId, modules, term, from, to, size, fromIndex)
+            pageResults = repository.findPage(userId, modules, term, from, to, size, (int) offsetLong)
                     .stream()
                     .map(row -> SearchResult.builder()
                             .module(row.module())

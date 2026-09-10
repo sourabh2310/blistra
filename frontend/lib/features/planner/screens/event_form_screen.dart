@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_scope.dart';
-import '../core/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 import '../formats.dart';
 import '../models/planner_event.dart';
 import '../planner_controller.dart';

@@ -15,7 +15,11 @@ import java.util.UUID;
  * query. Each searchable source table is one UNION branch; the branch set is
  * driven by the requested {@code modules} (whitelisted, never user input), so
  * ownership, free-text matching, date-range filtering, honest totals and
- * correct cursor-based pagination all happen in the database in one round trip.
+ * correct OFFSET pagination all happen in the database in one round trip.
+ *
+ * <p>Pagination is OFFSET-based with a deterministic ORDER BY
+ * (ts DESC NULLS LAST, module, result_type, id). It is not cursor-based:
+ * callers must re-query from page 0 if stable snapshots across writes matter.
  */
 @Repository
 public class UnifiedSearchRepository {
@@ -256,7 +260,8 @@ public class UnifiedSearchRepository {
                        r.started_at AS ts
                 FROM health_sleep_records r
                 WHERE r.user_id = :userId
-                  AND LOWER(COALESCE(r.notes, '')) LIKE LOWER(:term)
+                  AND (LOWER(COALESCE(r.notes, '')) LIKE LOWER(:term)
+                        OR LOWER('sleep') LIKE LOWER(:term))
                   AND """ + tsRange("r.started_at");
     }
 
@@ -291,9 +296,10 @@ public class UnifiedSearchRepository {
                 FROM diet_profiles dp
                 WHERE dp.user_id = :userId
                   AND (LOWER(COALESCE(dp.dietary_preference, '')) LIKE LOWER(:term)
-                       OR LOWER(COALESCE(dp.custom_preference, '')) LIKE LOWER(:term)
-                       OR LOWER(COALESCE(dp.disliked_foods, '')) LIKE LOWER(:term)
-                       OR LOWER(COALESCE(dp.notes, '')) LIKE LOWER(:term))
+                        OR LOWER(COALESCE(dp.custom_preference, '')) LIKE LOWER(:term)
+                        OR LOWER(COALESCE(dp.disliked_foods, '')) LIKE LOWER(:term)
+                        OR LOWER(COALESCE(dp.notes, '')) LIKE LOWER(:term)
+                        OR LOWER('diet profile') LIKE LOWER(:term))
                   AND """ + tsRange("(dp.created_at AT TIME ZONE 'UTC')");
     }
 
@@ -305,7 +311,8 @@ public class UnifiedSearchRepository {
                        w.consumed_at AS ts
                 FROM water_intake w
                 WHERE w.user_id = :userId
-                  AND LOWER(w.unit) LIKE LOWER(:term)
+                  AND (LOWER(w.unit) LIKE LOWER(:term)
+                        OR LOWER('water intake') LIKE LOWER(:term))
                   AND """ + tsRange("w.consumed_at");
     }
 
@@ -364,7 +371,8 @@ public class UnifiedSearchRepository {
                 FROM finance_transfers tf
                 WHERE tf.user_id = :userId
                   AND (LOWER(COALESCE(tf.note, '')) LIKE LOWER(:term)
-                       OR LOWER(COALESCE(tf.currency, '')) LIKE LOWER(:term))
+                        OR LOWER(COALESCE(tf.currency, '')) LIKE LOWER(:term)
+                        OR LOWER('transfer') LIKE LOWER(:term))
                   AND """ + tsRange("(tf.transferred_at AT TIME ZONE 'UTC')");
     }
 

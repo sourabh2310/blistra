@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:blistra/features/documents/models/document.dart';
-import 'package:blistra/features/documents/repositories/documents_repository.dart';
+import 'package:frontend/features/documents/models/document.dart';
+import 'package:frontend/features/documents/repositories/documents_repository.dart';
 import 'package:file_picker/file_picker.dart';
 
 /// State management for documents feature using ChangeNotifier

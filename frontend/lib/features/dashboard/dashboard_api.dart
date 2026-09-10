@@ -1,7 +1,7 @@
 /// Typed client for the Dashboard REST API.
 library;
 
-import '../../core/api_client.dart';
+import '../../core/api/api_client.dart';
 import 'models/dashboard_response.dart';
 
 class DashboardApi {
@@ -20,7 +20,7 @@ class DashboardApi {
       query['date'] = _dateOnly(date);
     }
 
-    final data = await apiClient.getJson('/api/v1/dashboard', query: query);
+    final data = await apiClient.get('/api/v1/dashboard', query: query);
     return DashboardResponse.fromJson(data as Map<String, dynamic>);
   }
 

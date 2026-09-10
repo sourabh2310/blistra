@@ -37,7 +37,7 @@ public class AuthController {
             @ApiResponse(responseCode = "409", description = "Email already registered")
     })
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
-        log.info("Received registration request for email: {}", request.getEmail());
+        log.info("Received registration request");
         UserResponse response = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -51,7 +51,7 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        log.info("Received login request for email: {}", request.getEmail());
+        log.info("Received login request");
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
     }

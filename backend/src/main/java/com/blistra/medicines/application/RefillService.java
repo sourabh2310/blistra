@@ -2,6 +2,7 @@ package com.blistra.medicines.application;
 
 import com.blistra.common.exception.BadRequestException;
 import com.blistra.common.exception.ResourceNotFoundException;
+import com.blistra.common.time.UserTime;
 import com.blistra.health.dto.PageResponse;
 import com.blistra.medicines.domain.Medicine;
 import com.blistra.medicines.domain.Refill;
@@ -29,13 +30,16 @@ public class RefillService {
     private final RefillRepository refillRepository;
     private final MedicineRepository medicineRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final UserTime userTime;
 
     public RefillService(RefillRepository refillRepository,
                          MedicineRepository medicineRepository,
-                         CurrentUserProvider currentUserProvider) {
+                         CurrentUserProvider currentUserProvider,
+                         UserTime userTime) {
         this.refillRepository = refillRepository;
         this.medicineRepository = medicineRepository;
         this.currentUserProvider = currentUserProvider;
+        this.userTime = userTime;
     }
 
     @Transactional(readOnly = true)
@@ -86,7 +90,7 @@ public class RefillService {
     }
 
     private void validateRefillDate(LocalDate refillDate) {
-        if (refillDate.isAfter(LocalDate.now().plusYears(1))) {
+        if (refillDate.isAfter(userTime.today().plusYears(1))) {
             throw new BadRequestException("Refill date cannot be more than one year in the future");
         }
     }

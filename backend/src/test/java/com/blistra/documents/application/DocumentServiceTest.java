@@ -137,8 +137,10 @@ class DocumentServiceTest {
         when(storage.store(anyString(), any(), anyLong()))
                 .thenThrow(new DocumentTooLargeException("too large"));
 
+        // App-level oversize propagates as DocumentTooLargeException so the API
+        // can answer 413 (mapped by DocumentsExceptionHandler).
         assertThatThrownBy(() -> service.upload(file, DocumentCategory.OTHER, null))
-                .isInstanceOf(InvalidRequestException.class)
+                .isInstanceOf(DocumentTooLargeException.class)
                 .hasMessageContaining("too large");
 
         verify(storage, never()).delete(anyString()); // handled by storage
@@ -309,7 +311,7 @@ class DocumentServiceTest {
     }
 
     @Test
-    void delete_storageFailure_throwsButMetadataAlreadyDeleted() {
+    void delete_storageFailure_throwsSoMetadataDeleteRollsBack() {
         authenticate(testUser);
 
         Document doc = new Document(testUser, "a.pdf", "key1", "application/pdf", 100L,
@@ -319,10 +321,52 @@ class DocumentServiceTest {
         when(documentRepository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
         doThrow(new DocumentStorageException("disk error")).when(storage).delete("key1");
 
+        // The throw rolls back the surrounding transaction, restoring the
+        // metadata row: the document is NOT lost, the delete can be retried.
         assertThatThrownBy(() -> service.delete(docId))
-                .isInstanceOf(DocumentStorageException.class);
+                .isInstanceOf(DocumentStorageException.class)
+                .hasMessageContaining("rolled back");
 
         verify(documentRepository).delete(doc); // metadata deleted first
+        verify(storage).delete("key1");
+    }
+
+    @Test
+    void delete_dbFailure_neverTouchesFile() {
+        authenticate(testUser);
+
+        Document doc = new Document(testUser, "a.pdf", "key1", "application/pdf", 100L,
+                "hash1", DocumentCategory.MEDICAL, "desc");
+        doc.setId(docId);
+
+        when(documentRepository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
+        doThrow(new RuntimeException("DB down")).when(documentRepository).delete(doc);
+
+        assertThatThrownBy(() -> service.delete(docId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("DB down");
+
+        // Metadata-first ordering: a DB failure happens before any file
+        // operation, so the stored file is left intact.
+        verify(storage, never()).delete(anyString());
+    }
+
+    @Test
+    void upload_sanitizesClientFilenameBeforePersisting() throws IOException {
+        authenticate(testUser);
+
+        MockMultipartFile file = new MockMultipartFile("file", "../../evil.pdf", "application/pdf",
+                new byte[]{0x25, 0x50, 0x44, 0x46});
+        when(validator.validateAndDetect(file)).thenReturn("application/pdf");
+        when(storage.store(anyString(), any(), anyLong())).thenReturn(4L);
+        when(documentRepository.save(any(Document.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        service.upload(file, DocumentCategory.MEDICAL, null);
+
+        var captor = ArgumentCaptor.forClass(Document.class);
+        verify(documentRepository).save(captor.capture());
+        assertThat(captor.getValue().getOriginalFilename()).isEqualTo("evil.pdf");
     }
 
     @Test

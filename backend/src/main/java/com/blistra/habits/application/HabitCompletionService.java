@@ -10,6 +10,7 @@ import com.blistra.habits.dto.CompletionRequest;
 import com.blistra.habits.dto.CompletionResponse;
 import com.blistra.habits.dto.HabitStatisticsResponse;
 import com.blistra.habits.dto.PageResponse;
+import com.blistra.common.time.UserTime;
 import com.blistra.habits.repository.HabitCompletionRepository;
 import com.blistra.habits.repository.HabitRepository;
 import com.blistra.habits.repository.HabitScheduleRepository;
@@ -39,15 +40,18 @@ public class HabitCompletionService {
     private final HabitRepository habitRepository;
     private final HabitScheduleRepository scheduleRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final UserTime userTime;
 
     public HabitCompletionService(HabitCompletionRepository completionRepository,
                                   HabitRepository habitRepository,
                                   HabitScheduleRepository scheduleRepository,
-                                  CurrentUserProvider currentUserProvider) {
+                                  CurrentUserProvider currentUserProvider,
+                                  UserTime userTime) {
         this.completionRepository = completionRepository;
         this.habitRepository = habitRepository;
         this.scheduleRepository = scheduleRepository;
         this.currentUserProvider = currentUserProvider;
+        this.userTime = userTime;
     }
 
     public CompletionResponse record(UUID habitId, CompletionRequest request) {
@@ -85,7 +89,7 @@ public class HabitCompletionService {
         Set<LocalDate> completedDays = completions.stream()
                 .map(HabitCompletion::getCompletedOn)
                 .collect(Collectors.toSet());
-        LocalDate today = LocalDate.now();
+        LocalDate today = userTime.today();
         LocalDate createdOn = habit.getCreatedAt() == null ? today : habit.getCreatedAt().toLocalDate();
         LocalDate firstCompletedOn = completions.isEmpty() ? createdOn : completions.get(0).getCompletedOn();
         LocalDate lowerBound = firstCompletedOn.isBefore(createdOn) ? firstCompletedOn : createdOn;

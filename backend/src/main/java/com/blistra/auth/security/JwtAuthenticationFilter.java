@@ -28,16 +28,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
             String jwt = extractJwtFromRequest(request);
-            if (StringUtils.hasText(jwt) && jwtProvider.isTokenValid(jwt)) {
-                String username = jwtProvider.extractUsername(jwt);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication = 
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            if (StringUtils.hasText(jwt)) {
+                if (jwtProvider.isTokenValid(jwt)) {
+                    String username = jwtProvider.extractUsername(jwt);
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else {
+                    // Invalid/expired/malformed token - do not authenticate, let the
+                    // authentication entry point handle 401 for protected endpoints
+                    logger.debug("Invalid JWT token received");
+                }
             }
         } catch (Exception ex) {
-            logger.error("Could not set user authentication in security context", ex);
+            // Do not log stack traces for invalid tokens - they are expected
+            logger.debug("JWT authentication failed: " + ex.getMessage());
         }
         filterChain.doFilter(request, response);
     }

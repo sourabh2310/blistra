@@ -20,10 +20,18 @@ public interface MealRepository extends JpaRepository<Meal, UUID> {
 
     Page<Meal> findAllByUserIdOrderByConsumedAtDesc(UUID userId, Pageable pageable);
 
-    Page<Meal> findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtDesc(
+    /**
+     * Half-open day window {@code [start, end)}: a meal exactly at midnight
+     * belongs to exactly one day.
+     */
+    Page<Meal> findAllByUserIdAndConsumedAtGreaterThanEqualAndConsumedAtLessThanOrderByConsumedAtDesc(
             UUID userId, OffsetDateTime start, OffsetDateTime end, Pageable pageable);
 
-    List<Meal> findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtAsc(
+    /**
+     * Half-open day window {@code [start, end)}: a meal exactly at midnight
+     * belongs to exactly one day.
+     */
+    List<Meal> findAllByUserIdAndConsumedAtGreaterThanEqualAndConsumedAtLessThanOrderByConsumedAtAsc(
             UUID userId, OffsetDateTime start, OffsetDateTime end);
 
     }

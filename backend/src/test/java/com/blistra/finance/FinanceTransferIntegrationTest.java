@@ -144,6 +144,103 @@ class FinanceTransferIntegrationTest extends FinanceTestSupport {
                 .andExpect(jsonPath("$.balance").value("1000.0000"));
     }
 
+    @Test
+    void updatesTransferAccounts() throws Exception {
+        String token = registerAndLogin("owner@example.com", "Password123!");
+        String checking = createAccount(token, "Checking", "BANK", "USD", "1000.0000");
+        String savings = createAccount(token, "Savings", "SAVINGS", "USD", "500.0000");
+        String cash = createAccount(token, "Cash", "CASH", "USD", "200.0000");
+        String transferId = createTransfer(token, checking, savings, "100.0000", "2026-09-03");
+
+        ObjectNode update = transferBody(checking, cash, "100.0000", "2026-09-03");
+        mockMvc.perform(put(TRANSFERS_URL + "/" + transferId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(jsonMapper.writeValueAsString(update)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sourceAccountName").value("Checking"))
+                .andExpect(jsonPath("$.destinationAccountName").value("Cash"));
+
+        mockMvc.perform(get(ACCOUNTS_URL + "/" + checking)
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value("900.0000"));
+
+        mockMvc.perform(get(ACCOUNTS_URL + "/" + savings)
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value("500.0000"));
+
+        mockMvc.perform(get(ACCOUNTS_URL + "/" + cash)
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value("300.0000"));
+    }
+
+    @Test
+    void cannotUpdateTransferToAnotherUsersAccount() throws Exception {
+        String owner = registerAndLogin("owner@example.com", "Password123!");
+        String intruder = registerAndLogin("intruder@example.com", "Password123!");
+
+        String ownerChecking = createAccount(owner, "Checking", "BANK", "USD", "1000.0000");
+        String ownerSavings = createAccount(owner, "Savings", "SAVINGS", "USD", "500.0000");
+        String intruderAccount = createAccount(intruder, "Intruder Cash", "CASH", "USD", "100.0000");
+        String transferId = createTransfer(owner, ownerChecking, ownerSavings, "100.0000", "2026-09-03");
+
+        ObjectNode update = transferBody(ownerChecking, intruderAccount, "100.0000", "2026-09-03");
+        mockMvc.perform(put(TRANSFERS_URL + "/" + transferId)
+                .header("Authorization", "Bearer " + owner)
+                .contentType(MediaType.APPLICATION_JSON).content(jsonMapper.writeValueAsString(update)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cannotUpdateTransferToArchivedAccount() throws Exception {
+        String token = registerAndLogin("owner@example.com", "Password123!");
+        String checking = createAccount(token, "Checking", "BANK", "USD", "1000.0000");
+        String savings = createAccount(token, "Savings", "SAVINGS", "USD", "500.0000");
+        String cash = createAccount(token, "Cash", "CASH", "USD", "200.0000");
+        String transferId = createTransfer(token, checking, savings, "100.0000", "2026-09-03");
+
+        mockMvc.perform(delete(ACCOUNTS_URL + "/" + cash)
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+
+        ObjectNode update = transferBody(checking, cash, "100.0000", "2026-09-03");
+        mockMvc.perform(put(TRANSFERS_URL + "/" + transferId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(jsonMapper.writeValueAsString(update)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void cannotUpdateTransferToSameAccount() throws Exception {
+        String token = registerAndLogin("owner@example.com", "Password123!");
+        String checking = createAccount(token, "Checking", "BANK", "USD", "1000.0000");
+        String savings = createAccount(token, "Savings", "SAVINGS", "USD", "500.0000");
+        String transferId = createTransfer(token, checking, savings, "100.0000", "2026-09-03");
+
+        ObjectNode update = transferBody(checking, checking, "100.0000", "2026-09-03");
+        mockMvc.perform(put(TRANSFERS_URL + "/" + transferId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(jsonMapper.writeValueAsString(update)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void cannotUpdateTransferCrossCurrency() throws Exception {
+        String token = registerAndLogin("owner@example.com", "Password123!");
+        String checking = createAccount(token, "Checking", "BANK", "USD", "1000.0000");
+        String savings = createAccount(token, "Savings", "SAVINGS", "USD", "500.0000");
+        String eur = createAccount(token, "EUR Account", "SAVINGS", "EUR", "200.0000");
+        String transferId = createTransfer(token, checking, savings, "100.0000", "2026-09-03");
+
+        ObjectNode update = transferBody(checking, eur, "100.0000", "2026-09-03");
+        mockMvc.perform(put(TRANSFERS_URL + "/" + transferId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(jsonMapper.writeValueAsString(update)))
+                .andExpect(status().isBadRequest());
+    }
+
     private ObjectNode transferBody(String source, String destination, String amount, String date) {
         ObjectNode body = jsonMapper.createObjectNode();
         body.put("sourceAccountId", source);

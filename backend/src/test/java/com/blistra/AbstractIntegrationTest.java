@@ -30,6 +30,9 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+        // Test-only JWT secret (>= 32 bytes). Production must supply JWT_SECRET
+        // via the environment; the application fails startup without it.
+        registry.add("JWT_SECRET", () -> "blistra-test-secret-0123456789abcdef-test-only");
     }
 
     /**

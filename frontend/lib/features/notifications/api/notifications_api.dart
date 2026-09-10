@@ -1,6 +1,6 @@
-import 'package:frontend/notifications/models/notification_preferences.dart';
-import 'package:frontend/notifications/models/reminder.dart';
-import 'package:frontend/notifications/models/reminder_type.dart';
+import 'package:frontend/features/notifications/models/notification_preferences.dart';
+import 'package:frontend/features/notifications/models/reminder.dart';
+import 'package:frontend/features/notifications/models/reminder_type.dart';
 
 import 'blistra_api_client.dart';
 
