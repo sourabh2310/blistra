@@ -36,7 +36,8 @@ public class AccountRequest {
     @Pattern(regexp = "^\\d+(\\.\\d+)?$", message = "Opening balance must be a non-negative decimal number")
     @Digits(integer = 15, fraction = 4, message = "Opening balance exceeds the supported range (up to 15 integer and 4 fraction digits)")
     @DecimalMin(value = "0", message = "Opening balance cannot be negative")
-    @Schema(description = "Opening balance as a decimal string; direction is never encoded in the sign",
+    @Schema(description = "Opening balance as a decimal string; must be non-negative for every account type "
+            + "including CREDIT_CARD (V1 tracks asset-side balances; direction is never encoded in the sign)",
             example = "1000.0000")
     private String openingBalance;
 

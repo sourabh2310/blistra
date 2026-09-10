@@ -17,7 +17,6 @@ import com.blistra.users.domain.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -79,9 +78,15 @@ public class PlannerTaskService {
             }
         }
 
-        Pageable safePageable = safePageable(pageable, effectiveView);
+        int size = Math.min(Math.max(pageable.getPageSize(), 1), MAX_PAGE_SIZE);
         Page<Task> page = taskRepository.search(
-                user.getId(), statuses, taskListId, priority, from, to, overdueCutoff, todayStart, safePageable);
+                user.getId(),
+                statuses.stream().map(Enum::name).toList(),
+                taskListId,
+                priority != null ? priority.name() : null,
+                from, to, overdueCutoff, todayStart,
+                effectiveView == TaskView.COMPLETED,
+                PageRequest.of(pageable.getPageNumber(), size));
         return PageResponse.of(page.map(this::toResponse));
     }
 
@@ -187,21 +192,6 @@ public class PlannerTaskService {
         }
         return taskListRepository.findByIdAndUserId(listId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task list not found"));
-    }
-
-    private Pageable safePageable(Pageable pageable, TaskView view) {
-        int size = Math.min(Math.max(pageable.getPageSize(), 1), MAX_PAGE_SIZE);
-        Sort sort = pageable.getSort().isSorted()
-                ? pageable.getSort()
-                : defaultSort(view);
-        return PageRequest.of(pageable.getPageNumber(), size, sort);
-    }
-
-    private Sort defaultSort(TaskView view) {
-        if (view == TaskView.COMPLETED) {
-            return Sort.by(Sort.Order.desc("completedAt").nullsLast());
-        }
-        return Sort.by(Sort.Order.asc("dueAt").nullsLast(), Sort.Order.desc("createdAt"));
     }
 
     private TaskResponse toResponse(Task task) {

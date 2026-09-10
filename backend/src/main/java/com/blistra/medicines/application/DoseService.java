@@ -101,7 +101,7 @@ public class DoseService {
         if (status == DoseStatus.TAKEN) {
             return supplied == null ? OffsetDateTime.now() : supplied;
         }
-        return null;
+        return supplied;
     }
 
     private void validateEventTimes(DoseStatus status, OffsetDateTime scheduledAt, OffsetDateTime takenAt) {

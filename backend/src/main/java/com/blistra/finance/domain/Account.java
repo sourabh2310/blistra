@@ -14,6 +14,23 @@ import java.util.UUID;
  * <p>The current balance is deliberately NOT stored. It is derived from the
  * opening balance plus the transaction and transfer history, which keeps a
  * single source of truth and cannot drift from that history.</p>
+ *
+ * <p>V1 balance model (intentional restriction): {@code openingBalance} is
+ * always non-negative (see {@code finance_accounts_opening_balance_not_negative}).
+ * Balances are asset-side values; the financial direction is expressed by the
+ * record type (INCOME / EXPENSE / transfer direction), never by an amount
+ * sign. This holds for every account type <em>including</em> CREDIT_CARD: a
+ * card is tracked by the money moved through it, not as a negative liability
+ * balance. Modelling card debt (credit limit, amount due, minimum due) is a
+ * future liability feature, not a correction — relaxing the sign would silently
+ * change every balance invariant ({@code BalanceCalculator}, summaries,
+ * {@code Money} scale guarantees).</p>
+ *
+ * <p>If liability balances are ever introduced, the safest migration is:
+ * add a new nullable {@code opening_liability} / liability-aware columns (or a
+ * separate card-liability table) with its own CHECK, backfill zeros, and keep
+ * {@code opening_balance >= 0} untouched so existing history keeps its meaning.
+ * Do not simply drop the CHECK.</p>
  */
 @Entity
 @Table(name = "finance_accounts")

@@ -3,7 +3,6 @@ package com.blistra.habits.controller;
 import com.blistra.habits.application.HabitCompletionService;
 import com.blistra.habits.dto.CompletionRequest;
 import com.blistra.habits.dto.CompletionResponse;
-import com.blistra.habits.dto.HabitStatisticsResponse;
 import com.blistra.habits.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -58,11 +57,5 @@ public class HabitCompletionController {
             @PathVariable UUID habitId,
             @PageableDefault(size = 20, sort = "completedOn", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(completionService.history(habitId, pageable));
-    }
-
-    @GetMapping("/statistics")
-    @Operation(summary = "Completion and streak statistics of a habit")
-    public ResponseEntity<HabitStatisticsResponse> statistics(@PathVariable UUID habitId) {
-        return ResponseEntity.ok(completionService.statistics(habitId));
     }
 }

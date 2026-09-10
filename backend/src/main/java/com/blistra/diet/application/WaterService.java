@@ -29,7 +29,8 @@ public class WaterService {
 
     @Transactional
     public WaterResponse create(UUID userId, WaterRequest request) {
-        WaterIntake water = new WaterIntake(userId, request.getAmount(), request.getUnit(),
+        WaterIntake water = new WaterIntake(userId, request.getAmount(),
+                com.blistra.diet.domain.WaterUnit.normalize(request.getUnit()),
                 request.getConsumedAt());
         return WaterMapper.toResponse(waterIntakeRepository.save(water));
     }
@@ -59,8 +60,9 @@ public class WaterService {
         Page<WaterIntake> result;
         if (date != null) {
             DayRange range = DayRange.of(date, offsetMinutes);
-            result = waterIntakeRepository.findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtDesc(
-                    userId, range.start(), range.end(), pageable);
+            result = waterIntakeRepository
+                    .findAllByUserIdAndConsumedAtGreaterThanEqualAndConsumedAtLessThanOrderByConsumedAtDesc(
+                            userId, range.start(), range.end(), pageable);
         } else {
             result = waterIntakeRepository.findAllByUserIdOrderByConsumedAtDesc(userId, pageable);
         }

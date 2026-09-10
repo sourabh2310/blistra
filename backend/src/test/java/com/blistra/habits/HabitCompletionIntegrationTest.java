@@ -9,6 +9,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.hasSize;
@@ -129,7 +130,7 @@ class HabitCompletionIntegrationTest extends HabitsTestSupport {
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonMapper.writeValueAsString(CompletionRequest.builder()
-                        .completedOn(LocalDate.now().plusDays(1))
+                        .completedOn(LocalDate.now(ZoneId.of("Asia/Kolkata")).plusDays(1))
                         .build())))
                 .andExpect(status().isBadRequest());
     }

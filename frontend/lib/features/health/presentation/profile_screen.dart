@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../../core/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import 'widgets.dart';
@@ -19,7 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late final TextEditingController _heightController;
 
   double? _heightCm;
-  BloodType? _bloodType;
+  BloodType _bloodType = BloodType.unknown;
   DateTime? _dateOfBirth;
   bool _saving = false;
 

@@ -12,6 +12,7 @@ import com.blistra.finance.dto.TransactionRequest;
 import com.blistra.finance.dto.TransactionResponse;
 import com.blistra.finance.repository.AccountRepository;
 import com.blistra.finance.repository.CategoryRepository;
+import com.blistra.common.time.UserTime;
 import com.blistra.finance.repository.FinanceTransactionRepository;
 import com.blistra.finance.repository.FinanceTransactionSpecifications;
 import com.blistra.users.application.CurrentUserProvider;
@@ -37,17 +38,20 @@ public class TransactionService {
     private final CategoryRepository categoryRepository;
     private final CurrentUserProvider currentUserProvider;
     private final FinanceMapper mapper;
+    private final UserTime userTime;
 
     public TransactionService(FinanceTransactionRepository transactionRepository,
                               AccountRepository accountRepository,
                               CategoryRepository categoryRepository,
                               CurrentUserProvider currentUserProvider,
-                              FinanceMapper mapper) {
+                              FinanceMapper mapper,
+                              UserTime userTime) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.categoryRepository = categoryRepository;
         this.currentUserProvider = currentUserProvider;
         this.mapper = mapper;
+        this.userTime = userTime;
     }
 
     @Transactional
@@ -56,7 +60,7 @@ public class TransactionService {
         Account account = requireOwnedAccount(request.getAccountId(), user.getId());
         Category category = requireOwnedCategory(request.getCategoryId(), user.getId());
         BigDecimal amount = requirePositiveAmount(request.getAmount(), "amount");
-        LocalDate occurredAt = request.getOccurredAt() != null ? request.getOccurredAt() : LocalDate.now();
+        LocalDate occurredAt = request.getOccurredAt() != null ? request.getOccurredAt() : userTime.today();
         if (category.getType() != toCategoryType(request.getType())) {
             throw new BadRequestException(
                     "Transaction type does not match the category type ("
@@ -110,6 +114,7 @@ public class TransactionService {
                     "Transaction type does not match the category type ("
                             + category.getType().name().toLowerCase() + " category)");
         }
+        transaction.setAccount(account);
         transaction.setCategory(category);
         transaction.setType(request.getType());
         transaction.setAmount(amount);

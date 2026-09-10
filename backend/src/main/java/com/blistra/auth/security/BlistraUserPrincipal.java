@@ -18,13 +18,20 @@ public class BlistraUserPrincipal implements UserDetails {
     private final String email;
     private final String passwordHash;
     private final Collection<? extends GrantedAuthority> authorities;
+    private final boolean enabled;
 
     public BlistraUserPrincipal(UUID id, String email, String passwordHash,
                                 Collection<? extends GrantedAuthority> authorities) {
+        this(id, email, passwordHash, authorities, true);
+    }
+
+    public BlistraUserPrincipal(UUID id, String email, String passwordHash,
+                                Collection<? extends GrantedAuthority> authorities, boolean enabled) {
         this.id = id;
         this.email = email;
         this.passwordHash = passwordHash;
         this.authorities = authorities == null ? List.of() : List.copyOf(authorities);
+        this.enabled = enabled;
     }
 
     public UUID getId() {
@@ -63,6 +70,6 @@ public class BlistraUserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return enabled;
     }
 }

@@ -13,10 +13,11 @@ import java.util.List;
 /**
  * A user's food and nutrition summary for one local calendar day.
  *
- * <p>{@code offsetMinutes} is the client-reported UTC offset used to define the
- * day boundary. {@code waterTotalMilliliters} is derived only from entries whose
- * unit is a millilitre/litre value; other descriptors are excluded from the
- * total but still listed in {@code water}.</p>
+ * <p>{@code offsetMinutes} echoes the client-reported UTC offset used to define
+ * the day boundary for this response only; it is never stored. {@code
+ * waterTotalMilliliters} is derived only from entries whose unit is a
+ * millilitre/litre value; other descriptors are excluded from the total but
+ * still listed in {@code water}.</p>
  */
 @Data
 @NoArgsConstructor

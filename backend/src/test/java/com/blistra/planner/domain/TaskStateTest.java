@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TaskStateTest {
@@ -23,11 +24,11 @@ class TaskStateTest {
 
     @Test
     void todoCanMoveToInProgressCompletedAndCancelled() {
-        assertThatThrownBy(() -> task().changeStatus(TaskStatus.CANCELLED, now())).doesNotThrowAnyException();
+        assertThatCode(() -> task().changeStatus(TaskStatus.CANCELLED, now())).doesNotThrowAnyException();
 
-        assertThatThrownBy(() -> task().changeStatus(TaskStatus.COMPLETED, now())).doesNotThrowAnyException();
+        assertThatCode(() -> task().changeStatus(TaskStatus.COMPLETED, now())).doesNotThrowAnyException();
 
-        assertThatThrownBy(() -> task().changeStatus(TaskStatus.IN_PROGRESS, now())).doesNotThrowAnyException();
+        assertThatCode(() -> task().changeStatus(TaskStatus.IN_PROGRESS, now())).doesNotThrowAnyException();
     }
 
     @Test

@@ -65,6 +65,18 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
         } catch (Exception ignored) {}
     }
 
+    private void cleanStorage() throws java.io.IOException {
+        if (Files.exists(storageRoot)) {
+            try (java.util.stream.Stream<Path> walk = Files.walk(storageRoot)) {
+                walk.sorted(java.util.Comparator.reverseOrder())
+                        .filter(p -> !p.equals(storageRoot))
+                        .forEach(p -> {
+                            try { Files.deleteIfExists(p); } catch (Exception ignored) {}
+                        });
+            }
+        }
+    }
+
     @org.springframework.test.context.DynamicPropertySource
     static void overrideProps(org.springframework.test.context.DynamicPropertyRegistry registry) {
         registry.add("blistra.documents.storage-root", storageRoot::toString);
@@ -83,7 +95,8 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         documentRepository.deleteAll();
-        userRepository.deleteAll();
+        deleteAllUsers();
+        cleanStorage();
 
         // Register and login User A
         RegisterRequest regA = RegisterRequest.builder()
@@ -149,11 +162,11 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     private byte[] jpegBytes() {
-        return new byte[]{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00}; // JPEG SOI + APP0
+        return new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00}; // JPEG SOI + APP0
     }
 
     private byte[] pngBytes() {
-        return new byte[]{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D}; // PNG header
+        return new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D}; // PNG header
     }
 
     @Test
@@ -234,7 +247,8 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void upload_oversizedFileRejected() throws Exception {
-        // 2MB file, limit is 1MB
+        // 2MB file, limit is 1MB: declared-size check answers 413 before any
+        // content inspection.
         byte[] large = new byte[2 * 1024 * 1024];
         MockMultipartFile file = new MockMultipartFile("file", "large.pdf", "application/pdf", large);
 
@@ -242,8 +256,8 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
                         .file(file)
                         .param("category", "OTHER")
                         .header("Authorization", "Bearer " + userAToken))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.code").value("FILE_TOO_LARGE"));
     }
 
     @Test
@@ -556,16 +570,31 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
                 "..%2F..%2Fetc%2Fpasswd",
                 "..%5C..%5Cwindows%5Csystem32"
         };
+        // Client names are sanitized to basenames before persisting as metadata.
+        String[] sanitized = {
+                "secret.txt",
+                "secret.txt",
+                "outside.pdf",
+                "sam",
+                "passwd",
+                "..%2F..%2Fetc%2Fpasswd",
+                "..%5C..%5Cwindows%5Csystem32"
+        };
 
-        for (String name : malicious) {
-            MockMultipartFile file = new MockMultipartFile("file", name, "application/pdf", pdfBytes());
+        for (int i = 0; i < malicious.length; i++) {
+            MockMultipartFile file = new MockMultipartFile("file", malicious[i], "application/pdf", pdfBytes());
 
-            mockMvc.perform(multipart(BASE_URL)
+            MvcResult result = mockMvc.perform(multipart(BASE_URL)
                             .file(file)
                             .param("category", "OTHER")
                             .header("Authorization", "Bearer " + userAToken))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.originalFilename").value(name)); // Original preserved in metadata
+                    .andExpect(jsonPath("$.originalFilename").value(sanitized[i]))
+                    .andReturn();
+
+            String stored = jsonMapper.readTree(result.getResponse().getContentAsString())
+                    .get("originalFilename").asText();
+            assertThat(stored).doesNotContain("/").doesNotContain("\\");
         }
 
         // Verify only one file per upload exists in storage (with UUID names)
@@ -581,6 +610,84 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
                     String fileName = path.getFileName().toString();
                     assertThat(fileName).matches("[0-9a-fA-F-]{36}");
                 });
+    }
+
+    @Test
+    void upload_missingOriginalFilenameDefaultsSafely() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", null, "application/pdf", pdfBytes());
+
+        mockMvc.perform(multipart(BASE_URL)
+                        .file(file)
+                        .param("category", "OTHER")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.originalFilename").value("document"));
+    }
+
+    @Test
+    void upload_oversizedValidFileReturns413() throws Exception {
+        // Valid PDF magic but larger than the 1MB test limit: the declared-size
+        // check must answer 413 FILE_TOO_LARGE (not 400).
+        byte[] big = new byte[2 * 1024 * 1024];
+        byte[] magic = pdfBytes();
+        System.arraycopy(magic, 0, big, 0, magic.length);
+        MockMultipartFile file = new MockMultipartFile("file", "big.pdf", "application/pdf", big);
+
+        mockMvc.perform(multipart(BASE_URL)
+                        .file(file)
+                        .param("category", "OTHER")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.code").value("FILE_TOO_LARGE"));
+
+        // No metadata persisted for the rejected upload.
+        assertThat(documentRepository.count()).isZero();
+    }
+
+    @Test
+    void download_traversalFilenameHasSafeDisposition() throws Exception {
+        MvcResult upload = mockMvc.perform(multipart(BASE_URL)
+                        .file(createPdfFile("../../evil\".pdf", pdfBytes()))
+                        .param("category", "OTHER")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String docId = jsonMapper.readTree(upload.getResponse().getContentAsString()).get("id").asText();
+
+        MvcResult download = mockMvc.perform(get(BASE_URL + "/" + docId + "/content")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andReturn();
+
+        String disposition = download.getResponse().getHeader("Content-Disposition");
+        assertThat(disposition).startsWith("attachment;");
+        assertThat(disposition).doesNotContain("../");
+        assertThat(disposition).doesNotContain("\"evil\"");
+    }
+
+    @Test
+    void delete_missingPhysicalFileStillSucceeds() throws Exception {
+        MvcResult upload = mockMvc.perform(multipart(BASE_URL)
+                        .file(createPdfFile("report.pdf", pdfBytes()))
+                        .param("category", "MEDICAL")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String docId = jsonMapper.readTree(upload.getResponse().getContentAsString()).get("id").asText();
+        Document doc = documentRepository.findById(UUID.fromString(docId)).orElseThrow();
+
+        // Simulate an already-lost file: file deletion is idempotent.
+        Files.deleteIfExists(storageRoot.resolve(doc.getStoredObjectKey()));
+
+        mockMvc.perform(delete(BASE_URL + "/" + docId)
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isNoContent());
+
+        assertThat(documentRepository.findById(UUID.fromString(docId))).isEmpty();
     }
 
     @Test

@@ -33,26 +33,30 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
      * explicit due time, when that instant precedes "now". An all-day task is
      * not considered overdue until its calendar day has passed.</p>
      */
-    @EntityGraph(attributePaths = {"list"})
-    @Query("""
-            SELECT t FROM Task t
-            WHERE t.user.id = :userId
-              AND t.status IN :statuses
-              AND (:listId IS NULL OR t.list.id = :listId)
-              AND (:priority IS NULL OR t.priority = :priority)
-              AND (:from IS NULL OR (t.dueAt IS NOT NULL AND t.dueAt >= :from))
-              AND (:to IS NULL OR (t.dueAt IS NOT NULL AND t.dueAt < :to))
-              AND (:overdueCutoff IS NULL OR (t.dueAt IS NOT NULL AND
-                    (t.dueAt < :todayStart OR (t.dueTime IS NOT NULL AND t.dueAt < :overdueCutoff))))
-            """)
+    @Query(value = """
+            SELECT t.* FROM planner_task t
+            WHERE t.user_id = :userId
+              AND t.status IN (:statuses)
+              AND (CAST(:listId AS uuid) IS NULL OR t.list_id = :listId)
+              AND (CAST(:priority AS text) IS NULL OR t.priority = :priority)
+              AND (CAST(:from AS timestamptz) IS NULL OR (t.due_at IS NOT NULL AND t.due_at >= :from))
+              AND (CAST(:to AS timestamptz) IS NULL OR (t.due_at IS NOT NULL AND t.due_at < :to))
+              AND (CAST(:overdueCutoff AS timestamptz) IS NULL OR (t.due_at IS NOT NULL AND
+                    (t.due_at < :todayStart OR (t.due_time IS NOT NULL AND t.due_at < :overdueCutoff))))
+            ORDER BY
+              CASE WHEN :sortByCompletion THEN t.completed_at END DESC NULLS LAST,
+              t.due_at ASC NULLS LAST,
+              t.created_at DESC
+            """, nativeQuery = true)
     Page<Task> search(@Param("userId") UUID userId,
-                      @Param("statuses") Collection<TaskStatus> statuses,
+                      @Param("statuses") Collection<String> statuses,
                       @Param("listId") UUID listId,
-                      @Param("priority") TaskPriority priority,
+                      @Param("priority") String priority,
                       @Param("from") OffsetDateTime from,
                       @Param("to") OffsetDateTime to,
                       @Param("overdueCutoff") OffsetDateTime overdueCutoff,
                       @Param("todayStart") OffsetDateTime todayStart,
+                      @Param("sortByCompletion") boolean sortByCompletion,
                       Pageable pageable);
 
     @EntityGraph(attributePaths = {"list"})
@@ -84,12 +88,4 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     @Query("UPDATE Task t SET t.list = null WHERE t.user.id = :userId AND t.list.id = :listId")
     void detachList(@Param("userId") UUID userId, @Param("listId") UUID listId);
 
-    @Query("""
-            SELECT t FROM Task t
-            WHERE t.user.id = :userId
-              AND (LOWER(t.title) LIKE LOWER(:term) OR LOWER(t.description) LIKE LOWER(:term))
-            """)
-    Page<Task> searchByText(@Param("userId") UUID userId,
-                            @Param("term") String term,
-                            Pageable pageable);
-}
+    }

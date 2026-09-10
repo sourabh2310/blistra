@@ -2,6 +2,7 @@ package com.blistra.users.application;
 
 import com.blistra.common.exception.InvalidCredentialsException;
 import com.blistra.users.domain.User;
+import com.blistra.users.domain.UserStatus;
 import com.blistra.users.repository.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,7 +36,11 @@ public class CurrentUserProvider {
             throw new InvalidCredentialsException("Authentication required");
         }
         String email = userDetails.getUsername();
-        return userRepository.findByEmail(email)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new InvalidCredentialsException("Authentication required"));
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new InvalidCredentialsException("Authentication required");
+        }
+        return user;
     }
 }

@@ -10,6 +10,7 @@ import com.blistra.health.repository.HealthAppointmentRepository;
 import com.blistra.users.application.CurrentUserProvider;
 import com.blistra.users.domain.User;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +34,8 @@ public class AppointmentService {
     @Transactional(readOnly = true)
     public PageResponse<AppointmentResponse> list(OffsetDateTime from, OffsetDateTime to, Pageable pageable) {
         User user = currentUserProvider.getCurrentUser();
-        Page<HealthAppointment> page = appointmentRepository.search(user.getId(), from, to, pageable);
+        Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        Page<HealthAppointment> page = appointmentRepository.search(user.getId(), from, to, unsorted);
         return PageResponse.of(page.map(this::toResponse));
     }
 

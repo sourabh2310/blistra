@@ -17,23 +17,15 @@ public interface HealthSleepRecordRepository extends JpaRepository<HealthSleepRe
 
     Optional<HealthSleepRecord> findByIdAndUserId(UUID id, UUID userId);
 
-    @Query("""
-            SELECT s FROM HealthSleepRecord s
-            WHERE s.user.id = :userId
-              AND (:from IS NULL OR s.startedAt >= :from)
-              AND (:to IS NULL OR s.startedAt <= :to)
-            """)
+    @Query(value = """
+            SELECT s.* FROM health_sleep_records s
+            WHERE s.user_id = :userId
+              AND (CAST(:from AS timestamptz) IS NULL OR s.started_at >= :from)
+              AND (CAST(:to AS timestamptz) IS NULL OR s.started_at <= :to)
+            ORDER BY s.started_at DESC
+            """, nativeQuery = true)
     Page<HealthSleepRecord> search(@Param("userId") UUID userId,
                                    @Param("from") OffsetDateTime from,
                                    @Param("to") OffsetDateTime to,
                                    Pageable pageable);
-
-    @Query("""
-            SELECT s FROM HealthSleepRecord s
-            WHERE s.user.id = :userId
-              AND LOWER(s.notes) LIKE LOWER(:term)
-            """)
-    Page<HealthSleepRecord> searchByText(@Param("userId") UUID userId,
-                                         @Param("term") String term,
-                                         Pageable pageable);
 }

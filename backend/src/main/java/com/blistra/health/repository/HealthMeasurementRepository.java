@@ -18,15 +18,16 @@ public interface HealthMeasurementRepository extends JpaRepository<HealthMeasure
 
     Optional<HealthMeasurement> findByIdAndUserId(UUID id, UUID userId);
 
-    @Query("""
-            SELECT m FROM HealthMeasurement m
-            WHERE m.user.id = :userId
-              AND (:type IS NULL OR m.type = :type)
-              AND (:from IS NULL OR m.measuredAt >= :from)
-              AND (:to IS NULL OR m.measuredAt <= :to)
-            """)
+    @Query(value = """
+            SELECT m.* FROM health_measurements m
+            WHERE m.user_id = :userId
+              AND (CAST(:type AS text) IS NULL OR m.type = :type)
+              AND (CAST(:from AS timestamptz) IS NULL OR m.measured_at >= :from)
+              AND (CAST(:to AS timestamptz) IS NULL OR m.measured_at <= :to)
+            ORDER BY m.measured_at DESC
+            """, nativeQuery = true)
     Page<HealthMeasurement> search(@Param("userId") UUID userId,
-                                   @Param("type") MeasurementType type,
+                                   @Param("type") String type,
                                    @Param("from") OffsetDateTime from,
                                    @Param("to") OffsetDateTime to,
                                    Pageable pageable);
@@ -40,13 +41,4 @@ public interface HealthMeasurementRepository extends JpaRepository<HealthMeasure
     Optional<HealthMeasurement> findLatestByUserIdAndTypeOrderByMeasuredAtDesc(
             @Param("userId") UUID userId,
             @Param("type") MeasurementType type);
-
-    @Query("""
-            SELECT m FROM HealthMeasurement m
-            WHERE m.user.id = :userId
-              AND (LOWER(m.notes) LIKE LOWER(:term) OR LOWER(m.source) LIKE LOWER(:term))
-            """)
-    Page<HealthMeasurement> searchByText(@Param("userId") UUID userId,
-                                         @Param("term") String term,
-                                         Pageable pageable);
 }

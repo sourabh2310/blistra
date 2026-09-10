@@ -23,4 +23,7 @@ public interface HabitCompletionRepository extends JpaRepository<HabitCompletion
     long countByHabitId(UUID habitId);
 
     List<HabitCompletion> findAllByHabitIdOrderByCompletedOnAsc(UUID habitId);
+
+    List<HabitCompletion> findAllByHabitIdInAndCompletedOn(java.util.Collection<UUID> habitIds,
+                                                           LocalDate completedOn);
 }

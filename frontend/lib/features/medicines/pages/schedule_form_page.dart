@@ -4,10 +4,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/auth/auth_state.dart';
-import '../../core/api/api_client.dart';
+import '../../../core/auth/auth_state.dart';
+import '../../../core/api/api_client.dart';
 import '../data/medicines_api_client.dart';
 import '../models/medicine_enums.dart';
+import '../models/schedule.dart' show Schedule, ScheduleType, scheduleTypeLabel;
 import '../state/schedule_form_controller.dart';
 
 class ScheduleFormPage extends StatefulWidget {

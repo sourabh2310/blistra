@@ -35,7 +35,7 @@ public interface DoseRecordRepository extends JpaRepository<DoseRecord, UUID> {
             @Param("to") OffsetDateTime to);
 
     @Query("""
-            SELECT d FROM DoseRecord d
+            SELECT count(d) FROM DoseRecord d
             WHERE d.medicine.user.id = :userId
               AND d.scheduledAt >= :from
               AND d.scheduledAt <= :to

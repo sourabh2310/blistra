@@ -20,18 +20,18 @@ public interface WaterIntakeRepository extends JpaRepository<WaterIntake, UUID> 
 
     Page<WaterIntake> findAllByUserIdOrderByConsumedAtDesc(UUID userId, Pageable pageable);
 
-    Page<WaterIntake> findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtDesc(
+    /**
+     * Half-open day window {@code [start, end)}: an intake exactly at midnight
+     * belongs to exactly one day.
+     */
+    Page<WaterIntake> findAllByUserIdAndConsumedAtGreaterThanEqualAndConsumedAtLessThanOrderByConsumedAtDesc(
             UUID userId, OffsetDateTime start, OffsetDateTime end, Pageable pageable);
 
-    List<WaterIntake> findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtAsc(
+    /**
+     * Half-open day window {@code [start, end)}: an intake exactly at midnight
+     * belongs to exactly one day.
+     */
+    List<WaterIntake> findAllByUserIdAndConsumedAtGreaterThanEqualAndConsumedAtLessThanOrderByConsumedAtAsc(
             UUID userId, OffsetDateTime start, OffsetDateTime end);
 
-    @Query("""
-            SELECT w FROM WaterIntake w
-            WHERE w.userId = :userId
-              AND LOWER(w.notes) LIKE LOWER(:term)
-            """)
-    Page<WaterIntake> searchByText(@Param("userId") UUID userId,
-                                   @Param("term") String term,
-                                   Pageable pageable);
-}
+    }

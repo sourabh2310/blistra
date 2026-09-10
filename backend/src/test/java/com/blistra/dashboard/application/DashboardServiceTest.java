@@ -3,6 +3,7 @@ package com.blistra.dashboard.application;
 import com.blistra.dashboard.dto.DashboardResponse;
 import com.blistra.diet.domain.MealType;
 import com.blistra.diet.dto.DietSummaryResponse;
+import com.blistra.diet.dto.MacroTotalsResponse;
 import com.blistra.diet.dto.MealResponse;
 import com.blistra.diet.dto.NutritionTotalsResponse;
 import com.blistra.diet.dto.WaterResponse;
@@ -58,6 +59,9 @@ class DashboardServiceTest {
     @Mock
     private com.blistra.users.application.CurrentUserProvider currentUserProvider;
 
+    @Mock
+    private com.blistra.common.time.UserTime userTime;
+
     private DashboardService dashboardService;
     private User testUser;
 
@@ -70,12 +74,15 @@ class DashboardServiceTest {
                 dietSummaryService,
                 habitService,
                 healthSummaryProvider,
-                medicineSummaryProvider
+                medicineSummaryProvider,
+                userTime
         );
 
         testUser = new User();
         testUser.setId(UUID.randomUUID());
         testUser.setEmail("test@example.com");
+
+        lenient().when(userTime.now()).thenReturn(OffsetDateTime.now());
     }
 
     @Test
@@ -200,11 +207,10 @@ class DashboardServiceTest {
         TaskResponse task = TaskResponse.builder()
                 .id(taskId)
                 .title("Test Task")
-                .listId(UUID.randomUUID())
-                .listName("Personal")
+                .taskListId(UUID.randomUUID())
+                .taskListName("Personal")
                 .priority(com.blistra.planner.domain.TaskPriority.HIGH)
-                .status(com.blistra.planner.domain.TaskStatus.PENDING)
-                .allDay(false)
+                .status(com.blistra.planner.domain.TaskStatus.TODO)
                 .dueAt(OffsetDateTime.now())
                 .build();
 
@@ -213,7 +219,6 @@ class DashboardServiceTest {
                 .title("Test Event")
                 .startAt(OffsetDateTime.now())
                 .endAt(OffsetDateTime.now().plusHours(1))
-                .allDay(false)
                 .build();
 
         when(currentUserProvider.getCurrentUser()).thenReturn(testUser);
@@ -337,7 +342,7 @@ class DashboardServiceTest {
                         .mealCount(1)
                         .meals(List.of(MealResponse.builder()
                                 .id(UUID.randomUUID())
-                                .type(MealType.LUNCH)
+                                .mealType(MealType.LUNCH)
                                 .consumedAt(OffsetDateTime.now())
                                 .items(List.of())
                                 .build()))
@@ -350,7 +355,7 @@ class DashboardServiceTest {
                                 .build()))
                         .waterTotalMilliliters(BigDecimal.valueOf(500))
                         .nutrition(NutritionTotalsResponse.builder()
-                                .caloriesKcal(NutritionTotalsResponse.MacroTotalsResponse.builder().total(BigDecimal.valueOf(500)).recordedItems(1).build())
+                                .caloriesKcal(MacroTotalsResponse.builder().total(BigDecimal.valueOf(500)).recordedItems(1).build())
                                 .build())
                         .build());
         lenient().when(habitService.today()).thenReturn(List.of());
@@ -433,6 +438,6 @@ class DashboardServiceTest {
         assertThat(response.getHabits().getRemainingToday()).isEqualTo(0);
         assertThat(response.getHabits().getTodayHabits()).hasSize(1);
         assertThat(response.getHabits().getTodayHabits().get(0).getId()).isEqualTo(habitId.toString());
-        assertThat(response.getHabits().getTodayHabits().get(0).getCompletedToday()).isTrue();
+        assertThat(response.getHabits().getTodayHabits().get(0).isCompletedToday()).isTrue();
     }
 }

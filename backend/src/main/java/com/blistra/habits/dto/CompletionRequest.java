@@ -4,7 +4,6 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PastOrPresent;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,8 +27,10 @@ import java.time.LocalDate;
 @Builder
 public class CompletionRequest {
 
+    // "Future" is judged against the configured user timezone (UserTime) in
+    // HabitCompletionService, not the server-local zone, so @PastOrPresent
+    // (server-zone based) must not be used here.
     @NotNull(message = "Completed on is required")
-    @PastOrPresent(message = "Completed on cannot be in the future")
     private LocalDate completedOn;
 
     @DecimalMin(value = "0.0", message = "Value cannot be negative")

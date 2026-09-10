@@ -83,4 +83,25 @@ class FinanceSummaryIntegrationTest extends FinanceTestSupport {
         mockMvc.perform(get(SUMMARY_URL))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void summaryDoesNotLeakAnotherUsersData() throws Exception {
+        String tokenA = registerAndLogin("a-owner@example.com", "Password123!");
+        String accountA = createAccount(tokenA, "Cash", "CASH", "USD", "100.0000");
+        String salaryA = createCategory(tokenA, "Salary", "INCOME");
+        createTransaction(tokenA, accountA, salaryA, "INCOME", "1000.0000", "2026-09-05");
+
+        String tokenB = registerAndLogin("b-owner@example.com", "Password123!");
+        mockMvc.perform(get(SUMMARY_URL)
+                .header("Authorization", "Bearer " + tokenB)
+                .param("from", "2026-09-01")
+                .param("to", "2026-09-30"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currencies.length()").value(0));
+
+        mockMvc.perform(get(ACCOUNTS_URL)
+                .header("Authorization", "Bearer " + tokenB))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
 }

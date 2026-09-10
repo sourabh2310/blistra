@@ -8,6 +8,7 @@ import com.blistra.auth.security.JwtProvider;
 import com.blistra.common.exception.InvalidCredentialsException;
 import com.blistra.common.exception.ResourceAlreadyExistsException;
 import com.blistra.users.domain.User;
+import com.blistra.users.domain.UserStatus;
 import com.blistra.users.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,14 +35,14 @@ public class AuthService {
 
     @Transactional
     public UserResponse register(RegisterRequest request) {
-        log.debug("Attempting to register user with email: {}", request.getEmail());
+        log.debug("Attempting to register user");
 
         // Normalize email to lowercase for consistency
         String normalizedEmail = request.getEmail().toLowerCase().trim();
 
         // Check if user already exists
         if (userRepository.existsByEmail(normalizedEmail)) {
-            log.warn("Registration attempt with existing email: {}", normalizedEmail);
+            log.warn("Registration attempt for existing account");
             throw new ResourceAlreadyExistsException("Email already registered");
         }
 
@@ -59,7 +60,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        log.debug("Attempting login for email: {}", request.getEmail());
+        log.debug("Attempting login");
 
         // Normalize email
         String normalizedEmail = request.getEmail().toLowerCase().trim();
@@ -67,13 +68,20 @@ public class AuthService {
         // Find user
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> {
-                    log.warn("Login attempt with non-existent email: {}", normalizedEmail);
+                    log.warn("Login attempt for unknown account");
                     return new InvalidCredentialsException("Invalid email or password");
                 });
 
+        // Only ACTIVE users may authenticate. INACTIVE and SUSPENDED users are
+        // rejected with the same generic message to avoid account enumeration.
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            log.warn("Login attempt for non-active account: {}", user.getId());
+            throw new InvalidCredentialsException("Invalid email or password");
+        }
+
         // Verify password
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            log.warn("Failed login attempt for user: {}", normalizedEmail);
+            log.warn("Failed login attempt for user: {}", user.getId());
             throw new InvalidCredentialsException("Invalid email or password");
         }
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import 'widgets.dart';
@@ -40,13 +40,13 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
     _durationController = TextEditingController(
         text: initial?.durationMinutes == null
             ? ''
-            : '${initial.durationMinutes}');
+            : '${initial!.durationMinutes}');
     _distanceController = TextEditingController(
-        text: initial?.distanceKm == null ? '' : formatDouble(initial.distanceKm));
+        text: initial?.distanceKm == null ? '' : formatDouble(initial!.distanceKm!));
     _caloriesController = TextEditingController(
         text: initial?.caloriesBurned == null
             ? ''
-            : '${initial.caloriesBurned}');
+            : '${initial!.caloriesBurned}');
     _notesController = TextEditingController(text: initial?.notes ?? '');
   }
 

@@ -29,11 +29,11 @@ public class FinanceTransfer {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "source_account_id", nullable = false, updatable = false)
+    @JoinColumn(name = "source_account_id", nullable = false)
     private Account sourceAccount;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "destination_account_id", nullable = false, updatable = false)
+    @JoinColumn(name = "destination_account_id", nullable = false)
     private Account destinationAccount;
 
     @Column(nullable = false, precision = 19, scale = 4)
@@ -87,8 +87,16 @@ public class FinanceTransfer {
         return sourceAccount;
     }
 
+    public void setSourceAccount(Account sourceAccount) {
+        this.sourceAccount = sourceAccount;
+    }
+
     public Account getDestinationAccount() {
         return destinationAccount;
+    }
+
+    public void setDestinationAccount(Account destinationAccount) {
+        this.destinationAccount = destinationAccount;
     }
 
     public BigDecimal getAmount() {
@@ -101,6 +109,10 @@ public class FinanceTransfer {
 
     public String getCurrency() {
         return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public LocalDate getTransferredAt() {

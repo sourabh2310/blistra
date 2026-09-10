@@ -21,12 +21,4 @@ public interface TaskListRepository extends JpaRepository<TaskList, UUID> {
 
     List<TaskList> findByUserIdOrderByCreatedAtAsc(UUID userId);
 
-    @Query("""
-            SELECT l FROM TaskList l
-            WHERE l.user.id = :userId
-              AND (LOWER(l.name) LIKE LOWER(:term) OR LOWER(l.description) LIKE LOWER(:term))
-            """)
-    Page<TaskList> searchByText(@Param("userId") UUID userId,
-                                @Param("term") String term,
-                                Pageable pageable);
-}
+    }

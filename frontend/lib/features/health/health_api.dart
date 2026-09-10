@@ -8,8 +8,8 @@
 /// simply means no profile exists yet and surfaces as `null`.
 library;
 
-import '../../core/api_exception.dart';
-import '../../core/api_client.dart';
+import '../../core/api/api_exception.dart';
+import '../../core/api/api_client.dart';
 import 'health_models.dart';
 
 class HealthApi {

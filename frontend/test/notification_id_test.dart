@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import 'package:frontend/notifications/services/notification_id.dart';
+import 'package:frontend/features/notifications/services/notification_id.dart';
 
 void main() {
   group('notificationIdFor', () {

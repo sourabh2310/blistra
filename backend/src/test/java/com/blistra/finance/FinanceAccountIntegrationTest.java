@@ -4,6 +4,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -60,6 +64,42 @@ class FinanceAccountIntegrationTest extends FinanceTestSupport {
         missingType.put("openingBalance", "100");
         mockMvc.perform(postAccount(missingType, token))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void creditCardEnforcesNonNegativeOpeningBalance() throws Exception {
+        String token = registerAndLogin("owner@example.com", "Password123!");
+
+        // V1 asset-side model: even CREDIT_CARD opens at >= 0; card debt is
+        // tracked through transactions, never as a negative opening balance.
+        String cardId = createAccount(token, "Visa", "CREDIT_CARD", "USD", "0.0000");
+        mockMvc.perform(get(ACCOUNTS_URL + "/" + cardId)
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value("0.0000"));
+
+        ObjectNode negativeCard = jsonMapper.createObjectNode();
+        negativeCard.put("name", "Mastercard");
+        negativeCard.put("type", "CREDIT_CARD");
+        negativeCard.put("currency", "USD");
+        negativeCard.put("openingBalance", "-500.0000");
+        mockMvc.perform(postAccount(negativeCard, token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void databaseRejectsNegativeOpeningBalanceDirectly() throws Exception {
+        registerAndLogin("owner@example.com", "Password123!");
+        UUID userId = jdbcTemplate.queryForObject(
+                "SELECT id FROM users LIMIT 1", UUID.class);
+
+        // Defense in depth: the CHECK constraint holds even if API validation
+        // is ever bypassed.
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "INSERT INTO finance_accounts (user_id, name, type, currency, opening_balance)"
+                        + " VALUES (?, ?, ?, ?, ?)",
+                userId, "Sneaky", "CASH", "USD", new java.math.BigDecimal("-1.0000")))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 
     @Test

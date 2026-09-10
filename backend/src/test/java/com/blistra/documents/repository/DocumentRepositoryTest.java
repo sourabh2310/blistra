@@ -31,7 +31,7 @@ class DocumentRepositoryTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         documentRepository.deleteAll();
-        userRepository.deleteAll();
+        deleteAllUsers();
 
         user = new User("test@example.com", "hash");
         user = userRepository.save(user);
@@ -101,7 +101,7 @@ class DocumentRepositoryTest extends AbstractIntegrationTest {
         Document d2 = new Document(user, "b.jpg", "k2", "image/jpeg", 200L, "h2", DocumentCategory.FINANCE, "d2");
         documentRepository.saveAll(List.of(d1, d2));
 
-        var page = documentRepository.searchOwned(userId, DocumentCategory.MEDICAL, null, null, org.springframework.data.domain.PageRequest.of(0, 10));
+        var page = documentRepository.searchOwned(userId, DocumentCategory.MEDICAL.name(), null, null, org.springframework.data.domain.PageRequest.of(0, 10));
 
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent().get(0).getCategory()).isEqualTo(DocumentCategory.MEDICAL);
@@ -110,10 +110,13 @@ class DocumentRepositoryTest extends AbstractIntegrationTest {
     @Test
     void searchOwned_filterByDateRange() {
         Document d1 = new Document(user, "old.pdf", "k1", "application/pdf", 100L, "h1", DocumentCategory.MEDICAL, "old");
-        d1.setCreatedAt(LocalDateTime.now().minusDays(10));
         Document d2 = new Document(user, "new.jpg", "k2", "image/jpeg", 200L, "h2", DocumentCategory.FINANCE, "new");
-        d2.setCreatedAt(LocalDateTime.now().minusDays(1));
         documentRepository.saveAll(List.of(d1, d2));
+
+        jdbcTemplate.update("UPDATE documents SET created_at = ? WHERE id = ?",
+                LocalDateTime.now().minusDays(10), d1.getId());
+        jdbcTemplate.update("UPDATE documents SET created_at = ? WHERE id = ?",
+                LocalDateTime.now().minusDays(1), d2.getId());
 
         var page = documentRepository.searchOwned(userId, null,
                 LocalDateTime.now().minusDays(5), null,

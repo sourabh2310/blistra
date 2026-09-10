@@ -10,6 +10,7 @@ import com.blistra.habits.dto.CompletionRequest;
 import com.blistra.habits.dto.CompletionResponse;
 import com.blistra.habits.dto.HabitStatisticsResponse;
 import com.blistra.habits.dto.PageResponse;
+import com.blistra.common.time.UserTime;
 import com.blistra.habits.repository.HabitCompletionRepository;
 import com.blistra.habits.repository.HabitRepository;
 import com.blistra.habits.repository.HabitScheduleRepository;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -38,20 +40,24 @@ public class HabitCompletionService {
     private final HabitRepository habitRepository;
     private final HabitScheduleRepository scheduleRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final UserTime userTime;
 
     public HabitCompletionService(HabitCompletionRepository completionRepository,
                                   HabitRepository habitRepository,
                                   HabitScheduleRepository scheduleRepository,
-                                  CurrentUserProvider currentUserProvider) {
+                                  CurrentUserProvider currentUserProvider,
+                                  UserTime userTime) {
         this.completionRepository = completionRepository;
         this.habitRepository = habitRepository;
         this.scheduleRepository = scheduleRepository;
         this.currentUserProvider = currentUserProvider;
+        this.userTime = userTime;
     }
 
     public CompletionResponse record(UUID habitId, CompletionRequest request) {
         Habit habit = getOwned(habitId);
         validateShape(habit, request);
+        validateNotFuture(request);
         HabitCompletion completion = completionRepository
                 .findByHabitIdAndCompletedOn(habitId, request.getCompletedOn())
                 .orElseGet(() -> new HabitCompletion(habit, request.getCompletedOn()));
@@ -84,7 +90,7 @@ public class HabitCompletionService {
         Set<LocalDate> completedDays = completions.stream()
                 .map(HabitCompletion::getCompletedOn)
                 .collect(Collectors.toSet());
-        LocalDate today = LocalDate.now();
+        LocalDate today = userTime.today();
         LocalDate createdOn = habit.getCreatedAt() == null ? today : habit.getCreatedAt().toLocalDate();
         LocalDate firstCompletedOn = completions.isEmpty() ? createdOn : completions.get(0).getCompletedOn();
         LocalDate lowerBound = firstCompletedOn.isBefore(createdOn) ? firstCompletedOn : createdOn;
@@ -97,6 +103,12 @@ public class HabitCompletionService {
                 .bestStreak(HabitStreakCalculator.bestStreak(schedule, completedDays, lowerBound, today))
                 .lastCompletedOn(lastCompleted)
                 .build();
+    }
+
+    private void validateNotFuture(CompletionRequest request) {
+        if (request.getCompletedOn() != null && request.getCompletedOn().isAfter(userTime.today())) {
+            throw new BadRequestException("Completed on cannot be in the future");
+        }
     }
 
     private void validateShape(Habit habit, CompletionRequest request) {
@@ -123,10 +135,14 @@ public class HabitCompletionService {
                 .id(completion.getId())
                 .habitId(completion.getHabit().getId())
                 .completedOn(completion.getCompletedOn())
-                .value(completion.getValue())
+                .value(scale(completion.getValue()))
                 .durationMinutes(completion.getDurationMinutes())
                 .createdAt(completion.getCreatedAt())
                 .updatedAt(completion.getUpdatedAt())
                 .build();
+    }
+
+    private BigDecimal scale(BigDecimal value) {
+        return value == null ? null : value.setScale(4);
     }
 }

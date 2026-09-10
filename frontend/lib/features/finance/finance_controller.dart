@@ -7,7 +7,7 @@
 /// which is the source of truth.
 library;
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show ChangeNotifier;
 
 import '../../core/api/api_exception.dart';
 import 'finance_api.dart';

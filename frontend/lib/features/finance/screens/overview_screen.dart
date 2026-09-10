@@ -8,8 +8,8 @@ import '../../../core/money/money.dart';
 import '../finance_controller.dart';
 import '../finance_scope.dart';
 import '../models.dart';
-import 'account_form_screen.dart';
-import 'transaction_form_screen.dart';
+import 'accounts_screen.dart';
+import 'transactions_screen.dart';
 
 class OverviewScreen extends StatelessWidget {
   const OverviewScreen({super.key});

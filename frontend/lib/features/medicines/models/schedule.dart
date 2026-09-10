@@ -136,7 +136,7 @@ String scheduleRangeLabel(Schedule s) {
   if (start == null && end == null) {
     return 'Unlimited';
   }
-  final String f = DateFormat('dd MMM yyyy');
+  final f = DateFormat('dd MMM yyyy');
   if (start == null) {
     return 'until ${f.format(end!)}';
   }

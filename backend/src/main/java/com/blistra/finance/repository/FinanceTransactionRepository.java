@@ -33,6 +33,11 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
             + "WHERE t.user.id = :userId GROUP BY t.account.id, t.type")
     List<Object[]> sumByAccountAndType(@Param("userId") UUID userId);
 
+    @Query("SELECT t.type, SUM(t.amount) FROM FinanceTransaction t "
+            + "WHERE t.user.id = :userId AND t.account.id = :accountId GROUP BY t.type")
+    List<Object[]> sumByTypeForAccount(@Param("userId") UUID userId,
+                                       @Param("accountId") UUID accountId);
+
     /**
      * Sum of transaction amounts grouped by (currency, type) for a user within
      * a calendar-day range. Used to build currency-aware summaries.

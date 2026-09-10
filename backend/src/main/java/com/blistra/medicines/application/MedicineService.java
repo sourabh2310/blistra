@@ -35,7 +35,8 @@ public class MedicineService {
     public PageResponse<MedicineResponse> list(MedicineStatus status, Pageable pageable) {
         User user = currentUserProvider.getCurrentUser();
         Page<Medicine> page = status == null
-                ? medicineRepository.findAllByUserIdOrderByCreatedAtDesc(user.getId(), pageable)
+                ? medicineRepository.findAllByUserIdAndStatusNotOrderByCreatedAtDesc(
+                        user.getId(), MedicineStatus.ARCHIVED, pageable)
                 : medicineRepository.findAllByUserIdAndStatusOrderByCreatedAtDesc(user.getId(), status, pageable);
         return PageResponse.of(page.map(this::toResponse));
     }

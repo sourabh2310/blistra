@@ -9,9 +9,10 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-import '../../../../core/api/api_exception.dart';
-import '../../../../core/config.dart';
+import '../../../core/api/api_exception.dart';
+import '../../../core/config/app_config.dart';
 import '../models/medicine.dart';
+import '../models/medicine_enums.dart';
 import '../models/dose_record.dart';
 import '../models/page.dart';
 import '../models/refill.dart';

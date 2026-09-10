@@ -22,13 +22,4 @@ public interface MealItemRepository extends JpaRepository<MealItem, UUID> {
 
     List<MealItem> findAllByMealIdIn(Collection<UUID> mealIds);
 
-    @Query("""
-            SELECT i FROM MealItem i
-            JOIN i.meal m
-            WHERE m.userId = :userId
-              AND (LOWER(i.name) LIKE LOWER(:term) OR LOWER(i.notes) LIKE LOWER(:term))
-            """)
-    Page<MealItem> searchByText(@Param("userId") UUID userId,
-                                @Param("term") String term,
-                                Pageable pageable);
-}
+    }

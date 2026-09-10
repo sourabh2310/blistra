@@ -17,6 +17,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Dashboard-internal adapter that reads Medicine data for aggregation.
@@ -50,7 +51,7 @@ public class MedicineSummaryProvider {
             UUID userId = user.getId();
 
             // Define today's range in user's local time (like Diet does)
-            ZoneOffset offset = ZoneOffset.ofTotalSeconds(offsetMinutes * 60L);
+            ZoneOffset offset = ZoneOffset.ofTotalSeconds(offsetMinutes * 60);
             OffsetDateTime todayStart = OffsetDateTime.now(offset).withHour(0).withMinute(0).withSecond(0).withNano(0);
             OffsetDateTime todayEnd = todayStart.plusDays(1);
 

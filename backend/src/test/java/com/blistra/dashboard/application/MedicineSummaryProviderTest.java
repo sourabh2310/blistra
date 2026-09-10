@@ -51,8 +51,8 @@ class MedicineSummaryProviderTest {
     void setUp() {
         provider = new MedicineSummaryProvider(medicineRepository, scheduleRepository, doseRepository, currentUserProvider);
 
-        when(testUser.getId()).thenReturn(UUID.randomUUID());
-        when(currentUserProvider.getCurrentUser()).thenReturn(testUser);
+        lenient().when(testUser.getId()).thenReturn(UUID.randomUUID());
+        lenient().when(currentUserProvider.getCurrentUser()).thenReturn(testUser);
     }
 
     @Test
@@ -60,7 +60,7 @@ class MedicineSummaryProviderTest {
         UUID userId = testUser.getId();
         int offsetMinutes = 330;
 
-        ZoneOffset offset = ZoneOffset.ofTotalSeconds(offsetMinutes * 60L);
+        ZoneOffset offset = ZoneOffset.ofTotalSeconds(offsetMinutes * 60);
         OffsetDateTime todayStart = OffsetDateTime.now(offset).withHour(0).withMinute(0).withSecond(0).withNano(0);
         OffsetDateTime todayEnd = todayStart.plusDays(1);
 

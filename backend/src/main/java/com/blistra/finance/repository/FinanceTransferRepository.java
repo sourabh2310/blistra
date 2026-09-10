@@ -31,6 +31,16 @@ public interface FinanceTransferRepository extends JpaRepository<FinanceTransfer
             + "WHERE t.user.id = :userId GROUP BY t.destinationAccount.id")
     List<Object[]> sumByDestinationAccount(@Param("userId") UUID userId);
 
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM FinanceTransfer t "
+            + "WHERE t.user.id = :userId AND t.sourceAccount.id = :accountId")
+    java.math.BigDecimal sumOutForAccount(@Param("userId") UUID userId,
+                                          @Param("accountId") UUID accountId);
+
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM FinanceTransfer t "
+            + "WHERE t.user.id = :userId AND t.destinationAccount.id = :accountId")
+    java.math.BigDecimal sumInForAccount(@Param("userId") UUID userId,
+                                         @Param("accountId") UUID accountId);
+
     /**
      * Sum of transfer amounts grouped by (source account currency, transferred_at)
      * for a user within a range. Used to report transfer totals per currency.
