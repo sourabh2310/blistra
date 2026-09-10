@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../formats.dart';
 import '../models/task.dart';
+import '../models/task_status.dart';
 
 /// One tappable task row with a completion toggle and a context menu.
 class TaskCard extends StatelessWidget {

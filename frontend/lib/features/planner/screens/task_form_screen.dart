@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../app_scope.dart';
+import '../../../features/app_scope.dart';
 import '../../../core/api/api_exception.dart';
 import '../formats.dart';
 import '../models/task.dart';
@@ -262,7 +262,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
       if (!lists.any((l) => l.id == _listId)) {
         return [
           ...lists,
-          TaskList(id: _listId!, name: widget.task!.taskListName ?? 'Unknown'),
+          TaskList(id: _listId!, name: widget.task!.taskListName ?? 'Unknown', taskCount: 0),
         ];
       }
     }

@@ -5,6 +5,7 @@
 /// constructing [ApiClient] directly (also how tests inject fakes).
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -12,6 +13,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'api_exception.dart';
+import 'api_interceptor.dart';
 
 class AuthResponseDto {
   AuthResponseDto({required this.token, required this.userEmail});
@@ -41,11 +43,22 @@ class UserResponseDto {
 }
 
 class ApiClient {
-  ApiClient({required this.baseUrl, http.Client? httpClient})
-      : _http = httpClient ?? http.Client();
+  ApiClient({
+    required this.baseUrl,
+    http.Client? httpClient,
+    this.timeout = const Duration(seconds: 15),
+    this.onUnauthorized,
+  }) : _http = httpClient ?? http.Client();
 
   final String baseUrl;
   final http.Client _http;
+
+  /// Per-request timeout applied to every network call.
+  final Duration timeout;
+
+  /// Invoked once when the backend answers 401 (expired/invalid JWT) so the
+  /// session layer can clear credentials and return to login.
+  Future<void> Function()? onUnauthorized;
 
   /// Bearer token attached to every request. Out of the box the app keeps it
   /// in memory only.
@@ -53,34 +66,25 @@ class ApiClient {
 
   bool get isAuthenticated => token != null && token!.isNotEmpty;
 
-  static const Map<String, String> _jsonHeaders = {
-    HttpHeaders.contentTypeHeader: 'application/json',
-    'Accept': 'application/json',
-  };
-
-  Map<String, String> _headers() => {
-        ..._jsonHeaders,
-        if (token != null && token!.isNotEmpty)
-          HttpHeaders.authorizationHeader: 'Bearer $token',
-      };
+  Map<String, String> _headers() => buildHeaders(token: token);
 
   Future<UserResponseDto> register(String email, String password) async {
-    final Map<String, dynamic> body = await _send(
+    final body = await _send(
       'POST',
       '/api/v1/auth/register',
       body: {'email': email, 'password': password},
       expectStatus: 201,
-    );
+    ) as Map<String, dynamic>;
     return UserResponseDto.fromJson(body);
   }
 
   Future<AuthResponseDto> login(String email, String password) async {
-    final Map<String, dynamic> body = await _send(
+    final body = await _send(
       'POST',
       '/api/v1/auth/login',
       body: {'email': email, 'password': password},
       expectStatus: 200,
-    );
+    ) as Map<String, dynamic>;
     final AuthResponseDto response = AuthResponseDto.fromJson(body);
     token = response.token;
     return response;
@@ -148,16 +152,19 @@ class ApiClient {
     final http.Request request = http.Request('GET', uri)
       ..headers.addAll(_headers());
     try {
-      final http.StreamedResponse streamed = await _http.send(request);
+      final http.StreamedResponse streamed =
+          await _http.send(request).timeout(timeout);
       final http.Response response =
-          await http.Response.fromStream(streamed);
+          await http.Response.fromStream(streamed).timeout(timeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw _toApiException(
-            response.statusCode, _tryDecode(response.body));
+        throw await _toApiExceptionAsync(response.statusCode,
+            _tryDecode(response.body), response.body);
       }
       return response.bodyBytes;
     } on ApiException {
       rethrow;
+    } on TimeoutException catch (error) {
+      throw NetworkException(error);
     } catch (error) {
       throw NetworkException(error);
     }
@@ -181,12 +188,14 @@ class ApiClient {
       ..fields.addAll(fields)
       ..files.addAll(files);
     try {
-      final http.StreamedResponse streamed = await _http.send(request);
+      final http.StreamedResponse streamed =
+          await _http.send(request).timeout(timeout);
       final http.Response response =
-          await http.Response.fromStream(streamed);
+          await http.Response.fromStream(streamed).timeout(timeout);
       final Object? decoded = _tryDecode(response.body);
       if (response.statusCode != expectStatus) {
-        throw _toApiException(response.statusCode, decoded);
+        throw await _toApiExceptionAsync(
+            response.statusCode, decoded, response.body);
       }
       if (decoded is Map<String, dynamic>) {
         onProgress?.call(1.0);
@@ -216,12 +225,15 @@ class ApiClient {
       request.body = jsonEncode(body);
     }
     try {
-      final http.StreamedResponse streamed = await _http.send(request);
+      final http.StreamedResponse streamed =
+          await _http.send(request).timeout(timeout);
       final http.Response response =
-          await http.Response.fromStream(streamed);
+          await http.Response.fromStream(streamed).timeout(timeout);
       return _decode(response, expectStatus: expectStatus);
     } on ApiException {
       rethrow;
+    } on TimeoutException catch (error) {
+      throw NetworkException(error);
     } catch (error) {
       throw NetworkException(error);
     }
@@ -229,8 +241,32 @@ class ApiClient {
 
   Object? _decode(http.Response response, {int? expectStatus}) {
     final Object? decoded = _tryDecode(response.body);
-    if (expectStatus != null && response.statusCode != expectStatus) {
-      throw _toApiException(response.statusCode, decoded);
+    // Empty-body success (e.g. HTTP 204 on DELETE) is valid.
+    if (response.body.isEmpty &&
+        (response.statusCode == 204 ||
+            (expectStatus == null &&
+                response.statusCode >= 200 &&
+                response.statusCode < 300))) {
+      return null;
+    }
+    if (response.statusCode == 401) {
+      final cb = onUnauthorized;
+      if (cb != null) {
+        // Fire-and-forget: session cleanup must never break error mapping.
+        // ignore: discarded_futures
+        cb();
+      }
+    }
+    if (expectStatus != null) {
+      if (response.statusCode != expectStatus) {
+        throw _toApiException(response.statusCode, decoded,
+            rawBody: response.body);
+      }
+      return decoded;
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _toApiException(response.statusCode, decoded,
+          rawBody: response.body);
     }
     return decoded;
   }
@@ -246,14 +282,39 @@ class ApiClient {
     }
   }
 
-  static ApiException _toApiException(int statusCode, Object? decoded) {
+  Future<ApiException> _toApiExceptionAsync(
+    int statusCode,
+    Object? decoded,
+    String rawBody,
+  ) async {
+    if (statusCode == 401) {
+      final cb = onUnauthorized;
+      if (cb != null) {
+        // ignore: discarded_futures
+        cb();
+      }
+    }
+    return _toApiException(statusCode, decoded, rawBody: rawBody);
+  }
+
+  static ApiException _toApiException(int statusCode, Object? decoded,
+      {String rawBody = ''}) {
     final Map<String, dynamic>? json =
         decoded is Map<String, dynamic> ? decoded : null;
     if (json == null) {
-      return ApiException(statusCode, 'HTTP_$statusCode', '');
+      // Never surface raw HTML/stack traces; keep a safe message.
+      final message = statusCode >= 500
+          ? 'Something went wrong. Please try again.'
+          : rawBody.isNotEmpty && rawBody.length < 200 && !rawBody.contains('<')
+              ? rawBody
+              : '';
+      return ApiException(statusCode, 'HTTP_$statusCode', message);
     }
     final String code = json['code'] as String? ?? 'HTTP_$statusCode';
-    final String message = json['message'] as String? ?? '';
+    var message = json['message'] as String? ?? '';
+    if (statusCode >= 500 && (message.isEmpty || code == 'HTTP_$statusCode')) {
+      message = 'Something went wrong. Please try again.';
+    }
     final Map<String, String> fieldErrors = {};
     final Object? errors = json['errors'];
     if (errors is List) {

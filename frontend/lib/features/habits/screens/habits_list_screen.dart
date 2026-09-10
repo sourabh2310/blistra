@@ -7,6 +7,7 @@ import '../habits_controller.dart';
 import '../habits_scope.dart';
 import '../models.dart';
 import '../widgets/habit_tile.dart';
+import 'habit_detail_screen.dart';
 import 'habit_form_screen.dart';
 
 class HabitsListScreen extends StatelessWidget {

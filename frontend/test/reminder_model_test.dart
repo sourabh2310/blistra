@@ -1,8 +1,7 @@
 import 'package:test/test.dart';
 
-import 'package:frontend/notifications/models/reminder.dart';
-import 'package:frontend/notifications/models/reminder_type.dart';
-import 'package:frontend/notifications/models/reminder_status.dart';
+import 'package:frontend/features/notifications/models/reminder.dart';
+import 'package:frontend/features/notifications/models/reminder_type.dart';
 
 void main() {
   group('Reminder.fromJson', () {

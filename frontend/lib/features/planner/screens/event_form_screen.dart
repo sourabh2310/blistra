@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../app_scope.dart';
 import '../../../core/api/api_exception.dart';
 import '../formats.dart';
 import '../models/planner_event.dart';
@@ -108,7 +107,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit event' : 'New event'),

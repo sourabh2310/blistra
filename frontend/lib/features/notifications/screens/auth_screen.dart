@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../state/auth_controller.dart';
 
-/// Sign-in / sign-up screen. All authentication goes through the real backend;
-/// there is no offline or fake session.
+/// LEGACY: notifications-owned sign-in, superseded by `features/auth`.
+///
+/// Kept for reference only. New code uses the canonical [AuthScreen] in
+/// `features/auth` with the shared [AuthState] session.
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 

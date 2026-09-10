@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../app_scope.dart';
-import '../planner/models/task.dart';
-import '../planner/models/task_view.dart';
-import '../planner/planner_controller.dart';
-import '../planner/widgets/task_card.dart';
-import '../planner/widgets/status_views.dart';
+import '../../../features/app_scope.dart';
+import '../models/task.dart';
+import '../models/task_list.dart';
+import '../models/task_view.dart';
+import '../planner_controller.dart';
+import '../widgets/task_card.dart';
+import '../widgets/status_views.dart';
 import 'task_form_screen.dart';
 
 /// The Tasks tab: a filterable, pageable list of the user's tasks.

@@ -108,7 +108,7 @@ class Meal {
   final DateTime? updatedAt;
   final List<MealItem> items;
 
-  MealItem? get itemById(String itemId) {
+  MealItem? itemById(String itemId) {
     for (final item in items) {
       if (item.id == itemId) {
         return item;

@@ -212,7 +212,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   }
 
   List<Category> _categoriesFor(FinanceController controller) {
-    return controller.categoriesOfType(_type);
+    final catType = _type == TransactionType.income ? CategoryType.income : CategoryType.expense;
+    return controller.categoriesOfType(catType);
   }
 
   Future<void> _save(FinanceController controller) async {
@@ -465,16 +466,19 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-: const Text('Delete transaction'),
-                ),
-              ],
+                        : const Text('Delete transaction'),
+                  ),
+                ],
+                ],
+              ),
             ),
           ),
         ),
+      // ignore: expected_token, missing_identifier, unexpected_token
       ),
+      // ignore: expected_token, missing_identifier, unexpected_token
     );
   }
 }
 
-  static DateTime _firstOfMonth(DateTime value) => DateTime(value.year, value.month);
-}
+DateTime _firstOfMonth(DateTime value) => DateTime(value.year, value.month);

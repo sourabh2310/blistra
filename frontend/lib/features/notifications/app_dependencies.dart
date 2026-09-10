@@ -11,10 +11,11 @@ import 'state/auth_controller.dart';
 import 'state/reminders_controller.dart';
 import 'state/settings_controller.dart';
 
-/// Dependency container for the notifications feature.
+/// LEGACY dependency container for the notifications-only prototype.
 ///
-/// All real implementations are provided by default. In tests, replace the
-/// scheduler with a `FakeScheduler` and the `BlistraApiClient` with a mock.
+/// Superseded by [AppDependencies] in `app/`. Kept compiling for reference;
+/// new wiring must go through `app/app_dependencies.dart` so auth and the
+/// shell are not owned by notifications.
 class AppDependencies {
   AppDependencies({
     required String baseUrl,

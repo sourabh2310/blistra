@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../app_scope.dart';
+import '../../../features/app_scope.dart';
 import '../models/planner_event.dart';
 import '../models/task.dart';
 import '../models/task_status.dart';

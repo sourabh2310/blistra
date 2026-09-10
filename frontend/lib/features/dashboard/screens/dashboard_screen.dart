@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../features/app_scope.dart';
+import '../../app_scope.dart';
 import '../dashboard_controller.dart';
 import '../models/dashboard_response.dart';
 import '../widgets/section_card.dart';

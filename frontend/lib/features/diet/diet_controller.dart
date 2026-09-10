@@ -7,7 +7,6 @@ import 'models/dietary_preference.dart';
 import 'models/meal.dart';
 import 'models/paged.dart';
 import 'models/summary.dart';
-import 'models/water.dart';
 
 /// Backs the Diet feature UI. Holds the currently selected local calendar day,
 /// the day's [DietSummary], the paginated history, and the diet profile, and
@@ -70,14 +69,14 @@ class DietController extends ChangeNotifier {
         _selectedDate,
         offsetMinutes: _offsetMinutes,
       );
+    } on NetworkException {
+      _summaryError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
         return;
       }
       _summaryError = e.message;
-    } on NetworkException {
-      _summaryError = 'Cannot reach the server.';
     } catch (_) {
       _summaryError = 'Something went wrong while loading the day.';
     } finally {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../app_scope.dart';
+import '../../../features/app_scope.dart';
 import '../../../core/api/api_exception.dart';
 import '../formats.dart';
 import '../models/task_list.dart';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../app_scope.dart';
+import '../../../features/app_scope.dart';
+import '../models/task_list.dart';
 import '../widgets/status_views.dart';
 import 'task_list_form_screen.dart';
 

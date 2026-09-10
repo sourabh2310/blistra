@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/features/notifications/models/reminder.dart';
 import 'package:frontend/features/notifications/models/reminder_type.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../state/reminders_controller.dart';
 import 'reminder_form_screen.dart';

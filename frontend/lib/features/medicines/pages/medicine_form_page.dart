@@ -8,6 +8,7 @@ import '../../../core/auth/auth_state.dart';
 import '../../../core/api/api_client.dart';
 import '../data/medicines_api_client.dart';
 import '../models/medicine.dart';
+import '../models/medicine_enums.dart';
 import '../state/medicine_form_controller.dart';
 
 class MedicineFormPage extends StatefulWidget {

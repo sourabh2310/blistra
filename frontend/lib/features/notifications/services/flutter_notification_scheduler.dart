@@ -46,9 +46,9 @@ class FlutterNotificationScheduler implements NotificationScheduler {
   @override
   Future<bool> requestPermissions() async {
     await initialize();
-    return _plugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission() ??
+    return (await _plugin.resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestNotificationsPermission()) ??
         true;
   }
 

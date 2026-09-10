@@ -40,13 +40,13 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
     _durationController = TextEditingController(
         text: initial?.durationMinutes == null
             ? ''
-            : '${initial.durationMinutes}');
+            : '${initial!.durationMinutes}');
     _distanceController = TextEditingController(
-        text: initial?.distanceKm == null ? '' : formatDouble(initial.distanceKm));
+        text: initial?.distanceKm == null ? '' : formatDouble(initial!.distanceKm!));
     _caloriesController = TextEditingController(
         text: initial?.caloriesBurned == null
             ? ''
-            : '${initial.caloriesBurned}');
+            : '${initial!.caloriesBurned}');
     _notesController = TextEditingController(text: initial?.notes ?? '');
   }
 

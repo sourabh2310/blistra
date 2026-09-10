@@ -168,7 +168,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   ],
                 ),
               ),
-              for (final item in _meal!.items) _ItemTile(item: item, onEdit: _editItem, onDelete: _deleteItem),
+              for (final item in _meal!.items) _ItemTile(item: item, onEdit: () => _editItem(item), onDelete: () => _deleteItem(item)),
             ],
           ],
         ),
@@ -289,8 +289,6 @@ class _ItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     return Card(
       child: ListTile(
         title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),

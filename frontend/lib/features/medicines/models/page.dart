@@ -21,12 +21,12 @@ class Page<T> {
 
   factory Page.fromJson(
     Map<String, dynamic> json,
-    T Function(Object?) parseItem,
+    T Function(Map<String, dynamic>) parseItem,
   ) {
     final List<Object?> rawContent =
         (json['content'] as List?)?.whereType<Object?>().toList() ?? const [];
     return Page<T>(
-      content: rawContent.map(parseItem).toList(),
+      content: rawContent.map((e) => parseItem(e as Map<String, dynamic>)).toList(),
       page: (json['page'] as num?)?.toInt() ?? 0,
       size: (json['size'] as num?)?.toInt() ?? 0,
       totalElements: (json['totalElements'] as num?)?.toInt() ?? 0,

@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/api/api_exception.dart';
+import 'models/event_status.dart';
 import 'models/planner_event.dart';
 import 'models/task.dart';
 import 'models/task_list.dart';
 import 'models/task_priority.dart';
+import 'models/task_status.dart';
 import 'models/task_view.dart';
 import 'models/today_view.dart';
 import 'planner_api.dart';

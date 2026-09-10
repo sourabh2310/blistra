@@ -1,14 +1,14 @@
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
-import 'package:frontend/notifications/api/notifications_api.dart';
-import 'package:frontend/notifications/api/token_store.dart';
-import 'package:frontend/notifications/models/notification_preferences.dart';
-import 'package:frontend/notifications/models/reminder.dart';
-import 'package:frontend/notifications/models/reminder_type.dart';
-import 'package:frontend/notifications/services/notification_id.dart';
-import 'package:frontend/notifications/services/notification_scheduler.dart';
-import 'package:frontend/notifications/services/reminder_sync_service.dart';
+import 'package:frontend/features/notifications/api/notifications_api.dart';
+import 'package:frontend/features/notifications/api/token_store.dart';
+import 'package:frontend/features/notifications/models/notification_preferences.dart';
+import 'package:frontend/features/notifications/models/reminder.dart';
+import 'package:frontend/features/notifications/models/reminder_type.dart';
+import 'package:frontend/features/notifications/services/notification_id.dart';
+import 'package:frontend/features/notifications/services/notification_scheduler.dart';
+import 'package:frontend/features/notifications/services/reminder_sync_service.dart';
 
 class _FakeScheduler implements NotificationScheduler {
   _FakeScheduler();
@@ -121,10 +121,22 @@ class _FakeTokenStore implements TokenStore {
   final bool authenticated;
 
   @override
+  String get key => 'auth_token';
+
+  @override
+  String? get token => authenticated ? 'token' : null;
+
+  @override
   Future<void> save(String token) async {}
 
   @override
   Future<String?> read() async => authenticated ? 'token' : null;
+
+  @override
+  Future<void> load() async {}
+
+  @override
+  void prime(String? value) {}
 
   @override
   Future<void> clear() async {}

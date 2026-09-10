@@ -6,7 +6,8 @@ import 'package:provider/provider.dart';
 
 import '../../../core/auth/auth_state.dart';
 import '../../../core/api/api_client.dart';
-import '../data/medicines_api_client.dart'
+import '../data/medicines_api_client.dart';
+import '../models/refill.dart';
 import '../state/refill_form_controller.dart';
 
 class RefillFormPage extends StatefulWidget {

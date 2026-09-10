@@ -345,7 +345,8 @@ class _FileSelectionCard extends StatelessWidget {
             ),
           ],
         ),
-      );
+      ),
+    );
     }
 
   Widget _fileIcon(PlatformFile file) {

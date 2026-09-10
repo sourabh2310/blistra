@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../diet_controller.dart';
 import '../models/dietary_preference.dart';
-import '../models/diet_profile.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/error_state.dart';
 
@@ -148,15 +147,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
-  }
-
-  void _populate(DietProfile profile) {
-    setState(() {
-      _selectedPreference = profile.dietaryPreference;
-      _customPreference.text = profile.customPreference ?? '';
-      _dislikedFoods.text = profile.dislikedFoods ?? '';
-      _notes.text = profile.notes ?? '';
-    });
   }
 
   Future<void> _save(DietController controller) async {

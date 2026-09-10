@@ -17,12 +17,15 @@ class BlistraApiClient {
     required this.baseUrl,
     http.Client? httpClient,
     TokenStore? tokenStore,
+    String? Function()? tokenProvider,
   })  : _http = httpClient ?? http.Client(),
-        _tokens = tokenStore;
+        _tokens = tokenStore,
+        _tokenProvider = tokenProvider;
 
   final String baseUrl;
   final http.Client _http;
   final TokenStore? _tokens;
+  final String? Function()? _tokenProvider;
 
   Future<Map<String, dynamic>> get(String path) => _send('GET', path);
 
@@ -70,7 +73,7 @@ class BlistraApiClient {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    final token = _tokens?.token;
+    final token = _tokenProvider?.call() ?? _tokens?.token;
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }

@@ -152,7 +152,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
       builder: (BuildContext ctx) => AlertDialog(
         title: const Text('Archive habit?'),
         content: Text(
-            '"${habit!.name}" will be hidden from active lists. Completion history will be kept.'),
+            '"${_habit!.name}" will be hidden from active lists. Completion history will be kept.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -169,7 +169,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
 
     final HabitsController controller = HabitsScope.of(context);
     try {
-      await controller.archiveHabit(habit!.id);
+      await controller.archiveHabit(_habit!.id);
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(

@@ -324,7 +324,7 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
         ) ??
         false;
     if (ok && mounted) {
-      await _controller!.deleteDose(widget.medicineId, dose.id);
+      await _controller!.deleteDose(dose.id);
     }
   }
 }
@@ -580,7 +580,7 @@ class _ScheduleTile extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Times: ${schedule.timeLabels.join(", ")}'),
+            Text('Times: ${schedule.times.join(", ")}'),
             if (schedule.daysOfWeek != null && schedule.daysOfWeek!.isNotEmpty)
               Text('Days: ${schedule.daysOfWeek!.map(_dayLabel).join(", ")}'),
             if (schedule.doseAmount != null)
@@ -624,7 +624,7 @@ class _RefillTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.pharmacy)),
+        leading: CircleAvatar(child: Icon(Icons.local_pharmacy)),
         title: Text(refillDateLabel(refill.refillDate)),
         subtitle: Text('Qty: ${refill.quantityLabel} · Remaining: ${refill.remainingLabel}'),
         trailing: PopupMenuButton<String>(
@@ -768,6 +768,17 @@ IconData _doseStatusIcon(DoseStatus status) {
       return Icons.remove_circle_outline;
     case DoseStatus.skipped:
       return Icons.help_outline;
+  }
+}
+
+String _doseStatusLabel(DoseStatus status) {
+  switch (status) {
+    case DoseStatus.taken:
+      return 'Taken';
+    case DoseStatus.missed:
+      return 'Missed';
+    case DoseStatus.skipped:
+      return 'Skipped';
   }
 }
 

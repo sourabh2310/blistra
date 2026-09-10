@@ -58,7 +58,7 @@ class DocumentsRepository {
       'file',
       bytes,
       filename: file.name,
-      contentType: MediaType.parse(file.mimeType ?? _guessMimeType(file.name)),
+      contentType: MediaType.parse(_guessMimeType(file.name)),
     );
 
     final fields = {

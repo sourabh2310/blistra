@@ -1,9 +1,11 @@
 import '../../core/api/api_client.dart';
+import 'models/event_status.dart';
 import 'models/page_response.dart';
 import 'models/planner_event.dart';
 import 'models/task.dart';
 import 'models/task_list.dart';
 import 'models/task_priority.dart';
+import 'models/task_status.dart';
 import 'models/task_view.dart';
 import 'models/today_view.dart';
 

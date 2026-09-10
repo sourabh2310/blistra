@@ -2,6 +2,7 @@ import 'package:frontend/features/notifications/api/notifications_api.dart';
 import 'package:frontend/features/notifications/api/token_store.dart';
 import 'package:frontend/features/notifications/models/notification_preferences.dart';
 import 'package:frontend/features/notifications/models/reminder.dart';
+import 'package:frontend/features/notifications/models/reminder_type.dart';
 import 'package:frontend/features/notifications/models/scheduled_notification.dart';
 import 'package:frontend/features/notifications/services/notification_id.dart';
 

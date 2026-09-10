@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../app_scope.dart';
-import '../planner/planner_controller.dart';
+import '../../../features/app_scope.dart';
+import '../planner_controller.dart';
 import 'events_screen.dart';
 import 'lists_screen.dart';
 import 'tasks_screen.dart';

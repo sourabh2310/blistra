@@ -1,1086 +1,1039 @@
-You are working on the Blistra backend.
+You are working on the Blistra repository.
 
-BRANCH:
-stabilization/integration-pass
+Repository:
+`https://github.com/sourabh2310/blistra`
 
-IMPORTANT CONTEXT:
-A prior engineering review has already been performed on this repository.
-DO NOT perform a full-repository discovery/audit first.
-DO NOT spend tokens explaining the architecture back to me.
+Target branch:
+`stabilization/integration-pass`
 
-Instead, work from the known stabilization issues below and inspect ONLY:
-- the named files
-- their directly related classes
-- their directly related repositories/DTOs/controllers
-- their existing tests
-- the specific Flyway migrations needed for the database changes
+Your task is to perform a COMPLETE file-by-file audit and refactoring of the Flutter frontend under:
+
+`frontend/`
+
+Do NOT blindly rewrite the frontend.
+
+First inspect every frontend file, understand the existing implementation, identify what is reusable, identify what is incomplete/wrong, and then implement the required changes.
+
+The backend is already substantially implemented and must be treated as the source of truth for API contracts and domain behavior.
+
+==================================================
+
+1. PRIMARY OBJECTIVE
+   ==================================================
+
+Transform the existing Flutter frontend into a production-quality, feature-oriented Blistra application that integrates correctly with the existing Spring Boot backend.
+
+Blistra V1 domains are:
+
+1. Authentication
+2. Dashboard
+3. Planner
+4. Health
+5. Medicines
+6. Diet
+7. Habits
+8. Finance
+
+Additional infrastructure/features already present or planned:
+
+9. Documents
+10. Notifications
+11. AI-ready architecture
+
+The frontend must NOT be centered around Notifications.
+
+Authentication, application shell, dashboard, planner, etc. must be independent features.
+
+==================================================
+2. FIRST STEP — COMPLETE FRONTEND AUDIT
+=======================================
+
+Before changing code, inspect EVERY file under:
+
+frontend/lib/
+frontend/test/
+frontend/android/
+frontend/ios/
+frontend/web/
+frontend/pubspec.yaml
+frontend/analysis_options.yaml
+
+and any other frontend configuration files.
+
+Produce an internal inventory containing:
+
+* file path
+* purpose
+* dependencies
+* public classes/functions
+* API calls
+* state management
+* navigation responsibilities
+* reusable components
+* technical debt
+* bugs
+* missing functionality
+* duplicate functionality
+* architecture violations
 
-This is a STABILIZATION / HARDENING pass.
+Do not delete working functionality without understanding it.
 
-============================================================
-ABSOLUTE RULES
-============================================================
+Preserve useful existing implementations where possible.
 
-1. NO new product features.
+==================================================
+3. TARGET FRONTEND ARCHITECTURE
+===============================
 
-Do NOT implement:
-- UPI
-- SMS reading
-- SMS parsing
-- automatic expense creation
-- frontend features
-- AI features
-- push-provider integration
-- FCM
-- APNs
-- new modules
+Refactor toward:
 
-2. Do NOT redesign the architecture.
+lib/
+├── main.dart
+│
+├── app/
+│   ├── app.dart
+│   ├── app_router.dart
+│   ├── app_dependencies.dart
+│   └── theme/
+│
+├── core/
+│   ├── api/
+│   │   ├── api_client.dart
+│   │   ├── api_exception.dart
+│   │   ├── api_response.dart
+│   │   └── api_interceptor.dart
+│   │
+│   ├── auth/
+│   │   ├── auth_storage.dart
+│   │   └── auth_session.dart
+│   │
+│   ├── constants/
+│   ├── networking/
+│   ├── routing/
+│   ├── utils/
+│   └── widgets/
+│
+├── features/
+│   ├── auth/
+│   │   ├── data/
+│   │   ├── domain/
+│   │   └── presentation/
+│   │
+│   ├── dashboard/
+│   ├── planner/
+│   ├── health/
+│   ├── medicines/
+│   ├── diet/
+│   ├── habits/
+│   ├── finance/
+│   ├── documents/
+│   └── notifications/
+│
+└── shared/
+├── widgets/
+├── models/
+└── extensions/
 
-Keep the existing modular-monolith architecture.
+You may adjust this structure when the existing codebase provides a better equivalent.
 
-3. Do NOT perform broad refactors.
+Do not create architecture purely for the sake of creating folders.
 
-Make minimal, targeted production-quality changes.
+==================================================
+4. CRITICAL ARCHITECTURE FIX
+============================
 
-4. Do NOT weaken tests.
+The current frontend application bootstrap is centered around:
 
-Never:
-- delete tests
-- skip tests
-- disable tests
-- add @Disabled just to pass
-- replace integration tests with mocks
-- replace PostgreSQL with H2
-- remove Testcontainers
-- use -DskipTests for final verification
+notifications/
 
-5. Do NOT blindly modify unrelated files.
+including:
 
-6. Do NOT renumber existing Flyway migrations.
+* notifications/screens/auth_screen.dart
+* notifications/screens/home_shell.dart
+* notifications/state/auth_controller.dart
+* notifications/state/reminders_controller.dart
+* notifications/state/settings_controller.dart
 
-7. Before changing a behavior that could be a product decision, inspect the directly related existing code/tests and STOP + REPORT if the correct behavior cannot be determined safely.
+This is architecturally incorrect.
 
-8. Preserve existing API contracts wherever possible.
+Move authentication into:
 
-9. Security and privacy take priority over convenience.
+features/auth/
 
-10. Do not log:
-- passwords
-- JWTs
-- authorization headers
-- push tokens
-- document contents
-- unnecessary health information
-- user email addresses unless there is an existing justified operational need
+Move the main application shell/navigation into:
 
-============================================================
-PHASE 0 — VERY SMALL BASELINE
-============================================================
+app/
 
-Do NOT inspect the whole repository.
+Move dashboard into:
 
-Only inspect:
+features/dashboard/
 
-- backend/pom.xml
-- backend/src/test/java/com/blistra/AbstractIntegrationTest.java
-- backend/src/main/java/com/blistra/common/error/GlobalExceptionHandler.java
+Move notification functionality into:
 
-Then run:
+features/notifications/
 
-.\mvnw.cmd test
+Notifications must NOT own authentication or the entire application shell.
 
-Record the actual result.
+==================================================
+5. MAIN.DART
+============
 
-If Testcontainers fails before tests execute, do not weaken anything.
-Continue with code stabilization and report the infrastructure problem separately.
+Reduce main.dart to application bootstrap only.
 
-============================================================
-PHASE 1 — ERROR RESPONSE SECURITY
-============================================================
+It should not contain substantial application logic.
 
-PRIMARY FILE:
+Target responsibility:
 
-backend/src/main/java/com/blistra/common/error/GlobalExceptionHandler.java
+* Flutter binding initialization
+* dependency initialization
+* runApp()
 
-RELATED:
-- ApiErrorResponse
-- directly related exception classes
-- existing error/controller tests only
+Move configuration and service initialization into appropriate classes.
 
-KNOWN ISSUE:
+Do not initialize notification permission dialogs blindly during application startup.
 
-Some handlers expose exception messages directly, for example:
+==================================================
+6. APPLICATION SHELL
+====================
 
-ex.getMessage()
+Create a proper Blistra application shell.
 
-This can expose implementation details to clients.
+The shell should support:
 
-GOAL:
+* Dashboard
+* Planner
+* Health
+* Medicines
+* Diet
+* Habits
+* Finance
+* Documents
+* Notifications/settings where appropriate
 
-Client responses must contain safe, stable API-facing messages.
+Design the navigation for mobile first.
 
-Detailed exception information may remain available to server-side logs.
+The application must also remain structurally compatible with tablet/web layouts.
 
-DO NOT expose:
-- SQL errors
-- database table names
-- Hibernate internals
-- Java exception class details
-- filesystem paths
-- stack traces
-- internal implementation details
-- secrets
+Do not build separate unrelated navigation systems for each feature.
 
-IMPLEMENTATION:
+Use a single application routing strategy.
 
-1. Inspect all exception handlers in GlobalExceptionHandler.
-2. Identify every place where arbitrary exception text reaches the response.
-3. Replace unsafe behavior with safe messages/codes.
-4. Preserve useful validation errors where they are genuinely user-facing.
-5. Preserve existing ApiErrorResponse structure if possible.
-6. Keep HTTP statuses consistent with current API semantics.
-7. Unexpected exceptions should return a generic internal-server message.
+==================================================
+7. THEME / DESIGN SYSTEM
+========================
 
-Add/update focused tests for:
-- malformed JSON
-- invalid enum
-- invalid UUID/path variable
-- missing request parameter
-- missing multipart parameter where applicable
-- validation failure
-- resource not found
-- expected bad request
-- unexpected internal exception
+Create a consistent Blistra Material 3 design system.
 
-IMPORTANT:
-Do not leak the original exception message in the HTTP response.
+Centralize:
 
-============================================================
-PHASE 2 — PLANNER ALL-DAY TASK SEMANTICS
-============================================================
+* colors
+* typography
+* spacing
+* border radius
+* button styles
+* cards
+* input fields
+* dialogs
+* loading indicators
+* empty states
+* error states
 
-Only inspect directly relevant Planner files, especially:
+Avoid hard-coding visual constants repeatedly across screens.
 
-- PlannerTime
-- TaskService
-- Task entity
-- Task DTOs
-- Task controller
-- relevant Planner tests
+The UI should feel like one application, not a collection of unrelated Flutter examples.
 
-KNOWN ISSUE:
+Keep the design clean, modern, mobile-first and information-dense without being cluttered.
 
-An all-day task has:
+==================================================
+8. API CLIENT
+=============
 
-dueDate != null
-dueTime == null
+Create one centralized HTTP API client.
 
-It must not be treated as a task due at midnight.
+Backend API base path:
 
-BAD MODEL:
+`/api/v1`
 
-all-day task
-→ dueDate at 00:00
-→ compare with current time
-→ becomes overdue immediately after midnight
+The API client must support:
 
-CORRECT MODEL:
+* GET
+* POST
+* PUT
+* PATCH
+* DELETE
+* multipart upload
+* binary/file downloads
 
-TIMED TASK:
-    dueDate + dueTime
-    compare using the existing time/instant semantics
+It must automatically attach the authenticated JWT when required.
 
-ALL-DAY TASK:
-    dueDate only
-    compare LocalDate against user's current LocalDate
+Do not duplicate token/header logic in every feature.
 
-EXPECTED:
+Use appropriate timeouts.
 
-all-day due today:
-    NOT overdue
+Handle:
 
-all-day due yesterday:
-    OVERDUE
+* connection failures
+* timeout
+* malformed responses
+* HTTP errors
+* unauthorized responses
+* server errors
 
-all-day due tomorrow:
-    NOT overdue
+==================================================
+9. API ERROR MODEL
+==================
 
-timed due earlier today:
-    OVERDUE
+The backend uses structured error responses.
 
-timed due later today:
-    NOT overdue
+Support fields equivalent to:
 
-DO NOT:
-- use noon as a fake due time
-- use 23:59 as a fake due time
-- use midnight as a fake due time
+* timestamp
+* status
+* code
+* message
+* path
+* errors
 
-Preserve the semantic distinction.
+Support field-level validation errors.
 
-Do NOT implement per-user timezone support.
+Create a typed Flutter ApiException.
 
-Use the existing UserTime architecture.
+Map backend errors to user-friendly UI behavior.
 
-Add deterministic tests for:
-1. all-day due today
-2. all-day due yesterday
-3. all-day due tomorrow
-4. timed task earlier today
-5. timed task later today
-6. boundary around midnight
-7. configured timezone behavior
+Never display raw stack traces or internal server exceptions to users.
 
-============================================================
-PHASE 3 — MAVEN CLEANUP
-============================================================
+For generic 500 errors show a safe message.
 
-Only inspect:
+==================================================
+10. AUTHENTICATION
+==================
 
-backend/pom.xml
+Integrate with:
 
-KNOWN ISSUE:
-
-There are duplicate Lombok dependency declarations.
-
-Remove the redundant declaration.
-
-Preserve the valid Lombok configuration.
-
-Do NOT upgrade unrelated dependencies.
-
-Then verify the dependency configuration still compiles.
-
-============================================================
-PHASE 4 — TIMESTAMP AUTHORITY
-============================================================
-
-Only inspect entities/migrations where the review identified BOTH:
-
-- JPA @PrePersist/@PreUpdate timestamp handling
-AND
-- PostgreSQL timestamp defaults/triggers
-
-Do not scan every file in the repository unnecessarily.
-
-KNOWN ISSUE:
-
-Some timestamps have two potential sources of truth:
-
-Java/JPA lifecycle callbacks
-+
-PostgreSQL defaults/triggers
-
-This can cause confusing behavior and clock differences.
-
-GOAL:
-
-One authoritative timestamp strategy.
-
-Preferred direction:
-PostgreSQL remains authoritative for created_at / updated_at where the existing schema already uses DB defaults/triggers.
-
-BUT:
-
-Do not blindly convert every entity.
-
-For each affected entity:
-1. inspect migration
-2. inspect entity mapping
-3. inspect existing save/update behavior
-4. inspect directly related tests
-5. make the smallest consistent correction
-
-Requirements:
-- created_at remains populated
-- updated_at changes correctly
-- no unexpected null values
-- entity values remain synchronized after persistence/update
-- integration tests verify the behavior
-
-Do not redesign the entire persistence layer.
-
-============================================================
-PHASE 5 — FINANCE OWNERSHIP INTEGRITY
-============================================================
-
-Only inspect directly relevant Finance files:
-
-- V100__Finance_schema.sql
-- Account
-- Category
-- Transaction
-- Transfer
-- related repositories
-- AccountService
-- CategoryService
-- TransactionService
-- TransferService
-- BalanceCalculator
-- related DTOs/controllers
-- existing Finance tests
-
-KNOWN ISSUE:
-
-Application services already perform ownership checks, but some database relationships do not strongly guarantee:
-
-transaction.user_id
-    matches
-account.user_id
-
-and:
-
-transaction.user_id
-    matches
-category.user_id
-
-Likewise:
-
-transfer.user_id
-    matches source_account.user_id
-
-transfer.user_id
-    matches destination_account.user_id
-
-GOAL:
-
-A financial record must never cross user ownership boundaries.
-
-FIRST:
-Inspect the existing schema carefully.
-
-If PostgreSQL can safely enforce the invariant without a major schema redesign, add appropriate constraints.
-
-If DB-level enforcement would require an unnecessarily complicated redesign, retain service-level validation and add strong integration tests.
-
-Do not invent a generic ownership framework.
-
-TESTS:
-
-Use two users:
-
-User A
-User B
-
-User A creates:
-- account
-- category
-- transaction
-- transfer
-
-User B attempts:
-- GET
-- LIST
-- UPDATE
-- DELETE
-
-and attempts to construct transactions/transfers referencing User A's financial resources.
-
-Expected:
-No cross-user access or mutation.
-
-Also verify:
-- summaries
-- balances
-- transaction lists
-- transfer lists
-
-do not leak User A data to User B.
-
-============================================================
-PHASE 6 — FINANCE OPENING BALANCE
-============================================================
-
-Only inspect:
-
-- Account
-- AccountService
-- account DTOs
-- account controller
-- finance migration
-- existing account tests
-- BalanceCalculator
-
-KNOWN ISSUE:
-
-openingBalance is currently mutable.
-
-But current balance is derived from:
-
-opening balance
-+ income
-- expense
-+ transfers
-
-Therefore changing openingBalance after account creation changes the historical financial baseline.
-
-PREFERRED PRODUCT-SAFE POLICY:
-
-Opening balance should be immutable after account creation.
-
-Corrections should eventually be represented as an explicit financial adjustment rather than rewriting the starting balance.
-
-HOWEVER:
-
-This may alter an existing API behavior.
-
-Therefore:
-
-1. Inspect current Account update API.
-2. Inspect existing tests.
-3. Determine whether mutable openingBalance is clearly intentional.
-4. If there is no ambiguity, implement the safer immutable behavior.
-5. If ambiguity exists, DO NOT invent product semantics.
-6. STOP and report the decision required.
-
-If implementing:
-- update validation
-- update service behavior
-- update tests
-- preserve other account update functionality
-
-Do not implement a full adjustment-transaction feature during this pass.
-
-============================================================
-PHASE 7 — FINANCE CALCULATION TEST HARDENING
-============================================================
-
-Only inspect:
-
-- BalanceCalculator
-- FinanceTransactionRepository
-- Transfer repository
-- existing Finance tests
-
-Add focused tests for:
-
-1. opening balance only
-2. income
-3. expense
-4. income + expense
-5. transfers
-6. zero transactions
-7. multiple accounts
-8. same-currency accounts
-9. different-currency accounts
-
-CRITICAL:
-
-Do not aggregate INR and USD directly.
-
-Different currencies must remain logically separate unless an explicit FX conversion mechanism exists.
-
-Also test monetary boundaries consistent with:
-
-NUMERIC(19,4)
-
-Test:
-- positive amount
-- zero rejection
-- negative rejection
-- decimal precision
-- valid large amount within schema limits
-
-Do not use floating point for money.
-
-If BalanceCalculator currently calculates every account when only one account is requested, determine whether a small targeted optimization is safe.
-
-Do not perform a major repository redesign just for this.
-
-============================================================
-PHASE 8 — MEDICINE INTEGRITY
-============================================================
-
-Only inspect:
-
-- V006__Medicines_schema.sql
-- Medicine
-- Schedule
-- DoseRecord
-- DoseService
-- relevant repositories
-- DTOs
-- medicine/dose tests
-
-KNOWN ISSUE 1:
-
-A dose references both medicine and schedule, but the database does not fully guarantee:
-
-dose.schedule.medicine == dose.medicine
-
-GOAL:
-
-A dose can only use a schedule belonging to the same medicine.
-
-Prefer DB integrity if it can be added cleanly.
-
-Otherwise enforce in the service layer and add integration tests.
-
-KNOWN ISSUE 2:
-
-Dose status/timestamp combinations need stronger integrity.
-
-Desired:
-
-TAKEN:
-    takenAt required
-
-MISSED:
-    takenAt null
-
-SKIPPED:
-    takenAt null
-
-Preserve the current policy that future takenAt values are rejected unless existing tests/product semantics clearly require otherwise.
-
-TESTS:
-
-- valid TAKEN
-- TAKEN without takenAt
-- MISSED with takenAt
-- SKIPPED with takenAt
-- future takenAt
-- another user's medicine
-- another medicine's schedule
-- mismatched medicine/schedule
-
-Do not implement medication reminders/push delivery.
-
-============================================================
-PHASE 9 — HABIT DATA INTEGRITY
-============================================================
-
-Only inspect:
-
-- V005__Habits_schema.sql
-- Habit
-- HabitService
-- Schedule
-- Completion
-- relevant DTOs
-- repositories
-- habit tests
-
-KNOWN ISSUE:
-
-Target fields are not sufficiently type-specific.
-
-Supported types:
-
-BOOLEAN
-COUNT
-DURATION
-
-Desired semantics:
-
-BOOLEAN:
-    targetValue = null
-    targetUnit = null
-    targetMinutes = null
-
-COUNT:
-    targetValue > 0
-    targetUnit != null
-    targetMinutes = null
-
-DURATION:
-    targetMinutes > 0
-    targetValue = null
-    targetUnit = null
+POST /api/v1/auth/register
+POST /api/v1/auth/login
 
 Implement:
-- DTO/service validation
-- database CHECK constraints where practical
 
-Do not create complicated cross-table database logic.
+* registration
+* login
+* logout
+* session restoration
+* JWT persistence
+* authentication state
+* expired session handling
+* 401 handling
 
-Also inspect completion data.
+Do not use ordinary SharedPreferences as the preferred secure storage mechanism for sensitive authentication credentials where a secure platform storage option is appropriate.
 
-A BOOLEAN habit should not accept COUNT/DURATION-specific completion data.
+Use secure storage for Android/iOS.
 
-A COUNT habit should not accept arbitrary duration data.
+For web, use an architecture appropriate to browser security constraints and do not pretend that web local storage provides equivalent security to native secure storage.
 
-A DURATION habit should not accept arbitrary count/value data.
+Do not store passwords.
 
-Add focused tests for valid and invalid combinations.
+After successful login:
 
-============================================================
-PHASE 10 — HABIT /today PERFORMANCE
-============================================================
+login
+→ persist token/session
+→ update auth state
+→ open application shell
 
-Only inspect:
+After logout:
 
-- HabitService.today()
-- directly related repositories
-- directly related tests
+clear credentials
+→ clear authenticated state
+→ return to login
 
-KNOWN ISSUE:
+==================================================
+11. DASHBOARD
+=============
 
-The current implementation may perform:
+Implement Dashboard as the primary Blistra home screen.
 
-1 query for habits
-+
-N schedule queries
-+
-N completion queries
+It should be designed to eventually aggregate:
 
-This can become N+1/2N+1.
+* today's planner tasks
+* habit progress
+* medication reminders
+* health information
+* diet information
+* finance snapshot
+* upcoming items
 
-Determine whether schedules and today's completions can be batch-loaded cleanly.
+Do not duplicate domain ownership in Dashboard.
 
-If yes:
-- implement a small targeted optimization
-- preserve API behavior
-- add regression tests
+Dashboard is an aggregation/presentation layer.
 
-If optimization requires a large abstraction/refactor:
-do not do it.
-Report it as a future optimization.
+Planner owns planner data.
+Habits owns habit data.
+Medicines owns medication data.
+Finance owns finance data.
 
-============================================================
-PHASE 11 — DIET DATA CONSISTENCY
-============================================================
+==================================================
+12. PLANNER
+===========
 
-Only inspect:
+Integrate with the existing Planner backend.
 
-- V002__Diet_module.sql
-- water-related entity/DTO/service
-- directly related tests
+Support:
 
-KNOWN ISSUE:
+* task lists
+* tasks
+* create
+* edit
+* delete
+* complete
+* reopen
+* cancel
+* priority
+* status
+* due date
+* due time
+* Today
+* Upcoming
+* Overdue
+* Active
+* Completed
+* pagination
 
-Water units currently allow inconsistent representations such as:
+Respect backend semantics.
 
-ml
-mL
-L
-l
-glass
-glasses
-cup
-cups
+Do NOT implement separate client-side business rules that conflict with the backend.
 
-Goal:
-Use a canonical representation.
+Models must match backend DTOs.
 
-For example, an agreed canonical set such as:
+Support:
 
-ML
-L
-GLASS
-CUP
+loading
+empty
+error
+success
 
-But inspect the existing API/data model before deciding the exact representation.
+states.
 
-IMPORTANT:
-Do not break existing stored user data.
+Task ownership is handled by the backend.
 
-If migration is required:
-- safely migrate existing values
-- preserve records
-- update tests
+==================================================
+13. HEALTH
+==========
 
-Also inspect the redundant profile index.
+Inspect the backend Health API and implement Flutter integration based on the actual backend DTOs/endpoints.
 
-If UNIQUE(user_id) already creates the needed index, remove the redundant explicit index only if doing so is safe for the existing migration strategy.
+Do not invent endpoint names.
 
-Do NOT modify old Flyway migrations that may already have been applied in production.
+Support the existing Health domain.
 
-If the migration is already released/applied, create a new migration instead of editing the old migration.
+Create:
 
-============================================================
-PHASE 12 — DOCUMENT SECURITY REGRESSION
-============================================================
+* models
+* API service
+* repository/application layer if appropriate
+* controller/provider/notifier
+* screens
+* forms
+* validation
+* loading/error/empty states
 
-Only inspect the existing Documents security implementation and tests.
+Keep health information clearly separated from Medicines.
 
-Known implementation is already generally strong.
+==================================================
+14. MEDICINES
+=============
 
-DO NOT redesign it.
+Inspect the backend Medicines module and integrate it exactly.
 
-Verify/add regression tests for:
+Support the existing medication model and schedule behavior.
 
-- path traversal
-- invalid extension
-- MIME mismatch
-- magic-byte mismatch
-- oversized upload
-- ownership isolation
-- safe Content-Disposition
-- no-store caching
+Implement:
 
-Small cleanup is allowed:
+* medication list
+* medication details
+* create
+* edit
+* delete
+* schedules
+* relevant reminder UI
+* validation
+* loading/error/empty states
 
-If code uses:
+Do not duplicate medical/business rules unnecessarily in Flutter.
 
-extension.toLowerCase()
+==================================================
+15. DIET
+========
 
-prefer:
+Inspect the backend Diet module first.
 
-extension.toLowerCase(Locale.ROOT)
+Integrate actual backend DTOs and endpoints.
 
-Do not make unrelated document changes.
+Support the V1 Diet functionality that exists in the backend.
 
-============================================================
-PHASE 13 — NOTIFICATIONS SECURITY REGRESSION
-============================================================
+Create clean screens and reusable components.
 
-Only inspect:
+Do not invent unsupported backend capabilities.
 
-- V010__Notifications_schema.sql
-- DeviceRegistrationController
-- DeviceRegistrationService
-- ReminderService
-- NotificationPreferencesService
-- related repositories/entities/DTOs
-- existing notification tests
+==================================================
+16. HABITS
+==========
 
-Preserve current security model:
+Inspect the backend Habits module first.
 
-Push tokens:
-- never returned
-- never logged
+Integrate actual endpoints/models.
 
-Devices:
-- current-user scoped
+Support:
 
-Reminders:
-- current-user scoped
+* habit list
+* creation
+* editing
+* completion/check-in
+* relevant streak/progress information
+* loading
+* errors
+* empty states
 
-Verify unique:
+Respect backend integrity rules.
 
-(user_id, device_id)
+==================================================
+17. FINANCE
+===========
 
-Do not redesign polymorphic source_id.
+Inspect the backend Finance module first.
 
-Do not add FCM/APNs.
+Implement the Flutter client based on actual endpoints/DTOs.
 
-Do not implement actual push delivery.
+Support the V1 finance functionality currently implemented.
 
-Add regression tests proving push tokens never appear in API responses where applicable.
+Include:
 
-============================================================
-PHASE 14 — GENERIC INTEGRATION TEST BASE
-============================================================
+* transactions
+* categories where supported
+* income/expense representation
+* totals
+* filters
+* relevant summaries
 
-Only inspect:
+Do not invent UPI/SMS functionality unless the backend currently exposes it.
 
-backend/src/test/java/com/blistra/AbstractIntegrationTest.java
+UPI and SMS ingestion should be architected as future platform/integration capabilities.
 
-KNOWN ISSUE:
+==================================================
+18. DOCUMENTS
+=============
 
-The generic integration-test base contains direct cleanup knowledge of Finance tables.
+Integrate the existing Documents backend.
 
-For example, it directly deletes Finance tables during cleanup.
+Existing backend operations include:
 
-This creates unnecessary coupling.
+POST /api/v1/documents
+GET /api/v1/documents
+GET /api/v1/documents/{id}
+GET /api/v1/documents/{id}/content
+PATCH /api/v1/documents/{id}
+DELETE /api/v1/documents/{id}
 
-Goal:
+Support:
 
-The base integration test should not have to understand every future domain module.
+* file picker
+* upload
+* category
+* description
+* list
+* pagination
+* filtering
+* metadata view
+* download
+* open file
+* update metadata
+* delete
 
-However:
+Use multipart upload correctly.
 
-Do NOT build a large test framework.
+Handle:
 
-If a small safe improvement is possible, make it.
+* file too large
+* unsupported file
+* upload failure
+* download failure
+* authentication failure
 
-Otherwise report this as technical debt.
+Do not expose storage paths.
 
-Most importantly:
-Do not compromise Testcontainers.
+==================================================
+19. NOTIFICATIONS
+=================
 
-============================================================
-PHASE 15 — TESTCONTAINERS
-============================================================
+Keep notifications as an independent feature.
 
-Known environment:
+Implement a notification/reminder service that can be invoked by:
 
-Windows
-Docker Desktop
-PostgreSQL
-Testcontainers
+* Medicines
+* Planner
+* Habits
+* other reminder-producing features
 
-Previous tests have failed before test methods execute because of Docker/Testcontainers compatibility.
+Do not make Notifications the parent of these features.
 
-Investigate ONLY the Testcontainers configuration and directly related files.
+Do not request notification permissions aggressively on application startup.
 
-Do not:
-- switch to H2
-- remove Testcontainers
-- disable integration tests
-- skip tests
-- mock database integration
-- hardcode a Docker endpoint
-- add environment-specific hacks that only work on one machine
+Request permissions in a context where the user understands why permission is needed.
 
-Check:
-- Testcontainers version
-- Maven dependencies
-- Docker client transport dependencies
-- existing configuration
-- actual error
+Support local notifications using the existing dependencies where appropriate.
 
-If a safe compatibility fix exists:
-implement it.
+Respect timezone configuration.
 
-If the problem is an upstream Windows/Docker/Testcontainers compatibility issue that cannot safely be fixed in the repository:
-do not fake a green build.
-Report the exact blocker.
+==================================================
+20. SETTINGS
+============
 
-============================================================
-PHASE 16 — CROSS-USER TEST MATRIX
-============================================================
+Create an appropriate settings area.
 
-Do not inspect every module unnecessarily.
+Potential settings:
 
-Use existing integration tests in each relevant module.
+* profile
+* timezone
+* notification preferences
+* appearance
+* logout
 
-Strengthen tests for two-user isolation.
+Only implement backend-backed settings when the backend supports them.
 
-Minimum modules:
+Do not invent APIs.
 
-Finance
-Documents
-Health
-Medicine
-Habits
+==================================================
+21. STATE MANAGEMENT
+====================
+
+The current project uses Provider.
+
+You may continue using Provider if it is already working well.
+
+Do not introduce another state-management framework simply for preference.
+
+Use consistent patterns.
+
+Example:
+
+Feature UI
+→ Controller/ViewModel
+→ Repository
+→ API service
+→ ApiClient
+
+Avoid putting HTTP calls directly inside widgets.
+
+Controllers should expose explicit state:
+
+loading
+success
+empty
+error
+
+where appropriate.
+
+==================================================
+22. MODELS
+==========
+
+Create typed models matching backend DTOs.
+
+Do not use Map<String, dynamic> throughout the application.
+
+Each feature should have explicit request/response models.
+
+Implement:
+
+fromJson()
+toJson()
+
+where needed.
+
+Be careful with:
+
+* UUIDs
+* dates
+* times
+* OffsetDateTime/ISO-8601
+* nullable values
+* enums
+* pagination
+
+Do not silently change backend enum names.
+
+==================================================
+23. DATE/TIME
+=============
+
+Backend timestamps are handled consistently with UTC and user-facing timezone conversion.
+
+Flutter must:
+
+* parse ISO-8601 correctly
+* preserve offsets
+* display user-local time
+* avoid hard-coded Asia/Kolkata logic in the application
+* use configured user timezone when available
+
+Do not use string manipulation for date/time conversion.
+
+==================================================
+24. PAGINATION
+==============
+
+Implement reusable pagination support.
+
+Do not hard-code one pagination implementation per feature.
+
+Create reusable pagination models/helpers.
+
+Support:
+
+* initial load
+* next page
+* refresh
+* end of list
+* loading next page
+* error loading next page
+
+==================================================
+25. LOADING / ERROR / EMPTY UX
+==============================
+
+Every major feature must have:
+
+Loading state
+Empty state
+Error state
+Success state
+
+Avoid blank screens.
+
+Provide retry actions where appropriate.
+
+Do not show raw exceptions.
+
+==================================================
+26. FORMS
+=========
+
+Create consistent form components.
+
+Forms must have:
+
+* validation
+* disabled submit while saving
+* loading indicator
+* backend validation error handling
+* keyboard-friendly mobile behavior
+* proper date/time selectors
+* confirmation for destructive actions where appropriate
+
+==================================================
+27. ACCESSIBILITY
+=================
+
+Add:
+
+* semantic labels
+* sufficient touch target sizes
+* readable typography
+* appropriate contrast
+* keyboard navigation where applicable
+* screen-reader-friendly controls
+
+Do not rely exclusively on color to convey status.
+
+==================================================
+28. RESPONSIVE DESIGN
+=====================
+
+Android is the highest-priority platform.
+
+But design the application so it works on:
+
+* small Android phones
+* large Android phones
+* tablets
+* web
+
+Do not simply stretch mobile UI onto desktop.
+
+Use responsive layouts where appropriate.
+
+==================================================
+29. SECURITY
+============
+
+Never:
+
+* log JWT tokens
+* log passwords
+* log sensitive personal information
+* hard-code secrets
+* hard-code production credentials
+* trust frontend authorization
+
+The backend remains the authorization boundary.
+
+==================================================
+30. CONFIGURATION
+=================
+
+Keep:
+
+API_BASE_URL
+
+configurable using dart-define.
+
+For example:
+
+--dart-define=API_BASE_URL=http://10.0.2.2:8080
+
+Do not hard-code production API URLs.
+
+Provide sensible development defaults only.
+
+==================================================
+31. TESTING
+===========
+
+Inspect the existing frontend tests first.
+
+Add/update tests for:
+
+* authentication
+* API client
+* API errors
+* token/session handling
+* Planner models/services/controllers
+* Dashboard
+* Health
+* Medicines
+* Diet
+* Habits
+* Finance
+* Documents
+* Notifications
+* routing/auth gate
+
+Tests must not depend on a live backend unless specifically intended as integration tests.
+
+Mock API/network boundaries.
+
+==================================================
+32. FLUTTER QUALITY
+===================
+
+After modifications run:
+
+flutter pub get
+flutter analyze
+flutter test
+
+Fix ALL analyzer errors.
+
+Fix ALL test failures.
+
+Do not suppress warnings just to make CI green.
+
+Avoid:
+
+* unnecessary dynamic
+* unnecessary casts
+* dead code
+* duplicate widgets
+* giant StatefulWidgets
+* API calls from build()
+* business logic inside UI widgets
+
+==================================================
+33. DEPENDENCIES
+================
+
+Inspect pubspec.yaml.
+
+Remove dependencies that are genuinely unused.
+
+Keep dependencies that are required by the existing implementation.
+
+Do not add large packages without a clear reason.
+
+Prefer Flutter/Dart standard functionality where practical.
+
+If secure credential storage is needed, add the appropriate package and configure Android/iOS/web correctly.
+
+==================================================
+34. DO NOT INVENT BACKEND APIs
+==============================
+
+This is extremely important.
+
+Before implementing a feature:
+
+1. Inspect the corresponding backend module.
+2. Inspect its controller.
+3. Inspect request DTOs.
+4. Inspect response DTOs.
+5. Inspect enums.
+6. Inspect pagination.
+7. Inspect error behavior.
+8. Then implement Flutter integration.
+
+Do not guess endpoint names.
+
+Do not create frontend models based only on assumptions.
+
+The backend is the source of truth.
+
+==================================================
+35. DO NOT BREAK EXISTING BACKEND
+=================================
+
+This task is primarily frontend work.
+
+Do not modify backend code unless absolutely necessary for a genuine frontend integration blocker.
+
+If a backend problem is discovered:
+
+* document it
+* identify exact file/API
+* explain why it blocks frontend
+* make the smallest safe fix only if required
+
+Do not perform unrelated backend refactoring.
+
+==================================================
+36. FILE-BY-FILE CHANGE LOG
+===========================
+
+After completing the work, provide a report:
+
+For every changed file:
+
+FILE:
+CHANGE:
+REASON:
+DEPENDENCIES:
+TESTING:
+
+Also provide:
+
+A. Files created
+B. Files modified
+C. Files deleted
+D. Files intentionally preserved
+E. Backend integration assumptions
+F. Known remaining limitations
+
+==================================================
+37. FINAL ACCEPTANCE CRITERIA
+=============================
+
+The frontend is considered complete for this task only when:
+
+[ ] Application has clean feature-oriented architecture
+[ ] Notifications no longer own auth/application shell
+[ ] main.dart is minimal
+[ ] Central API client exists
+[ ] JWT/session lifecycle works
+[ ] API errors are typed and handled
+[ ] Dashboard exists
+[ ] Planner is integrated
+[ ] Health is integrated
+[ ] Medicines is integrated
+[ ] Diet is integrated
+[ ] Habits is integrated
+[ ] Finance is integrated
+[ ] Documents are integrated
+[ ] Notifications are independent
+[ ] Loading states exist
+[ ] Empty states exist
+[ ] Error states exist
+[ ] Forms are validated
+[ ] Pagination is handled
+[ ] Date/time handling is correct
+[ ] No sensitive data is logged
+[ ] No backend authorization is duplicated as trusted logic
+[ ] Flutter analyze passes
+[ ] Flutter tests pass
+[ ] Existing functionality that remains valid is preserved
+[ ] No fake/mock production functionality is left accidentally
+[ ] No unsupported backend endpoints are invented
+
+==================================================
+38. IMPORTANT WORKING STYLE
+===========================
+
+Do NOT try to complete this by generating a giant replacement frontend blindly.
+
+Work incrementally:
+
+Phase 1:
+Audit
+
+Phase 2:
+Core architecture/API/auth
+
+Phase 3:
+Application shell/navigation/theme
+
+Phase 4:
+Dashboard
+
+Phase 5:
 Planner
+
+Phase 6:
+Health
+
+Phase 7:
+Medicines
+
+Phase 8:
+Diet
+
+Phase 9:
+Habits
+
+Phase 10:
+Finance
+
+Phase 11:
+Documents
+
+Phase 12:
 Notifications
 
-For each module where CRUD/private resources exist:
+Phase 13:
+Tests/cleanup
 
-User A creates resource.
+After each major phase:
 
-User B:
-- attempts GET
-- attempts update
-- attempts delete
-- attempts list
+* run analyzer
+* run relevant tests
+* fix regressions
 
-Also test summary/list endpoints where applicable.
+Keep the code compiling throughout the process.
 
-Expected:
-User B must never receive User A's private data.
+Do not leave the repository in a half-migrated state.
 
-Prefer owner-aware repository/service queries.
+==================================================
+39. FINAL OUTPUT
+================
 
-Never trust client-supplied owner IDs.
+At the end, report:
 
-============================================================
-PHASE 17 — SPRINGDOC COMPATIBILITY
-============================================================
+1. Architecture before
+2. Architecture after
+3. Complete file-by-file change list
+4. Backend APIs integrated
+5. Features completed
+6. Features still incomplete
+7. Tests executed
+8. flutter analyze result
+9. flutter test result
+10. Any backend blockers
+11. Any recommended next steps
 
-Only inspect:
+Do not claim something is implemented unless the code actually implements it.
 
-backend/pom.xml
-springdoc configuration
-existing OpenAPI-related code/tests
-
-Current environment uses:
-
-Spring Boot 4.1.1
-
-Springdoc currently has a pinned version.
-
-Do not blindly upgrade dependencies.
-
-Determine whether the current version is actually compatible.
-
-If incompatible:
-make the smallest safe dependency/configuration change.
-
-Verify application startup and relevant tests.
-
-============================================================
-PHASE 18 — LOW-PRIORITY CLEANUP
-============================================================
-
-Only if the earlier phases are stable:
-
-1. Remove duplicate Lombok dependency.
-2. Remove safe redundant Diet index via a NEW migration if necessary.
-3. Use Locale.ROOT for document extension normalization.
-
-Do not edit already-applied Flyway migrations.
-
-============================================================
-PHASE 19 — KNOWN LIMITATIONS — DO NOT IMPLEMENT
-============================================================
-
-The following are known but intentionally OUT OF SCOPE:
-
-1. Per-user timezone support.
-
-Current V1 uses configured UserTime timezone.
-
-Do not redesign it.
-
-2. Actual push-provider delivery.
-
-Do not implement FCM/APNs.
-
-3. Notification source_id universal foreign key redesign.
-
-Keep current polymorphic approach.
-
-4. Future dose timestamps.
-
-Keep current manual-entry policy unless existing behavior clearly conflicts.
-
-5. GENERAL reminder future-time policy.
-
-Do not broaden or remove it.
-
-6. Migration renumbering.
-
-Do not renumber V001/V002/etc.
-
-7. UPI.
-
-8. SMS reading.
-
-============================================================
-PHASE 20 — MIGRATION SAFETY
-============================================================
-
-This project uses Flyway.
-
-CRITICAL:
-
-Never edit an old migration if it may already have been applied.
-
-For schema changes:
-- create a new migration
-- use a new version number
-- make it backward-safe
-- consider existing data
-
-Before adding a constraint:
-- determine whether existing data violates it
-- if data cleanup is required, report it rather than destroying data
-
-Do not use destructive migrations casually.
-
-============================================================
-PHASE 21 — TEST EXECUTION
-============================================================
-
-After implementation:
-
-First run focused tests for changed modules.
-
-Then run:
-
-.\mvnw.cmd clean test
-
-Do not use:
-
--DskipTests
-
-for final verification.
-
-If Testcontainers prevents the suite from executing:
-report it clearly.
-
-If tests fail:
-fix actual regressions.
-
-Do not make tests green by weakening them.
-
-Then run:
-
-.\mvnw.cmd clean package
-
-============================================================
-PHASE 22 — FINAL DIFF REVIEW
-============================================================
-
-Run:
-
-git status
-git diff --stat
-git diff
-
-Review the complete diff.
-
-Remove any unrelated modifications.
-
-Check for:
-- secrets
-- tokens
-- passwords
-- PII logging
-- debug code
-- commented-out code
-- unnecessary dependencies
-- unnecessary abstractions
-- destructive migrations
-- skipped tests
-- weakened assertions
-
-============================================================
-FINAL REPORT
-============================================================
-
-Return a structured report with:
-
-1. BASELINE
-   - initial test result
-   - exact Testcontainers failure if present
-
-2. CHANGES
-   - every changed file
-   - reason for each change
-
-3. SECURITY
-   - exception response safety
-   - cross-user isolation
-   - token/password logging
-   - document security
-
-4. DATA INTEGRITY
-   - Finance
-   - Medicine
-   - Habits
-   - Diet
-   - Notifications
-
-5. PLANNER
-   - all-day task semantics
-   - timezone behavior
-
-6. DATABASE
-   - migrations added
-   - constraints added
-   - timestamp strategy
-
-7. TESTS
-   - tests added
-   - tests modified
-   - tests executed
-   - passed
-   - failed
-   - errors
-
-8. BUILD
-   - clean test result
-   - package result
-
-9. UNRESOLVED ISSUES
-   - exact remaining problems
-   - why they remain
-   - whether they require a product decision/environment change
-
-10. OUT-OF-SCOPE ITEMS
-   - explicitly confirm that no new features were implemented
-
-11. DIFF SUMMARY
-   - concise summary of final patch
-
-IMPORTANT:
-Do not claim tests pass unless they actually executed and passed.
-Do not claim Testcontainers is fixed unless the integration tests actually execute successfully.
-Do not claim a security invariant is DB-enforced unless there is an actual database constraint.
-Do not claim per-user timezone support.
+Do not claim tests pass unless they were actually executed.

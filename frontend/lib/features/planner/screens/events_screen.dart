@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../app_scope.dart';
+import '../../../features/app_scope.dart';
 import '../models/planner_event.dart';
 import '../planner_controller.dart';
 import '../widgets/event_card.dart';

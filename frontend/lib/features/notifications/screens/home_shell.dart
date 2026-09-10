@@ -8,8 +8,11 @@ import 'auth_screen.dart';
 import 'notification_settings_screen.dart';
 import 'reminders_screen.dart';
 
-/// Root widget after authentication. Provides a bottom navigation bar between
-/// the reminders list and settings.
+/// LEGACY: notifications-owned app shell, superseded by [AppShell] in `app/`.
+///
+/// Kept for reference/tests only. New code must not route through here:
+/// notifications is an independent feature and must not own auth or the
+/// application shell.
 class HomeShell extends StatefulWidget {
   const HomeShell({
     super.key,

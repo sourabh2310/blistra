@@ -102,7 +102,7 @@ class Validators {
     return positiveNumber(value);
   }
 
-  static String? _trimmed(String? value) => value?.trim() ?? '';
+  static String _trimmed(String? value) => value?.trim() ?? '';
 
   /// Parses a non-empty numeric input to a double, or returns null for blank.
   static double? parseOptionalNumber(String? value) {
