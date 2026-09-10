@@ -29,7 +29,7 @@ A decision may have one of these statuses:
 
 The following decisions have been established for the initial Blistra architecture.
 
-IDDecisionStatusADR-001Use a modular monolith for the initial backendAcceptedADR-002Use PostgreSQL as the primary relational databaseAcceptedADR-003Use Flutter for Android, iOS, and WebAcceptedADR-004Use Java 21 + Spring Boot for the backendAcceptedADR-005Use Maven Wrapper instead of requiring global MavenAcceptedADR-006Keep database timestamps in UTCAcceptedADR-007Enforce authorization and resource ownership server-sideAcceptedADR-008Keep AI behind controlled application toolsAcceptedADR-009Avoid premature distributed infrastructureAccepted
+IDDecisionStatusADR-001Use a modular monolith for the initial backendAcceptedADR-002Use PostgreSQL as the primary relational databaseAcceptedADR-003Use Flutter for Android, iOS, and WebAcceptedADR-004Use Java 21 + Spring Boot for the backendAcceptedADR-005Use Maven Wrapper instead of requiring global MavenAcceptedADR-006Keep database timestamps in UTCAcceptedADR-007Enforce authorization and resource ownership server-sideAcceptedADR-008Keep AI behind controlled application toolsAcceptedADR-009Avoid premature distributed infrastructureAcceptedADR-010Notifications and Reminders PlatformAcceptedADR-011Planner ModuleAcceptedADR-012Health Module ArchitectureAcceptedADR-013Diet Domain & Nutrition BoundaryAcceptedADR-014Date/Time Handling in DietAcceptedADR-015Ownership & IDOR Protection ModelAcceptedADR-016Medicines Module: Personal Medication TrackingAccepted
 
 ---
 
@@ -94,6 +94,62 @@ Health and medicine AI functionality must remain bounded and non-diagnostic.
 Kafka, Kubernetes, microservices, and similar distributed infrastructure are not initial requirements.
 
 They may be introduced later only when concrete scalability, reliability, or operational requirements justify them.
+
+### ADR-010 — Notifications and Reminders Platform
+
+Notifications is a delivery mechanism, not the owner of business events.
+
+Reminders store an absolute instant plus the user's IANA timezone; only GENERAL reminders are client-created, while domain reminders are owned by their module.
+
+Initial delivery is client-side local scheduling, with device-token storage prepared for a future push provider.
+
+See [ADR-010-notifications-and-reminders-platform.md](./ADR-010-notifications-and-reminders-platform.md).
+
+### ADR-011 — Planner Module
+
+Planner module architecture and implementation.
+
+See [ADR-011-planner-module.md](./ADR-011-planner-module.md).
+
+### ADR-012 — Health Module Architecture
+
+A personal health tracking module covering profile, measurements (weight, height, heart rate, temperature, blood pressure), sleep records, activity, health observation logs, generic health events, and appointments.
+
+Backend: dedicated `health` Spring module (`com.blistra.health`) with seven Flyway-managed tables, per-type unit/range validation, and strict user-scoped ownership via `CurrentUserProvider`. REST endpoints under `/api/v1/health/*` return `PageResponse<T>` envelopes; profile is a singleton per user (upsert via PUT).
+
+Frontend: Flutter feature `lib/features/health/` with typed models (enum `wire` values matching backend), `HealthApi` (thin `ApiClient` wrapper), `HealthRepository` (`ChangeNotifier` cache with auto-refresh), and generic `RecordListScreen<T>` + `FormScaffold` for seven resource UIs. Auth via shared `AuthController` + `SessionStore` (shared_preferences).
+
+Privacy: no logging of health data in backend or frontend; `GlobalExceptionHandler` logs only path + error code.
+
+See [ADR-012-health-module.md](./ADR-012-health-module.md).
+
+### ADR-013 — Diet Domain & Nutrition Boundary
+
+The Diet module owns four tables: `diet_profiles`, `meals`, `meal_items`, `water_intake`. Allergies/intolerances remain in Health. Nutrition fields are optional; totals sum only explicitly recorded values (null when none). Water total only counts ml/L units.
+
+See [ADR-013-diet-domain-nutrition-boundary.md](./ADR-013-diet-domain-nutrition-boundary.md).
+
+### ADR-014 — Date/Time Handling in Diet
+
+All timestamps stored as `TIMESTAMPTZ` (`OffsetDateTime`). Day boundaries defined by client-sent `date` + `offsetMinutes`. No server-local time. Client computes offset from device timezone.
+
+See [ADR-014-diet-date-time-handling.md](./ADR-014-diet-date-time-handling.md).
+
+### ADR-015 — Ownership & IDOR Protection Model
+
+All queries scoped to authenticated user's UUID via `BlistraUserPrincipal`. Cross-user access returns 404 (not 403). Items protected via meal ownership. Frontend never sends userId. 401 triggers logout.
+
+See [ADR-015-diet-ownership-idor-protection.md](./ADR-015-diet-ownership-idor-protection.md).
+
+### ADR-016 — Medicines Module: Personal Medication Tracking
+
+A personal medication tracking module covering medicines, schedules, dose events, and refill history. All data is user-recorded; no medical advice or auto-marking of missed doses.
+
+Backend: dedicated `medicines` Spring module with four Flyway-managed tables, `TIMESTAMPTZ` timestamps, schedule recurrence via enum + wire arrays, soft-delete archive strategy. REST endpoints under `/api/v1/medicines/*` return `PageResponse<T>` envelopes; all queries scoped via `CurrentUserProvider`.
+
+Frontend: Flutter feature `lib/features/medicines/` with typed models (enum `wire` values matching backend), `MedicinesApiClient` (thin `http.Client` wrapper), `ChangeNotifier` state controllers, and screens for list, forms, detail (quick dose recording), and history. Auth via shared `AuthState` + `ApiClient`.
+
+See [ADR-016-medicines-module.md](./ADR-016-medicines-module.md).
 
 ---
 
