@@ -21,7 +21,7 @@ public final class HabitStreakCalculator {
      */
     public static boolean isDue(HabitSchedule schedule, LocalDate date) {
         if (schedule == null) {
-            return true;
+            return false;
         }
         return switch (schedule.getFrequency()) {
             case DAILY -> true;

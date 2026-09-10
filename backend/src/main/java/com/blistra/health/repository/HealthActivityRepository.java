@@ -17,23 +17,14 @@ public interface HealthActivityRepository extends JpaRepository<HealthActivity, 
 
     Optional<HealthActivity> findByIdAndUserId(UUID id, UUID userId);
 
-    @Query("""
-            SELECT a FROM HealthActivity a
-            WHERE a.user.id = :userId
-              AND (:from IS NULL OR a.performedAt >= :from)
-              AND (:to IS NULL OR a.performedAt <= :to)
-            """)
+    @Query(value = """
+            SELECT a.* FROM health_activities a
+            WHERE a.user_id = :userId
+              AND (CAST(:from AS timestamptz) IS NULL OR a.performed_at >= :from)
+              AND (CAST(:to AS timestamptz) IS NULL OR a.performed_at <= :to)
+            """, nativeQuery = true)
     Page<HealthActivity> search(@Param("userId") UUID userId,
                                 @Param("from") OffsetDateTime from,
                                 @Param("to") OffsetDateTime to,
                                 Pageable pageable);
-
-    @Query("""
-            SELECT a FROM HealthActivity a
-            WHERE a.user.id = :userId
-              AND LOWER(a.notes) LIKE LOWER(:term)
-            """)
-    Page<HealthActivity> searchByText(@Param("userId") UUID userId,
-                                      @Param("term") String term,
-                                      Pageable pageable);
 }

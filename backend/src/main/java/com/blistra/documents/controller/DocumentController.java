@@ -131,7 +131,7 @@ public class DocumentController {
                 .contentType(MediaType.parseMediaType(doc.getContentType()))
                 .contentLength(doc.getFileSize())
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
-                .header(HttpHeaders.X_CONTENT_TYPE_OPTIONS, "nosniff")
+                .header("X-Content-Type-Options", "nosniff")
                 .header(HttpHeaders.CACHE_CONTROL, "no-store")
                 .body(resource);
     }

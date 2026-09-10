@@ -19,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -123,10 +124,14 @@ public class HabitCompletionService {
                 .id(completion.getId())
                 .habitId(completion.getHabit().getId())
                 .completedOn(completion.getCompletedOn())
-                .value(completion.getValue())
+                .value(scale(completion.getValue()))
                 .durationMinutes(completion.getDurationMinutes())
                 .createdAt(completion.getCreatedAt())
                 .updatedAt(completion.getUpdatedAt())
                 .build();
+    }
+
+    private BigDecimal scale(BigDecimal value) {
+        return value == null ? null : value.setScale(4);
     }
 }

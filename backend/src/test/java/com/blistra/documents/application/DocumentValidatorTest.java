@@ -43,7 +43,7 @@ class DocumentValidatorTest {
         DocumentValidator validator = new DocumentValidator(properties);
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.jpg", "image/jpeg",
-                new byte[]{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46}); // JPEG header
+                new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10, 0x4A, 0x46}); // JPEG header
 
         String mime = validator.validateAndDetect(file);
 
@@ -57,7 +57,7 @@ class DocumentValidatorTest {
         DocumentValidator validator = new DocumentValidator(properties);
         MockMultipartFile file = new MockMultipartFile(
                 "file", "image.png", "image/png",
-                new byte[]{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00}); // PNG header
+                new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00}); // PNG header
 
         String mime = validator.validateAndDetect(file);
 
@@ -149,7 +149,7 @@ class DocumentValidatorTest {
         // File named .pdf but content is JPEG
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.pdf", "application/pdf",
-                new byte[]{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46});
+                new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10, 0x4A, 0x46});
 
         assertThatThrownBy(() -> validator.validateAndDetect(file))
                 .isInstanceOf(InvalidRequestException.class)

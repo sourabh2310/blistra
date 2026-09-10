@@ -54,13 +54,13 @@ class AllowedDocumentTypeTest {
 
     @Test
     void match_jpegMagicBytes() {
-        byte[] jpegHeader = {0xFF, 0xD8, 0xFF, 0xE0}; // FF D8 FF E0
+        byte[] jpegHeader = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0}; // FF D8 FF E0
         assertThat(AllowedDocumentType.match(jpegHeader)).isEqualTo(AllowedDocumentType.JPEG);
     }
 
     @Test
     void match_pngMagicBytes() {
-        byte[] pngHeader = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+        byte[] pngHeader = {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
         assertThat(AllowedDocumentType.match(pngHeader)).isEqualTo(AllowedDocumentType.PNG);
     }
 

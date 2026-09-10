@@ -48,7 +48,7 @@ class DashboardResponseSerializationTest {
                         .meals(List.of())
                         .waterCount(2)
                         .water(List.of())
-                        .waterTotalMilliliters(BigDecimal.valueOf(500))
+                        .waterTotalMilliliters("500")
                         .nutrition(DashboardResponse.NutritionSummary.builder()
                                 .caloriesKcal(DashboardResponse.MacroSummary.builder().total("500").recordedItems(1).build())
                                 .build())

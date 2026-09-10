@@ -26,12 +26,4 @@ public interface WaterIntakeRepository extends JpaRepository<WaterIntake, UUID> 
     List<WaterIntake> findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtAsc(
             UUID userId, OffsetDateTime start, OffsetDateTime end);
 
-    @Query("""
-            SELECT w FROM WaterIntake w
-            WHERE w.userId = :userId
-              AND LOWER(w.notes) LIKE LOWER(:term)
-            """)
-    Page<WaterIntake> searchByText(@Param("userId") UUID userId,
-                                   @Param("term") String term,
-                                   Pageable pageable);
-}
+    }

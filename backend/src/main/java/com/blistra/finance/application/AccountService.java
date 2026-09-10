@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -59,7 +60,9 @@ public class AccountService {
         var balances = balanceCalculator.balancesFor(user.getId());
         return accounts.stream()
                 .map(account -> mapper.toAccountResponse(account,
-                        Money.toPlainString(balances.getOrDefault(account.getId(), account.getOpeningBalance()))))
+                        Money.toPlainString(account.getOpeningBalance()
+                                .add(balances.getOrDefault(account.getId(), BigDecimal.ZERO))
+                                .setScale(Money.SCALE, java.math.RoundingMode.UNNECESSARY))))
                 .toList();
     }
 

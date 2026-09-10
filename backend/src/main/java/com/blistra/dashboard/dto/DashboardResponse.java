@@ -75,7 +75,6 @@ public class DashboardResponse {
         private String listName;
         private String priority;
         private String status;
-        private boolean allDay;
         private String dueAt;
     }
 
@@ -89,7 +88,6 @@ public class DashboardResponse {
         private String title;
         private String startAt;
         private String endAt;
-        private boolean allDay;
     }
 
     @Data
@@ -159,9 +157,9 @@ public class DashboardResponse {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class DietSection {
         private LocalDate date;
-        private int mealCount;
+        private long mealCount;
         private List<MealSummary> meals;
-        private int waterCount;
+        private long waterCount;
         private List<WaterSummary> water;
         private String waterTotalMilliliters;
         private NutritionSummary nutrition;
@@ -227,7 +225,7 @@ public class DashboardResponse {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class MacroSummary {
         private String total;
-        private int recordedItems;
+        private long recordedItems;
     }
 
     @Data

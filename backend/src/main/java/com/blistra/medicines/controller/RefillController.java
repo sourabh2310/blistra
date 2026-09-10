@@ -1,11 +1,15 @@
 package com.blistra.medicines.controller;
 
+import com.blistra.health.dto.PageResponse;
 import com.blistra.medicines.application.RefillService;
 import com.blistra.medicines.dto.RefillRequest;
 import com.blistra.medicines.dto.RefillResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.SortDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -34,8 +37,10 @@ public class RefillController {
 
     @GetMapping
     @Operation(summary = "List refills", description = "Returns the authenticated user's refill records for a medicine.")
-    public List<RefillResponse> list(@PathVariable UUID medicineId) {
-        return refillService.list(medicineId);
+    public PageResponse<RefillResponse> list(
+            @PathVariable UUID medicineId,
+            @SortDefault(sort = "refillDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        return refillService.list(medicineId, pageable);
     }
 
     @PostMapping

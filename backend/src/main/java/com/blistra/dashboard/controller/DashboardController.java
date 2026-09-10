@@ -54,7 +54,7 @@ public class DashboardController {
             @Parameter(description = "Client UTC offset in minutes (e.g., 330 for IST, -300 for EST). Used to compute the local calendar day boundaries. Defaults to 0 (UTC).")
             @RequestParam(required = false, defaultValue = "0") int offsetMinutes) {
 
-        LocalDate targetDate = (date != null) ? date : OffsetDateTime.now(ZoneOffset.ofTotalSeconds(offsetMinutes * 60L)).toLocalDate();
+        LocalDate targetDate = (date != null) ? date : OffsetDateTime.now(ZoneOffset.ofTotalSeconds(offsetMinutes * 60)).toLocalDate();
 
         DashboardResponse response = dashboardService.getDashboard(targetDate, offsetMinutes);
         return ResponseEntity.ok(response);

@@ -13,7 +13,6 @@ import com.blistra.documents.repository.DocumentRepository;
 import com.blistra.documents.storage.DocumentStorageService;
 import com.blistra.documents.storage.DocumentStorageException;
 import com.blistra.documents.storage.DocumentTooLargeException;
-import com.blistra.documents.support.FilenameSanitizer;
 import com.blistra.users.domain.User;
 import com.blistra.users.repository.UserRepository;
 import org.slf4j.Logger;
@@ -21,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -87,11 +85,10 @@ public class DocumentService {
         // Validate metadata
         validator.validateMetadata(description);
 
-        // Generate unique storage key
+        // Generate unique storage key (never derived from the filename)
         String objectKey = UUID.randomUUID().toString();
 
-        // Sanitize original filename for metadata storage
-        String safeFilename = FilenameSanitizer.sanitize(file.getOriginalFilename());
+        String originalFilename = file.getOriginalFilename();
 
         // Compute SHA-256 hash and store in one pass
         String contentHash;
@@ -113,7 +110,7 @@ public class DocumentService {
         }
 
         // Persist metadata
-        Document doc = new Document(user, safeFilename, objectKey,
+        Document doc = new Document(user, originalFilename, objectKey,
                 contentType, size, contentHash, category, description);
         try {
             doc = documentRepository.save(doc);
@@ -143,10 +140,10 @@ public class DocumentService {
         if (size < 1) size = 20;
         if (size > 100) size = 100;
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page, size);
 
         Page<Document> result = documentRepository.searchOwned(
-                user.getId(), category, from, to, pageable);
+                user.getId(), category != null ? category.name() : null, from, to, pageable);
 
         return DocumentPageResponse.of(result);
     }

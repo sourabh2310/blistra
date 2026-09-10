@@ -1,9 +1,11 @@
 package com.blistra.habits.controller;
 
+import com.blistra.habits.application.HabitCompletionService;
 import com.blistra.habits.application.HabitService;
 import com.blistra.habits.domain.HabitStatus;
 import com.blistra.habits.dto.HabitRequest;
 import com.blistra.habits.dto.HabitResponse;
+import com.blistra.habits.dto.HabitStatisticsResponse;
 import com.blistra.habits.dto.HabitTodayResponse;
 import com.blistra.habits.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,9 +36,11 @@ import java.util.UUID;
 public class HabitController {
 
     private final HabitService habitService;
+    private final HabitCompletionService completionService;
 
-    public HabitController(HabitService habitService) {
+    public HabitController(HabitService habitService, HabitCompletionService completionService) {
         this.habitService = habitService;
+        this.completionService = completionService;
     }
 
     @GetMapping
@@ -57,6 +61,12 @@ public class HabitController {
     @Operation(summary = "List active habits due today with their completion state")
     public ResponseEntity<List<HabitTodayResponse>> today() {
         return ResponseEntity.ok(habitService.today());
+    }
+
+    @GetMapping("/{habitId}/statistics")
+    @Operation(summary = "Completion and streak statistics of a habit")
+    public ResponseEntity<HabitStatisticsResponse> statistics(@PathVariable UUID habitId) {
+        return ResponseEntity.ok(completionService.statistics(habitId));
     }
 
     @GetMapping("/{id}")

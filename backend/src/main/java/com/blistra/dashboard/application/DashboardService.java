@@ -176,11 +176,10 @@ public class DashboardService {
         return tasks.stream().map(t -> DashboardResponse.TaskSummary.builder()
                 .id(t.getId().toString())
                 .title(t.getTitle())
-                .listId(t.getListId() != null ? t.getListId().toString() : null)
-                .listName(t.getListName())
+                .listId(t.getTaskListId() != null ? t.getTaskListId().toString() : null)
+                .listName(t.getTaskListName())
                 .priority(t.getPriority() != null ? t.getPriority().name() : null)
                 .status(t.getStatus() != null ? t.getStatus().name() : null)
-                .allDay(t.isAllDay())
                 .dueAt(t.getDueAt() != null ? t.getDueAt().toString() : null)
                 .build()).toList();
     }
@@ -191,7 +190,6 @@ public class DashboardService {
                 .title(e.getTitle())
                 .startAt(e.getStartAt().toString())
                 .endAt(e.getEndAt() != null ? e.getEndAt().toString() : null)
-                .allDay(e.isAllDay())
                 .build()).toList();
     }
 
@@ -203,7 +201,7 @@ public class DashboardService {
                 .net(s.net())
                 .transferIn(s.transferIn())
                 .transferOut(s.transferOut())
-                .topCategories(mapCategorySpends(s.topCategories()))
+                .topCategories(mapCategorySpends(s.spendingByCategory()))
                 .build()).toList();
     }
 
@@ -218,7 +216,7 @@ public class DashboardService {
     private List<DashboardResponse.MealSummary> mapMeals(List<com.blistra.diet.dto.MealResponse> meals) {
         return meals.stream().map(m -> DashboardResponse.MealSummary.builder()
                 .id(m.getId().toString())
-                .type(m.getType() != null ? m.getType().name() : null)
+                .type(m.getMealType() != null ? m.getMealType().name() : null)
                 .consumedAt(m.getConsumedAt() != null ? m.getConsumedAt().toString() : null)
                 .items(mapItems(m.getItems()))
                 .build()).toList();

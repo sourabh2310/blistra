@@ -65,6 +65,18 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
         } catch (Exception ignored) {}
     }
 
+    private void cleanStorage() throws java.io.IOException {
+        if (Files.exists(storageRoot)) {
+            try (java.util.stream.Stream<Path> walk = Files.walk(storageRoot)) {
+                walk.sorted(java.util.Comparator.reverseOrder())
+                        .filter(p -> !p.equals(storageRoot))
+                        .forEach(p -> {
+                            try { Files.deleteIfExists(p); } catch (Exception ignored) {}
+                        });
+            }
+        }
+    }
+
     @org.springframework.test.context.DynamicPropertySource
     static void overrideProps(org.springframework.test.context.DynamicPropertyRegistry registry) {
         registry.add("blistra.documents.storage-root", storageRoot::toString);
@@ -83,7 +95,8 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         documentRepository.deleteAll();
-        userRepository.deleteAll();
+        deleteAllUsers();
+        cleanStorage();
 
         // Register and login User A
         RegisterRequest regA = RegisterRequest.builder()
@@ -149,11 +162,11 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     private byte[] jpegBytes() {
-        return new byte[]{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00}; // JPEG SOI + APP0
+        return new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00}; // JPEG SOI + APP0
     }
 
     private byte[] pngBytes() {
-        return new byte[]{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D}; // PNG header
+        return new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D}; // PNG header
     }
 
     @Test

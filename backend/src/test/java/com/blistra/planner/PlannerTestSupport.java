@@ -53,7 +53,7 @@ public abstract class PlannerTestSupport extends AbstractIntegrationTest {
         taskRepository.deleteAll();
         taskListRepository.deleteAll();
         eventRepository.deleteAll();
-        userRepository.deleteAll();
+        deleteAllUsers();
     }
 
     protected String registerAndLogin(String email, String password) throws Exception {

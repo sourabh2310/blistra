@@ -1,7 +1,9 @@
 package com.blistra;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -19,11 +21,27 @@ public abstract class AbstractIntegrationTest {
         postgres.start();
     }
 
+    @Autowired
+    protected JdbcTemplate jdbcTemplate;
+
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+    }
+
+    /**
+     * Removes all users. Finance tables deliberately do NOT cascade from
+     * users (financial history must never be silently destroyed), so they have
+     * to be cleared explicitly before the users they reference.
+     */
+    protected void deleteAllUsers() {
+        jdbcTemplate.execute("DELETE FROM finance_transfers");
+        jdbcTemplate.execute("DELETE FROM finance_transactions");
+        jdbcTemplate.execute("DELETE FROM finance_categories");
+        jdbcTemplate.execute("DELETE FROM finance_accounts");
+        jdbcTemplate.execute("DELETE FROM users");
     }
 }

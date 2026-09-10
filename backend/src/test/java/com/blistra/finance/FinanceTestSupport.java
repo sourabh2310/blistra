@@ -59,7 +59,7 @@ public abstract class FinanceTestSupport extends AbstractIntegrationTest {
         financeTransactionRepository.deleteAll();
         categoryRepository.deleteAll();
         accountRepository.deleteAll();
-        userRepository.deleteAll();
+        deleteAllUsers();
     }
 
     protected String registerAndLogin(String email, String password) throws Exception {

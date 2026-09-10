@@ -36,7 +36,7 @@ class SecurityIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
+        deleteAllUsers();
     }
 
     @Test

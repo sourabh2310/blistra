@@ -37,7 +37,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
+        deleteAllUsers();
     }
 
     @Test

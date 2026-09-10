@@ -52,7 +52,7 @@ class NotificationsIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
+        deleteAllUsers();
     }
 
     @Test

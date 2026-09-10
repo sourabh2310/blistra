@@ -26,12 +26,4 @@ public interface MealRepository extends JpaRepository<Meal, UUID> {
     List<Meal> findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtAsc(
             UUID userId, OffsetDateTime start, OffsetDateTime end);
 
-    @Query("""
-            SELECT m FROM Meal m
-            WHERE m.userId = :userId
-              AND (LOWER(m.title) LIKE LOWER(:term) OR LOWER(m.notes) LIKE LOWER(:term))
-            """)
-    Page<Meal> searchByText(@Param("userId") UUID userId,
-                            @Param("term") String term,
-                            Pageable pageable);
-}
+    }

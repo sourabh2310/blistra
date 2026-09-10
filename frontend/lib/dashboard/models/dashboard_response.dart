@@ -325,7 +325,6 @@ class TaskSummary {
     this.listName,
     this.priority,
     this.status,
-    required this.allDay,
     this.dueAt,
   });
 
@@ -335,7 +334,6 @@ class TaskSummary {
   final String? listName;
   final String? priority;
   final String? status;
-  final bool allDay;
   final String? dueAt;
 
   factory TaskSummary.fromJson(Map<String, dynamic> json) {
@@ -346,7 +344,6 @@ class TaskSummary {
       listName: json['listName'] as String?,
       priority: json['priority'] as String?,
       status: json['status'] as String?,
-      allDay: json['allDay'] as bool? ?? false,
       dueAt: json['dueAt'] as String?,
     );
   }
@@ -358,7 +355,6 @@ class TaskSummary {
         if (listName != null) 'listName': listName,
         if (priority != null) 'priority': priority,
         if (status != null) 'status': status,
-        'allDay': allDay,
         if (dueAt != null) 'dueAt': dueAt,
       };
 }
@@ -369,14 +365,12 @@ class EventSummary {
     required this.title,
     required this.startAt,
     this.endAt,
-    required this.allDay,
   });
 
   final String id;
   final String title;
   final String startAt;
   final String? endAt;
-  final bool allDay;
 
   factory EventSummary.fromJson(Map<String, dynamic> json) {
     return EventSummary(
@@ -384,7 +378,6 @@ class EventSummary {
       title: json['title'] as String,
       startAt: json['startAt'] as String,
       endAt: json['endAt'] as String?,
-      allDay: json['allDay'] as bool? ?? false,
     );
   }
 
@@ -393,7 +386,6 @@ class EventSummary {
         'title': title,
         'startAt': startAt,
         if (endAt != null) 'endAt': endAt,
-        'allDay': allDay,
       };
 }
 

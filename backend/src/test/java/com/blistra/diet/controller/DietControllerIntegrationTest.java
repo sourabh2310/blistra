@@ -17,6 +17,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.json.JsonMapper;
 
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
+
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -60,12 +64,15 @@ class DietControllerIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
     private String userAToken;
     private String userBToken;
 
     @BeforeEach
     void setUp() throws Exception {
-        userRepository.deleteAll();
+        deleteAllUsers();
         userAToken = registerAndLogin("a@example.com");
         userBToken = registerAndLogin("b@example.com");
     }
@@ -505,8 +512,9 @@ class DietControllerIntegrationTest extends AbstractIntegrationTest {
                         .param("date", "2026-08-16")
                         .param("offsetMinutes", "0"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.mealCount").value(1))
-                .andExpect(jsonPath("$.meals[0].title").value("Morning +5:30"));
+                .andExpect(jsonPath("$.mealCount").value(2))
+                .andExpect(jsonPath("$.meals[0].title").value("Morning +5:30"))
+                .andExpect(jsonPath("$.meals[1].title").value("Next day +5:30"));
 
         // IST day 2026-08-17 includes only the last one.
         mockMvc.perform(get(SUMMARY)
@@ -561,12 +569,19 @@ class DietControllerIntegrationTest extends AbstractIntegrationTest {
     // ------------------------------------------------------------------
 
     @Test
+    @org.springframework.transaction.annotation.Transactional
     void foreignKeyRelationshipsWork() throws Exception {
         // An orphan meal item (missing meal) is rejected by the database FK.
-        assertThatThrownBy(() -> jdbcTemplate.update(
-                "INSERT INTO meal_items (id, meal_id, name) VALUES (?, ?, ?)",
-                UUID.randomUUID(), UUID.randomUUID(), "Rice"))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        // Runs in its own transaction so the deliberate violation does not
+        // abort the surrounding test transaction.
+        TransactionTemplate isolated = new TransactionTemplate(transactionManager);
+        isolated.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        assertThatThrownBy(() -> isolated.execute(status -> {
+            jdbcTemplate.update(
+                    "INSERT INTO meal_items (id, meal_id, name) VALUES (?, ?, ?)",
+                    UUID.randomUUID(), UUID.randomUUID(), "Rice");
+            return null;
+        })).isInstanceOf(DataIntegrityViolationException.class);
 
         // Deleting a user cascades to their meals and water records.
         User user = new User("fk@example.com", "hash");

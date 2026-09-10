@@ -43,8 +43,8 @@ class HealthSummaryProviderTest {
     void setUp() {
         provider = new HealthSummaryProvider(measurementRepository, appointmentRepository, currentUserProvider);
 
-        when(testUser.getId()).thenReturn(UUID.randomUUID());
-        when(currentUserProvider.getCurrentUser()).thenReturn(testUser);
+        lenient().when(testUser.getId()).thenReturn(UUID.randomUUID());
+        lenient().when(currentUserProvider.getCurrentUser()).thenReturn(testUser);
     }
 
     @Test

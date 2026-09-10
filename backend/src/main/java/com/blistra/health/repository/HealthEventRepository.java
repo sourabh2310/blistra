@@ -17,23 +17,15 @@ public interface HealthEventRepository extends JpaRepository<HealthEvent, UUID> 
 
     Optional<HealthEvent> findByIdAndUserId(UUID id, UUID userId);
 
-    @Query("""
-            SELECT e FROM HealthEvent e
-            WHERE e.user.id = :userId
-              AND (:from IS NULL OR e.occurredAt >= :from)
-              AND (:to IS NULL OR e.occurredAt <= :to)
-            """)
+    @Query(value = """
+            SELECT e.* FROM health_events e
+            WHERE e.user_id = :userId
+              AND (CAST(:from AS timestamptz) IS NULL OR e.occurred_at >= :from)
+              AND (CAST(:to AS timestamptz) IS NULL OR e.occurred_at <= :to)
+            ORDER BY e.occurred_at DESC
+            """, nativeQuery = true)
     Page<HealthEvent> search(@Param("userId") UUID userId,
                              @Param("from") OffsetDateTime from,
                              @Param("to") OffsetDateTime to,
                              Pageable pageable);
-
-    @Query("""
-            SELECT e FROM HealthEvent e
-            WHERE e.user.id = :userId
-              AND (LOWER(e.title) LIKE LOWER(:term) OR LOWER(e.notes) LIKE LOWER(:term))
-            """)
-    Page<HealthEvent> searchByText(@Param("userId") UUID userId,
-                                   @Param("term") String term,
-                                   Pageable pageable);
 }

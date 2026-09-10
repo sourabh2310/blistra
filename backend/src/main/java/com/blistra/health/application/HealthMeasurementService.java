@@ -10,6 +10,7 @@ import com.blistra.health.repository.HealthMeasurementRepository;
 import com.blistra.users.application.CurrentUserProvider;
 import com.blistra.users.domain.User;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +40,11 @@ public class HealthMeasurementService {
                                                   OffsetDateTime to,
                                                   Pageable pageable) {
         User user = currentUserProvider.getCurrentUser();
-        Page<HealthMeasurement> page = measurementRepository.search(user.getId(), type, from, to, pageable);
+        // The search query is native SQL with a fixed ORDER BY; a client-provided
+        // Sort would be interpolated as an unquoted camelCase column and fail.
+        Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        Page<HealthMeasurement> page = measurementRepository.search(
+                user.getId(), type != null ? type.name() : null, from, to, unsorted);
         return PageResponse.of(page.map(this::toResponse));
     }
 

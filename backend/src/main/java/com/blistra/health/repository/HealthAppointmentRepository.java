@@ -18,12 +18,13 @@ public interface HealthAppointmentRepository extends JpaRepository<HealthAppoint
 
     Optional<HealthAppointment> findByIdAndUserId(UUID id, UUID userId);
 
-    @Query("""
-            SELECT a FROM HealthAppointment a
-            WHERE a.user.id = :userId
-              AND (:from IS NULL OR a.scheduledAt >= :from)
-              AND (:to IS NULL OR a.scheduledAt <= :to)
-            """)
+    @Query(value = """
+            SELECT a.* FROM health_appointments a
+            WHERE a.user_id = :userId
+              AND (CAST(:from AS timestamptz) IS NULL OR a.scheduled_at >= :from)
+              AND (CAST(:to AS timestamptz) IS NULL OR a.scheduled_at <= :to)
+            ORDER BY a.scheduled_at DESC
+            """, nativeQuery = true)
     Page<HealthAppointment> search(@Param("userId") UUID userId,
                                    @Param("from") OffsetDateTime from,
                                    @Param("to") OffsetDateTime to,
@@ -40,15 +41,4 @@ public interface HealthAppointmentRepository extends JpaRepository<HealthAppoint
             @Param("userId") UUID userId,
             @Param("from") OffsetDateTime from,
             @Param("to") OffsetDateTime to);
-
-    @Query("""
-            SELECT a FROM HealthAppointment a
-            WHERE a.user.id = :userId
-              AND (LOWER(a.title) LIKE LOWER(:term)
-                   OR LOWER(a.location) LIKE LOWER(:term)
-                   OR LOWER(a.notes) LIKE LOWER(:term))
-            """)
-    Page<HealthAppointment> searchByText(@Param("userId") UUID userId,
-                                         @Param("term") String term,
-                                         Pageable pageable);
 }
