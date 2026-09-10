@@ -1,85 +1,108 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'core/api/api_config.dart';
-import 'core/api/auth_repository.dart'
-import 'features/auth/login_page.dart'
-import 'features/documents/documents_page.dart'
-import 'features/documents/providers/documents_provider.dart'
-import 'features/documents/repositories/documents_repository.dart'
 
-void main() async {
+import 'notifications/app_dependencies.dart';
+import 'notifications/screens/auth_screen.dart';
+import 'notifications/screens/home_shell.dart';
+import 'notifications/state/auth_controller.dart';
+import 'notifications/state/reminders_controller.dart';
+import 'notifications/state/settings_controller.dart';
+
+/// Allows tests to inject real-but-fake controllers while production runs the
+/// default wiring.
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final prefs = await SharedPreferences.getInstance()
-  final apiConfig = ApiConfig()
-  await apiConfig.init()
+  // SharedPreferences must be initialized before we can read the stored token.
+  final prefs = await SharedPreferences.getInstance();
+
+  // API base URL can be overridden at build time: --dart-define=API_BASE_URL=...
+  // Defaults to the Android emulator's loopback alias for the host machine.
+  const apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8080',
+  );
+
+  // Initialize the notification scheduler early so scheduled reminders fire
+  // even if the app is cold-started from a notification tap.
+  try {
+    final scheduler = FlutterNotificationScheduler();
+    await scheduler.initialize();
+    await scheduler.requestPermissions();
+  } catch (error) {
+    // If the scheduler fails (e.g., missing permissions on some devices),
+    // we log and continue — the app remains usable, just without local
+    // notifications until the issue is resolved.
+    // ignore: avoid_print
+    print('Notification scheduler init failed: $error');
+  }
+
+  final deps = AppDependencies(baseUrl: apiBaseUrl, prefs: prefs);
 
   runApp(BlistraApp(
-    apiConfig: apiConfig,
-    authRepository: AuthRepository(apiConfig),
-    documentsRepository: DocumentsRepository(apiConfig),
-  ))
+    authController: deps.authController,
+    remindersController: deps.remindersController,
+    settingsController: deps.settingsController,
+  ));
 }
 
 class BlistraApp extends StatelessWidget {
-  final ApiConfig apiConfig
-  final AuthRepository authRepository
-  final DocumentsRepository documentsRepository
-
   const BlistraApp({
     super.key,
-    required this.apiConfig,
-    required this.authRepository,
-    required this.documentsRepository,
-  })
+    required this.authController,
+    required this.remindersController,
+    required this.settingsController,
+  });
+
+  final AuthController authController;
+  final RemindersController remindersController;
+  final SettingsController settingsController;
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        Provider<ApiConfig>.value(value: apiConfig),
-        Provider<AuthRepository>.value(value: authRepository),
-        Provider<DocumentsRepository>.value(value: documentsRepository),
-        ChangeNotifierProxyProvider<ApiConfig, DocumentsProvider>(
-          create: (_) => DocumentsProvider(documentsRepository),
-          update: (_, api, previous) =>
-              previous ?? DocumentsProvider(documentsRepository),
-        ),
-      ],
-      child: MaterialApp(
-        title: 'Blistra',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorSchemeSeed: Colors.indigo,
-          brightness: Brightness.light,
-        ),
-        darkTheme: ThemeData(
-          useMaterial3: true,
-          colorSchemeSeed: Colors.indigo,
-          brightness: Brightness.dark,
-        ),
-        themeMode: ThemeMode.system,
-        home: const AuthGate(),
+    return MaterialApp(
+      title: 'Blistra',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF386641)),
       ),
-    )
+      home: AuthGate(
+        authController: authController,
+        remindersController: remindersController,
+        settingsController: settingsController,
+      ),
+    );
   }
 }
 
-/// Gate that shows login or documents based on auth state
+/// Routes to the login screen or the app shell based on auth state.
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key})
+  const AuthGate({
+    super.key,
+    required this.authController,
+    required this.remindersController,
+    required this.settingsController,
+  });
+
+  final AuthController authController;
+  final RemindersController remindersController;
+  final SettingsController settingsController;
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ApiConfig>(
-      builder: (context, api, _) {
-        if (api.isAuthenticated) {
-          return const DocumentsPage()
+    return ListenableBuilder(
+      listenable: authController,
+      builder: (context, _) {
+        if (authController.isAuthenticated) {
+          return HomeShell(
+            authController: authController,
+            remindersController: remindersController,
+            settingsController: settingsController,
+          );
         }
-        return const LoginPage()
+        return const AuthScreen();
       },
-    )
+    );
   }
 }

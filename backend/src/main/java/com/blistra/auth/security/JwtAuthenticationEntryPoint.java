@@ -1,6 +1,5 @@
 package com.blistra.auth.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.blistra.common.error.ApiErrorResponse;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,12 +8,19 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 
 @Component
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
+
+    private final ObjectMapper objectMapper;
+
+    public JwtAuthenticationEntryPoint(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
@@ -30,6 +36,6 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
                 .path(request.getServletPath())
                 .build();
 
-        response.getWriter().write(new ObjectMapper().writeValueAsString(errorResponse));
+        response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
     }
 }
