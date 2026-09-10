@@ -1,0 +1,37 @@
+package com.blistra.diet.repository;
+
+import com.blistra.diet.domain.WaterIntake;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public interface WaterIntakeRepository extends JpaRepository<WaterIntake, UUID> {
+
+    Optional<WaterIntake> findByIdAndUserId(UUID id, UUID userId);
+
+    Page<WaterIntake> findAllByUserIdOrderByConsumedAtDesc(UUID userId, Pageable pageable);
+
+    Page<WaterIntake> findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtDesc(
+            UUID userId, OffsetDateTime start, OffsetDateTime end, Pageable pageable);
+
+    List<WaterIntake> findAllByUserIdAndConsumedAtBetweenOrderByConsumedAtAsc(
+            UUID userId, OffsetDateTime start, OffsetDateTime end);
+
+    @Query("""
+            SELECT w FROM WaterIntake w
+            WHERE w.userId = :userId
+              AND LOWER(w.notes) LIKE LOWER(:term)
+            """)
+    Page<WaterIntake> searchByText(@Param("userId") UUID userId,
+                                   @Param("term") String term,
+                                   Pageable pageable);
+}
