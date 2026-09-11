@@ -37,6 +37,7 @@ class _DoseHistoryPageState extends State<DoseHistoryPage> {
       final authState = context.read<AuthState>();
       _api = MedicinesApiClient(
         tokenProvider: () => authState.apiClient.token ?? '',
+        onUnauthorized: () => authState.handleUnauthorized(),
       );
       _loadFirstPage();
     }

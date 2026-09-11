@@ -21,6 +21,14 @@ HabitFrequency habitFrequencyFromJson(String value) =>
 
 String enumToJson(Enum value) => value.name.toUpperCase();
 
+/// Backend sends BigDecimal as JSON number OR string — accept both.
+String? decimalFromJson(Object? raw) {
+  if (raw == null) return null;
+  if (raw is String) return raw;
+  if (raw is num) return raw.toString();
+  return raw.toString();
+}
+
 class Habit {
   const Habit({
     required this.id,
@@ -55,7 +63,7 @@ class Habit {
         description: json['description'] as String?,
         type: habitTypeFromJson(json['type'] as String),
         status: habitStatusFromJson(json['status'] as String),
-        targetValue: json['targetValue'] as String?,
+        targetValue: decimalFromJson(json['targetValue']),
         targetUnit: json['targetUnit'] as String?,
         targetMinutes: json['targetMinutes'] as int?,
         createdAt: DateTime.parse(json['createdAt'] as String).toUtc(),
@@ -116,7 +124,7 @@ class Completion {
         id: json['id'] as String,
         habitId: json['habitId'] as String,
         completedOn: DateTime.parse(json['completedOn'] as String).toUtc(),
-        value: json['value'] as String?,
+        value: decimalFromJson(json['value']),
         durationMinutes: json['durationMinutes'] as int?,
         createdAt: DateTime.parse(json['createdAt'] as String).toUtc(),
         updatedAt: DateTime.parse(json['updatedAt'] as String).toUtc(),
@@ -152,7 +160,7 @@ class HabitTodayResponse {
         name: json['name'] as String,
         description: json['description'] as String?,
         type: habitTypeFromJson(json['type'] as String),
-        targetValue: json['targetValue'] as String?,
+        targetValue: decimalFromJson(json['targetValue']),
         targetUnit: json['targetUnit'] as String?,
         targetMinutes: json['targetMinutes'] as int?,
         schedule: json['schedule'] != null

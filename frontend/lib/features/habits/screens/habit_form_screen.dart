@@ -115,7 +115,20 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                   );
                 }).toList(),
                 onChanged: (HabitType? value) {
-                  if (value != null) setState(() => _type = value);
+                  if (value != null) {
+                    setState(() {
+                      _type = value;
+                      // Clear hidden type-specific fields so stale values are
+                      // never sent (backend rejects inconsistent targets).
+                      if (value != HabitType.count) {
+                        _targetValueController.clear();
+                        _targetUnitController.clear();
+                      }
+                      if (value != HabitType.duration) {
+                        _targetMinutesController.clear();
+                      }
+                    });
+                  }
                 },
               ),
               const SizedBox(height: 12),
@@ -126,12 +139,22 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                       child: TextFormField(
                         controller: _targetValueController,
                         decoration: const InputDecoration(
-                          labelText: 'Target Value',
+                          labelText: 'Target Value *',
                           hintText: '8',
                         ),
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
+                        validator: (v) {
+                          if (_type != HabitType.count) return null;
+                          final t = (v ?? '').trim();
+                          if (t.isEmpty) return 'Target value is required';
+                          final n = double.tryParse(t);
+                          if (n == null || n <= 0) {
+                            return 'Enter a number greater than 0';
+                          }
+                          return null;
+                        },
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -152,10 +175,20 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                 TextFormField(
                   controller: _targetMinutesController,
                   decoration: const InputDecoration(
-                    labelText: 'Target Minutes',
+                    labelText: 'Target Minutes *',
                     hintText: '20',
                   ),
                   keyboardType: TextInputType.number,
+                  validator: (v) {
+                    if (_type != HabitType.duration) return null;
+                    final t = (v ?? '').trim();
+                    if (t.isEmpty) return 'Target minutes is required';
+                    final n = int.tryParse(t);
+                    if (n == null || n <= 0) {
+                      return 'Enter whole minutes greater than 0';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
               ],

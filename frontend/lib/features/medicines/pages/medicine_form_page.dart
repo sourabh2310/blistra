@@ -32,7 +32,10 @@ class _MedicineFormPageState extends State<MedicineFormPage> {
       final apiClient = context.read<ApiClient>();
       final authState = context.read<AuthState>();
       _controller = MedicineFormController(
-        MedicinesApiClient(tokenProvider: () => authState.apiClient.token ?? ''),
+        MedicinesApiClient(
+          tokenProvider: () => authState.apiClient.token ?? '',
+          onUnauthorized: () => authState.handleUnauthorized(),
+        ),
         medicine: widget.medicine,
       );
     }

@@ -37,7 +37,10 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
       final apiClient = context.read<ApiClient>();
       final authState = context.read<AuthState>();
       _controller = ScheduleFormController(
-        MedicinesApiClient(tokenProvider: () => authState.apiClient.token ?? ''),
+        MedicinesApiClient(
+          tokenProvider: () => authState.apiClient.token ?? '',
+          onUnauthorized: () => authState.handleUnauthorized(),
+        ),
         medicineId: widget.medicineId,
         schedule: widget.schedule,
       );

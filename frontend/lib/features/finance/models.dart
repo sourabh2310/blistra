@@ -17,8 +17,12 @@ enum CategoryStatus { active, archived }
 
 enum TransactionType { income, expense }
 
-AccountType accountTypeFromJson(String value) =>
-    AccountType.values.byName(value.toLowerCase());
+AccountType accountTypeFromJson(String value) {
+  final normalized = value.toLowerCase();
+  // Backend sends CREDIT_CARD (snake); Dart enum is creditCard.
+  if (normalized == 'credit_card') return AccountType.creditCard;
+  return AccountType.values.byName(normalized);
+}
 
 AccountStatus accountStatusFromJson(String value) =>
     AccountStatus.values.byName(value.toLowerCase());
@@ -32,7 +36,16 @@ CategoryStatus categoryStatusFromJson(String value) =>
 TransactionType transactionTypeFromJson(String value) =>
     TransactionType.values.byName(value.toLowerCase());
 
-String enumToJson(Enum value) => value.name.toUpperCase();
+String enumToJson(Enum value) {
+  // AccountType.creditCard -> CREDIT_CARD (backend contract).
+  if (value is AccountType) {
+    return switch (value) {
+      AccountType.creditCard => 'CREDIT_CARD',
+      _ => value.name.toUpperCase(),
+    };
+  }
+  return value.name.toUpperCase();
+}
 
 class Account {
   const Account({

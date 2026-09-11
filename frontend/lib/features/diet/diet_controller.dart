@@ -131,7 +131,7 @@ class DietController extends ChangeNotifier {
 
   Future<void> loadMoreHistory() async {
     final current = _history;
-    if (current == null || current.hasMore || _historyLoading) {
+    if (current == null || !current.hasMore || _historyLoading) {
       return;
     }
     _historyLoading = true;

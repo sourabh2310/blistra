@@ -18,14 +18,17 @@ class BlistraApiClient {
     http.Client? httpClient,
     TokenStore? tokenStore,
     String? Function()? tokenProvider,
+    Future<void> Function()? onUnauthorized,
   })  : _http = httpClient ?? http.Client(),
         _tokens = tokenStore,
-        _tokenProvider = tokenProvider;
+        _tokenProvider = tokenProvider,
+        _onUnauthorized = onUnauthorized;
 
   final String baseUrl;
   final http.Client _http;
   final TokenStore? _tokens;
   final String? Function()? _tokenProvider;
+  final Future<void> Function()? _onUnauthorized;
 
   Future<Map<String, dynamic>> get(String path) => _send('GET', path);
 
@@ -51,6 +54,7 @@ class BlistraApiClient {
       if (response.body.isEmpty) return <String, dynamic>{};
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
+    await _maybeUnauthorized(response.statusCode);
     throw _toApiException(response);
   }
 
@@ -60,6 +64,7 @@ class BlistraApiClient {
       if (response.body.isEmpty) return <dynamic>[];
       return jsonDecode(response.body) as List<dynamic>;
     }
+    await _maybeUnauthorized(response.statusCode);
     throw _toApiException(response);
   }
 
@@ -81,16 +86,39 @@ class BlistraApiClient {
     try {
       final encodedBody = body == null ? null : jsonEncode(body);
       return switch (method) {
-        'GET' => await _http.get(uri, headers: headers),
-        'POST' => await _http.post(uri, headers: headers, body: encodedBody),
-        'PUT' => await _http.put(uri, headers: headers, body: encodedBody),
-        'DELETE' => await _http.delete(uri, headers: headers),
+        'GET' => await _http
+            .get(uri, headers: headers)
+            .timeout(const Duration(seconds: 15)),
+        'POST' => await _http
+            .post(uri, headers: headers, body: encodedBody)
+            .timeout(const Duration(seconds: 15)),
+        'PUT' => await _http
+            .put(uri, headers: headers, body: encodedBody)
+            .timeout(const Duration(seconds: 15)),
+        'DELETE' => await _http
+            .delete(uri, headers: headers)
+            .timeout(const Duration(seconds: 15)),
         _ => throw ArgumentError.value(method, 'method'),
       };
     } on http.ClientException catch (error) {
       throw NetworkException(error);
     } on TimeoutException catch (error) {
       throw NetworkException(error);
+    } on ArgumentError {
+      rethrow;
+    } catch (error) {
+      // SocketException and other transport failures.
+      throw NetworkException(error);
+    }
+  }
+
+  Future<void> _maybeUnauthorized(int statusCode) async {
+    if (statusCode == 401 && _onUnauthorized != null) {
+      try {
+        await _onUnauthorized!();
+      } catch (_) {
+        // Logout must never crash the failing request.
+      }
     }
   }
 

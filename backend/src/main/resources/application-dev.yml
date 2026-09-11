@@ -28,6 +28,13 @@ blistra:
     storage-root: ${DOCUMENTS_STORAGE_ROOT:${java.io.tmpdir}/blistra-documents}
     max-file-size: 10MB
 
+jwt:
+  # Dev-only default so `spring-boot:run` works without env vars.
+  # Production must supply JWT_SECRET (>= 32 bytes); application-prod.yml
+  # intentionally provides no default so startup fails fast if missing.
+  secret: ${JWT_SECRET:dev-only-secret-please-override-min-32-bytes-1234567890}
+  expiration: ${JWT_EXPIRATION:86400000}
+
 springdoc:
   swagger-ui:
     enabled: true

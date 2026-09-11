@@ -474,10 +474,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             ),
           ),
         ),
-      // ignore: expected_token, missing_identifier, unexpected_token
-      ),
-      // ignore: expected_token, missing_identifier, unexpected_token
-    );
+      );
   }
 }
 

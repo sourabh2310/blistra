@@ -10,6 +10,7 @@ import '../models/medicine_enums.dart';
 import '../models/page.dart';
 import '../models/refill.dart';
 import '../models/schedule.dart';
+import '../util/dates.dart';
 
 class MedicineDetailController extends ChangeNotifier {
   MedicineDetailController(this._api, {required this.medicineId});
@@ -71,7 +72,8 @@ class MedicineDetailController extends ChangeNotifier {
     try {
       await _api.recordDose(medicineId, {
         'status': status.name.toUpperCase(),
-        'scheduledAt': scheduledAt?.toIso8601String(),
+        // Backend expects OffsetDateTime — never send zone-less local ISO.
+        'scheduledAt': scheduledAt != null ? toOffsetIso(scheduledAt) : nowOffsetIso(),
         if (note.isNotEmpty) 'note': note,
       });
       await _reloadRecentDoses();

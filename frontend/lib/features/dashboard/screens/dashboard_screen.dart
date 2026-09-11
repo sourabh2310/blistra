@@ -7,7 +7,10 @@ import '../widgets/section_card.dart';
 
 /// Main dashboard screen showing aggregated view across all modules.
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({super.key, this.onNavigate});
+
+  /// Navigate to a primary tab: 0 Home, 1 Planner, 2 Health, 3 Finance, 4 More.
+  final void Function(int tabIndex)? onNavigate;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -140,6 +143,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return SliverList(
       delegate: SliverChildListDelegate([
         const SizedBox(height: 8),
+        // Refresh failed but cached data exists — surface it, don't hide it.
+        if (controller.error != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: MaterialBanner(
+              backgroundColor:
+                  Theme.of(context).colorScheme.errorContainer,
+              content: Text(controller.error!),
+              actions: [
+                TextButton(
+                  onPressed: () => controller.refresh(
+                    date: DateTime.now(),
+                    offsetMinutes:
+                        DateTime.now().timeZoneOffset.inMinutes,
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
         _buildSection(
           context,
           title: 'Today',
@@ -204,6 +227,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final medicines = dashboard.medicines;
     final habits = dashboard.habits;
 
+    final errors = [
+      if (planner?.error != null) 'Planner: ${planner!.error}',
+      if (medicines?.error != null) 'Medicines: ${medicines!.error}',
+      if (habits?.error != null) 'Habits: ${habits!.error}',
+    ];
+    if (errors.isNotEmpty &&
+        (planner == null || planner.unavailable) &&
+        (medicines == null || medicines.unavailable) &&
+        (habits == null || habits.unavailable)) {
+      return _EmptySection(message: errors.join('\n'));
+    }
+
     if (planner == null && medicines == null && habits == null) {
       return const _EmptySection(message: 'No data for today');
     }
@@ -215,9 +250,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             title: 'Tasks',
             overdueCount: planner.overdueTasks.length,
             todayCount: planner.todayTasks.length,
-            onTap: () {
-              // TODO: Navigate to planner
-            },
+            onTap: () => widget.onNavigate?.call(1),
           ),
         ],
         if (medicines != null && !medicines.unavailable) ...[
@@ -226,9 +259,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             title: 'Medicines',
             overdueCount: medicines.dosesRemainingToday,
             todayCount: medicines.dosesTakenToday,
-            onTap: () {
-              // TODO: Navigate to medicines
-            },
+            onTap: () => widget.onNavigate?.call(4),
             subtitle:
                 '${medicines.activeMedicineCount} active • ${medicines.dosesToday.length} doses today',
           ),
@@ -239,9 +270,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             title: 'Habits',
             overdueCount: habits.remainingToday,
             todayCount: habits.completedToday,
-            onTap: () {
-              // TODO: Navigate to habits
-            },
+            onTap: () => widget.onNavigate?.call(4),
             subtitle:
                 '${habits.expectedToday} expected • ${habits.completedToday} done',
           ),
@@ -253,7 +282,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHealthSection(BuildContext context, DashboardResponse dashboard) {
     final health = dashboard.health;
 
-    if (health == null || health.unavailable) {
+    if (health == null) {
+      return const _EmptySection(message: 'Health data unavailable');
+    }
+    if (health.error != null) {
+      return _EmptySection(message: 'Health: ${health.error}');
+    }
+    if (health.unavailable) {
       return const _EmptySection(message: 'Health data unavailable');
     }
 
@@ -320,7 +355,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildDietSection(BuildContext context, DashboardResponse dashboard) {
     final diet = dashboard.diet;
 
-    if (diet == null || diet.unavailable) {
+    if (diet == null) {
+      return const _EmptySection(message: 'Diet data unavailable');
+    }
+    if (diet.error != null) {
+      return _EmptySection(message: 'Diet: ${diet.error}');
+    }
+    if (diet.unavailable) {
       return const _EmptySection(message: 'Diet data unavailable');
     }
 
@@ -389,7 +430,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildFinanceSection(BuildContext context, DashboardResponse dashboard) {
     final finance = dashboard.finance;
 
-    if (finance == null || finance.unavailable) {
+    if (finance == null) {
+      return const _EmptySection(message: 'Finance data unavailable');
+    }
+    if (finance.error != null) {
+      return _EmptySection(message: 'Finance: ${finance.error}');
+    }
+    if (finance.unavailable) {
       return const _EmptySection(message: 'Finance data unavailable');
     }
 
@@ -510,55 +557,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildQuickActions(BuildContext context) {
+    final navigate = widget.onNavigate;
     final actions = [
       _QuickAction(
         icon: Icons.add_task,
         label: 'Add Task',
-        onTap: () {
-          // TODO: Navigate to task creation
-        },
+        onTap: () => navigate?.call(1),
       ),
       _QuickAction(
         icon: Icons.medication,
         label: 'Log Dose',
-        onTap: () {
-          // TODO: Navigate to medicine dose
-        },
+        onTap: () => navigate?.call(4),
       ),
       _QuickAction(
         icon: Icons.check_circle,
         label: 'Log Habit',
-        onTap: () {
-          // TODO: Navigate to habit
-        },
+        onTap: () => navigate?.call(4),
       ),
       _QuickAction(
         icon: Icons.restaurant,
         label: 'Add Meal',
-        onTap: () {
-          // TODO: Navigate to meal
-        },
+        onTap: () => navigate?.call(4),
       ),
       _QuickAction(
         icon: Icons.water_drop,
         label: 'Add Water',
-        onTap: () {
-          // TODO: Navigate to water
-        },
+        onTap: () => navigate?.call(4),
       ),
       _QuickAction(
         icon: Icons.monitor_heart,
         label: 'Log Health',
-        onTap: () {
-          // TODO: Navigate to health
-        },
+        onTap: () => navigate?.call(2),
       ),
       _QuickAction(
         icon: Icons.account_balance_wallet,
         label: 'Add Expense',
-        onTap: () {
-          // TODO: Navigate to finance
-        },
+        onTap: () => navigate?.call(3),
       ),
     ];
 

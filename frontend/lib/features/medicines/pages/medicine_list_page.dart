@@ -33,6 +33,7 @@ class _MedicineListPageState extends State<MedicineListPage> {
       _controller = MedicineListController(
         MedicinesApiClient(
           tokenProvider: () => authState.apiClient.token ?? '',
+          onUnauthorized: () => authState.handleUnauthorized(),
         ),
       );
       _controller!.refresh();

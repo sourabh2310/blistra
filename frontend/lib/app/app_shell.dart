@@ -148,38 +148,42 @@ class _AppShellState extends State<AppShell> {
               icon: Icon(t.icon),
               selectedIcon: Icon(t.selectedIcon),
               label: t.label,
+              tooltip: t.label,
             ),
         ],
       ),
     );
   }
 
+  /// Primary destinations only — everything else lives under More.
   List<_Tab> get _tabs => const [
         _Tab('Home', Icons.dashboard_outlined, Icons.dashboard),
         _Tab('Planner', Icons.event_note_outlined, Icons.event_note),
         _Tab('Health', Icons.favorite_outline, Icons.favorite),
-        _Tab('Meds', Icons.medication_outlined, Icons.medication),
-        _Tab('Diet', Icons.restaurant_outlined, Icons.restaurant),
-        _Tab('Habits', Icons.check_circle_outline, Icons.check_circle),
         _Tab('Finance', Icons.account_balance_wallet_outlined,
             Icons.account_balance_wallet),
-        _Tab('More', Icons.more_horiz, Icons.more_horiz),
+        _Tab('More', Icons.grid_view_outlined, Icons.grid_view_rounded),
       ];
 
+  void goToTab(int index) {
+    if (index < 0 || index >= _tabs.length) return;
+    setState(() => _index = index);
+  }
+
   List<Widget> _pages() => [
-        const DashboardScreen(),
+        DashboardScreen(onNavigate: goToTab),
         const planner.HomeScreen(),
         HealthHomeScreen(
           repository: _d.health,
           onLogout: () => _d.authState.logout(),
         ),
-        const MedicineListPage(),
-        const diet.TodayScreen(),
-        HabitsScope(controller: _d.habits, child: const HabitsHome()),
         FinanceScope(controller: _d.finance, child: const FinanceHome()),
         _MoreTab(
           onLogout: () => _d.authState.logout(),
           onRefreshNotifications: _refreshNotifications,
+          dietController: _d.diet,
+          habitsController: _d.habits,
+          onNavigatePrimary: goToTab,
         ),
       ];
 }
@@ -192,68 +196,155 @@ class _Tab {
   final IconData selectedIcon;
 }
 
-class _MoreTab extends StatefulWidget {
-  const _MoreTab({required this.onLogout, required this.onRefreshNotifications});
+class _MoreTab extends StatelessWidget {
+  const _MoreTab({
+    required this.onLogout,
+    required this.onRefreshNotifications,
+    required this.dietController,
+    required this.habitsController,
+    required this.onNavigatePrimary,
+  });
 
   final Future<void> Function() onLogout;
   final Future<void> Function() onRefreshNotifications;
-
-  @override
-  State<_MoreTab> createState() => _MoreTabState();
-}
-
-class _MoreTabState extends State<_MoreTab> {
-  int _sub = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.onRefreshNotifications();
-    });
-  }
+  final dynamic dietController;
+  final dynamic habitsController;
+  final void Function(int index) onNavigatePrimary;
 
   @override
   Widget build(BuildContext context) {
-    final titles = ['Documents', 'Reminders', 'Settings'];
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(titles[_sub]),
+        title: const Text('More'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
-            onPressed: () => widget.onLogout(),
+            onPressed: () => onLogout(),
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _sub,
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          const DocumentsPage(),
-          RemindersScreen(onRefresh: widget.onRefreshNotifications),
-          NotificationSettingsScreen(
-              onRefresh: widget.onRefreshNotifications),
+          Text(
+            'Your life, organized',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _MoreTile(
+            icon: Icons.medication_outlined,
+            title: 'Medicines',
+            subtitle: 'Schedules, doses, refills',
+            onTap: () => _open(context, const MedicineListPage(), 'Medicines'),
+          ),
+          _MoreTile(
+            icon: Icons.restaurant_outlined,
+            title: 'Diet',
+            subtitle: 'Meals, water, nutrition',
+            onTap: () =>
+                _open(context, const diet.TodayScreen(), 'Diet'),
+          ),
+          _MoreTile(
+            icon: Icons.check_circle_outline,
+            title: 'Habits',
+            subtitle: 'Streaks and daily progress',
+            onTap: () => _openHabits(context),
+          ),
+          _MoreTile(
+            icon: Icons.folder_outlined,
+            title: 'Documents',
+            subtitle: 'PDFs, reports, files',
+            onTap: () =>
+                _open(context, const DocumentsPage(), 'Documents'),
+          ),
+          _MoreTile(
+            icon: Icons.notifications_outlined,
+            title: 'Reminders',
+            subtitle: 'Alerts and schedules',
+            onTap: () => _open(
+              context,
+              RemindersScreen(onRefresh: onRefreshNotifications),
+              'Reminders',
+            ),
+          ),
+          _MoreTile(
+            icon: Icons.settings_outlined,
+            title: 'Notification settings',
+            subtitle: 'Preferences and devices',
+            onTap: () => _open(
+              context,
+              NotificationSettingsScreen(onRefresh: onRefreshNotifications),
+              'Settings',
+            ),
+          ),
         ],
       ),
-      bottomNavigationBar: SegmentedButton<int>(
-        style: SegmentedButton.styleFrom(
-          visualDensity: VisualDensity.compact,
+    );
+  }
+
+  void _open(BuildContext context, Widget page, String title) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(title)),
+          body: page,
         ),
-        segments: const [
-          ButtonSegment(
-              value: 0, icon: Icon(Icons.folder_outlined), label: Text('Docs')),
-          ButtonSegment(
-              value: 1,
-              icon: Icon(Icons.notifications_outlined),
-              label: Text('Alerts')),
-          ButtonSegment(
-              value: 2,
-              icon: Icon(Icons.settings_outlined),
-              label: Text('Prefs')),
-        ],
-        selected: {_sub},
-        onSelectionChanged: (s) => setState(() => _sub = s.first),
+      ),
+    );
+  }
+
+  void _openHabits(BuildContext context) {
+    // HabitsHome reads HabitsScope; provide it explicitly for the pushed route.
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Habits')),
+          body: HabitsScope(
+              controller: habitsController, child: const HabitsHome()),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreTile extends StatelessWidget {
+  const _MoreTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: theme.colorScheme.onPrimaryContainer),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       ),
     );
   }

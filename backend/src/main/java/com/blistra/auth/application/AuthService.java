@@ -30,7 +30,7 @@ public class AuthService {
     @Autowired
     private JwtProvider jwtProvider;
 
-    @Value("${JWT_EXPIRATION:86400000}")
+    @Value("${JWT_EXPIRATION:${jwt.expiration:86400000}}")
     private long jwtExpirationMs;
 
     @Transactional

@@ -28,10 +28,34 @@ enum WaterUnit {
   }
 
   static WaterUnit fromWire(String? value) {
-    return WaterUnit.values.firstWhere(
-      (unit) => unit.wireName == value,
-      orElse: () => WaterUnit.ml,
-    );
+    if (value == null) return WaterUnit.ml;
+    final v = value.trim();
+    // Backend canonical: ML / L / GLASS / CUP (uppercase). Accept legacy
+    // lowercase variants too.
+    for (final unit in WaterUnit.values) {
+      if (unit.wireName == v) return unit;
+    }
+    switch (v.toUpperCase()) {
+      case 'ML':
+      case 'MILLILITER':
+      case 'MILLILITERS':
+      case 'MILLILITRE':
+      case 'MILLILITRES':
+        return WaterUnit.ml;
+      case 'L':
+      case 'LITER':
+      case 'LITERS':
+      case 'LITRE':
+      case 'LITRES':
+        return WaterUnit.L;
+      case 'GLASS':
+      case 'GLASSES':
+        return WaterUnit.glass;
+      case 'CUP':
+      case 'CUPS':
+        return WaterUnit.cup;
+    }
+    return WaterUnit.ml;
   }
 }
 

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:frontend/core/api/api_client.dart';
@@ -5,6 +6,7 @@ import 'package:frontend/features/documents/models/document.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:intl/intl.dart';
 
 /// Repository for document operations, backed by the shared [ApiClient].
 class DocumentsRepository {
@@ -24,8 +26,9 @@ class DocumentsRepository {
       'page': '$page',
       'size': '$size',
       if (category != null) 'category': category.value,
-      if (from != null) 'from': from.toUtc().toIso8601String(),
-      if (to != null) 'to': to.toUtc().toIso8601String(),
+      // Backend expects zone-less LocalDateTime (ISO.DATE_TIME, no Z/millis).
+      if (from != null) 'from': _localDateTime(from),
+      if (to != null) 'to': _localDateTime(to),
     };
 
     final json = await _api.get('/api/v1/documents', query: query);
@@ -50,7 +53,12 @@ class DocumentsRepository {
     String? description,
     void Function(double progress)? onProgress,
   }) async {
-    final bytes = file.bytes;
+    // file_picker on mobile often returns path-only (bytes == null) unless
+    // withData: true was used. Fall back to reading the file from disk.
+    Uint8List? bytes = file.bytes;
+    if (bytes == null && file.path != null) {
+      bytes = await File(file.path!).readAsBytes();
+    }
     if (bytes == null) {
       throw ArgumentError.value(file, 'file', 'No file bytes to upload');
     }
@@ -108,5 +116,11 @@ class DocumentsRepository {
       default:
         return 'application/octet-stream';
     }
+  }
+
+  /// Backend `LocalDateTime` wire format: yyyy-MM-ddTHH:mm:ss (no zone).
+  static String _localDateTime(DateTime value) {
+    final local = value.toLocal();
+    return DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(local);
   }
 }

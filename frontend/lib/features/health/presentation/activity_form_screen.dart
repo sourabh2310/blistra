@@ -124,6 +124,17 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
     return int.tryParse(value) == null ? 'Enter a whole number' : null;
   }
 
+  String? _validateRequiredDuration(String? raw) {
+    final String value = (raw ?? '').trim();
+    if (value.isEmpty) {
+      return 'Duration is required';
+    }
+    final parsed = int.tryParse(value);
+    if (parsed == null) return 'Enter a whole number';
+    if (parsed <= 0) return 'Must be greater than 0';
+    return null;
+  }
+
   String? _validateOptionalDouble(String? raw) {
     final String value = (raw ?? '').trim();
     if (value.isEmpty) {
@@ -172,10 +183,10 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(
-                labelText: 'Duration (minutes)',
+                labelText: 'Duration (minutes) *',
                 border: OutlineInputBorder(),
               ),
-              validator: _validateOptionalInt,
+              validator: _validateRequiredDuration,
             ),
             const SizedBox(height: 16),
             TextFormField(

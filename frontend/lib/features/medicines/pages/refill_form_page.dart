@@ -36,7 +36,10 @@ class _RefillFormPageState extends State<RefillFormPage> {
       final apiClient = context.read<ApiClient>();
       final authState = context.read<AuthState>();
       _controller = RefillFormController(
-        MedicinesApiClient(tokenProvider: () => authState.apiClient.token ?? ''),
+        MedicinesApiClient(
+          tokenProvider: () => authState.apiClient.token ?? '',
+          onUnauthorized: () => authState.handleUnauthorized(),
+        ),
         medicineId: widget.medicineId,
         refill: widget.refill,
       );

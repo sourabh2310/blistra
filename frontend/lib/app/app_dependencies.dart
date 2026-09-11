@@ -106,6 +106,7 @@ class AppDependencies {
       baseUrl: resolvedBase,
       tokenStore: legacyTokens,
       tokenProvider: () => apiClient.token,
+      onUnauthorized: () => authState.handleUnauthorized(),
     );
     final notificationsApi = NotificationsApi(notificationsClient);
     final syncService = ReminderSyncService(

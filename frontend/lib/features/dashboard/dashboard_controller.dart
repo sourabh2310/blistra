@@ -60,10 +60,19 @@ class DashboardController extends ChangeNotifier {
         date: date,
         offsetMinutes: offsetMinutes,
       );
+      if (_status == DashboardLoadStatus.error) {
+        _status = DashboardLoadStatus.ready;
+      }
     } on ApiException catch (error) {
       _errorMessage = error.toString();
+      if (_dashboard == null) {
+        _status = DashboardLoadStatus.error;
+      }
     } catch (_) {
       _errorMessage = 'Failed to refresh dashboard. Please try again.';
+      if (_dashboard == null) {
+        _status = DashboardLoadStatus.error;
+      }
     }
     _refreshing = false;
     notifyListeners();

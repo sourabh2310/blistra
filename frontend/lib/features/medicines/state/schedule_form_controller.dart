@@ -84,7 +84,7 @@ class ScheduleFormController {
 
   Map<String, dynamic> toJson() {
     return {
-      'scheduleType': _scheduleType.name.toUpperCase(),
+      'scheduleType': _scheduleType.wire,
       'times': _scheduleType == ScheduleType.asNeeded ? <String>[] : _times,
       'daysOfWeek': _daysOfWeek.map(_dayIndexToString).toList(),
       'doseAmount': _doseAmount.trim().isEmpty ? null : double.tryParse(_doseAmount.trim()),

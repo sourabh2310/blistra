@@ -41,7 +41,10 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
       final apiClient = context.read<ApiClient>();
       final authState = context.read<AuthState>();
       _controller = MedicineDetailController(
-        MedicinesApiClient(tokenProvider: () => authState.apiClient.token ?? ''),
+        MedicinesApiClient(
+          tokenProvider: () => authState.apiClient.token ?? '',
+          onUnauthorized: () => authState.handleUnauthorized(),
+        ),
         medicineId: widget.medicineId,
       );
       _controller!.load();
