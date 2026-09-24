@@ -23,6 +23,7 @@ class PreferencesController extends ChangeNotifier {
   bool _saving = false;
   String? _error;
   String? _userKey;
+  int _bindGeneration = 0;
 
   List<String> get bottomNav => List.unmodifiable(_bottomNav);
   List<String> get homeWidgets => List.unmodifiable(_homeWidgets);
@@ -37,63 +38,86 @@ class PreferencesController extends ChangeNotifier {
   /// cached values first (no flash), then the backend source of truth.
   Future<void> bindUser(String? userKey) async {
     if (_userKey == userKey && _userKey != null) return;
+    final generation = ++_bindGeneration;
     _userKey = userKey;
-    if (userKey == null || userKey.isEmpty) {
-      _bottomNav = List.of(ShellDestinations.defaults);
-      _homeWidgets = List.of(HomeWidgets.defaults);
-      notifyListeners();
-      return;
-    }
-    await _loadCached(userKey);
-    await refresh();
+    _loading = userKey != null && userKey.isNotEmpty;
+    _saving = false;
+    _error = null;
+    _bottomNav = List.of(ShellDestinations.defaults);
+    _homeWidgets = List.of(HomeWidgets.defaults);
+    notifyListeners();
+    if (userKey == null || userKey.isEmpty) return;
+    await _loadCached(userKey, generation);
+    if (!_isCurrent(userKey, generation)) return;
+    await _refreshFor(userKey, generation);
   }
 
   Future<void> refresh() async {
-    if (_userKey == null || _userKey!.isEmpty) return;
+    final userKey = _userKey;
+    if (userKey == null || userKey.isEmpty) return;
+    await _refreshFor(userKey, _bindGeneration);
+  }
+
+  Future<void> _refreshFor(String userKey, int generation) async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
       final payload = await _api.getPreferences();
-      _bottomNav = ShellDestinations.normalizeNav(payload.bottomNav);
-      _homeWidgets = HomeWidgets.normalizeWidgets(payload.homeWidgets);
-      await _saveCached(_userKey!);
+      if (!_isCurrent(userKey, generation)) return;
+      final nav = ShellDestinations.normalizeNav(payload.bottomNav);
+      final widgets = HomeWidgets.normalizeWidgets(payload.homeWidgets);
+      _bottomNav = nav;
+      _homeWidgets = widgets;
+      await _saveCached(userKey, nav, widgets);
     } catch (e) {
-      // Offline/cold-start: keep cache/defaults; surface a quiet error only
-      // when nothing usable is present.
-      if (_error == null) _error = e.toString();
+      if (_isCurrent(userKey, generation) && _error == null) {
+        _error = e.toString();
+      }
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (_isCurrent(userKey, generation)) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
+
+  bool _isCurrent(String userKey, int generation) =>
+      _userKey == userKey && _bindGeneration == generation;
 
   Future<bool> save({
     required List<String> bottomNav,
     required List<String> homeWidgets,
   }) async {
-    final nav = ShellDestinations.normalizeNav(bottomNav);
-    final widgets = HomeWidgets.normalizeWidgets(homeWidgets);
+    final normalizedNav = ShellDestinations.normalizeNav(bottomNav);
+    final normalizedWidgets = HomeWidgets.normalizeWidgets(homeWidgets);
+    final userKey = _userKey;
+    final generation = _bindGeneration;
     _saving = true;
     _error = null;
     notifyListeners();
     try {
       final payload = await _api.updatePreferences(
-        bottomNav: nav,
-        homeWidgets: widgets,
+        bottomNav: normalizedNav,
+        homeWidgets: normalizedWidgets,
       );
-      _bottomNav = ShellDestinations.normalizeNav(payload.bottomNav);
-      _homeWidgets = HomeWidgets.normalizeWidgets(payload.homeWidgets);
-      if (_userKey != null && _userKey!.isNotEmpty) {
-        await _saveCached(_userKey!);
+      if (!_isCurrent(userKey ?? '', generation)) return false;
+      final savedNav = ShellDestinations.normalizeNav(payload.bottomNav);
+      final savedWidgets = HomeWidgets.normalizeWidgets(payload.homeWidgets);
+      _bottomNav = savedNav;
+      _homeWidgets = savedWidgets;
+      if (userKey != null && userKey.isNotEmpty) {
+        await _saveCached(userKey, savedNav, savedWidgets);
       }
       return true;
     } catch (e) {
-      _error = e.toString();
+      if (_isCurrent(userKey ?? '', generation)) _error = e.toString();
       return false;
     } finally {
-      _saving = false;
-      notifyListeners();
+      if (_isCurrent(userKey ?? '', generation)) {
+        _saving = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -107,11 +131,12 @@ class PreferencesController extends ChangeNotifier {
   String _cacheKey(String userKey, String field) =>
       'prefs:$userKey:$field';
 
-  Future<void> _loadCached(String userKey) async {
+  Future<void> _loadCached(String userKey, int generation) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final nav = prefs.getStringList(_cacheKey(userKey, 'nav'));
       final widgets = prefs.getStringList(_cacheKey(userKey, 'widgets'));
+      if (!_isCurrent(userKey, generation)) return;
       if (nav != null && nav.isNotEmpty) {
         _bottomNav = ShellDestinations.normalizeNav(nav);
       }
@@ -120,17 +145,21 @@ class PreferencesController extends ChangeNotifier {
       }
       notifyListeners();
     } catch (_) {
-      // Cache is best-effort only.
+      return;
     }
   }
 
-  Future<void> _saveCached(String userKey) async {
+  Future<void> _saveCached(
+    String userKey,
+    List<String> nav,
+    List<String> widgets,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(_cacheKey(userKey, 'nav'), _bottomNav);
-      await prefs.setStringList(_cacheKey(userKey, 'widgets'), _homeWidgets);
+      await prefs.setStringList(_cacheKey(userKey, 'nav'), nav);
+      await prefs.setStringList(_cacheKey(userKey, 'widgets'), widgets);
     } catch (_) {
-      // Cache is best-effort only.
+      return;
     }
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/features/dashboard/models/dashboard_response.dart';
 import 'package:frontend/features/dashboard/screens/dashboard_screen.dart'
-    show buildTimeline;
+    show buildAttentionItems, buildTimeline, computeHomeOverview;
 
 DashboardResponse _response({
   List<TaskSummary> todayTasks = const [],
@@ -12,6 +12,8 @@ DashboardResponse _response({
   int expectedHabits = 0,
   int completedHabits = 0,
   List<HabitSummary> todayHabits = const [],
+  FinanceSection? finance,
+  WeekSection? week,
 }) {
   return DashboardResponse(
     date: DateTime(2026, 9, 24),
@@ -29,6 +31,8 @@ DashboardResponse _response({
       dosesRemainingToday: doses.length - dosesTaken,
       unavailable: false,
     ),
+    finance: finance,
+    week: week,
     habits: HabitSection(
       activeHabitCount: expectedHabits,
       expectedToday: expectedHabits,
@@ -45,6 +49,16 @@ TaskSummary _task(String title, String status) => TaskSummary(
       title: title,
       status: status,
       dueAt: '2026-09-24T10:00:00+05:30',
+    );
+
+CurrencySection _currency(String currency, String expense) => CurrencySection(
+      currency: currency,
+      income: '0',
+      expense: expense,
+      net: '-${expense}',
+      transferIn: '0',
+      transferOut: '0',
+      topCategories: const [],
     );
 
 DoseSummary _dose(String name, String status, String at) => DoseSummary(
@@ -170,6 +184,95 @@ void main() {
     test('empty dashboard yields empty timeline (no fake rows)', () {
       expect(buildTimeline(_response(), now: DateTime(2026, 9, 24, 7)), isEmpty);
       expect(buildTimeline(null, now: DateTime(2026, 9, 24, 7)), isEmpty);
+    });
+  });
+
+  group('Home helpers', () {
+    test('overview uses real schedules and today finance', () {
+      final d = _response(
+        todayTasks: [_task('t1', 'PENDING')],
+        doses: [
+          _dose('Med A', 'TAKEN', '2026-09-24T08:00:00+05:30'),
+          _dose('Med B', 'PENDING', '2026-09-24T20:00:00+05:30'),
+        ],
+        expectedHabits: 2,
+        completedHabits: 1,
+        finance: FinanceSection(
+          from: DateTime(2026, 9, 1),
+          to: DateTime(2026, 9, 30),
+          currencies: const [],
+          today: FinanceToday(
+            from: DateTime(2026, 9, 24),
+            to: DateTime(2026, 9, 24),
+            currencies: [_currency('USD', '12.50')],
+          ),
+          unavailable: false,
+        ),
+      );
+      final overview = computeHomeOverview(d);
+      expect(overview.metrics.map((item) => item.value), containsAll(['1', '1 of 2', '12.50']));
+    });
+
+    test('timeline puts due habits at Anytime', () {
+      final d = _response(
+        todayHabits: [
+          HabitSummary(
+            id: 'h1',
+            name: 'Read',
+            completedToday: false,
+          ),
+        ],
+      );
+      final item = buildTimeline(
+        d,
+        now: DateTime(2026, 9, 24, 15),
+      ).single;
+      expect(item.anytime, isTrue);
+      expect(item.title, 'Read');
+    });
+
+    test('attention includes overdue task and medicine', () {
+      final d = _response(
+        overdueTasks: [_task('Old task', 'PENDING')],
+        doses: [_dose('Med A', 'PENDING', '2026-09-24T08:00:00+05:30')],
+      );
+      final items = buildAttentionItems(
+        d,
+        now: DateTime(2026, 9, 24, 15),
+      );
+      expect(items.map((item) => item.title), containsAll(['Old task', 'Med A']));
+    });
+
+    test('weekly model accepts new and legacy field names', () {
+      final model = DashboardResponse.fromJson({
+        'date': '2026-09-24',
+        'generatedAt': '2026-09-24T08:00:00',
+        'week': {
+          'start': '2026-09-21',
+          'end': '2026-09-27',
+          'completedTasks': 2,
+          'tasksDueOrScheduled': 4,
+          'habitCompletions': 3,
+          'expectedHabitOccurrences': 5,
+          'activeDays': 3,
+        },
+        'finance': {
+          'from': '2026-09-01',
+          'to': '2026-09-30',
+          'currencies': [],
+          'today': {
+            'from': '2026-09-24',
+            'to': '2026-09-24',
+            'currencies': [_currency('EUR', '4').toJson()],
+          },
+        },
+      });
+      expect(model.week!.tasksDue, 4);
+      expect(model.week!.habitOccurrences, 5);
+      expect(model.finance!.today!.currencies.single.expense, '4');
+      final roundTrip = DashboardResponse.fromJson(model.toJson());
+      expect(roundTrip.week!.activeDays, 3);
+      expect(roundTrip.finance!.today!.currencies.single.currency, 'EUR');
     });
   });
 

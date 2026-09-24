@@ -35,6 +35,7 @@ public class DashboardService {
     private final HabitService habitService;
     private final HealthSummaryProvider healthSummaryProvider;
     private final MedicineSummaryProvider medicineSummaryProvider;
+    private final WeekSummaryProvider weekSummaryProvider;
     private final UserTime userTime;
     private final UserProfileRepository userProfileRepository;
 
@@ -43,9 +44,11 @@ public class DashboardService {
                             SummaryService financeSummaryService,
                             DietSummaryService dietSummaryService,
                             HabitService habitService,
-                            HealthSummaryProvider healthSummaryProvider,
-                            MedicineSummaryProvider medicineSummaryProvider,
-                            UserTime userTime,
+                             HealthSummaryProvider healthSummaryProvider,
+                             MedicineSummaryProvider medicineSummaryProvider,
+                             WeekSummaryProvider weekSummaryProvider,
+                             UserTime userTime,
+
                             UserProfileRepository userProfileRepository) {
         this.currentUserProvider = currentUserProvider;
         this.plannerTodayService = plannerTodayService;
@@ -54,6 +57,7 @@ public class DashboardService {
         this.habitService = habitService;
         this.healthSummaryProvider = healthSummaryProvider;
         this.medicineSummaryProvider = medicineSummaryProvider;
+        this.weekSummaryProvider = weekSummaryProvider;
         this.userTime = userTime;
         this.userProfileRepository = userProfileRepository;
     }
@@ -77,7 +81,9 @@ public class DashboardService {
         DashboardResponse.HealthSection health = healthSummaryProvider.getHealthSummary();
 
         // Medicines
-        DashboardResponse.MedicineSection medicines = medicineSummaryProvider.getMedicineSummary(offsetMinutes);
+        DashboardResponse.MedicineSection medicines = medicineSummaryProvider.getMedicineSummary(date, offsetMinutes);
+
+        DashboardResponse.WeekSummary week = getWeekSection(date, offsetMinutes);
 
         return DashboardResponse.builder()
                 .date(date)
@@ -89,7 +95,19 @@ public class DashboardService {
                 .habits(habits)
                 .health(health)
                 .medicines(medicines)
+                .week(week)
                 .build();
+    }
+
+    private DashboardResponse.WeekSummary getWeekSection(LocalDate date, int offsetMinutes) {
+        try {
+            return weekSummaryProvider.getWeekSummary(date, offsetMinutes);
+        } catch (Exception e) {
+            return DashboardResponse.WeekSummary.builder()
+                    .unavailable(true)
+                    .error("Week summary unavailable")
+                    .build();
+        }
     }
 
     private DashboardResponse.UserSummary userSummary(com.blistra.users.domain.User user) {
@@ -159,11 +177,17 @@ public class DashboardService {
             LocalDate to = date.withDayOfMonth(date.lengthOfMonth());
 
             SummaryResponse summary = financeSummaryService.summary(from, to);
+            SummaryResponse today = financeSummaryService.summary(date, date);
 
             return DashboardResponse.FinanceSection.builder()
                     .from(summary.from())
                     .to(summary.to())
                     .currencies(mapCurrencySections(summary.currencies()))
+                    .today(DashboardResponse.FinancePeriodSummary.builder()
+                            .from(today.from())
+                            .to(today.to())
+                            .currencies(mapCurrencySections(today.currencies()))
+                            .build())
                     .unavailable(false)
                     .build();
         } catch (Exception e) {

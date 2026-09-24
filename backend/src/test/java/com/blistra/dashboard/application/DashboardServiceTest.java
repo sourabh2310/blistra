@@ -32,7 +32,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,6 +59,9 @@ class DashboardServiceTest {
     private MedicineSummaryProvider medicineSummaryProvider;
 
     @Mock
+    private WeekSummaryProvider weekSummaryProvider;
+
+    @Mock
     private com.blistra.users.application.CurrentUserProvider currentUserProvider;
 
     @Mock
@@ -78,6 +83,7 @@ class DashboardServiceTest {
                 habitService,
                 healthSummaryProvider,
                 medicineSummaryProvider,
+                weekSummaryProvider,
                 userTime,
                 userProfileRepository
         );
@@ -87,6 +93,10 @@ class DashboardServiceTest {
         testUser.setEmail("test@example.com");
 
         lenient().when(userTime.now()).thenReturn(OffsetDateTime.now());
+        lenient().when(weekSummaryProvider.getWeekSummary(any(), anyInt()))
+                .thenReturn(DashboardResponse.WeekSummary.builder()
+                        .unavailable(false)
+                        .build());
     }
 
     @Test
@@ -132,7 +142,7 @@ class DashboardServiceTest {
                         .build());
 
         // Medicines
-        lenient().when(medicineSummaryProvider.getMedicineSummary(anyInt()))
+        lenient().when(medicineSummaryProvider.getMedicineSummary(any(), anyInt()))
                 .thenReturn(DashboardResponse.MedicineSection.builder()
                         .activeMedicineCount(0)
                         .dosesToday(List.of())
@@ -140,6 +150,17 @@ class DashboardServiceTest {
                         .dosesRemainingToday(0)
                         .unavailable(false)
                         .build());
+
+        when(weekSummaryProvider.getWeekSummary(any(), anyInt())).thenReturn(DashboardResponse.WeekSummary.builder()
+                .start(date.minusDays(1))
+                .end(date.plusDays(5))
+                .completedTasks(4)
+                .tasksDueOrScheduled(7)
+                .habitCompletions(5)
+                .expectedHabitOccurrences(9)
+                .activeDays(3)
+                .unavailable(false)
+                .build());
 
         DashboardResponse response = dashboardService.getDashboard(date, offsetMinutes);
 
@@ -152,6 +173,13 @@ class DashboardServiceTest {
         assertThat(response.getHabits()).isNotNull();
         assertThat(response.getHealth()).isNotNull();
         assertThat(response.getMedicines()).isNotNull();
+        assertThat(response.getWeek()).isNotNull();
+        assertThat(response.getWeek().getCompletedTasks()).isEqualTo(4);
+        assertThat(response.getWeek().getTasksDueOrScheduled()).isEqualTo(7);
+        assertThat(response.getWeek().getHabitCompletions()).isEqualTo(5);
+        assertThat(response.getWeek().getExpectedHabitOccurrences()).isEqualTo(9);
+        assertThat(response.getWeek().getActiveDays()).isEqualTo(3);
+        assertThat(response.getFinance().getToday()).isNotNull();
     }
 
     @Test
@@ -182,7 +210,7 @@ class DashboardServiceTest {
                         .upcomingAppointments(List.of())
                         .unavailable(false)
                         .build());
-        lenient().when(medicineSummaryProvider.getMedicineSummary(anyInt()))
+        lenient().when(medicineSummaryProvider.getMedicineSummary(any(), anyInt()))
                 .thenReturn(DashboardResponse.MedicineSection.builder()
                         .activeMedicineCount(0)
                         .dosesToday(List.of())
@@ -190,13 +218,15 @@ class DashboardServiceTest {
                         .dosesRemainingToday(0)
                         .unavailable(false)
                         .build());
+        when(weekSummaryProvider.getWeekSummary(any(), anyInt())).thenThrow(new RuntimeException("DB down"));
 
         DashboardResponse response = dashboardService.getDashboard(date, offsetMinutes);
 
         assertThat(response).isNotNull();
         assertThat(response.getPlanner().isUnavailable()).isTrue();
         assertThat(response.getPlanner().getError()).isEqualTo("Planner summary unavailable");
-        // Other sections should still be available
+        assertThat(response.getWeek().isUnavailable()).isTrue();
+        assertThat(response.getWeek().getError()).isEqualTo("Week summary unavailable");
         assertThat(response.getFinance().isUnavailable()).isFalse();
     }
 
@@ -252,7 +282,7 @@ class DashboardServiceTest {
                         .upcomingAppointments(List.of())
                         .unavailable(false)
                         .build());
-        lenient().when(medicineSummaryProvider.getMedicineSummary(anyInt()))
+        lenient().when(medicineSummaryProvider.getMedicineSummary(any(), anyInt()))
                 .thenReturn(DashboardResponse.MedicineSection.builder()
                         .activeMedicineCount(0)
                         .dosesToday(List.of())
@@ -278,7 +308,9 @@ class DashboardServiceTest {
         when(currentUserProvider.getCurrentUser()).thenReturn(testUser);
 
         lenient().when(plannerTodayService.getToday()).thenReturn(new TodayResponse(List.of(), List.of(), List.of()));
-        when(financeSummaryService.summary(any(), any()))
+        when(financeSummaryService.summary(
+                eq(date.withDayOfMonth(1)),
+                eq(date.withDayOfMonth(date.lengthOfMonth()))))
                 .thenReturn(new SummaryResponse(
                         date.withDayOfMonth(1),
                         date.withDayOfMonth(date.lengthOfMonth()),
@@ -292,6 +324,12 @@ class DashboardServiceTest {
                                 List.of(new SummaryCategorySpend(UUID.randomUUID(), "Food", "1500.00"))
                         ))
                 ));
+        when(financeSummaryService.summary(date, date))
+                .thenReturn(new SummaryResponse(
+                        date,
+                        date,
+                        List.of(new SummaryCurrencySection(
+                                "INR", "0.00", "125.00", "-125.00", "0.00", "0.00", List.of()))));
         lenient().when(dietSummaryService.dailySummary(any(), any(), anyInt()))
                 .thenReturn(DietSummaryResponse.builder()
                         .date(date)
@@ -310,7 +348,7 @@ class DashboardServiceTest {
                         .upcomingAppointments(List.of())
                         .unavailable(false)
                         .build());
-        lenient().when(medicineSummaryProvider.getMedicineSummary(anyInt()))
+        lenient().when(medicineSummaryProvider.getMedicineSummary(any(), anyInt()))
                 .thenReturn(DashboardResponse.MedicineSection.builder()
                         .activeMedicineCount(0)
                         .dosesToday(List.of())
@@ -327,6 +365,11 @@ class DashboardServiceTest {
         assertThat(response.getFinance().getCurrencies().get(0).getExpense()).isEqualTo("3000.00");
         assertThat(response.getFinance().getCurrencies().get(0).getNet()).isEqualTo("7000.00");
         assertThat(response.getFinance().getCurrencies().get(0).getTopCategories()).hasSize(1);
+        assertThat(response.getFinance().getToday().getFrom()).isEqualTo(date);
+        assertThat(response.getFinance().getToday().getTo()).isEqualTo(date);
+        assertThat(response.getFinance().getToday().getCurrencies().get(0).getExpense())
+                .isEqualTo("125.00");
+        verify(financeSummaryService).summary(date, date);
     }
 
     @Test
@@ -369,7 +412,7 @@ class DashboardServiceTest {
                         .upcomingAppointments(List.of())
                         .unavailable(false)
                         .build());
-        lenient().when(medicineSummaryProvider.getMedicineSummary(anyInt()))
+        lenient().when(medicineSummaryProvider.getMedicineSummary(any(), anyInt()))
                 .thenReturn(DashboardResponse.MedicineSection.builder()
                         .activeMedicineCount(0)
                         .dosesToday(List.of())
@@ -425,7 +468,7 @@ class DashboardServiceTest {
                         .upcomingAppointments(List.of())
                         .unavailable(false)
                         .build());
-        lenient().when(medicineSummaryProvider.getMedicineSummary(anyInt()))
+        lenient().when(medicineSummaryProvider.getMedicineSummary(any(), anyInt()))
                 .thenReturn(DashboardResponse.MedicineSection.builder()
                         .activeMedicineCount(0)
                         .dosesToday(List.of())

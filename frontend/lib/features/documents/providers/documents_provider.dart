@@ -51,6 +51,15 @@ class DocumentsProvider extends ChangeNotifier {
     }
   }
 
+  Future<AppDocument?> getById(String id) async {
+    try {
+      return await _repository.get(id);
+    } catch (e) {
+      _setError(e.toString());
+      return null;
+    }
+  }
+
   /// Load next page (pagination)
   Future<void> loadMore() async {
     if (_isLoading || !hasMore) return;

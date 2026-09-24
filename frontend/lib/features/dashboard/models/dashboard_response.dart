@@ -11,6 +11,7 @@ class DashboardResponse {
     this.diet,
     this.health,
     this.finance,
+    this.week,
   });
 
   final DateTime date;
@@ -22,11 +23,12 @@ class DashboardResponse {
   final DietSection? diet;
   final HealthSection? health;
   final FinanceSection? finance;
+  final WeekSection? week;
 
   factory DashboardResponse.fromJson(Map<String, dynamic> json) {
     return DashboardResponse(
-      date: DateTime.parse(json['date'] as String),
-      generatedAt: DateTime.parse(json['generatedAt'] as String),
+      date: _date(json['date']) ?? DateTime.now(),
+      generatedAt: _date(json['generatedAt']) ?? DateTime.now(),
       planner: json['planner'] != null
           ? PlannerSection.fromJson(json['planner'] as Map<String, dynamic>)
           : null,
@@ -45,6 +47,9 @@ class DashboardResponse {
       finance: json['finance'] != null
           ? FinanceSection.fromJson(json['finance'] as Map<String, dynamic>)
           : null,
+      week: json['week'] != null
+          ? WeekSection.fromJson(json['week'] as Map<String, dynamic>)
+          : null,
       user: json['user'] != null
           ? DashboardUser.fromJson(json['user'] as Map<String, dynamic>)
           : null,
@@ -62,6 +67,7 @@ class DashboardResponse {
       if (diet != null) 'diet': diet!.toJson(),
       if (health != null) 'health': health!.toJson(),
       if (finance != null) 'finance': finance!.toJson(),
+      if (week != null) 'week': week!.toJson(),
     };
   }
 }
@@ -88,7 +94,7 @@ class PlannerSection {
       todayTasks: _listFromJson(json['todayTasks'], TaskSummary.fromJson),
       todayEvents: _listFromJson(json['todayEvents'], EventSummary.fromJson),
       unavailable: json['unavailable'] as bool? ?? false,
-      error: json['error'] as String?,
+      error: _string(json['error']),
     );
   }
 
@@ -128,7 +134,7 @@ class MedicineSection {
       dosesTakenToday: json['dosesTakenToday'] as int? ?? 0,
       dosesRemainingToday: json['dosesRemainingToday'] as int? ?? 0,
       unavailable: json['unavailable'] as bool? ?? false,
-      error: json['error'] as String?,
+      error: _string(json['error']),
     );
   }
 
@@ -172,7 +178,7 @@ class HabitSection {
       remainingToday: json['remainingToday'] as int? ?? 0,
       todayHabits: _listFromJson(json['todayHabits'], HabitSummary.fromJson),
       unavailable: json['unavailable'] as bool? ?? false,
-      error: json['error'] as String?,
+      error: _string(json['error']),
     );
   }
 
@@ -215,17 +221,17 @@ class DietSection {
 
   factory DietSection.fromJson(Map<String, dynamic> json) {
     return DietSection(
-      date: DateTime.parse(json['date'] as String),
-      mealCount: json['mealCount'] as int? ?? 0,
+      date: _date(json['date']) ?? DateTime.now(),
+      mealCount: _int(json['mealCount']),
       meals: _listFromJson(json['meals'], MealSummary.fromJson),
-      waterCount: json['waterCount'] as int? ?? 0,
+      waterCount: _int(json['waterCount']),
       water: _listFromJson(json['water'], WaterSummary.fromJson),
-      waterTotalMilliliters: json['waterTotalMilliliters'] as String?,
+      waterTotalMilliliters: _string(json['waterTotalMilliliters']),
       nutrition: json['nutrition'] != null
           ? NutritionSummary.fromJson(json['nutrition'] as Map<String, dynamic>)
           : null,
       unavailable: json['unavailable'] as bool? ?? false,
-      error: json['error'] as String?,
+      error: _string(json['error']),
     );
   }
 
@@ -265,7 +271,7 @@ class HealthSection {
       upcomingAppointments:
           _listFromJson(json['upcomingAppointments'], AppointmentSummary.fromJson),
       unavailable: json['unavailable'] as bool? ?? false,
-      error: json['error'] as String?,
+      error: _string(json['error']),
     );
   }
 
@@ -288,6 +294,7 @@ class FinanceSection {
     required this.to,
     required this.currencies,
     required this.unavailable,
+    this.today,
     this.error,
   });
 
@@ -295,15 +302,20 @@ class FinanceSection {
   final DateTime to;
   final List<CurrencySection> currencies;
   final bool unavailable;
+  final FinanceToday? today;
   final String? error;
 
   factory FinanceSection.fromJson(Map<String, dynamic> json) {
+    final rawToday = json['today'];
     return FinanceSection(
-      from: DateTime.parse(json['from'] as String),
-      to: DateTime.parse(json['to'] as String),
+      from: _date(json['from']) ?? DateTime.now(),
+      to: _date(json['to']) ?? DateTime.now(),
       currencies: _listFromJson(json['currencies'], CurrencySection.fromJson),
       unavailable: json['unavailable'] as bool? ?? false,
-      error: json['error'] as String?,
+      today: rawToday is Map<String, dynamic>
+          ? FinanceToday.fromJson(rawToday)
+          : null,
+      error: _string(json['error']),
     );
   }
 
@@ -312,10 +324,91 @@ class FinanceSection {
       'from': from.toIso8601String().split('T')[0],
       'to': to.toIso8601String().split('T')[0],
       'currencies': currencies.map((e) => e.toJson()).toList(),
+      if (today != null) 'today': today!.toJson(),
       'unavailable': unavailable,
       if (error != null) 'error': error,
     };
   }
+}
+
+class FinanceToday {
+  FinanceToday({this.from, this.to, required this.currencies});
+
+  final DateTime? from;
+  final DateTime? to;
+  final List<CurrencySection> currencies;
+
+  factory FinanceToday.fromJson(Map<String, dynamic> json) {
+    return FinanceToday(
+      from: _date(json['from']),
+      to: _date(json['to']),
+      currencies: _listFromJson(
+          json['currencies'] ?? json['currencySummaries'],
+          CurrencySection.fromJson),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (from != null) 'from': from!.toIso8601String().split('T')[0],
+        if (to != null) 'to': to!.toIso8601String().split('T')[0],
+        'currencies': currencies.map((e) => e.toJson()).toList(),
+      };
+}
+
+typedef FinancePeriodSummary = FinanceToday;
+
+class WeekSection {
+  WeekSection({
+    this.start,
+    this.end,
+    this.completedTasks = 0,
+    this.tasksDue = 0,
+    this.habitCompletions = 0,
+    this.habitOccurrences = 0,
+    this.activeDays = 0,
+    this.unavailable = false,
+    this.error,
+  });
+
+  final DateTime? start;
+  final DateTime? end;
+  final int completedTasks;
+  final int tasksDue;
+  final int habitCompletions;
+  final int habitOccurrences;
+  final int activeDays;
+  final bool unavailable;
+  final String? error;
+
+  int get tasksDueOrScheduled => tasksDue;
+  int get expectedHabitOccurrences => habitOccurrences;
+
+  factory WeekSection.fromJson(Map<String, dynamic> json) {
+    return WeekSection(
+      start: _date(json['start']),
+      end: _date(json['end']),
+      completedTasks: _int(json['completedTasks']),
+      tasksDue: _int(json['tasksDue'] ?? json['tasksDueOrScheduled']),
+      habitCompletions: _int(json['habitCompletions']),
+      habitOccurrences: _int(
+          json['habitOccurrences'] ?? json['expectedHabitOccurrences']),
+      activeDays: _int(json['activeDays']),
+      unavailable: json['unavailable'] as bool? ?? false,
+      error: _string(json['error']),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (start != null) 'start': start!.toIso8601String().split('T')[0],
+        if (end != null) 'end': end!.toIso8601String().split('T')[0],
+        'completedTasks': completedTasks,
+        'tasksDue': tasksDue,
+        'habitCompletions': habitCompletions,
+        'habitOccurrences': habitOccurrences,
+        'activeDays': activeDays,
+        'unavailable': unavailable,
+        if (error != null) 'error': error,
+      };
 }
 
 // ============================================================================
@@ -347,15 +440,15 @@ class TaskSummary {
 
   factory TaskSummary.fromJson(Map<String, dynamic> json) {
     return TaskSummary(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      listId: json['listId'] as String?,
-      listName: json['listName'] as String?,
-      priority: json['priority'] as String?,
-      status: json['status'] as String?,
-      dueAt: json['dueAt'] as String?,
-      startAt: json['startAt'] as String?,
-      endAt: json['endAt'] as String?,
+      id: _string(json['id']) ?? '',
+      title: _string(json['title']) ?? '',
+      listId: _string(json['listId']),
+      listName: _string(json['listName']),
+      priority: _string(json['priority']),
+      status: _string(json['status']),
+      dueAt: _string(json['dueAt']),
+      startAt: _string(json['startAt']),
+      endAt: _string(json['endAt']),
     );
   }
 
@@ -387,10 +480,10 @@ class EventSummary {
 
   factory EventSummary.fromJson(Map<String, dynamic> json) {
     return EventSummary(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      startAt: json['startAt'] as String,
-      endAt: json['endAt'] as String?,
+      id: _string(json['id']) ?? '',
+      title: _string(json['title']) ?? '',
+      startAt: _string(json['startAt']) ?? '',
+      endAt: _string(json['endAt']),
     );
   }
 
@@ -427,15 +520,15 @@ class DoseSummary {
 
   factory DoseSummary.fromJson(Map<String, dynamic> json) {
     return DoseSummary(
-      id: json['id'] as String,
-      medicineId: json['medicineId'] as String,
-      medicineName: json['medicineName'] as String,
-      scheduleId: json['scheduleId'] as String?,
-      status: json['status'] as String,
-      scheduledAt: json['scheduledAt'] as String,
-      takenAt: json['takenAt'] as String?,
-      doseAmount: json['doseAmount'] as String?,
-      doseUnit: json['doseUnit'] as String?,
+      id: _string(json['id']) ?? '',
+      medicineId: _string(json['medicineId']) ?? '',
+      medicineName: _string(json['medicineName']) ?? '',
+      scheduleId: _string(json['scheduleId']),
+      status: _string(json['status']) ?? '',
+      scheduledAt: _string(json['scheduledAt']) ?? '',
+      takenAt: _string(json['takenAt']),
+      doseAmount: _string(json['doseAmount']),
+      doseUnit: _string(json['doseUnit']),
     );
   }
 
@@ -471,12 +564,12 @@ class HabitSummary {
 
   factory HabitSummary.fromJson(Map<String, dynamic> json) {
     return HabitSummary(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      type: json['type'] as String?,
+      id: _string(json['id']) ?? '',
+      name: _string(json['name']) ?? '',
+      type: _string(json['type']),
       completedToday: json['completedToday'] as bool? ?? false,
-      targetValue: json['targetValue'] as String?,
-      targetUnit: json['targetUnit'] as String?,
+      targetValue: _string(json['targetValue']),
+      targetUnit: _string(json['targetUnit']),
     );
   }
 
@@ -505,9 +598,9 @@ class MealSummary {
 
   factory MealSummary.fromJson(Map<String, dynamic> json) {
     return MealSummary(
-      id: json['id'] as String,
-      type: json['type'] as String?,
-      consumedAt: json['consumedAt'] as String?,
+      id: _string(json['id']) ?? '',
+      type: _string(json['type']),
+      consumedAt: _string(json['consumedAt']),
       items: _listFromJson(json['items'], ItemSummary.fromJson),
     );
   }
@@ -539,12 +632,12 @@ class ItemSummary {
 
   factory ItemSummary.fromJson(Map<String, dynamic> json) {
     return ItemSummary(
-      name: json['name'] as String,
-      caloriesKcal: json['caloriesKcal'] as String?,
-      proteinG: json['proteinG'] as String?,
-      carbohydratesG: json['carbohydratesG'] as String?,
-      fatG: json['fatG'] as String?,
-      fiberG: json['fiberG'] as String?,
+      name: _string(json['name']) ?? '',
+      caloriesKcal: _string(json['caloriesKcal']),
+      proteinG: _string(json['proteinG']),
+      carbohydratesG: _string(json['carbohydratesG']),
+      fatG: _string(json['fatG']),
+      fiberG: _string(json['fiberG']),
     );
   }
 
@@ -573,10 +666,10 @@ class WaterSummary {
 
   factory WaterSummary.fromJson(Map<String, dynamic> json) {
     return WaterSummary(
-      id: json['id'] as String,
-      amount: json['amount'] as String?,
-      unit: json['unit'] as String?,
-      consumedAt: json['consumedAt'] as String?,
+      id: _string(json['id']) ?? '',
+      amount: _string(json['amount']),
+      unit: _string(json['unit']),
+      consumedAt: _string(json['consumedAt']),
     );
   }
 
@@ -605,19 +698,19 @@ class NutritionSummary {
 
   factory NutritionSummary.fromJson(Map<String, dynamic> json) {
     return NutritionSummary(
-      caloriesKcal: json['caloriesKcal'] != null
+      caloriesKcal: json['caloriesKcal'] is Map<String, dynamic>
           ? MacroSummary.fromJson(json['caloriesKcal'] as Map<String, dynamic>)
           : null,
-      proteinG: json['proteinG'] != null
+      proteinG: json['proteinG'] is Map<String, dynamic>
           ? MacroSummary.fromJson(json['proteinG'] as Map<String, dynamic>)
           : null,
-      carbohydratesG: json['carbohydratesG'] != null
+      carbohydratesG: json['carbohydratesG'] is Map<String, dynamic>
           ? MacroSummary.fromJson(json['carbohydratesG'] as Map<String, dynamic>)
           : null,
-      fatG: json['fatG'] != null
+      fatG: json['fatG'] is Map<String, dynamic>
           ? MacroSummary.fromJson(json['fatG'] as Map<String, dynamic>)
           : null,
-      fiberG: json['fiberG'] != null
+      fiberG: json['fiberG'] is Map<String, dynamic>
           ? MacroSummary.fromJson(json['fiberG'] as Map<String, dynamic>)
           : null,
     );
@@ -643,8 +736,8 @@ class MacroSummary {
 
   factory MacroSummary.fromJson(Map<String, dynamic> json) {
     return MacroSummary(
-      total: json['total'] as String?,
-      recordedItems: json['recordedItems'] as int? ?? 0,
+      total: _string(json['total']),
+      recordedItems: _int(json['recordedItems']),
     );
   }
 
@@ -671,11 +764,11 @@ class MeasurementSummary {
 
   factory MeasurementSummary.fromJson(Map<String, dynamic> json) {
     return MeasurementSummary(
-      type: json['type'] as String,
-      value: json['value'] as String?,
-      valueDiastolic: json['valueDiastolic'] as String?,
-      unit: json['unit'] as String?,
-      measuredAt: json['measuredAt'] as String?,
+      type: _string(json['type']) ?? '',
+      value: _string(json['value']),
+      valueDiastolic: _string(json['valueDiastolic']),
+      unit: _string(json['unit']),
+      measuredAt: _string(json['measuredAt']),
     );
   }
 
@@ -705,11 +798,11 @@ class AppointmentSummary {
 
   factory AppointmentSummary.fromJson(Map<String, dynamic> json) {
     return AppointmentSummary(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      scheduledAt: json['scheduledAt'] as String,
-      location: json['location'] as String?,
-      status: json['status'] as String?,
+      id: _string(json['id']) ?? '',
+      title: _string(json['title']) ?? '',
+      scheduledAt: _string(json['scheduledAt']) ?? '',
+      location: _string(json['location']),
+      status: _string(json['status']),
     );
   }
 
@@ -743,12 +836,12 @@ class CurrencySection {
 
   factory CurrencySection.fromJson(Map<String, dynamic> json) {
     return CurrencySection(
-      currency: json['currency'] as String,
-      income: json['income'] as String,
-      expense: json['expense'] as String,
-      net: json['net'] as String,
-      transferIn: json['transferIn'] as String,
-      transferOut: json['transferOut'] as String,
+      currency: _string(json['currency']) ?? '',
+      income: _string(json['income']) ?? '0',
+      expense: _string(json['expense']) ?? '0',
+      net: _string(json['net']) ?? '0',
+      transferIn: _string(json['transferIn']) ?? '0',
+      transferOut: _string(json['transferOut']) ?? '0',
       topCategories:
           _listFromJson(json['topCategories'], CategorySpend.fromJson),
     );
@@ -778,9 +871,9 @@ class CategorySpend {
 
   factory CategorySpend.fromJson(Map<String, dynamic> json) {
     return CategorySpend(
-      categoryId: json['categoryId'] as String,
-      categoryName: json['categoryName'] as String,
-      amount: json['amount'] as String,
+      categoryId: _string(json['categoryId']) ?? '',
+      categoryName: _string(json['categoryName']) ?? '',
+      amount: _string(json['amount']) ?? '0',
     );
   }
 
@@ -800,9 +893,9 @@ class DashboardUser {
 
   factory DashboardUser.fromJson(Map<String, dynamic> json) {
     return DashboardUser(
-      email: json['email'] as String?,
-      displayName: json['displayName'] as String?,
-      firstName: json['firstName'] as String?,
+      email: _string(json['email']),
+      displayName: _string(json['displayName']),
+      firstName: _string(json['firstName']),
     );
   }
 
@@ -942,7 +1035,22 @@ DayProgress computeDayProgress(DashboardResponse? dashboard, {DateTime? now}) {
   return DayProgress(total: total, completed: completed, attention: attention);
 }
 
-// Helper
+DateTime? _date(Object? value) {
+  if (value is! String) return null;
+  return DateTime.tryParse(value);
+}
+
+int _int(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse('$value') ?? 0;
+}
+
+String? _string(Object? value) {
+  if (value == null) return null;
+  return value.toString();
+}
+
 List<T> _listFromJson<T>(Object? json, T Function(Map<String, dynamic>) fromJson) {
   if (json is! List) return [];
   return json

@@ -75,8 +75,16 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
       ),
     );
     if (confirm != true || !mounted) return;
-    setState(() => _pinned = List.of(ShellDestinations.defaults));
-    await _save();
+    final controller = context.read<PreferencesController>();
+    final ok = await controller.save(
+      bottomNav: ShellDestinations.defaults,
+      homeWidgets: controller.homeWidgets,
+    );
+    if (!mounted) return;
+    if (ok) setState(() => _pinned = List.of(ShellDestinations.defaults));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ok ? 'Navigation reset' : controller.error ?? 'Reset failed')),
+    );
   }
 
   @override
@@ -119,10 +127,18 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _pinned.length,
                   onReorder: (oldIndex, newIndex) {
+                    final targetIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+                    final moving = _pinned[oldIndex];
+                    final target = _pinned[targetIndex];
+                    if (moving == ShellDestinations.home ||
+                        moving == ShellDestinations.add ||
+                        target == ShellDestinations.home ||
+                        target == ShellDestinations.add) {
+                      return;
+                    }
                     setState(() {
-                      if (newIndex > oldIndex) newIndex -= 1;
                       final id = _pinned.removeAt(oldIndex);
-                      _pinned.insert(newIndex, id);
+                      _pinned.insert(targetIndex, id);
                     });
                   },
                   itemBuilder: (context, index) {

@@ -34,7 +34,7 @@ abstract final class ShellDestinations {
     hub,
   ];
 
-  static const List<String> defaults = [home, planner, add, health, hub];
+  static const List<String> defaults = [home, planner, add, hub, health];
 
   static const int maxItems = 5;
 
@@ -86,6 +86,9 @@ abstract final class ShellDestinations {
         throw ArgumentError('Unknown navigation destination: $id');
       }
     }
+    if (cleaned.toSet().length != cleaned.length) {
+      throw ArgumentError('Navigation destinations cannot be duplicated');
+    }
     if (!cleaned.contains(home)) {
       throw ArgumentError('HOME cannot be removed from navigation');
     }
@@ -95,67 +98,92 @@ abstract final class ShellDestinations {
     if (cleaned.length > maxItems) {
       throw ArgumentError('At most $maxItems navigation items allowed');
     }
-    return LinkedHashSet<String>.from(cleaned).toList();
+    final optional = [
+      for (final id in LinkedHashSet<String>.from(cleaned))
+        if (id != home && id != add) id,
+    ];
+    final before = ((optional.length - 1) ~/ 2).clamp(0, optional.length).toInt();
+    return [
+      home,
+      ...optional.take(before),
+      add,
+      ...optional.skip(before),
+    ];
   }
 }
 
-/// Reorderable Home widgets. DAY_AT_A_GLANCE is the locked hero.
+/// Reorderable Home content. Section tokens and module tokens share the
+/// persisted list so older preference clients remain compatible.
 abstract final class HomeWidgets {
-  static const String dayAtAGlance = 'DAY_AT_A_GLANCE';
+  static const String todayOverview = 'TODAY_OVERVIEW';
+  static const String todaysSchedule = 'TODAYS_SCHEDULE';
+  static const String needsAttention = 'NEEDS_ATTENTION';
+  static const String yourLife = 'YOUR_LIFE';
+  static const String thisWeek = 'THIS_WEEK';
   static const String health = 'HEALTH';
   static const String medicines = 'MEDICINES';
   static const String diet = 'DIET';
   static const String habits = 'HABITS';
-  static const String planner = 'PLANNER';
   static const String finance = 'FINANCE';
 
-  static const List<String> allowed = [
-    dayAtAGlance,
-    health,
-    medicines,
-    diet,
-    habits,
-    planner,
-    finance,
-  ];
+  static const String legacyOverview = 'DAY_AT_A_GLANCE';
+  static const String legacyPlanner = 'PLANNER';
 
-  static const List<String> defaults = [
-    dayAtAGlance,
+  static const List<String> sections = [
+    todayOverview,
+    todaysSchedule,
+    needsAttention,
+    yourLife,
+    thisWeek,
+  ];
+  static const List<String> modules = [
     health,
     medicines,
     diet,
     habits,
-    planner,
     finance,
   ];
+  static const List<String> allowed = [...sections, ...modules];
+  static const List<String> defaults = [...sections, ...modules];
 
   static String label(String id) => switch (id) {
-        dayAtAGlance => 'Day at a glance',
+        todayOverview => 'Today overview',
+        todaysSchedule => "Today's schedule",
+        needsAttention => 'Needs attention',
+        yourLife => 'Your life',
+        thisWeek => 'This week',
         health => 'Health',
         medicines => 'Medicines',
         diet => 'Diet',
         habits => 'Habits',
-        planner => 'Planner',
         finance => 'Finance',
         _ => id,
       };
 
-  /// Client-side mirror of the backend rules (backend re-validates).
+  static String canonical(String id) => switch (id) {
+        legacyOverview => todayOverview,
+        legacyPlanner => todaysSchedule,
+        _ => id,
+      };
+
   static List<String> normalizeWidgets(List<String> raw) {
-    final cleaned = [
-      for (final item in raw)
-        item.trim().toUpperCase(),
-    ].where((id) => id.isNotEmpty).toList();
-    if (cleaned.isEmpty) {
-      throw ArgumentError('homeWidgets must not be empty');
-    }
-    for (final id in cleaned) {
+    final cleaned = <String>[];
+    for (final item in raw) {
+      final id = canonical(item.trim().toUpperCase());
+      if (id.isEmpty || cleaned.contains(id)) {
+        continue;
+      }
       if (!allowed.contains(id)) {
         throw ArgumentError('Unknown home widget: $id');
       }
+      cleaned.add(id);
     }
-    final ordered = LinkedHashSet<String>()..add(dayAtAGlance);
-    ordered.addAll(cleaned);
-    return ordered.toList();
+    if (cleaned.isEmpty) {
+      throw ArgumentError('homeWidgets must not be empty');
+    }
+    if (cleaned.any(modules.contains) && !cleaned.contains(yourLife)) {
+      cleaned.add(yourLife);
+    }
+    return cleaned;
   }
 }

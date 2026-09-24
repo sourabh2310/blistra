@@ -119,6 +119,10 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
         assertThat(body).contains("\"habits\"");
         assertThat(body).contains("\"health\"");
         assertThat(body).contains("\"medicines\"");
+        assertThat(body).contains("\"week\"");
+        assertThat(body).contains("\"completedTasks\":0");
+        assertThat(body).contains("\"finance\"");
+        assertThat(body).contains("\"today\"");
     }
 
     @Test
@@ -164,8 +168,11 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(get("/api/v1/dashboard")
                         .header("Authorization", authHeader(userAToken)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.finance.unavailable").value(false));
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.finance.unavailable").value(false))
+                        .andExpect(jsonPath("$.finance.today").isMap())
+                        .andExpect(jsonPath("$.finance.today.currencies[0].currency").value("INR"));
+
     }
 
     @Test

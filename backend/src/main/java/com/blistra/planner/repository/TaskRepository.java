@@ -103,6 +103,39 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
                                      @Param("todayStart") OffsetDateTime todayStart,
                                      @Param("now") OffsetDateTime now);
 
+    @Query("""
+            SELECT t FROM Task t
+            WHERE t.user.id = :userId
+              AND t.status = com.blistra.planner.domain.TaskStatus.COMPLETED
+              AND t.completedAt >= :startInclusive
+              AND t.completedAt < :endExclusive
+            """)
+    java.util.List<Task> findCompletedInRange(@Param("userId") UUID userId,
+                                              @Param("startInclusive") OffsetDateTime startInclusive,
+                                              @Param("endExclusive") OffsetDateTime endExclusive);
+
+    @Query("""
+            SELECT COUNT(DISTINCT t) FROM Task t
+            WHERE t.user.id = :userId
+              AND t.status <> com.blistra.planner.domain.TaskStatus.CANCELLED
+              AND ((t.dueAt >= :startInclusive AND t.dueAt < :endExclusive)
+                OR (t.startAt >= :startInclusive AND t.startAt < :endExclusive))
+            """)
+    long countDistinctDueOrScheduledInRange(@Param("userId") UUID userId,
+                                            @Param("startInclusive") OffsetDateTime startInclusive,
+                                            @Param("endExclusive") OffsetDateTime endExclusive);
+
+    @Query("""
+            SELECT COUNT(DISTINCT t) FROM Task t
+            WHERE t.user.id = :userId
+              AND t.status = com.blistra.planner.domain.TaskStatus.COMPLETED
+              AND ((t.dueAt >= :startInclusive AND t.dueAt < :endExclusive)
+                OR (t.startAt >= :startInclusive AND t.startAt < :endExclusive))
+            """)
+    long countCompletedDueOrScheduledInRange(@Param("userId") UUID userId,
+                                            @Param("startInclusive") OffsetDateTime startInclusive,
+                                            @Param("endExclusive") OffsetDateTime endExclusive);
+
     @Modifying
     @Query("UPDATE Task t SET t.list = null WHERE t.user.id = :userId AND t.list.id = :listId")
     void detachList(@Param("userId") UUID userId, @Param("listId") UUID listId);

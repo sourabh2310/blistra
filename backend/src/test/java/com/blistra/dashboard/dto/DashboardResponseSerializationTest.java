@@ -63,6 +63,21 @@ class DashboardResponseSerializationTest {
                         .from(LocalDate.now().withDayOfMonth(1))
                         .to(LocalDate.now().withDayOfMonth(30))
                         .currencies(List.of())
+                        .today(DashboardResponse.FinancePeriodSummary.builder()
+                                .from(LocalDate.now())
+                                .to(LocalDate.now())
+                                .currencies(List.of())
+                                .build())
+                        .unavailable(false)
+                        .build())
+                .week(DashboardResponse.WeekSummary.builder()
+                        .start(LocalDate.now())
+                        .end(LocalDate.now().plusDays(6))
+                        .completedTasks(2)
+                        .tasksDueOrScheduled(3)
+                        .habitCompletions(4)
+                        .expectedHabitOccurrences(5)
+                        .activeDays(3)
                         .unavailable(false)
                         .build())
                 .build();
@@ -77,6 +92,10 @@ class DashboardResponseSerializationTest {
         assertThat(json).contains("\"diet\"");
         assertThat(json).contains("\"health\"");
         assertThat(json).contains("\"finance\"");
+        assertThat(json).contains("\"today\"");
+        assertThat(json).contains("\"week\"");
+        assertThat(json).contains("\"tasksDueOrScheduled\":3");
+        assertThat(json).contains("\"activeDays\":3");
         assertThat(json).contains("\"unavailable\":false");
     }
 

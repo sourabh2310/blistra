@@ -17,4 +17,6 @@ public interface HabitScheduleRepository extends JpaRepository<HabitSchedule, UU
     Optional<HabitSchedule> findByHabitId(UUID habitId);
 
     List<HabitSchedule> findAllByHabitIdIn(Collection<UUID> habitIds);
+
+    List<HabitSchedule> findAllByHabitUserIdAndHabitIdIn(UUID userId, Collection<UUID> habitIds);
 }

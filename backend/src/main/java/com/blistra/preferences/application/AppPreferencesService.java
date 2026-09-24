@@ -7,7 +7,6 @@ import com.blistra.preferences.dto.UpdateAppPreferencesRequest;
 import com.blistra.preferences.repository.UserAppPreferencesRepository;
 import com.blistra.users.application.CurrentUserProvider;
 import com.blistra.users.domain.User;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,31 +14,36 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-/**
- * Reads/updates the authenticated user's Home and bottom-navigation
- * preferences. Ownership is derived from the security context; unknown
- * destination/widget identifiers are rejected server-side and never stored.
- */
-@Slf4j
 @Service
 public class AppPreferencesService {
 
-    /** Destinations allowed in the bottom navigation. */
     public static final List<String> ALLOWED_NAV =
             List.of("HOME", "PLANNER", "ADD", "HEALTH", "MEDICINES", "DIET", "HABITS", "FINANCE", "HUB");
 
-    /** Widgets allowed on Home. DAY_AT_A_GLANCE is the locked hero. */
-    public static final List<String> ALLOWED_WIDGETS =
-            List.of("DAY_AT_A_GLANCE", "HEALTH", "MEDICINES", "DIET", "HABITS", "PLANNER", "FINANCE");
+    public static final List<String> ALLOWED_WIDGETS = List.of(
+            "TODAY_OVERVIEW", "TODAYS_SCHEDULE", "NEEDS_ATTENTION", "YOUR_LIFE", "THIS_WEEK",
+            "HEALTH", "MEDICINES", "DIET", "HABITS", "FINANCE");
 
     public static final int MAX_NAV_ITEMS = 5;
 
-    public static final List<String> DEFAULT_NAV = List.of("HOME", "PLANNER", "ADD", "HEALTH", "HUB");
+    public static final List<String> DEFAULT_NAV = List.of("HOME", "PLANNER", "ADD", "HUB", "HEALTH");
 
-    public static final List<String> DEFAULT_WIDGETS =
-            List.of("DAY_AT_A_GLANCE", "HEALTH", "MEDICINES", "DIET", "HABITS", "PLANNER", "FINANCE");
+    public static final List<String> DEFAULT_WIDGETS = List.of(
+            "TODAY_OVERVIEW", "TODAYS_SCHEDULE", "NEEDS_ATTENTION", "YOUR_LIFE", "THIS_WEEK",
+            "HEALTH", "MEDICINES", "DIET", "HABITS", "FINANCE");
+
+    private static final Set<String> MODULE_WIDGETS = Set.of(
+            "HEALTH", "MEDICINES", "DIET", "HABITS", "FINANCE");
+
+    private static final List<String> LEGACY_DEFAULT_WIDGETS = List.of(
+            "DAY_AT_A_GLANCE", "HEALTH", "MEDICINES", "DIET", "HABITS", "PLANNER", "FINANCE");
+
+    private static final Map<String, String> LEGACY_WIDGET_ALIASES = Map.of(
+            "DAY_AT_A_GLANCE", "TODAY_OVERVIEW",
+            "PLANNER", "TODAYS_SCHEDULE");
 
     private final CurrentUserProvider currentUserProvider;
     private final UserAppPreferencesRepository repository;
@@ -62,9 +66,13 @@ public class AppPreferencesService {
         UserAppPreferences prefs = existingOrDefault(user);
         if (request.getBottomNav() != null) {
             prefs.setBottomNav(join(normalizeNav(request.getBottomNav())));
+        } else {
+            prefs.setBottomNav(join(normalizeStoredNav(prefs.getBottomNav())));
         }
         if (request.getHomeWidgets() != null) {
             prefs.setHomeWidgets(join(normalizeWidgets(request.getHomeWidgets())));
+        } else {
+            prefs.setHomeWidgets(join(normalizeStoredWidgets(prefs.getHomeWidgets())));
         }
         prefs.setUpdatedAt(LocalDateTime.now());
         return toResponse(repository.save(prefs));
@@ -76,11 +84,6 @@ public class AppPreferencesService {
                         user.getId(), join(DEFAULT_NAV), join(DEFAULT_WIDGETS)));
     }
 
-    /**
-     * Validates bottom navigation: known ids only, HOME+ADD mandatory,
-     * at most 5 items, no duplicates. Hub reachability is guaranteed by the
-     * Home surface (always links Hub), so Hub itself may be unpinned.
-     */
     public static List<String> normalizeNav(List<String> raw) {
         if (raw == null || raw.isEmpty()) {
             throw new BadRequestException("bottomNav must not be empty");
@@ -91,25 +94,22 @@ public class AppPreferencesService {
                 throw new BadRequestException("Unknown navigation destination: " + id);
             }
         }
-        if (!cleaned.contains("HOME")) {
+        List<String> ordered = new ArrayList<>(new LinkedHashSet<>(cleaned));
+        if (!ordered.contains("HOME")) {
             throw new BadRequestException("HOME cannot be removed from navigation");
         }
-        if (!cleaned.contains("ADD")) {
+        if (!ordered.contains("ADD")) {
             throw new BadRequestException("ADD cannot be removed from navigation");
         }
-        if (cleaned.size() > MAX_NAV_ITEMS) {
+        if (ordered.size() > MAX_NAV_ITEMS) {
             throw new BadRequestException("At most " + MAX_NAV_ITEMS + " navigation items allowed");
         }
-        return new ArrayList<>(new LinkedHashSet<>(cleaned));
+        return centerAdd(ordered);
     }
 
-    /**
-     * Validates home widgets: known ids only, DAY_AT_A_GLANCE always first,
-     * no duplicates.
-     */
     public static List<String> normalizeWidgets(List<String> raw) {
         if (raw == null || raw.isEmpty()) {
-            throw new BadRequestException("homeWidgets must not be empty");
+            throw new BadRequestException("homeWidgets must contain at least one content section or module");
         }
         List<String> cleaned = clean(raw);
         for (String id : cleaned) {
@@ -117,10 +117,66 @@ public class AppPreferencesService {
                 throw new BadRequestException("Unknown home widget: " + id);
             }
         }
-        Set<String> ordered = new LinkedHashSet<>();
-        ordered.add("DAY_AT_A_GLANCE");
-        ordered.addAll(cleaned);
-        return new ArrayList<>(ordered);
+        List<String> ordered = new ArrayList<>(new LinkedHashSet<>(cleaned));
+        if (ordered.isEmpty()) {
+            throw new BadRequestException("homeWidgets must contain at least one content section or module");
+        }
+        boolean hasModule = ordered.stream().anyMatch(MODULE_WIDGETS::contains);
+        boolean hasLifeSection = ordered.contains("YOUR_LIFE");
+        if (hasModule && !hasLifeSection) {
+            int firstModule = 0;
+            while (firstModule < ordered.size() && !MODULE_WIDGETS.contains(ordered.get(firstModule))) {
+                firstModule++;
+            }
+            ordered.add(firstModule, "YOUR_LIFE");
+        }
+        return ordered;
+    }
+
+    static List<String> normalizeStoredNav(String stored) {
+        List<String> known = split(stored).stream().filter(ALLOWED_NAV::contains).toList();
+        List<String> ordered = new ArrayList<>(new LinkedHashSet<>(known));
+        if (!ordered.contains("HOME")) {
+            ordered.add(0, "HOME");
+        }
+        if (!ordered.contains("ADD")) {
+            int homeIndex = ordered.indexOf("HOME") + 1;
+            ordered.add(homeIndex, "ADD");
+        }
+        return centerAdd(ordered);
+    }
+
+    static List<String> normalizeStoredWidgets(String stored) {
+        List<String> split = split(stored);
+        if (split.equals(LEGACY_DEFAULT_WIDGETS)) {
+            return DEFAULT_WIDGETS;
+        }
+        List<String> mapped = new ArrayList<>();
+        for (String token : split) {
+            if (ALLOWED_WIDGETS.contains(token)) {
+                mapped.add(token);
+            } else if (LEGACY_WIDGET_ALIASES.containsKey(token)) {
+                mapped.add(LEGACY_WIDGET_ALIASES.get(token));
+            }
+        }
+        if (mapped.isEmpty()) {
+            return DEFAULT_WIDGETS;
+        }
+        return normalizeWidgets(mapped);
+    }
+
+    private static List<String> centerAdd(List<String> ids) {
+        List<String> optional = ids.stream()
+                .filter(id -> !id.equals("HOME") && !id.equals("ADD"))
+                .toList();
+        int before = Math.max(0, (optional.size() - 1) / 2);
+        List<String> limited = optional.subList(0, Math.min(MAX_NAV_ITEMS - 2, optional.size()));
+        List<String> ordered = new ArrayList<>();
+        ordered.add("HOME");
+        ordered.addAll(limited.subList(0, Math.min(before, limited.size())));
+        ordered.add("ADD");
+        ordered.addAll(limited.subList(Math.min(before, limited.size()), limited.size()));
+        return ordered;
     }
 
     private static List<String> clean(List<String> raw) {
@@ -149,8 +205,8 @@ public class AppPreferencesService {
 
     private static AppPreferencesResponse toResponse(UserAppPreferences prefs) {
         return AppPreferencesResponse.builder()
-                .bottomNav(split(prefs.getBottomNav()))
-                .homeWidgets(split(prefs.getHomeWidgets()))
+                .bottomNav(normalizeStoredNav(prefs.getBottomNav()))
+                .homeWidgets(normalizeStoredWidgets(prefs.getHomeWidgets()))
                 .updatedAt(prefs.getUpdatedAt())
                 .build();
     }

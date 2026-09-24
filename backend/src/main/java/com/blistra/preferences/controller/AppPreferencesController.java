@@ -35,7 +35,7 @@ public class AppPreferencesController {
 
     @PutMapping
     @Operation(summary = "Replace the current user's Home/navigation preferences",
-            description = "Unknown destination/widget identifiers are rejected. HOME and ADD are mandatory in bottomNav (max 5); DAY_AT_A_GLANCE is always kept first in homeWidgets.")
+            description = "Unknown destination/widget identifiers are rejected. HOME and ADD are mandatory in bottomNav (max 5), and Home requires at least one content section or module.")
     public ResponseEntity<AppPreferencesResponse> update(
             @RequestBody UpdateAppPreferencesRequest request) {
         return ResponseEntity.ok(service.update(request == null ? new UpdateAppPreferencesRequest() : request));

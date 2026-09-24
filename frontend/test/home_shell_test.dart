@@ -5,6 +5,8 @@
 /// reachable when unpinned.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -26,14 +28,17 @@ Widget _home({
   VoidCallback? onSearch,
   VoidCallback? onNotifications,
   VoidCallback? onProfile,
-  VoidCallback? onCustomizeHome,
   bool hubPinned = true,
+  DashboardController? controller,
+  List<String>? homeWidgets,
 }) {
   final mock = MockClient((req) async => http.Response('{}', 200));
   final api = ApiClient(baseUrl: 'http://localhost', httpClient: mock);
+  final dashboard = controller ??
+      DashboardController(api: DashboardApi(apiClient: api));
   return AppScope(
     authState: AuthState(apiClient: api, storage: AuthStorage()),
-    dashboard: DashboardController(api: DashboardApi(apiClient: api)),
+    dashboard: dashboard,
     planner: PlannerController(PlannerApi(api)),
     child: MaterialApp(
       home: DashboardScreen(
@@ -41,8 +46,8 @@ Widget _home({
         onSearch: onSearch,
         onNotifications: onNotifications,
         onProfile: onProfile,
-        onCustomizeHome: onCustomizeHome,
         hubPinned: hubPinned,
+        homeWidgets: homeWidgets,
       ),
     ),
   );
@@ -91,13 +96,74 @@ void main() {
   });
 
   testWidgets('module cards navigate to owning domains', (tester) async {
+    final mock = MockClient((req) async => http.Response(
+          jsonEncode({
+            'date': '2026-09-24',
+            'generatedAt': '2026-09-24T08:00:00+05:30',
+            'health': {
+              'latestMeasurements': [
+                {'type': 'WEIGHT', 'value': '68.4', 'unit': 'kg'},
+              ],
+              'upcomingAppointments': [],
+              'unavailable': false,
+            },
+          }),
+          200,
+        ));
+    final api = ApiClient(baseUrl: 'http://localhost', httpClient: mock);
+    final controller = DashboardController(api: DashboardApi(apiClient: api));
+    await controller.loadDashboard(date: DateTime(2026, 9, 24));
     String? destination;
-    await tester.pumpWidget(
-        _home(onDestination: (id) => destination = id));
+    await tester.pumpWidget(_home(
+      controller: controller,
+      homeWidgets: const ['YOUR_LIFE', 'HEALTH'],
+      onDestination: (id) => destination = id,
+    ));
     await tester.pump();
-    await tester.tap(find.text('Health').first);
-    await tester.pump();
+    await tester.tap(find.text('Health'));
     expect(destination, 'HEALTH');
+  });
+
+  testWidgets('Home reflows on small and large phone widths', (tester) async {
+    final mock = MockClient((req) async => http.Response(
+          jsonEncode({
+            'date': '2026-09-24',
+            'generatedAt': '2026-09-24T08:00:00+05:30',
+            'user': {'displayName': 'Ananya', 'firstName': 'Ananya'},
+            'planner': {
+              'overdueTasks': [],
+              'todayTasks': [],
+              'todayEvents': [],
+              'unavailable': false,
+            },
+          }),
+          200,
+        ));
+    final api = ApiClient(baseUrl: 'http://localhost', httpClient: mock);
+    final controller = DashboardController(api: DashboardApi(apiClient: api));
+    await controller.loadDashboard(date: DateTime(2026, 9, 24));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final size in [const Size(320, 640), const Size(412, 915)]) {
+      await tester.binding.setSurfaceSize(size);
+      await tester.pumpWidget(_home(
+        controller: controller,
+         homeWidgets: const [
+           'TODAY_OVERVIEW',
+           'TODAYS_SCHEDULE',
+           'NEEDS_ATTENTION',
+           'YOUR_LIFE',
+           'THIS_WEEK',
+           'HEALTH',
+           'MEDICINES',
+           'DIET',
+           'HABITS',
+           'FINANCE',
+         ],
+      ));
+      await tester.pump();
+      expect(find.text('Today overview'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
   });
 
   testWidgets('Hub entry appears only when Hub is unpinned',
@@ -111,21 +177,22 @@ void main() {
     expect(find.text('Explore Hub'), findsNothing);
   });
 
-  testWidgets('Customize shortcut is available', (tester) async {
-    var customized = 0;
-    await tester.pumpWidget(
-        _home(onCustomizeHome: () => customized++));
+  testWidgets('Home has no permanent Customize action', (tester) async {
+    await tester.pumpWidget(_home());
     await tester.pump();
-    await tester.tap(find.text('Customize'));
-    await tester.pump();
-    expect(customized, 1);
+    expect(find.text('Customize'), findsNothing);
   });
 
   testWidgets('no fake notification badge without data', (tester) async {
     await tester.pumpWidget(_home());
     await tester.pump();
-    // Real scheduled reminders would set the dot; with none loaded there
-    // must be no red badge.
-    expect(find.byType(CircleAvatar), findsNothing);
+    expect(find.byIcon(Icons.notifications_none_outlined), findsOneWidget);
+     expect(find.byType(CircleAvatar), findsOneWidget);
+     expect(
+       find.byWidgetPredicate(
+         (widget) => widget is CircleAvatar && widget.radius == 5,
+       ),
+       findsNothing,
+     );
   });
 }

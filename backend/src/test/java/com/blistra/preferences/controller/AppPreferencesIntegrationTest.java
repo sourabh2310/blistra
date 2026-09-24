@@ -3,6 +3,9 @@ package com.blistra.preferences.controller;
 import com.blistra.AbstractIntegrationTest;
 import com.blistra.auth.dto.LoginRequest;
 import com.blistra.auth.dto.RegisterRequest;
+import com.blistra.preferences.domain.UserAppPreferences;
+import com.blistra.preferences.repository.UserAppPreferencesRepository;
+import com.blistra.users.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +34,12 @@ class AppPreferencesIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private JsonMapper jsonMapper;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private UserAppPreferencesRepository preferencesRepository;
 
     @BeforeEach
     void cleanDatabase() {
@@ -72,8 +81,11 @@ class AppPreferencesIntegrationTest extends AbstractIntegrationTest {
     void defaultsReturnedWhenNothingSaved() throws Exception {
         String token = registerAndLogin("prefs-a@example.com");
         JsonNode prefs = getPrefs(token);
-        assertThat(prefs.get("bottomNav").toString()).contains("HOME", "ADD");
-        assertThat(prefs.get("homeWidgets").toString()).contains("DAY_AT_A_GLANCE");
+        assertThat(prefs.get("bottomNav").toString())
+                .isEqualTo("[\"HOME\",\"PLANNER\",\"ADD\",\"HUB\",\"HEALTH\"]");
+        assertThat(prefs.get("homeWidgets").toString()).isEqualTo(
+                "[\"TODAY_OVERVIEW\",\"TODAYS_SCHEDULE\",\"NEEDS_ATTENTION\",\"YOUR_LIFE\","
+                        + "\"THIS_WEEK\",\"HEALTH\",\"MEDICINES\",\"DIET\",\"HABITS\",\"FINANCE\"]");
     }
 
     @Test
@@ -81,13 +93,13 @@ class AppPreferencesIntegrationTest extends AbstractIntegrationTest {
         String token = registerAndLogin("prefs-b@example.com");
         MvcResult saved = putPrefs(token,
                 "{\"bottomNav\":[\"HOME\",\"ADD\",\"HABITS\",\"DIET\",\"HUB\"],"
-                        + "\"homeWidgets\":[\"HEALTH\",\"DIET\",\"DAY_AT_A_GLANCE\"]}");
+                        + "\"homeWidgets\":[\"THIS_WEEK\",\"TODAY_OVERVIEW\",\"DIET\",\"FINANCE\"]}");
         assertThat(saved.getResponse().getStatus()).isEqualTo(200);
         JsonNode reloaded = getPrefs(token);
         assertThat(reloaded.get("bottomNav").toString())
                 .contains("HOME", "ADD", "HABITS", "DIET", "HUB");
-        // Hero is always kept first regardless of submitted order.
-        assertThat(reloaded.get("homeWidgets").get(0).asText()).isEqualTo("DAY_AT_A_GLANCE");
+        assertThat(reloaded.get("homeWidgets").toString())
+                .isEqualTo("[\"THIS_WEEK\",\"TODAY_OVERVIEW\",\"YOUR_LIFE\",\"DIET\",\"FINANCE\"]");
     }
 
     @Test
@@ -111,6 +123,42 @@ class AppPreferencesIntegrationTest extends AbstractIntegrationTest {
         putPrefs(alice, "{\"bottomNav\":[\"HOME\",\"ADD\",\"FINANCE\"]}");
         JsonNode bobPrefs = getPrefs(bob);
         assertThat(bobPrefs.get("bottomNav").toString()).doesNotContain("FINANCE");
+    }
+
+    @Test
+    void legacyAndUnknownStoredValuesNormalizeOnRead() throws Exception {
+        String token = registerAndLogin("prefs-legacy@example.com");
+        var user = userRepository.findByEmail("prefs-legacy@example.com").orElseThrow();
+        preferencesRepository.save(new UserAppPreferences(
+                user.getId(), "PROFILE,HUB", "DAY_AT_A_GLANCE,MEDICINES,OLD_UNKNOWN"));
+
+        JsonNode prefs = getPrefs(token);
+
+        assertThat(prefs.get("bottomNav").toString()).isEqualTo("[\"HOME\",\"ADD\",\"HUB\"]");
+        assertThat(prefs.get("homeWidgets").toString())
+                .isEqualTo("[\"TODAY_OVERVIEW\",\"YOUR_LIFE\",\"MEDICINES\"]");
+    }
+
+    @Test
+    void updateWithoutHomeWidgetsNormalizesLegacyValue() throws Exception {
+        String token = registerAndLogin("prefs-partial-update@example.com");
+        var user = userRepository.findByEmail("prefs-partial-update@example.com").orElseThrow();
+        preferencesRepository.save(new UserAppPreferences(
+                user.getId(), "HOME,PLANNER,ADD,HEALTH,HUB",
+                "DAY_AT_A_GLANCE,HEALTH,MEDICINES,DIET,HABITS,PLANNER,FINANCE"));
+
+        MvcResult saved = putPrefs(token, "{\"bottomNav\":[\"HOME\",\"ADD\",\"FINANCE\"]}");
+
+        assertThat(saved.getResponse().getStatus()).isEqualTo(200);
+        JsonNode response = jsonMapper.readTree(saved.getResponse().getContentAsString());
+        assertThat(response.get("homeWidgets").toString()).contains("NEEDS_ATTENTION", "THIS_WEEK");
+    }
+
+    @Test
+    void emptyHomeIsRejected() throws Exception {
+        String token = registerAndLogin("prefs-empty@example.com");
+        MvcResult result = putPrefs(token, "{\"homeWidgets\":[]}");
+        assertThat(result.getResponse().getStatus()).isEqualTo(400);
     }
 
     @Test

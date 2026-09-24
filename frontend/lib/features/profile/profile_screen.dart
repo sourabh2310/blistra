@@ -179,25 +179,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       _Row(
                         icon: Icons.dashboard_customize_outlined,
-                        label: 'Customize Home',
-                        value: 'Widgets and layout',
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const CustomizeHomeScreen(),
-                          ),
-                        ),
-                      ),
-                      _Row(
-                        icon: Icons.tune_outlined,
-                        label: 'Customize Navigation',
-                        value: 'Bottom bar destinations',
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const CustomizeNavScreen(),
-                          ),
-                        ),
-                      ),
+                         label: 'Home & navigation',
+                         value: 'Sections, modules and bottom bar',
+                         onTap: () => _showCustomization(context),
                       const _NotificationRow(),
                     ],
                   ),
@@ -269,6 +253,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
       ),
+    );
+  }
+
+  Future<void> _showCustomization(BuildContext context) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.dashboard_customize_outlined),
+              title: const Text('Home sections & modules'),
+              onTap: () => Navigator.pop(context, 'home'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.tune_outlined),
+              title: const Text('Bottom navigation'),
+              onTap: () => Navigator.pop(context, 'navigation'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted || choice == null) return;
+    final screen = choice == 'navigation'
+        ? const CustomizeNavScreen()
+        : const CustomizeHomeScreen();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => screen),
     );
   }
 

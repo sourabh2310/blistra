@@ -4,6 +4,8 @@ import com.blistra.habits.domain.HabitCompletion;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -26,4 +28,15 @@ public interface HabitCompletionRepository extends JpaRepository<HabitCompletion
 
     List<HabitCompletion> findAllByHabitIdInAndCompletedOn(java.util.Collection<UUID> habitIds,
                                                            LocalDate completedOn);
+
+    @Query("""
+            SELECT c FROM HabitCompletion c
+            WHERE c.habit.user.id = :userId
+              AND c.completedOn >= :startInclusive
+              AND c.completedOn <= :endInclusive
+            ORDER BY c.completedOn
+            """)
+    List<HabitCompletion> findAllForUserInRange(@Param("userId") UUID userId,
+                                                @Param("startInclusive") LocalDate startInclusive,
+                                                @Param("endInclusive") LocalDate endInclusive);
 }

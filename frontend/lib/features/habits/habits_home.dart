@@ -1,6 +1,8 @@
 /// Habits home shell: bottom navigation and shared loading / error states.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'habits_controller.dart';
@@ -11,14 +13,26 @@ import 'screens/habits_list_screen.dart';
 import 'screens/statistics_screen.dart';
 
 class HabitsHome extends StatefulWidget {
-  const HabitsHome({super.key});
+  const HabitsHome({super.key, this.initialTab = 0});
+
+  final int initialTab;
 
   @override
   State<HabitsHome> createState() => _HabitsHomeState();
 }
 
 class _HabitsHomeState extends State<HabitsHome> {
-  int _tabIndex = 0;
+  late int _tabIndex = widget.initialTab.clamp(0, 2).toInt();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final controller = HabitsScope.of(context);
+      if (controller.status == HabitsLoadStatus.idle) unawaited(controller.loadAll());
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

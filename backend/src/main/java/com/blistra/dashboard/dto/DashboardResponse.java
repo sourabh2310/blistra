@@ -53,6 +53,9 @@ public class DashboardResponse {
     @Schema(description = "Account balances and period income/expense")
     private FinanceSection finance;
 
+    @Schema(description = "Factual activity summary for the current local week")
+    private WeekSummary week;
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -287,12 +290,41 @@ public class DashboardResponse {
     @AllArgsConstructor
     @Builder
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class WeekSummary {
+        private LocalDate start;
+        private LocalDate end;
+        private int completedTasks;
+        private int tasksDueOrScheduled;
+        private int habitCompletions;
+        private int expectedHabitOccurrences;
+        private int activeDays;
+        private boolean unavailable;
+        private String error;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class FinanceSection {
         private LocalDate from;
         private LocalDate to;
         private List<CurrencySection> currencies;
+        private FinancePeriodSummary today;
         private boolean unavailable;
         private String error;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class FinancePeriodSummary {
+        private LocalDate from;
+        private LocalDate to;
+        private List<CurrencySection> currencies;
     }
 
     @Data

@@ -5,6 +5,7 @@
 /// controller's cache/save behavior.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -27,8 +28,19 @@ PreferencesController _controllerWithMock({
         jsonEncode(
           getPayload ??
               {
-                'bottomNav': ['HOME', 'PLANNER', 'ADD', 'HEALTH', 'HUB'],
-                'homeWidgets': ['DAY_AT_A_GLANCE', 'HEALTH', 'DIET'],
+                'bottomNav': ['HOME', 'PLANNER', 'ADD', 'HUB', 'HEALTH'],
+                'homeWidgets': [
+                  'TODAY_OVERVIEW',
+                  'TODAYS_SCHEDULE',
+                  'NEEDS_ATTENTION',
+                  'YOUR_LIFE',
+                  'THIS_WEEK',
+                  'HEALTH',
+                  'MEDICINES',
+                  'DIET',
+                  'HABITS',
+                  'FINANCE',
+                ],
               },
         ),
         200,
@@ -54,7 +66,7 @@ void main() {
     test('defaults are valid', () {
       expect(
         ShellDestinations.normalizeNav(ShellDestinations.defaults),
-        ['HOME', 'PLANNER', 'ADD', 'HEALTH', 'HUB'],
+        ['HOME', 'PLANNER', 'ADD', 'HUB', 'HEALTH'],
       );
     });
 
@@ -87,25 +99,24 @@ void main() {
       );
     });
 
-    test('duplicates collapsed', () {
+    test('duplicates rejected', () {
       expect(
-        ShellDestinations.normalizeNav(['HOME', 'ADD', 'HUB', 'HUB']),
-        ['HOME', 'ADD', 'HUB'],
+        () => ShellDestinations.normalizeNav(['HOME', 'ADD', 'HUB', 'HUB']),
+        throwsArgumentError,
       );
     });
   });
 
   group('HomeWidgets.normalizeWidgets', () {
-    test('hero stays first', () {
+    test('legacy tokens are normalized to sections', () {
       final normalized = HomeWidgets.normalizeWidgets(['DIET', 'HEALTH']);
-      expect(normalized.first, 'DAY_AT_A_GLANCE');
-      expect(normalized, containsAll(['HEALTH', 'DIET']));
+      expect(normalized, containsAll(['HEALTH', 'DIET', 'YOUR_LIFE']));
     });
 
     test('unknown widget rejected', () {
       expect(
         () => HomeWidgets.normalizeWidgets(
-            ['DAY_AT_A_GLANCE', 'FAKE_FEATURE']),
+            ['TODAY_OVERVIEW', 'FAKE_FEATURE']),
         throwsArgumentError,
       );
     });
@@ -130,8 +141,8 @@ void main() {
       final controller = _controllerWithMock();
       await controller.bindUser('alice@example.com');
       expect(controller.bottomNav,
-          ['HOME', 'PLANNER', 'ADD', 'HEALTH', 'HUB']);
-      expect(controller.homeWidgets.first, 'DAY_AT_A_GLANCE');
+          ['HOME', 'PLANNER', 'ADD', 'HUB', 'HEALTH']);
+      expect(controller.homeWidgets.first, 'TODAY_OVERVIEW');
     });
 
     test('save persists valid configuration', () async {
@@ -142,10 +153,9 @@ void main() {
         homeWidgets: ['HEALTH', 'DIET'],
       );
       expect(ok, isTrue);
-      expect(controller.bottomNav,
-          ['HOME', 'ADD', 'HABITS', 'DIET', 'HUB']);
-      // Hero is always kept first.
-      expect(controller.homeWidgets.first, 'DAY_AT_A_GLANCE');
+       expect(controller.bottomNav,
+           ['HOME', 'HABITS', 'ADD', 'DIET', 'HUB']);
+      expect(controller.homeWidgets, contains('YOUR_LIFE'));
     });
 
     test('save rejects removing Home before any network call', () async {
@@ -157,14 +167,15 @@ void main() {
       final controller = PreferencesController(
           PreferencesApi(ApiClient(baseUrl: 'http://x', httpClient: mock)));
       await controller.bindUser('bob@example.com');
-      expect(
-        () => controller.save(
+      final hitsBeforeSave = hits;
+      await expectLater(
+        controller.save(
           bottomNav: ['ADD', 'HUB'],
-          homeWidgets: ['DAY_AT_A_GLANCE'],
+          homeWidgets: ['TODAY_OVERVIEW'],
         ),
         throwsArgumentError,
       );
-      expect(hits, 0);
+      expect(hits, hitsBeforeSave);
     });
 
     test('resetToDefaults restores deterministic defaults', () async {
@@ -178,6 +189,44 @@ void main() {
       expect(ok, isTrue);
       expect(controller.bottomNav, ShellDestinations.defaults);
       expect(controller.homeWidgets, HomeWidgets.defaults);
+    });
+
+    test('late response from a previous user cannot overwrite the active user', () async {
+      final firstResponse = Completer<void>();
+      var getCount = 0;
+      final mock = MockClient((req) async {
+        if (req.method == 'GET') {
+          getCount++;
+          if (getCount == 1) {
+            await firstResponse.future;
+            return http.Response(
+              jsonEncode({
+                'bottomNav': ['HOME', 'ADD', 'FINANCE'],
+                'homeWidgets': ['TODAY_OVERVIEW'],
+              }),
+              200,
+            );
+          }
+          return http.Response(
+            jsonEncode({
+              'bottomNav': ['HOME', 'ADD', 'HABITS'],
+              'homeWidgets': ['TODAY_OVERVIEW'],
+            }),
+            200,
+          );
+        }
+        return http.Response('{}', 200);
+      });
+      final controller = PreferencesController(
+        PreferencesApi(ApiClient(baseUrl: 'http://x', httpClient: mock)),
+      );
+      final alice = controller.bindUser('alice');
+      await Future<void>.delayed(Duration.zero);
+      final bob = controller.bindUser('bob');
+      await bob;
+      firstResponse.complete();
+      await alice;
+      expect(controller.bottomNav, ['HOME', 'ADD', 'HABITS']);
     });
 
     test('cache restores the same user after restart', () async {

@@ -18,17 +18,19 @@ import '../core/widgets/quick_add.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/diet/screens/today_screen.dart' as diet;
 import '../features/documents/documents_page.dart';
+import '../features/documents/document_detail_page.dart';
+import '../features/documents/providers/documents_provider.dart';
 import '../features/finance/finance_home.dart';
 import '../features/finance/finance_scope.dart';
 import '../features/habits/habits_home.dart';
 import '../features/habits/habits_scope.dart';
+import '../features/habits/screens/habit_detail_screen.dart';
 import '../features/health/presentation/health_home_screen.dart';
 import '../features/hub/hub_screen.dart';
 import '../features/diet/screens/meal_detail_screen.dart';
 import '../features/medicines/pages/medicine_detail_page.dart';
 import '../features/medicines/pages/medicine_list_page.dart';
 import '../features/notifications/screens/reminders_screen.dart';
-import '../features/preferences/screens/customize_home_screen.dart';
 import '../features/preferences/screens/customize_nav_screen.dart';
 import '../features/preferences/shell_destinations.dart';
 import '../features/planner/models/task_view.dart';
@@ -49,7 +51,7 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  int _index = 0;
+  String _selectedDestination = ShellDestinations.home;
   planner.PlannerSection _plannerSection = planner.PlannerSection.today;
   bool _booted = false;
   bool _quickAddOpen = false;
@@ -144,12 +146,9 @@ class _AppShellState extends State<AppShell> {
     final wide = MediaQuery.widthOf(context) >= 900;
     final destinations = _destinations;
     final pages = _pages(destinations);
-    final selected = _index.clamp(0, pages.length - 1);
-    if (_index != selected) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _index = selected);
-      });
-    }
+    var selected = destinations.indexOf(_selectedDestination);
+    if (selected < 0) selected = destinations.indexOf(ShellDestinations.home);
+    if (selected < 0) selected = 0;
     if (wide) {
       return Scaffold(
         body: Row(
@@ -196,7 +195,7 @@ class _AppShellState extends State<AppShell> {
       _openQuickAdd(context);
       return;
     }
-    setState(() => _index = i);
+    setState(() => _selectedDestination = id);
     _refreshForDestination(id);
   }
 
@@ -241,7 +240,7 @@ class _AppShellState extends State<AppShell> {
     if (id == ShellDestinations.medicines && parts.length >= 2) {
       final tabIndex = _destinations.indexOf(ShellDestinations.medicines);
       if (tabIndex >= 0) {
-        setState(() => _index = tabIndex);
+        setState(() => _selectedDestination = ShellDestinations.medicines);
         _refreshForDestination(ShellDestinations.medicines);
       }
       pushModulePage(
@@ -251,10 +250,44 @@ class _AppShellState extends State<AppShell> {
       );
       return;
     }
+    if (id == ShellDestinations.habits &&
+        parts.length > 1 &&
+        parts[1].toUpperCase() != 'STATS') {
+      final tabIndex = _destinations.indexOf(ShellDestinations.habits);
+      if (tabIndex >= 0) {
+        setState(() => _selectedDestination = ShellDestinations.habits);
+      }
+      pushModulePage(
+        context,
+        HabitsScope(
+          controller: _d.habits,
+          child: HabitDetailScreen(habitId: parts[1]),
+        ),
+        title: 'Habit details',
+      );
+      return;
+    }
+    if (id == ShellDestinations.habits &&
+        parts.length > 1 &&
+        parts[1].toUpperCase() == 'STATS') {
+      final tabIndex = _destinations.indexOf(ShellDestinations.habits);
+      if (tabIndex >= 0) {
+        setState(() => _selectedDestination = ShellDestinations.habits);
+      }
+      pushModulePage(
+        context,
+        HabitsScope(
+          controller: _d.habits,
+          child: const HabitsHome(initialTab: 2),
+        ),
+        title: 'Habit statistics',
+      );
+      return;
+    }
     if (id == ShellDestinations.diet && parts.length >= 3 && parts[1].toUpperCase() == 'MEAL') {
       final tabIndex = _destinations.indexOf(ShellDestinations.diet);
       if (tabIndex >= 0) {
-        setState(() => _index = tabIndex);
+        setState(() => _selectedDestination = ShellDestinations.diet);
         _refreshForDestination(ShellDestinations.diet);
       }
       pushModulePage(
@@ -267,7 +300,7 @@ class _AppShellState extends State<AppShell> {
     final destinations = _destinations;
     final tabIndex = destinations.indexOf(id);
     if (tabIndex >= 0) {
-      setState(() => _index = tabIndex);
+      setState(() => _selectedDestination = id);
       _refreshForDestination(id);
       return;
     }
@@ -279,7 +312,7 @@ class _AppShellState extends State<AppShell> {
     final tabIndex = destinations.indexOf(ShellDestinations.planner);
     if (tabIndex >= 0) {
       setState(() {
-        _index = tabIndex;
+        _selectedDestination = ShellDestinations.planner;
         _plannerSection = section;
       });
       _refreshForDestination(ShellDestinations.planner);
@@ -318,7 +351,7 @@ class _AppShellState extends State<AppShell> {
   void _pushDestination(String id) {
     switch (id) {
       case ShellDestinations.home:
-        setState(() => _index = 0);
+        setState(() => _selectedDestination = ShellDestinations.home);
         return;
       case ShellDestinations.planner:
         pushModulePage(
@@ -419,7 +452,7 @@ class _AppShellState extends State<AppShell> {
 
   /// Search result routing through the real route contract: switch to the
   /// owning tab when pinned (or push the module), then push the detail page.
-  void _openSearchRoute(String route) {
+  Future<void> _openSearchRoute(String route) async {
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
@@ -435,7 +468,17 @@ class _AppShellState extends State<AppShell> {
       };
     }
     if (dest.documentId != null) {
-      pushModulePage(context, const DocumentsPage(), title: 'Documents');
+      final document = await context.read<DocumentsProvider>().getById(dest.documentId!);
+      if (!context.mounted) return;
+      if (document != null) {
+        pushModulePage(
+          context,
+          DocumentDetailPage(document: document),
+          title: 'Document details',
+        );
+      } else {
+        pushModulePage(context, const DocumentsPage(), title: 'Documents');
+      }
       return;
     }
     final tab = dest.tab;
@@ -473,12 +516,6 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  void _openCustomizeHome() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const CustomizeHomeScreen()),
-    );
-  }
-
   void _openCustomizeNav() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CustomizeNavScreen()),
@@ -497,7 +534,6 @@ class _AppShellState extends State<AppShell> {
           onSearch: _openSearch,
           onNotifications: _openNotifications,
           onProfile: _openProfile,
-          onCustomizeHome: _openCustomizeHome,
           hubPinned: _destinations.contains(ShellDestinations.hub),
           homeWidgets: _d.preferences.homeWidgets,
         );
@@ -572,13 +608,15 @@ class _BlistraBottomBar extends StatelessWidget {
               if (destinations[i] == ShellDestinations.add)
                 _AddButton(open: addOpen, onTap: () => onSelect(i))
               else
-                _BarItem(
-                  label: ShellDestinations.label(destinations[i]),
-                  icon: ShellDestinations.icon(destinations[i]),
-                  selectedIcon:
-                      ShellDestinations.selectedIcon(destinations[i]),
-                  selected: index == i,
-                  onTap: () => onSelect(i),
+                Expanded(
+                  child: _BarItem(
+                    label: ShellDestinations.label(destinations[i]),
+                    icon: ShellDestinations.icon(destinations[i]),
+                    selectedIcon:
+                        ShellDestinations.selectedIcon(destinations[i]),
+                    selected: index == i,
+                    onTap: () => onSelect(i),
+                  ),
                 ),
           ],
         ),
@@ -671,21 +709,25 @@ class _BarItem extends StatelessWidget {
         button: true,
         selected: selected,
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(selected ? selectedIcon : icon,
                   color: color, size: 26),
               const SizedBox(height: 4),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: selected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      color: color)),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: selected
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: color),
+              ),
             ],
           ),
         ),

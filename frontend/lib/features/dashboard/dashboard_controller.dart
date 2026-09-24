@@ -44,6 +44,9 @@ class DashboardController extends ChangeNotifier {
     } on ApiException catch (error) {
       _errorMessage = error.toString();
       _status = DashboardLoadStatus.error;
+    } catch (_) {
+      _errorMessage = 'Dashboard data could not be read.';
+      _status = DashboardLoadStatus.error;
     }
     notifyListeners();
   }
