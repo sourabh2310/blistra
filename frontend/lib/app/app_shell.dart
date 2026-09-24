@@ -588,37 +588,45 @@ class _BlistraBottomBar extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        height: 72,
+        margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(34),
+          border: Border.all(color: const Color(0xFFF0F2F0)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+              color: const Color(0xFF1B2B28).withValues(alpha: 0.12),
+              blurRadius: 28,
+              spreadRadius: 1,
+              offset: const Offset(0, 9),
             ),
           ],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            for (int i = 0; i < destinations.length; i++)
-              if (destinations[i] == ShellDestinations.add)
-                _AddButton(open: addOpen, onTap: () => onSelect(i))
-              else
-                Expanded(
-                  child: _BarItem(
-                    label: ShellDestinations.label(destinations[i]),
-                    icon: ShellDestinations.icon(destinations[i]),
-                    selectedIcon:
-                        ShellDestinations.selectedIcon(destinations[i]),
-                    selected: index == i,
-                    onTap: () => onSelect(i),
+        child: Material(
+          type: MaterialType.transparency,
+          child: Row(
+            children: [
+              for (int i = 0; i < destinations.length; i++)
+                if (destinations[i] == ShellDestinations.add)
+                  SizedBox(
+                    width: 72,
+                    child: _AddButton(open: addOpen, onTap: () => onSelect(i)),
+                  )
+                else
+                  Expanded(
+                    child: _BarItem(
+                      label: ShellDestinations.label(destinations[i]),
+                      icon: ShellDestinations.icon(destinations[i]),
+                      selectedIcon:
+                          ShellDestinations.selectedIcon(destinations[i]),
+                      selected: index == i,
+                      onTap: () => onSelect(i),
+                    ),
                   ),
-                ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -633,48 +641,48 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Semantics(
-        label: open ? 'Close quick add' : 'Add',
-        button: true,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              margin: const EdgeInsets.only(top: 2),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Color(0xFF0E8A8A), Color(0xFF0A5656)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+    return Semantics(
+      label: 'Add',
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Transform.translate(
+          offset: const Offset(0, -8),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF087D70), Color(0xFF07584F)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                transitionBuilder: (child, animation) =>
-                    RotationTransition(
-                  turns: animation
-                      .drive(Tween(begin: 0.5, end: 0.0)),
-                  child:
-                      FadeTransition(opacity: animation, child: child),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0A665A).withValues(alpha: 0.24),
+                  blurRadius: 14,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 6),
                 ),
-                child: Icon(
-                  open ? Icons.close : Icons.add,
-                  key: ValueKey(open),
-          color: Theme.of(context).colorScheme.surface,
-                  size: 32,
-                ),
+              ],
+            ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              transitionBuilder: (Widget child, Animation<double> animation) =>
+                  FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(scale: animation, child: child),
+              ),
+              child: Icon(
+                open ? Icons.close : Icons.add,
+                key: ValueKey(open),
+                color: Colors.white,
+                size: 38,
               ),
             ),
-            const SizedBox(height: 2),
-            Text(open ? 'Close' : 'Add',
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF667085))),
-          ],
+          ),
         ),
       ),
     );
@@ -698,35 +706,84 @@ class _BarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurfaceVariant;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Semantics(
-        label: label,
-        button: true,
-        selected: selected,
+    const Color selectedColor = Color(0xFF07594F);
+    const Color unselectedColor = Color(0xFF66758A);
+    final Color color = selected ? selectedColor : unselectedColor;
+    return Semantics(
+      label: label,
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(selected ? selectedIcon : icon,
-                  color: color, size: 26),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: selected
-                        ? FontWeight.w700
-                        : FontWeight.w500,
-                    color: color),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 190),
+                curve: Curves.easeOutCubic,
+                height: 44,
+                constraints: const BoxConstraints(minWidth: 54),
+                padding: EdgeInsets.symmetric(
+                  horizontal: selected ? 10 : 4,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? const Color(0xFFE5F2EE)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: selected
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(selectedIcon, color: color, size: 22),
+                          const SizedBox(height: 1),
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: selectedColor,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Icon(icon, color: color, size: 24),
+              ),
+              if (!selected) ...[
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: unselectedColor,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+              SizedBox(
+                height: 6,
+                child: AnimatedOpacity(
+                  opacity: selected ? 1 : 0,
+                  duration: const Duration(milliseconds: 160),
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: selectedColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: SizedBox(width: 5, height: 5),
+                  ),
+                ),
               ),
             ],
           ),

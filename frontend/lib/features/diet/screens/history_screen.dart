@@ -23,6 +23,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<DietController>().loadHistory(refresh: true);
+      }
+    });
   }
 
   @override

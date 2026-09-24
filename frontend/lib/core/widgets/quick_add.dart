@@ -1,16 +1,4 @@
-/// Global Quick Add overlay: the single, reusable "+" experience.
-///
-/// Used from every authenticated screen with the bottom navigation (Home,
-/// Planner, Modules, …). Actions route to the owning module's existing
-/// creation flow — this overlay never duplicates forms, controllers, or API
-/// clients. Presented via [showQuickAdd] with a fade/slide transition,
-/// subtle dimming, and staggered action entrance.
-///
-/// Navigation: [showQuickAdd] returns the selected [QuickAddAction] (or null
-/// on dismiss). Call [openQuickAddCreation] with that action to open the
-/// existing domain creation flow. Dashboard refresh is quiet + non-blocking
-/// and failures never leave the Add button stuck.
-library;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -19,19 +7,32 @@ import '../../app/app_scope.dart';
 import '../../features/diet/diet_controller.dart';
 import '../../features/diet/models/water.dart';
 import '../../features/diet/screens/add_edit_meal_screen.dart';
+import '../../features/finance/finance_controller.dart';
+import '../../features/finance/finance_scope.dart';
+import '../../features/finance/screens/transactions_screen.dart';
 import '../../features/habits/habits_controller.dart';
 import '../../features/habits/habits_scope.dart';
 import '../../features/habits/screens/habit_form_screen.dart';
+import '../../features/health/health_repository.dart';
+import '../../features/health/presentation/measurement_form_screen.dart';
 import '../../features/medicines/pages/medicine_form_page.dart';
+import '../../features/planner/models/task_priority.dart';
 import '../../features/planner/planner_controller.dart';
 import '../../features/planner/screens/event_form_screen.dart';
 import '../../features/planner/screens/task_form_screen.dart';
 
-/// Stable identity for each Quick Add destination. Drives
-/// [openQuickAddCreation]; [QuickAddAction.tab] is only a fallback hint.
-enum QuickAddKind { task, event, medicine, meal, water, habit }
+enum QuickAddKind {
+  task,
+  event,
+  meal,
+  medicine,
+  habit,
+  health,
+  expense,
+  water,
+  quickAdd,
+}
 
-/// One Quick Add destination: an existing creation flow in its owning module.
 class QuickAddAction {
   const QuickAddAction({
     required this.kind,
@@ -54,89 +55,111 @@ class QuickAddAction {
   final Color iconColor;
 }
 
-/// The supported actions — only flows that actually exist in the app.
-///
-/// Primary (general planning): Task, Event.
-/// Secondary (domain): Medicine, Meal, Water, Habit.
-/// Fixed visual hierarchy; no analytics-based ranking.
 List<QuickAddAction> get quickAddActions => const [
       QuickAddAction(
         kind: QuickAddKind.task,
         label: 'Task',
-        description: 'Something you need to get done',
-        icon: Icons.add_task_outlined,
+        description: 'To do, work, personal',
+        icon: Icons.description_outlined,
         semanticLabel: 'Add task',
         tab: 1,
-        tint: Color(0xFFE6F6F3),
-        iconColor: Color(0xFF0C6B6B),
+        tint: Color(0xFFE7F0FF),
+        iconColor: Color(0xFF438FE8),
       ),
       QuickAddAction(
         kind: QuickAddKind.event,
-        label: 'Planner event',
-        description: 'Schedule a time-bound commitment',
-        icon: Icons.event_outlined,
-        semanticLabel: 'Add Planner event',
+        label: 'Event',
+        description: 'Meeting, appointment',
+        icon: Icons.calendar_today_outlined,
+        semanticLabel: 'Add event',
         tab: 1,
-        tint: Color(0xFFEAF2FF),
-        iconColor: Color(0xFF2E5AAC),
-      ),
-      QuickAddAction(
-        kind: QuickAddKind.medicine,
-        label: 'Medicine',
-        description: 'Record or schedule a medicine',
-        icon: Icons.medication_outlined,
-        semanticLabel: 'Add medicine',
-        tab: 3,
-        tint: Color(0xFFEAF5FF),
-        iconColor: Color(0xFF3E9BE9),
+        tint: Color(0xFFFBEAF0),
+        iconColor: Color(0xFFF05267),
       ),
       QuickAddAction(
         kind: QuickAddKind.meal,
         label: 'Meal',
-        description: 'Add a meal or food',
+        description: 'Breakfast, lunch, dinner, snack',
         icon: Icons.restaurant_outlined,
         semanticLabel: 'Add meal',
         tab: 3,
-        tint: Color(0xFFEDF9E8),
-        iconColor: Color(0xFF3E8E41),
+        tint: Color(0xFFFCEBDB),
+        iconColor: Color(0xFFF56B16),
       ),
       QuickAddAction(
-        kind: QuickAddKind.water,
-        label: 'Water',
-        description: 'Log your water intake',
-        icon: Icons.water_drop_outlined,
-        semanticLabel: 'Add water',
+        kind: QuickAddKind.medicine,
+        label: 'Medicine',
+        description: 'Take a dose, log medicine',
+        icon: Icons.medication_outlined,
+        semanticLabel: 'Add medicine',
         tab: 3,
-        tint: Color(0xFFE8F6FD),
-        iconColor: Color(0xFF0E94C9),
+        tint: Color(0xFFE8F0FF),
+        iconColor: Color(0xFF3F8FE7),
       ),
       QuickAddAction(
         kind: QuickAddKind.habit,
         label: 'Habit',
-        description: 'Create or complete a habit',
-        icon: Icons.check_circle_outline,
+        description: 'Track your habits',
+        icon: Icons.radio_button_unchecked,
         semanticLabel: 'Add habit',
         tab: 3,
-        tint: Color(0xFFF1EAFE),
-        iconColor: Color(0xFF7C3AED),
+        tint: Color(0xFFF1E7FC),
+        iconColor: Color(0xFF9B32D4),
+      ),
+      QuickAddAction(
+        kind: QuickAddKind.health,
+        label: 'Health',
+        description: 'Weight, BP, measurements',
+        icon: Icons.eco_outlined,
+        semanticLabel: 'Add health measurement',
+        tab: 2,
+        tint: Color(0xFFE8F4EE),
+        iconColor: Color(0xFF208A5A),
+      ),
+      QuickAddAction(
+        kind: QuickAddKind.expense,
+        label: 'Expense',
+        description: 'Track your spending',
+        icon: Icons.account_balance_wallet_outlined,
+        semanticLabel: 'Add expense',
+        tab: 4,
+        tint: Color(0xFFF8ECD9),
+        iconColor: Color(0xFFC47A27),
+      ),
+      QuickAddAction(
+        kind: QuickAddKind.water,
+        label: 'Water',
+        description: 'Log water intake',
+        icon: Icons.water_drop_outlined,
+        semanticLabel: 'Add water',
+        tab: 3,
+        tint: Color(0xFFE5F4FC),
+        iconColor: Color(0xFF35A9E8),
       ),
     ];
 
-/// Opens the existing creation flow for [action] using the app's real
-/// controllers/routes. Never throws to the caller: domain screens own their
-/// error UI, and dashboard refresh is best-effort + non-blocking.
+QuickAddAction get quickAddMinimalAction => const QuickAddAction(
+      kind: QuickAddKind.quickAdd,
+      label: 'Quick add',
+      description: 'Add with minimal details',
+      icon: Icons.auto_awesome,
+      semanticLabel: 'Quick add a task',
+      tab: 1,
+      tint: Color(0xFFE7F3EF),
+      iconColor: Color(0xFF147563),
+    );
+
 Future<void> openQuickAddCreation(
-    BuildContext context, QuickAddAction action) async {
+  BuildContext context,
+  QuickAddAction action,
+) async {
   switch (action.kind) {
     case QuickAddKind.task:
-      PlannerController planner;
-      try {
-        planner = context.read<PlannerController>();
-      } catch (_) {
-        planner = AppScope.of(context).planner;
-      }
-      final saved = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => TaskFormScreen(planner: planner)),
+      final PlannerController planner = _planner(context);
+      final bool? saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => TaskFormScreen(planner: planner),
+        ),
       );
       if (saved == true && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -145,14 +168,11 @@ Future<void> openQuickAddCreation(
       }
       return;
     case QuickAddKind.event:
-      PlannerController planner;
-      try {
-        planner = context.read<PlannerController>();
-      } catch (_) {
-        planner = AppScope.of(context).planner;
-      }
-      final saved = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => EventFormScreen(planner: planner)),
+      final PlannerController planner = _planner(context);
+      final bool? saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => EventFormScreen(planner: planner),
+        ),
       );
       if (saved == true && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -164,23 +184,81 @@ Future<void> openQuickAddCreation(
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const MedicineFormPage()),
       );
-      if (context.mounted) _refreshDashboardQuiet(context);
+      if (context.mounted) {
+        _refreshDashboardQuiet(context);
+      }
       return;
     case QuickAddKind.meal:
-      final saved = await Navigator.of(context).push<bool>(
+      final bool? saved = await Navigator.of(context).push<bool>(
         MaterialPageRoute(builder: (_) => const AddEditMealScreen()),
       );
       if (saved == true && context.mounted) {
-        // DietController.onMutated already refreshes the dashboard;
-        // quiet refresh is a harmless best-effort fallback.
         _refreshDashboardQuiet(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Meal saved')),
         );
       }
       return;
+    case QuickAddKind.habit:
+      final HabitsController habits;
+      try {
+        habits = context.read<HabitsController>();
+      } catch (_) {
+        assert(false, 'HabitsController missing for Quick Add');
+        return;
+      }
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => HabitsScope(
+          controller: habits,
+          child: const _HabitSheetHost(),
+        ),
+      );
+      if (context.mounted) {
+        _refreshDashboardQuiet(context);
+      }
+      return;
+    case QuickAddKind.health:
+      final HealthRepository repository = context.read<HealthRepository>();
+      final bool? saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => MeasurementFormScreen(repository: repository),
+        ),
+      );
+      if (saved == true && context.mounted) {
+        _refreshDashboardQuiet(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Measurement saved')),
+        );
+      }
+      return;
+    case QuickAddKind.expense:
+      final FinanceController finance = context.read<FinanceController>();
+      if (finance.status == FinanceLoadStatus.idle) {
+        await finance.loadAll();
+      }
+      if (!context.mounted) {
+        return;
+      }
+      final bool? saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => FinanceScope(
+            controller: finance,
+            child: const TransactionFormScreen(),
+          ),
+        ),
+      );
+      if (saved == true && context.mounted) {
+        _refreshDashboardQuiet(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Expense saved')),
+        );
+      }
+      return;
     case QuickAddKind.water:
-      final saved = await showModalBottomSheet<bool>(
+      final bool? saved = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
@@ -192,35 +270,29 @@ Future<void> openQuickAddCreation(
         );
       }
       return;
-    case QuickAddKind.habit:
-      HabitsController habits;
-      try {
-        habits = context.read<HabitsController>();
-      } catch (_) {
-        // HabitFormScreen requires HabitsScope; without a controller we
-        // cannot open the real form — fail loudly in debug, quietly in prod.
-        assert(false, 'HabitsController missing for Quick Add');
-        return;
-      }
-      // Existing habit creation is a bottom sheet; reuse that presentation
-      // with an explicit HabitsScope so it works from any tab.
-      await showModalBottomSheet(
+    case QuickAddKind.quickAdd:
+      final PlannerController planner = _planner(context);
+      final bool? saved = await showDialog<bool>(
         context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => HabitsScope(
-          controller: habits,
-          child: const _HabitSheetHost(),
-        ),
+        builder: (_) => _MinimalTaskDialog(planner: planner),
       );
-      if (context.mounted) _refreshDashboardQuiet(context);
+      if (saved == true && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Task created')),
+        );
+      }
       return;
   }
 }
 
-/// Best-effort dashboard refresh after a Quick Add mutation. Never throws and
-/// never blocks creation: failures are swallowed by design (the owning
-/// module's data is already correct).
+PlannerController _planner(BuildContext context) {
+  try {
+    return context.read<PlannerController>();
+  } catch (_) {
+    return AppScope.of(context).planner;
+  }
+}
+
 void _refreshDashboardQuiet(BuildContext context) {
   Future<void> refresh() async {
     try {
@@ -228,33 +300,30 @@ void _refreshDashboardQuiet(BuildContext context) {
             date: DateTime.now(),
             offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
           );
-    } catch (_) {
-      // Dashboard staleness is non-fatal.
-    }
+    } catch (_) {}
   }
 
-  // ignore: discarded_futures
-  refresh();
+  unawaited(refresh());
 }
 
-/// Shows the premium Quick Add surface. Returns the selected action, or null
-/// when dismissed (outside tap, Android back, or close button).
 Future<QuickAddAction?> showQuickAdd(BuildContext context) {
   return showGeneralDialog<QuickAddAction?>(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Close quick add',
-    barrierColor: const Color(0xFF101828).withValues(alpha: 0.22),
-    transitionDuration: const Duration(milliseconds: 220),
+    barrierColor: const Color(0xFF101828).withValues(alpha: 0.46),
+    transitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (context, _, _) => const _QuickAddDialog(),
     transitionBuilder: (context, animation, _, child) {
       final curved = CurvedAnimation(
-          parent: animation, curve: Curves.easeOutCubic);
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      );
       return FadeTransition(
         opacity: curved,
         child: SlideTransition(
           position: Tween(
-            begin: const Offset(0, 0.12),
+            begin: const Offset(0, 0.08),
             end: Offset.zero,
           ).animate(curved),
           child: child,
@@ -280,7 +349,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
     super.initState();
     _stagger = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 320),
+      duration: const Duration(milliseconds: 340),
     )..forward();
   }
 
@@ -292,32 +361,26 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
 
   @override
   Widget build(BuildContext context) {
-    final actions = quickAddActions;
-    final primary = actions.take(2).toList();
-    final today = actions.sublist(2);
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final List<QuickAddAction> actions = quickAddActions;
+    final EdgeInsets insets = MediaQuery.viewInsetsOf(context);
+    final double availableHeight = MediaQuery.sizeOf(context).height * 0.92;
     return SafeArea(
       top: false,
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Material(
-          color: Colors.transparent,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 520),
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            padding: EdgeInsets.fromLTRB(20, 10, 20, 16 + bottom),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.16),
-                  blurRadius: 32,
-                  offset: const Offset(0, 12),
-                ),
-              ],
+          color: const Color(0xFFFCFDFB),
+          elevation: 16,
+          shadowColor: Colors.black.withValues(alpha: 0.24),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 560,
+              maxHeight: availableHeight,
             ),
             child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(20, 10, 20, 18 + insets.bottom),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,54 +390,89 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
                       width: 44,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.outlineVariant,
+                        color: const Color(0xFFD0D5DD),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: Text('Quick add', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.3)),
-                  ),
-                  const SizedBox(height: 2),
-                  Center(
-                    child: Text('What would you like to add?', style: Theme.of(context).textTheme.bodyMedium),
-                  ),
-                  const SizedBox(height: 14),
-                  for (int i = 0; i < primary.length; i++)
-                    _staggered(
-                      index: i,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _PrimaryCard(
-                          action: primary[i],
-                          onTap: () => Navigator.pop(context, primary[i]),
-                        ),
+                  const SizedBox(height: 18),
+                  _staggered(
+                    index: 0,
+                    child: const Text(
+                      'What would you like to add?',
+                      style: TextStyle(
+                        color: Color(0xFF292D33),
+                        fontSize: 25,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 3),
+                  _staggered(
+                    index: 1,
+                    child: const Text(
+                      'Choose a category to get started',
+                      style: TextStyle(
+                        color: Color(0xFF7C8799),
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
                   _staggered(
                     index: 2,
-                     child: Padding(
-                       padding: const EdgeInsets.only(top: 2, bottom: 8),
-                       child: Text('TODAY', style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 0.8)),
-                     ),
-                  ),
-                  _staggered(
-                    index: 3,
                     child: GridView.count(
-                      crossAxisCount: 2,
+                      crossAxisCount: 4,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 1.9,
+                      mainAxisSpacing: 9,
+                      crossAxisSpacing: 9,
+                      childAspectRatio: 0.72,
                       children: [
-                        for (final a in today)
-                          _GridCard(
-                            action: a,
-                            onTap: () => Navigator.pop(context, a),
+                        for (final QuickAddAction action in actions)
+                          _CategoryTile(
+                            action: action,
+                            onTap: () => Navigator.pop(context, action),
                           ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _staggered(
+                    index: 3,
+                    child: _MinimalRow(
+                      action: quickAddMinimalAction,
+                      onTap: () =>
+                          Navigator.pop(context, quickAddMinimalAction),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _staggered(
+                    index: 4,
+                    child: Semantics(
+                      button: true,
+                      child: InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          width: double.infinity,
+                          height: 50,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F2F0),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: Color(0xFF07594F),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -387,26 +485,28 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
   }
 
   Widget _staggered({required int index, required Widget child}) {
-    final start = (index * 0.09).clamp(0.0, 0.6);
+    final double start =
+        (index * 0.08).clamp(0.0, 0.68).toDouble();
+    final double end = (start + 0.32).clamp(0.0, 1.0).toDouble();
+    final Animation<double> animation = CurvedAnimation(
+      parent: _stagger,
+      curve: Interval(start, end, curve: Curves.easeOutCubic),
+    );
     return FadeTransition(
-      opacity: _stagger.drive(CurveTween(
-          curve: Interval(start, (start + 0.4).clamp(0.0, 1.0),
-              curve: Curves.easeOut))),
+      opacity: animation,
       child: SlideTransition(
-        position: _stagger.drive(Tween(
-          begin: const Offset(0, 0.25),
+        position: Tween(
+          begin: const Offset(0, 0.2),
           end: Offset.zero,
-        ).chain(CurveTween(
-            curve: Interval(start, (start + 0.4).clamp(0.0, 1.0),
-                curve: Curves.easeOut)))),
+        ).animate(animation),
         child: child,
       ),
     );
   }
 }
 
-class _PrimaryCard extends StatelessWidget {
-  const _PrimaryCard({required this.action, required this.onTap});
+class _CategoryTile extends StatelessWidget {
+  const _CategoryTile({required this.action, required this.onTap});
 
   final QuickAddAction action;
   final VoidCallback onTap;
@@ -416,46 +516,46 @@ class _PrimaryCard extends StatelessWidget {
     return Semantics(
       label: action.semanticLabel,
       button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: action.tint,
-                  borderRadius: BorderRadius.circular(14),
+      child: Material(
+        color: action.tint,
+        borderRadius: BorderRadius.circular(17),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(17),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(7, 11, 7, 8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(action.icon, color: action.iconColor, size: 31),
+                const SizedBox(height: 7),
+                Text(
+                  action.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF3D424A),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                child: Icon(action.icon, color: action.iconColor, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(action.label,
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface)),
-                    const SizedBox(height: 1),
-                    Text(action.description,
-                        style: TextStyle(
-                            fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                  ],
+                const SizedBox(height: 3),
+                Expanded(
+                  child: Text(
+                    action.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF7C8799),
+                      fontSize: 10.5,
+                      height: 1.08,
+                    ),
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(0xFF98A2B3)),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -463,8 +563,8 @@ class _PrimaryCard extends StatelessWidget {
   }
 }
 
-class _GridCard extends StatelessWidget {
-  const _GridCard({required this.action, required this.onTap});
+class _MinimalRow extends StatelessWidget {
+  const _MinimalRow({required this.action, required this.onTap});
 
   final QuickAddAction action;
   final VoidCallback onTap;
@@ -474,50 +574,58 @@ class _GridCard extends StatelessWidget {
     return Semantics(
       label: action.semanticLabel,
       button: true,
-      child: InkWell(
-        onTap: onTap,
+      child: Material(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: action.tint,
-                  shape: BoxShape.circle,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            height: 62,
+            padding: const EdgeInsets.symmetric(horizontal: 13),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFEFF1EF)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: action.tint,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(action.icon, color: action.iconColor, size: 23),
                 ),
-                child:
-                    Icon(action.icon, color: action.iconColor, size: 20),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(action.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                         style: TextStyle(
-                             fontSize: 14,
-                             fontWeight: FontWeight.w700,
-                             color: Theme.of(context).colorScheme.onSurface)),
-                    Text(action.description,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                         style: TextStyle(
-                             fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                  ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        action.label,
+                        style: const TextStyle(
+                          color: Color(0xFF3D424A),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        action.description,
+                        style: const TextStyle(
+                          color: Color(0xFF7C8799),
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const Icon(Icons.chevron_right, color: Color(0xFF657083)),
+              ],
+            ),
           ),
         ),
       ),
@@ -525,23 +633,111 @@ class _GridCard extends StatelessWidget {
   }
 }
 
-/// Host matching the existing habit bottom-sheet presentation: warm rounded
-/// sheet with safe-area + keyboard insets, hosting the real [HabitFormScreen].
+class _MinimalTaskDialog extends StatefulWidget {
+  const _MinimalTaskDialog({required this.planner});
+
+  final PlannerController planner;
+
+  @override
+  State<_MinimalTaskDialog> createState() => _MinimalTaskDialogState();
+}
+
+class _MinimalTaskDialogState extends State<_MinimalTaskDialog> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _title = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _title.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await widget.planner.createTask(
+        title: _title.text.trim(),
+        priority: TaskPriority.medium,
+      );
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save task. Try again.')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !_saving,
+      child: AlertDialog(
+        title: const Text('Quick add'),
+        content: Form(
+          key: _formKey,
+          child: TextFormField(
+            controller: _title,
+            autofocus: true,
+            enabled: !_saving,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.done,
+            maxLength: 200,
+            decoration: const InputDecoration(
+              labelText: 'Task name',
+              hintText: 'What needs to get done?',
+            ),
+            validator: (String? value) =>
+                value == null || value.trim().isEmpty
+                    ? 'Enter a task name'
+                    : null,
+            onFieldSubmitted: (_) => _save(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Add task'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _HabitSheetHost extends StatelessWidget {
   const _HabitSheetHost();
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final double bottom = MediaQuery.viewInsetsOf(context).bottom;
     return SafeArea(
       top: false,
       child: Container(
         constraints: const BoxConstraints(maxWidth: 520),
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         padding: EdgeInsets.only(bottom: bottom),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFBF6),
-          borderRadius: BorderRadius.circular(28),
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFFBF6),
+          borderRadius: BorderRadius.all(Radius.circular(28)),
         ),
         child: const SingleChildScrollView(child: HabitFormScreen()),
       ),
@@ -549,9 +745,6 @@ class _HabitSheetHost extends StatelessWidget {
   }
 }
 
-/// Compact water logging sheet reusing the existing [DietController.addWater]
-/// domain path (same API/client/validation as Diet Today). Never stuck:
-/// failures show the controller's error and stay on the sheet for retry.
 class _WaterQuickLogSheet extends StatefulWidget {
   const _WaterQuickLogSheet();
 
@@ -560,7 +753,7 @@ class _WaterQuickLogSheet extends StatefulWidget {
 }
 
 class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
-  final _amount = TextEditingController(text: '250');
+  final TextEditingController _amount = TextEditingController(text: '250');
   WaterUnit _unit = WaterUnit.ml;
   bool _saving = false;
 
@@ -571,7 +764,7 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
   }
 
   Future<void> _save() async {
-    final parsed = double.tryParse(_amount.text.trim());
+    final double? parsed = double.tryParse(_amount.text.trim());
     if (parsed == null || parsed <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter an amount greater than 0')),
@@ -580,27 +773,33 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
     }
     setState(() => _saving = true);
     try {
-      final controller = context.read<DietController>();
-      final ok = await controller.addWater(
+      final DietController controller = context.read<DietController>();
+      final bool ok = await controller.addWater(
         amount: parsed,
         unit: _unit.wireName,
       );
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _saving = false);
       if (ok) {
+        await controller.selectDate(DateTime.now());
+        if (!mounted) return;
         Navigator.of(context).pop(true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-                  controller.lastActionError ?? 'Could not save water.')),
+            content: Text(
+              controller.lastActionError ?? 'Could not save water.',
+            ),
+          ),
         );
       }
-    } catch (e) {
+    } catch (error) {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save water: $e')),
+          SnackBar(content: Text('Could not save water: $error')),
         );
       }
     }
@@ -608,7 +807,7 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final double bottom = MediaQuery.viewInsetsOf(context).bottom;
     return SafeArea(
       top: false,
       child: Container(
@@ -641,15 +840,20 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text('Log water',
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                    color: Color(0xFF101828))),
+            const Text(
+              'Log water',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+                color: Color(0xFF101828),
+              ),
+            ),
             const SizedBox(height: 2),
-            const Text('Quickly record your water intake.',
-                style: TextStyle(fontSize: 14, color: Color(0xFF667085))),
+            const Text(
+              'Quickly record your water intake.',
+              style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+            ),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -659,8 +863,10 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
                     textField: true,
                     child: TextField(
                       controller: _amount,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      enabled: !_saving,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Amount',
                         filled: true,
@@ -683,18 +889,24 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
                 DropdownButton<WaterUnit>(
                   value: _unit,
                   items: const [
+                    DropdownMenuItem(value: WaterUnit.ml, child: Text('ml')),
                     DropdownMenuItem(
-                        value: WaterUnit.ml, child: Text('ml')),
+                      value: WaterUnit.L,
+                      child: Text('litres'),
+                    ),
                     DropdownMenuItem(
-                        value: WaterUnit.L, child: Text('litres')),
-                    DropdownMenuItem(
-                        value: WaterUnit.glass, child: Text('glasses')),
-                    DropdownMenuItem(
-                        value: WaterUnit.cup, child: Text('cups')),
+                      value: WaterUnit.glass,
+                      child: Text('glasses'),
+                    ),
+                    DropdownMenuItem(value: WaterUnit.cup, child: Text('cups')),
                   ],
-                  onChanged: (u) {
-                    if (u != null) setState(() => _unit = u);
-                  },
+                  onChanged: _saving
+                      ? null
+                      : (WaterUnit? unit) {
+                          if (unit != null) {
+                            setState(() => _unit = unit);
+                          }
+                        },
                 ),
               ],
             ),
@@ -707,8 +919,7 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child:
-                            CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.water_drop_outlined),
                 label: const Text('Log water'),

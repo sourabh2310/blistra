@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -40,52 +42,62 @@ class DashboardScreen extends StatelessWidget {
               offsetMinutes: now.timeZoneOffset.inMinutes,
             );
         return Scaffold(
-          body: RefreshIndicator(
-            onRefresh: refresh,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: SafeArea(
-                bottom: false,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1100),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 112),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _Header(
-                            displayName: name,
-                            onSearch: onSearch,
-                            onNotifications: onNotifications,
-                            onProfile: onProfile,
+          body: Stack(
+            children: [
+              const Positioned.fill(child: _AmbientLeaves()),
+              RefreshIndicator(
+                onRefresh: refresh,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1000),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _Header(
+                                displayName: name,
+                                onSearch: onSearch,
+                                onNotifications: onNotifications,
+                                onProfile: onProfile,
+                                onCalendar: () => onDestination?.call('PLANNER/TODAY'),
+                              ),
+                              const SizedBox(height: 20),
+                              _Greeting(
+                                name: name,
+                                now: now,
+                                dashboard: controller.dashboard,
+                              ),
+                              const SizedBox(height: 18),
+                              if (controller.isLoading && controller.dashboard == null)
+                                const _DashboardSkeleton()
+                              else if (controller.dashboard == null)
+                                _FullError(
+                                  message: controller.error ?? 'Home is unavailable right now.',
+                                  onRetry: refresh,
+                                )
+                              else
+                                _HomeContent(
+                                  dashboard: controller.dashboard!,
+                                  now: now,
+                                  homeWidgets: _orderedWidgets(homeWidgets),
+                                  hubPinned: hubPinned,
+                                  onDestination: onDestination,
+                                  onRefresh: refresh,
+                                ),
+                            ],
                           ),
-                          const SizedBox(height: 24),
-                          _Greeting(name: name, now: now, dashboard: controller.dashboard),
-                          const SizedBox(height: 24),
-                          if (controller.isLoading && controller.dashboard == null)
-                            const _DashboardSkeleton()
-                          else if (controller.dashboard == null)
-                            _FullError(
-                              message: controller.error ?? 'Home is unavailable right now.',
-                              onRetry: refresh,
-                            )
-                          else
-                            _HomeContent(
-                              dashboard: controller.dashboard!,
-                              now: now,
-                              homeWidgets: _orderedWidgets(homeWidgets),
-                              hubPinned: hubPinned,
-                              onDestination: onDestination,
-                              onRefresh: refresh,
-                            ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         );
       },
@@ -108,12 +120,14 @@ class _Header extends StatelessWidget {
     this.onSearch,
     this.onNotifications,
     this.onProfile,
+    this.onCalendar,
   });
 
   final String displayName;
   final VoidCallback? onSearch;
   final VoidCallback? onNotifications;
   final VoidCallback? onProfile;
+  final VoidCallback? onCalendar;
 
   @override
   Widget build(BuildContext context) {
@@ -121,26 +135,56 @@ class _Header extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(
-            'Blistra',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.8,
-              color: theme.colorScheme.primary,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      'Blistra',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.headlineLarge?.copyWith(
+                        fontFamily: 'serif',
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1.2,
+                        color: const Color(0xFF174A3B),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const _LeafMark(size: 38),
+                ],
+              ),
+              Text(
+                'Everything you need. One app.',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF526B64),
+                  letterSpacing: .1,
+                ),
+              ),
+            ],
           ),
         ),
-        IconButton(
-          onPressed: onSearch,
+        const SizedBox(width: 6),
+        _HeaderAction(
           tooltip: 'Search',
-          icon: const Icon(Icons.search),
+          icon: Icons.search_rounded,
+          onPressed: onSearch,
         ),
-        IconButton(
-          onPressed: onNotifications,
+        _HeaderAction(
+          tooltip: 'Planner',
+          icon: Icons.calendar_today_outlined,
+          onPressed: onCalendar,
+        ),
+        _HeaderAction(
           tooltip: 'Notifications',
-          icon: const Icon(Icons.notifications_none_outlined),
+          icon: Icons.notifications_none_outlined,
+          onPressed: onNotifications,
         ),
         Semantics(
           label: 'Profile',
@@ -149,15 +193,15 @@ class _Header extends StatelessWidget {
             onTap: onProfile,
             customBorder: const CircleBorder(),
             child: Padding(
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(2),
               child: CircleAvatar(
-                radius: 20,
+                radius: 21,
                 backgroundColor: theme.colorScheme.secondaryContainer,
                 child: Text(
                   initialsForName(displayName),
                   style: TextStyle(
                     color: theme.colorScheme.onSecondaryContainer,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -167,6 +211,45 @@ class _Header extends StatelessWidget {
       ],
     );
   }
+}
+
+class _HeaderAction extends StatelessWidget {
+  const _HeaderAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(left: 5),
+        child: IconButton(
+          onPressed: onPressed,
+          tooltip: tooltip,
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.white.withValues(alpha: .72),
+            side: const BorderSide(color: Color(0xFFE8E0D7)),
+            fixedSize: const Size(42, 42),
+          ),
+          icon: Icon(icon, color: const Color(0xFF193D37), size: 23),
+        ),
+      );
+}
+
+class _LeafMark extends StatelessWidget {
+  const _LeafMark({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _LeafMarkPainter()),
+      );
 }
 
 class _Greeting extends StatelessWidget {
@@ -180,45 +263,104 @@ class _Greeting extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final attention = buildAttentionItems(dashboard, now: now, limit: 1000).length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '${greetingForHour(now.hour)},',
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 620;
+        final textWidth = wide ? constraints.maxWidth * .5 : constraints.maxWidth * .61;
+        return SizedBox(
+          height: wide ? 230 : 218,
+          child: Stack(
+            children: [
+              Positioned(
+                right: wide ? 12 : 0,
+                top: 0,
+                bottom: 0,
+                width: wide ? constraints.maxWidth * .48 : constraints.maxWidth * .45,
+                child: const ClipRRect(
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(110),
+                    topRight: Radius.circular(24),
+                    bottomLeft: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
+                  ),
+                  child: CustomPaint(painter: _LandscapePainter()),
+                ),
+              ),
+              SizedBox(
+                width: textWidth,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${greetingForHour(now.hour)},',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontFamily: 'serif',
+                        color: const Color(0xFF516B85),
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.displaySmall?.copyWith(
+                              fontFamily: 'serif',
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -1.4,
+                              color: const Color(0xFF192A4C),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 9),
+                        const _SunMark(size: 38),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      DateFormat('EEEE, d MMMM').format(now),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontFamily: 'serif',
+                        color: const Color(0xFF526B8C),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      attention == 0
+                          ? "You're all caught up for today."
+                          : 'You have $attention thing${attention == 1 ? '' : 's'} to take care of today.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontFamily: 'serif',
+                        height: 1.28,
+                        color: const Color(0xFF526B85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.headlineLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -1,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          DateFormat('EEEE, d MMMM').format(now),
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        if (attention > 0) ...[
-          const SizedBox(height: 6),
-          Text(
-            '$attention thing${attention == 1 ? '' : 's'} need${attention == 1 ? 's' : ''} your attention.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ],
+        );
+      },
     );
   }
+}
+
+class _SunMark extends StatelessWidget {
+  const _SunMark({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _SunMarkPainter()),
+      );
 }
 
 class _HomeContent extends StatelessWidget {
@@ -240,35 +382,91 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final id in homeWidgets)
-          if (HomeWidgets.sections.contains(id)) ...[
-            _SectionContent(
-              id: id,
-              dashboard: dashboard,
-              now: now,
-              onDestination: onDestination,
-              onRefresh: onRefresh,
-              homeWidgets: homeWidgets,
-            ),
-            const SizedBox(height: 16),
-          ],
-        if (!hubPinned)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => onDestination?.call('HUB'),
-                icon: const Icon(Icons.grid_view_outlined),
-                label: const Text('Explore Hub'),
-              ),
-            ),
-          ),
-      ],
-    );
+    final sections = homeWidgets.where(HomeWidgets.sections.contains).toList();
+    final children = <Widget>[];
+    for (var index = 0; index < sections.length; index++) {
+      final id = sections[index];
+      final next = index + 1 < sections.length ? sections[index + 1] : null;
+      if (next != null &&
+          {id, next}.length == 2 &&
+          {id, next}.contains(HomeWidgets.todaysSchedule) &&
+          {id, next}.contains(HomeWidgets.needsAttention)) {
+        children.add(LayoutBuilder(
+          builder: (context, constraints) => constraints.maxWidth >= 360
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: id == HomeWidgets.todaysSchedule ? 3 : 2,
+                      child: _SectionContent(
+                        id: id,
+                        dashboard: dashboard,
+                        now: now,
+                        onDestination: onDestination,
+                        onRefresh: onRefresh,
+                        homeWidgets: homeWidgets,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: next == HomeWidgets.todaysSchedule ? 3 : 2,
+                      child: _SectionContent(
+                        id: next,
+                        dashboard: dashboard,
+                        now: now,
+                        onDestination: onDestination,
+                        onRefresh: onRefresh,
+                        homeWidgets: homeWidgets,
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    _SectionContent(
+                      id: id,
+                      dashboard: dashboard,
+                      now: now,
+                      onDestination: onDestination,
+                      onRefresh: onRefresh,
+                      homeWidgets: homeWidgets,
+                    ),
+                    const SizedBox(height: 12),
+                    _SectionContent(
+                      id: next,
+                      dashboard: dashboard,
+                      now: now,
+                      onDestination: onDestination,
+                      onRefresh: onRefresh,
+                      homeWidgets: homeWidgets,
+                    ),
+                  ],
+                ),
+        ));
+        children.add(const SizedBox(height: 12));
+        index++;
+      } else {
+        children.add(_SectionContent(
+          id: id,
+          dashboard: dashboard,
+          now: now,
+          onDestination: onDestination,
+          onRefresh: onRefresh,
+          homeWidgets: homeWidgets,
+        ));
+        children.add(const SizedBox(height: 12));
+      }
+    }
+    if (!hubPinned)
+      children.add(Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => onDestination?.call('HUB'),
+          icon: const Icon(Icons.grid_view_outlined),
+          label: const Text('Explore Hub'),
+        ),
+      ));
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
   }
 }
 
@@ -335,34 +533,42 @@ class _TodayOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final metrics = computeHomeOverview(dashboard);
-    return _Panel(
-      title: 'Today overview',
-      child: metrics.availableMetrics.isEmpty
-          ? _ErrorState(onRetry: onRefresh, moduleError: true)
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 560 ? 4 : 2;
-                final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0);
-                return GridView.count(
-                  crossAxisCount: columns,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: (columns == 2 ? 1.0 : 1.12) / textScale,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    for (final metric in metrics.availableMetrics)
-                      _MetricCard(
-                        label: metric.label,
-                        value: metric.value,
-                        detail: metric.detail,
-                        icon: metric.icon,
-                        onTap: () => onDestination?.call(metric.destination),
-                      ),
-                  ],
-                );
-              },
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ExcludeSemantics(
+          child: Opacity(opacity: 0, child: Text('Today overview')),
+        ),
+        if (metrics.availableMetrics.isEmpty)
+          _ErrorState(onRetry: onRefresh, moduleError: true)
+        else
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 350 ? 4 : 2;
+              final textScale =
+                  MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
+              return GridView.count(
+                crossAxisCount: columns,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio:
+                    (columns == 4 ? .72 : 1.05) / textScale,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  for (final metric in metrics.availableMetrics)
+                    _MetricCard(
+                      label: metric.label,
+                      value: metric.value,
+                      detail: metric.detail,
+                      icon: metric.icon,
+                      onTap: () => onDestination?.call(metric.destination),
+                    ),
+                ],
+              );
+            },
+          ),
+      ],
     );
   }
 }
@@ -383,6 +589,7 @@ class _TodaySchedule extends StatelessWidget {
     final items = buildTimeline(dashboard, now: now, limit: 5);
     return _Panel(
       title: "Today's schedule",
+      icon: Icons.calendar_today_outlined,
       trailing: _SeeAll(onTap: () => onDestination?.call('PLANNER/TODAY')),
       child: items.isEmpty
           ? const _EmptyState(message: 'Your day is clear.')
@@ -415,7 +622,8 @@ class _NeedsAttention extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = buildAttentionItems(dashboard, now: now, limit: 3);
     return _Panel(
-      title: 'Needs attention',
+      title: 'Needs your attention',
+      icon: Icons.notifications_active_outlined,
       child: items.isEmpty
           ? const _EmptyState(message: "You're caught up for now.")
           : Column(
@@ -455,17 +663,25 @@ class _YourLife extends StatelessWidget {
     final selected = modules;
     return _Panel(
       title: 'Your life',
+      icon: Icons.auto_awesome_mosaic_outlined,
       child: selected.isEmpty
           ? const _EmptyState(message: 'No modules selected.')
           : LayoutBuilder(
               builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 560 ? 2 : 1;
-                final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0);
+                final columns = constraints.maxWidth >= 650
+                    ? 5
+                    : constraints.maxWidth >= 350
+                        ? 3
+                        : 1;
+                final textScale =
+                    MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
                 return GridView.count(
                   crossAxisCount: columns,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: (columns == 1 ? 1.7 : 1.55) / textScale,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio:
+                      (columns == 1 ? 1.7 : columns == 3 ? .95 : 1.35) /
+                          textScale,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
@@ -501,21 +717,23 @@ class _ThisWeek extends StatelessWidget {
     if (value != null && value.unavailable) {
       return _Panel(
         title: 'This week',
+        icon: Icons.bar_chart_rounded,
         child: _ErrorState(onRetry: onRefresh, moduleError: true),
       );
     }
-    final total = value == null
-        ? 0
-        : value.tasksDue + value.habitOccurrences;
+    final total = value == null ? 0 : value.tasksDue + value.habitOccurrences;
     if (value == null || total == 0) {
       return const _Panel(
         title: 'This week',
+        icon: Icons.bar_chart_rounded,
         child: _EmptyState(message: 'No weekly activity to show.'),
       );
     }
     final taskProgress = value.tasksDue == 0
         ? 0.0
-        : (value.completedTasks / value.tasksDue).clamp(0.0, 1.0).toDouble();
+        : (value.completedTasks / value.tasksDue)
+            .clamp(0.0, 1.0)
+            .toDouble();
     final habitProgress = value.habitOccurrences == 0
         ? 0.0
         : (value.habitCompletions / value.habitOccurrences)
@@ -523,24 +741,105 @@ class _ThisWeek extends StatelessWidget {
             .toDouble();
     return _Panel(
       title: 'This week',
-      trailing: _SeeAll(onTap: () => onDestination?.call('HABITS/STATS')),
+      icon: Icons.bar_chart_rounded,
+      trailing: _SeeAll(
+        label: 'See details',
+        onTap: () => onDestination?.call('HABITS/STATS'),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final chartWidth = constraints.maxWidth < 310 ? 88.0 : 112.0;
+          return Row(
+            children: [
+              SizedBox(
+                height: 104,
+                width: chartWidth,
+                child: CustomPaint(
+                  painter: _WeekProgressPainter(
+                    habitProgress: habitProgress,
+                    taskProgress: taskProgress,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _WeekDetails(
+                  habitProgress: habitProgress,
+                  taskProgress: taskProgress,
+                  activeDays: value.activeDays,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _WeekDetails extends StatelessWidget {
+  const _WeekDetails({
+    required this.habitProgress,
+    required this.taskProgress,
+    required this.activeDays,
+  });
+
+  final double habitProgress;
+  final double taskProgress;
+  final int activeDays;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _WeekDetail(
+          value: '${(habitProgress * 100).round()}%',
+          label: 'Habits completed',
+        ),
+        Container(width: 1, height: 46, color: const Color(0xFFE6E5E3)),
+        _WeekDetail(
+          value: '${(taskProgress * 100).round()}%',
+          label: 'Tasks completed',
+        ),
+        Container(width: 1, height: 46, color: const Color(0xFFE6E5E3)),
+        _WeekDetail(
+          value: '$activeDays / 7',
+          label: 'Days active',
+        ),
+      ],
+    );
+  }
+}
+
+class _WeekDetail extends StatelessWidget {
+  const _WeekDetail({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Flexible(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _WeekStat(
-            label: 'Tasks completed',
-            value: '${value.completedTasks} of ${value.tasksDue}',
-            progress: taskProgress,
-          ),
-          const SizedBox(height: 12),
-          _WeekStat(
-            label: 'Habit occurrences',
-            value: '${value.habitCompletions} of ${value.habitOccurrences}',
-            progress: habitProgress,
-          ),
-          const SizedBox(height: 12),
           Text(
-            '${value.activeDays} active day${value.activeDays == 1 ? '' : 's'}',
-            style: Theme.of(context).textTheme.bodyMedium,
+            value,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontFamily: 'serif',
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -570,7 +869,15 @@ class _ModuleCard extends StatelessWidget {
         icon: _moduleIcon(id),
         value: 'Unavailable',
         detail: 'Could not load this module.',
-        action: TextButton(onPressed: onRefresh, child: const Text('Retry')),
+        action: IconButton(
+          onPressed: onRefresh,
+          tooltip: 'Retry',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          icon: const Icon(Icons.refresh, size: 18),
+        ),
       );
     }
     return _ModuleCardShell(
@@ -614,8 +921,11 @@ class _ModuleCard extends StatelessWidget {
       case HomeWidgets.diet:
         final section = dashboard.diet;
         if (section == null || section.unavailable) return _ModuleValue.error();
+        final calories = section.nutrition?.caloriesKcal?.total;
         return _ModuleValue(
-          '${section.mealCount} meal${section.mealCount == 1 ? '' : 's'}',
+          calories == null || calories.isEmpty
+              ? '${section.mealCount} meal${section.mealCount == 1 ? '' : 's'}'
+              : '$calories kcal',
           'Logged today',
         );
       case HomeWidgets.habits:
@@ -681,43 +991,68 @@ class _ModuleCardShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final style = _moduleStyle(id, theme.colorScheme);
     return Card(
+      color: style.background,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(icon, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(HomeWidgets.label(id),
-                        style: theme.textTheme.titleMedium,
-                        overflow: TextOverflow.ellipsis),
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: style.iconBackground,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: style.foreground, size: 20),
                   ),
-                  if (onTap != null) const Icon(Icons.chevron_right),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      HomeWidgets.label(id),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontFamily: 'serif',
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  if (onTap != null)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 1),
+                      child: Icon(Icons.chevron_right, size: 16),
+                    ),
                 ],
               ),
               const Spacer(),
-              Text(value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  )),
-              const SizedBox(height: 4),
-              Text(detail,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  )),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontFamily: 'serif',
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                detail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
               if (action != null) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 action!,
               ],
             ],
@@ -728,57 +1063,56 @@ class _ModuleCardShell extends StatelessWidget {
   }
 }
 
-class _WeekStat extends StatelessWidget {
-  const _WeekStat({required this.label, required this.value, required this.progress});
-
-  final String label;
-  final String value;
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(children: [
-          Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-          Text(value, style: theme.textTheme.titleMedium),
-        ]),
-        const SizedBox(height: 6),
-        LinearProgressIndicator(value: progress),
-      ],
-    );
-  }
-}
-
 class _Panel extends StatelessWidget {
-  const _Panel({required this.title, required this.child, this.trailing});
+  const _Panel({
+    required this.title,
+    required this.child,
+    this.trailing,
+    this.icon,
+  });
 
   final String title;
   final Widget child;
   final Widget? trailing;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
+      color: Colors.white.withValues(alpha: .94),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: const BorderSide(color: Color(0xFFF0EAE3)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 21, color: const Color(0xFF174A3B)),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
-                  child: Text(title,
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w800)),
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontFamily: 'serif',
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF20375E),
+                    ),
+                  ),
                 ),
                 if (trailing != null) trailing!,
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             child,
           ],
         ),
@@ -805,29 +1139,61 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final style = _metricStyle(label, theme.colorScheme);
     return Card(
+      color: style.background,
+      elevation: 0,
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: style.iconBackground,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, size: 20, color: style.foreground),
+                  ),
+                  const Icon(Icons.chevron_right, size: 19),
+                ],
+              ),
               const Spacer(),
-              Text(label, style: theme.textTheme.bodySmall),
-              Text(value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800)),
-              Text(detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  )),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontFamily: 'serif',
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontFamily: 'serif',
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                detail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: .8),
+                ),
+              ),
             ],
           ),
         ),
@@ -846,21 +1212,102 @@ class _ScheduleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Semantics(
-            label: _timelineStatusLabel(item.status),
-            child: Icon(_timelineIcon(item.status), color: theme.colorScheme.primary),
-          ),
-          title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(item.meta),
-          trailing: Text(item.anytime ? 'Anytime' : DateFormat('h:mm a').format(item.at)),
-          onTap: onTap,
+    final statusColor = _timelineColor(item.status, theme.colorScheme);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 54,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 48,
+              child: Text(
+                item.anytime ? 'Anytime' : DateFormat('h:mm a').format(item.at),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontFamily: 'serif',
+                  color: const Color(0xFF60769A),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 18,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (showDivider)
+                    Positioned(
+                      left: 8,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(width: 1, color: const Color(0xFFD8E1DF)),
+                    ),
+                  Semantics(
+                    label: _timelineStatusLabel(item.status),
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 5),
+            Expanded(
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: _categoryColor(item.meta).withValues(alpha: .12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _categoryIcon(item.meta),
+                      size: 16,
+                      color: _categoryColor(item.meta),
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontFamily: 'serif',
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          item.meta,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              _timelineIcon(item.status),
+              size: 19,
+              color: statusColor,
+            ),
+          ],
         ),
-        if (showDivider) const Divider(),
-      ],
+      ),
     );
   }
 }
@@ -874,32 +1321,90 @@ class _AttentionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.schedule_outlined),
-          title: Text(item.title),
-          subtitle: Text(item.detail),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: onTap,
+    final theme = Theme.of(context);
+    final color = _attentionColor(item.detail);
+    return Padding(
+      padding: EdgeInsets.only(bottom: showDivider ? 7 : 0),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: .1),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .16),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(_attentionIcon(item.detail), size: 18, color: color),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontFamily: 'serif',
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      item.detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 10,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 18),
+            ],
+          ),
         ),
-        if (showDivider) const Divider(),
-      ],
+      ),
     );
   }
 }
 
 class _SeeAll extends StatelessWidget {
-  const _SeeAll({required this.onTap});
+  const _SeeAll({required this.onTap, this.label = 'See all'});
   final VoidCallback onTap;
+  final String label;
 
   @override
-  Widget build(BuildContext context) => TextButton.icon(
+  Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 520) {
+      return IconButton(
         onPressed: onTap,
-        icon: const Icon(Icons.arrow_forward, size: 16),
-        label: const Text('See all'),
+        tooltip: label,
+        visualDensity: VisualDensity.compact,
+        icon: const Icon(Icons.arrow_forward, size: 19),
       );
+    }
+    return TextButton.icon(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+      icon: const Icon(Icons.arrow_forward, size: 16),
+      label: Text(label),
+    );
+  }
 }
 
 class _EmptyState extends StatelessWidget {
@@ -995,6 +1500,394 @@ class _SkeletonBlock extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
       );
+}
+
+class _AmbientLeaves extends StatelessWidget {
+  const _AmbientLeaves();
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(painter: _AmbientPainter());
+}
+
+class _LeafMarkPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stem = Paint()
+      ..color = const Color(0xFF4F8A57)
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(size.width * .28, size.height * .9),
+      Offset(size.width * .78, size.height * .25),
+      stem,
+    );
+    final left = Path()
+      ..moveTo(size.width * .38, size.height * .7)
+      ..quadraticBezierTo(.05 * size.width, .72 * size.height, .1 * size.width, .36 * size.height)
+      ..quadraticBezierTo(.42 * size.width, .35 * size.height, .38 * size.height, .7 * size.height);
+    final right = Path()
+      ..moveTo(size.width * .58, size.height * .46)
+      ..quadraticBezierTo(.54 * size.width, .08 * size.height, .88 * size.width, .04 * size.height)
+      ..quadraticBezierTo(.94 * size.width, .34 * size.height, .58 * size.height, .46 * size.height);
+    canvas.drawPath(left, Paint()..color = const Color(0xFF7DB787));
+    canvas.drawPath(right, Paint()..color = const Color(0xFF4D9861));
+    canvas.drawLine(
+      Offset(size.width * .17, size.height * .42),
+      Offset(size.width * .37, size.height * .66),
+      stem..strokeWidth = 1.2,
+    );
+    canvas.drawLine(
+      Offset(size.width * .83, size.height * .12),
+      Offset(size.width * .61, size.height * .43),
+      stem..strokeWidth = 1.2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _SunMarkPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width * .5, size.height * .54);
+    final ray = Paint()
+      ..color = const Color(0xFFFFB62E)
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, size.width * .24, Paint()..color = const Color(0xFFFFBD35));
+    for (var index = 0; index < 8; index++) {
+      final angle = index * 3.1415926535 / 4;
+      final start = Offset(
+        center.dx + (size.width * .32) * math.cos(angle),
+        center.dy + (size.width * .32) * math.sin(angle),
+      );
+      final end = Offset(
+        center.dx + (size.width * .42) * math.cos(angle),
+        center.dy + (size.width * .42) * math.sin(angle),
+      );
+      canvas.drawLine(start, end, ray);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _LandscapePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFDDEFF0), Color(0xFFFFF2D8)],
+        ).createShader(rect),
+    );
+    canvas.drawCircle(
+      Offset(size.width * .72, size.height * .42),
+      size.width * .2,
+      Paint()..color = const Color(0xFFF6B766).withValues(alpha: .42),
+    );
+    final far = Path()
+      ..moveTo(0, size.height * .58)
+      ..lineTo(size.width * .24, size.height * .28)
+      ..lineTo(size.width * .48, size.height * .56)
+      ..lineTo(size.width * .7, size.height * .32)
+      ..lineTo(size.width, size.height * .58)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(far, Paint()..color = const Color(0xFF8EB7C4));
+    final near = Path()
+      ..moveTo(0, size.height * .64)
+      ..lineTo(size.width * .28, size.height * .45)
+      ..lineTo(size.width * .5, size.height * .66)
+      ..lineTo(size.width * .74, size.height * .47)
+      ..lineTo(size.width, size.height * .64)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(near, Paint()..color = const Color(0xFF4F8090));
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height * .64, size.width, size.height * .36),
+      Paint()..color = const Color(0xFF78B4C2),
+    );
+    for (var index = 0; index < 4; index++) {
+      final y = size.height * (.7 + index * .055);
+      canvas.drawLine(
+        Offset(size.width * .12, y),
+        Offset(size.width * (.45 + index * .1), y),
+        Paint()
+          ..color = Colors.white.withValues(alpha: .28)
+          ..strokeWidth = 1.2,
+      );
+    }
+    final treePaint = Paint()..color = const Color(0xFF245E4B);
+    for (final point in const [
+      Offset(.08, .75),
+      Offset(.17, .79),
+      Offset(.26, .75),
+      Offset(.34, .82),
+    ]) {
+      final x = point.dx * size.width;
+      final base = point.dy * size.height;
+      final height = size.height * .22;
+      canvas.drawRect(
+        Rect.fromLTWH(x - 1.5, base - height * .65, 3, height * .65),
+        Paint()..color = const Color(0xFF6D5737),
+      );
+      canvas.drawPath(
+        Path()
+          ..moveTo(x, base - height)
+          ..lineTo(x - 7, base - height * .25)
+          ..lineTo(x + 7, base - height * .25)
+          ..close(),
+        treePaint,
+      );
+    }
+    final table = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * .56, size.height * .84, size.width * .6, size.height * .12),
+      const Radius.circular(12),
+    );
+    canvas.drawRRect(table, Paint()..color = const Color(0xFF9B6444));
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * .82, size.height * .9, 4, size.height * .1),
+      Paint()..color = const Color(0xFF70462F),
+    );
+    final cup = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * .75, size.height * .72, size.width * .17, size.height * .15),
+      const Radius.circular(8),
+    );
+    canvas.drawRRect(cup, Paint()..color = const Color(0xFFD7A778));
+    canvas.drawArc(
+      Rect.fromLTWH(size.width * .86, size.height * .74, size.width * .12, size.height * .1),
+      -1.4,
+      2.8,
+      false,
+      Paint()
+        ..color = const Color(0xFF876044)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _AmbientPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = const Color(0xFF4F8A57).withValues(alpha: .06);
+    void leaf(Offset origin, double length, double angle, Color color) {
+      canvas.save();
+      canvas.translate(origin.dx, origin.dy);
+      canvas.rotate(angle);
+      canvas.drawPath(
+        Path()
+          ..moveTo(0, 0)
+          ..quadraticBezierTo(length * .45, -length * .4, length, 0)
+          ..quadraticBezierTo(length * .5, length * .4, 0, 0),
+        Paint()..color = color,
+      );
+      canvas.restore();
+    }
+
+    final top = size.height * .13;
+    leaf(Offset(size.width - 5, top), 52, -1.2, paint);
+    leaf(Offset(size.width - 26, top + 45), 42, -.7, paint);
+    leaf(Offset(size.width - 58, top + 14), 38, -1.6, paint);
+    leaf(Offset(size.width - 18, top + 91), 36, -.4, paint);
+    leaf(Offset(0, size.height * .72), 64, .35, paint);
+    leaf(Offset(18, size.height * .81), 48, .65, paint);
+    leaf(Offset(size.width - 8, size.height * .88), 52, -1.8, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _WeekProgressPainter extends CustomPainter {
+  const _WeekProgressPainter({
+    required this.habitProgress,
+    required this.taskProgress,
+  });
+
+  final double habitProgress;
+  final double taskProgress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width * .3, size.height * .5);
+    final radius = (size.height * .31).clamp(18.0, 34.0).toDouble();
+    final track = Paint()
+      ..color = const Color(0xFFE5ECE8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.round;
+    final habit = Paint()
+      ..color = const Color(0xFF8AC5A3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.round;
+    final tasks = Paint()
+      ..color = const Color(0xFF0B6B4F)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.round;
+    final outer = Rect.fromCircle(center: center, radius: radius);
+    final inner = Rect.fromCircle(center: center, radius: radius - 11);
+    canvas.drawArc(outer, -1.6, 4.9, false, habit);
+    canvas.drawArc(
+      outer,
+      -1.6,
+      4.9 * habitProgress.clamp(0.0, 1.0).toDouble(),
+      false,
+      tasks,
+    );
+    canvas.drawArc(inner, -1.6, 4.9, false, track);
+    canvas.drawArc(
+      inner,
+      -1.6,
+      4.9 * habitProgress.clamp(0.0, 1.0).toDouble(),
+      false,
+      habit,
+    );
+    final labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final labelStyle = const TextStyle(
+      color: Color(0xFF5A6D69),
+      fontSize: 9,
+      fontWeight: FontWeight.w700,
+    );
+    for (var index = 0; index < labels.length; index++) {
+      final x = size.width * .62 + (index % 2) * 15;
+      final y = size.height * .12 + (index ~/ 2) * 27;
+      final painter = TextPainter(
+        text: TextSpan(text: labels[index], style: labelStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      painter.paint(canvas, Offset(x, y));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WeekProgressPainter oldDelegate) =>
+      habitProgress != oldDelegate.habitProgress ||
+      taskProgress != oldDelegate.taskProgress;
+}
+
+class _FeatureStyle {
+  const _FeatureStyle({
+    required this.background,
+    required this.iconBackground,
+    required this.foreground,
+  });
+
+  final Color background;
+  final Color iconBackground;
+  final Color foreground;
+}
+
+_FeatureStyle _metricStyle(String label, ColorScheme scheme) {
+  if (label.contains('Tasks')) {
+    return const _FeatureStyle(
+      background: Color(0xFFE9F7EF),
+      iconBackground: Color(0xFFD4F0E3),
+      foreground: Color(0xFF07836A),
+    );
+  }
+  if (label.contains('Medicines')) {
+    return const _FeatureStyle(
+      background: Color(0xFFEFF5FF),
+      iconBackground: Color(0xFFDDE9FF),
+      foreground: Color(0xFF2878EA),
+    );
+  }
+  if (label.contains('Habits')) {
+    return const _FeatureStyle(
+      background: Color(0xFFFFF3E8),
+      iconBackground: Color(0xFFFFE3C6),
+      foreground: Color(0xFFE66A2C),
+    );
+  }
+  return _FeatureStyle(
+    background: scheme.brightness == Brightness.dark
+        ? const Color(0xFF302746)
+        : const Color(0xFFF4EAFE),
+    iconBackground: scheme.brightness == Brightness.dark
+        ? const Color(0xFF493560)
+        : const Color(0xFFE9D7FC),
+    foreground: const Color(0xFF8B35D1),
+  );
+}
+
+_FeatureStyle _moduleStyle(String id, ColorScheme scheme) => switch (id) {
+      HomeWidgets.health => const _FeatureStyle(
+          background: Color(0xFFFFEEEE),
+          iconBackground: Color(0xFFFFD7D7),
+          foreground: Color(0xFFEF3E4D),
+        ),
+      HomeWidgets.medicines => const _FeatureStyle(
+          background: Color(0xFFEFF5FF),
+          iconBackground: Color(0xFFDDE9FF),
+          foreground: Color(0xFF2878EA),
+        ),
+      HomeWidgets.diet => const _FeatureStyle(
+          background: Color(0xFFFFF3E8),
+          iconBackground: Color(0xFFFFE3C6),
+          foreground: Color(0xFFE66A2C),
+        ),
+      HomeWidgets.habits => const _FeatureStyle(
+          background: Color(0xFFEAF7EF),
+          iconBackground: Color(0xFFD4F0E3),
+          foreground: Color(0xFF0B6B4F),
+        ),
+      HomeWidgets.finance => _metricStyle('Spending today', scheme),
+      _ => _metricStyle('', scheme),
+    };
+
+IconData _categoryIcon(String meta) {
+  if (meta.startsWith('Medicine')) return Icons.medication_outlined;
+  if (meta.startsWith('Habit')) return Icons.directions_run_rounded;
+  if (meta.startsWith('Meal')) return Icons.restaurant_outlined;
+  if (meta.startsWith('Health')) return Icons.favorite_outline;
+  if (meta.startsWith('Event')) return Icons.groups_2_outlined;
+  if (meta.startsWith('Task')) return Icons.description_outlined;
+  return Icons.circle_outlined;
+}
+
+Color _categoryColor(String meta) {
+  if (meta.startsWith('Medicine')) return const Color(0xFFEF5570);
+  if (meta.startsWith('Habit')) return const Color(0xFF1B9A70);
+  if (meta.startsWith('Meal')) return const Color(0xFFE76B2E);
+  if (meta.startsWith('Health')) return const Color(0xFFB640A0);
+  if (meta.startsWith('Event')) return const Color(0xFF7D42D5);
+  if (meta.startsWith('Task')) return const Color(0xFF377BD5);
+  return const Color(0xFF4A837B);
+}
+
+Color _timelineColor(TimelineStatus status, ColorScheme scheme) => switch (status) {
+      TimelineStatus.completed => const Color(0xFF18A768),
+      TimelineStatus.overdue || TimelineStatus.missed => const Color(0xFFE24545),
+      TimelineStatus.due => const Color(0xFFE24545),
+      TimelineStatus.cancelled => scheme.outline,
+      TimelineStatus.upcoming => const Color(0xFF3278E8),
+    };
+
+Color _attentionColor(String detail) {
+  if (detail.contains('overdue')) return const Color(0xFFC6402E);
+  if (detail.contains('Medicine')) return const Color(0xFFDE3D5B);
+  return const Color(0xFF16805D);
+}
+
+IconData _attentionIcon(String detail) {
+  if (detail.contains('overdue')) return Icons.check_rounded;
+  if (detail.contains('Medicine')) return Icons.medication_outlined;
+  return Icons.bolt_rounded;
 }
 
 enum TimelineStatus { upcoming, due, completed, missed, overdue, cancelled }

@@ -147,13 +147,22 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               ),
             ],
             const SizedBox(height: 12),
-            if (_meal!.items.isEmpty)
+            if (_meal!.items.isEmpty) ...[
               const EmptyState(
                 icon: Icons.no_meals_outlined,
                 title: 'No items in this meal',
                 subtitle: 'Add items to record what you ate.',
-              )
-            else ...[
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.center,
+                child: FilledButton.icon(
+                  onPressed: _addItem,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add first item'),
+                ),
+              ),
+            ] else ...[
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(

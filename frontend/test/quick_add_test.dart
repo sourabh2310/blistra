@@ -8,17 +8,25 @@ import 'package:frontend/core/widgets/quick_add.dart';
 
 void main() {
   group('quickAddActions', () {
-    test('exposes exactly the six real creation flows', () {
+    test('exposes the eight real creation flows', () {
       final actions = quickAddActions;
-      expect(actions, hasLength(6));
+      expect(actions, hasLength(8));
       expect(
         actions.map((a) => a.label).toList(),
-        ['Task', 'Planner event', 'Medicine', 'Meal', 'Water', 'Habit'],
+        [
+          'Task',
+          'Event',
+          'Meal',
+          'Medicine',
+          'Habit',
+          'Health',
+          'Expense',
+          'Water',
+        ],
       );
-      // Stable identities, one per flow.
       expect(
         actions.map((a) => a.kind).toSet(),
-        hasLength(6),
+        hasLength(8),
       );
     });
 
@@ -30,17 +38,29 @@ void main() {
 
     test('descriptions match actual functionality', () {
       final byKind = {for (final a in quickAddActions) a.kind: a};
-      expect(byKind[QuickAddKind.task]!.description,
-          'Something you need to get done');
-      expect(byKind[QuickAddKind.event]!.description,
-          'Schedule a time-bound commitment');
-      expect(byKind[QuickAddKind.medicine]!.description,
-          'Record or schedule a medicine');
-      expect(byKind[QuickAddKind.meal]!.description, 'Add a meal or food');
+      expect(byKind[QuickAddKind.task]!.description, 'To do, work, personal');
       expect(
-          byKind[QuickAddKind.water]!.description, 'Log your water intake');
-      expect(byKind[QuickAddKind.habit]!.description,
-          'Create or complete a habit');
+        byKind[QuickAddKind.event]!.description,
+        'Meeting, appointment',
+      );
+      expect(
+        byKind[QuickAddKind.medicine]!.description,
+        'Take a dose, log medicine',
+      );
+      expect(
+        byKind[QuickAddKind.meal]!.description,
+        'Breakfast, lunch, dinner, snack',
+      );
+      expect(
+        byKind[QuickAddKind.water]!.description,
+        'Log water intake',
+      );
+      expect(byKind[QuickAddKind.habit]!.description, 'Track your habits');
+      expect(
+        byKind[QuickAddKind.health]!.description,
+        'Weight, BP, measurements',
+      );
+      expect(byKind[QuickAddKind.expense]!.description, 'Track your spending');
     });
 
     test('every action has an accessible semantic label', () {
@@ -52,11 +72,13 @@ void main() {
         labels,
         [
           'Add task',
-          'Add Planner event',
-          'Add medicine',
+          'Add event',
           'Add meal',
-          'Add water',
+          'Add medicine',
           'Add habit',
+          'Add health measurement',
+          'Add expense',
+          'Add water',
         ],
       );
     });
@@ -73,7 +95,7 @@ void main() {
       );
     }
 
-    testWidgets('renders premium title, subtitle and grouped actions',
+    testWidgets('renders reference title, subtitle and grouped actions',
         (tester) async {
       await pumpHost(tester);
       // ignore: discarded_futures
@@ -81,15 +103,23 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
 
-      expect(find.text('Quick add'), findsOneWidget);
       expect(find.text('What would you like to add?'), findsOneWidget);
-      expect(find.text('TODAY'), findsOneWidget);
-      // No generic MORE overflow section: exactly six destinations.
-      expect(find.text('MORE'), findsNothing);
-      for (final label in ['Task', 'Planner event', 'Medicine', 'Meal', 'Water', 'Habit']) {
+      expect(find.text('Choose a category to get started'), findsOneWidget);
+      expect(find.text('Quick add'), findsOneWidget);
+      expect(find.text('TODAY'), findsNothing);
+      for (final label in [
+        'Task',
+        'Event',
+        'Meal',
+        'Medicine',
+        'Habit',
+        'Health',
+        'Expense',
+        'Water',
+      ]) {
         expect(find.text(label), findsWidgets);
       }
-      // No duplicate bottom navigation inside the sheet.
+      expect(find.text('Cancel'), findsOneWidget);
       expect(find.byType(NavigationBar), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -113,7 +143,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
 
-      await tester.tap(find.text('Planner event'));
+      await tester.tap(find.text('Event'));
       await tester.pump();
       final selected = await future;
       expect(selected!.kind, QuickAddKind.event);

@@ -137,6 +137,7 @@ class HabitsController extends ChangeNotifier {
   }) async {
     final Schedule schedule = await api.upsertSchedule(habitId,
         frequency: frequency, daysOfWeek: daysOfWeek);
+    await _loadTodayHabits();
     await _notifyMutated();
     return schedule;
   }

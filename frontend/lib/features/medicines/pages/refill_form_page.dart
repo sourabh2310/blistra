@@ -2,7 +2,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../core/auth/auth_state.dart';
+import '../data/medicines_api_client.dart';
 import '../models/refill.dart';
 import '../state/refill_form_controller.dart';
 
@@ -23,15 +26,29 @@ class RefillFormPage extends StatefulWidget {
 class _RefillFormPageState extends State<RefillFormPage> {
   final _formKey = GlobalKey<FormState>();
   late RefillFormController _controller;
+  MedicinesApiClient? _api;
   bool _saving = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_api == null) {
+      final authState = context.read<AuthState>();
+      _api = MedicinesApiClient(
+        tokenProvider: () => authState.apiClient.token ?? '',
+        onUnauthorized: authState.handleUnauthorized,
+      );
+      _controller = RefillFormController(
+        _api!,
+        medicineId: widget.medicineId,
+        refill: widget.refill,
+      );
+    }
   }
 
   @override
   void dispose() {
+    _api?.close();
     super.dispose();
   }
 
@@ -103,6 +120,10 @@ class _RefillFormPageState extends State<RefillFormPage> {
   }
 
   Future<void> _save() async {
+    if (!_controller.validate()) {
+      setState(() {});
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {

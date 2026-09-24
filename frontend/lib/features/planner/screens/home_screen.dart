@@ -123,41 +123,92 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _header(BuildContext context, PlannerController planner) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 12, 0),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 10, 14, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Planner', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.6)),
-                const SizedBox(height: 2),
-                Text('What needs doing and what is happening.', style: Theme.of(context).textTheme.bodyMedium),
-              ],
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Blistra',
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontFamily: 'serif',
+                            color: const Color(0xFF0B544B),
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1.2,
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.only(left: 5, bottom: 2),
+                          child: Icon(Icons.eco, color: Color(0xFF5A9A55), size: 31),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      'EVERYTHING YOU NEED. ONE APP.',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: const Color(0xFF294D65),
+                        letterSpacing: 2,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _HeaderButton(
+                tooltip: _searching ? 'Close Planner search' : 'Search Planner',
+                icon: _searching ? Icons.close : Icons.search,
+                onTap: () => _toggleSearch(context, planner),
+              ),
+              const SizedBox(width: 6),
+              _HeaderButton(
+                tooltip: 'Choose date',
+                icon: Icons.calendar_today_outlined,
+                onTap: () => _pickDate(context, planner),
+              ),
+              const SizedBox(width: 2),
+              PopupMenuButton<_MoreAction>(
+                tooltip: 'More Planner actions',
+                icon: const Icon(Icons.more_horiz),
+                onSelected: (action) => _handleMore(planner, action),
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: _MoreAction.today, child: Text('Jump to today')),
+                  PopupMenuItem(value: _MoreAction.toggleScope, child: Text('Switch day or week')),
+                  PopupMenuItem(value: _MoreAction.clearSearch, child: Text('Clear Planner search')),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 26),
+          Text(
+            'Planner',
+            style: theme.textTheme.displaySmall?.copyWith(
+              fontFamily: 'serif',
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1.5,
+              height: 1,
             ),
           ),
-          _HeaderButton(
-            tooltip: _searching ? 'Close Planner search' : 'Search Planner',
-            icon: _searching ? Icons.close : Icons.search,
-            onTap: () => _toggleSearch(context, planner),
-          ),
-          const SizedBox(width: 6),
-          _HeaderButton(
-            tooltip: 'Choose date',
-            icon: Icons.calendar_today_outlined,
-            onTap: () => _pickDate(context, planner),
-          ),
-          const SizedBox(width: 6),
-          PopupMenuButton<_MoreAction>(
-            tooltip: 'More Planner actions',
-            icon: const Icon(Icons.more_horiz),
-            onSelected: (action) => _handleMore(planner, action),
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: _MoreAction.today, child: Text('Jump to today')),
-              PopupMenuItem(value: _MoreAction.toggleScope, child: Text('Switch day or week')),
-              PopupMenuItem(value: _MoreAction.clearSearch, child: Text('Clear Planner search')),
-            ],
+          const SizedBox(height: 4),
+          Text(
+            'Your day, your way.',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontFamily: 'serif',
+              color: const Color(0xFF294D65),
+              fontSize: 18,
+            ),
           ),
         ],
       ),
@@ -202,14 +253,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       (Icons.checklist_outlined, 'Lists'),
       (Icons.event_outlined, 'Events'),
     ];
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: scheme.surface.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Theme.of(context).dividerColor),
+          border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.55)),
         ),
         child: AnimatedBuilder(
           animation: _tabs,
@@ -226,22 +278,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       onTap: () => _showSection(PlannerSection.values[index]),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: _tabs.index == index ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                          color: _tabs.index == index ? const Color(0xFFDDEBE6) : Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(tabs[index].$1, size: 17, color: _tabs.index == index ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant),
+                            Icon(
+                              tabs[index].$1,
+                              size: 15,
+                              color: _tabs.index == index ? const Color(0xFF0B6259) : scheme.onSurfaceVariant,
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
                                 tabs[index].$2,
                                 maxLines: 1,
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _tabs.index == index ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant),
+                                overflow: TextOverflow.fade,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: _tabs.index == index ? const Color(0xFF0B6259) : scheme.onSurfaceVariant,
+                                ),
                               ),
                             ),
                           ],
