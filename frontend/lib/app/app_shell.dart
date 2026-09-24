@@ -445,6 +445,7 @@ class _AppShellState extends State<AppShell> {
       } else {
         goToDestination(switch (tab) {
           AppTab.dashboard => ShellDestinations.home,
+          AppTab.planner => ShellDestinations.home,
           AppTab.health => ShellDestinations.health,
           AppTab.medicines => ShellDestinations.medicines,
           AppTab.diet => ShellDestinations.diet,

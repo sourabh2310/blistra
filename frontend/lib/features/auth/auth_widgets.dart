@@ -475,10 +475,10 @@ class _OtpInputState extends State<OtpInput> {
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                     ],
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
-                         color: Theme.of(context).colorScheme.onSurface),
+                        color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
                       counterText: '',
                       filled: true,

@@ -66,17 +66,18 @@ class BlistraApp extends StatelessWidget {
           ChangeNotifierProvider<SettingsController>.value(
               value: deps.settings),
         ],
-         child: ListenableBuilder(
-           listenable: deps.theme,
-           builder: (context, _) => MaterialApp(
-             title: 'Blistra',
-             debugShowCheckedModeBanner: false,
-             theme: AppTheme.light(),
-             darkTheme: AppTheme.dark(),
-             themeMode: deps.theme.mode,
-             home: AuthGate(deps: deps),
-           ),
-         ),
+        child: ListenableBuilder(
+          listenable: deps.theme,
+          builder: (context, _) => MaterialApp(
+            title: 'Blistra',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(),
+            darkTheme: AppTheme.dark(),
+            themeMode: deps.theme.mode,
+            home: AuthGate(deps: deps),
+          ),
+        ),
+      ),
     );
   }
 }

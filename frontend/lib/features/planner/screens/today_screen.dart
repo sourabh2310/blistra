@@ -18,6 +18,7 @@ import '../models/planner_event.dart';
 import '../models/schedule_view.dart';
 import '../models/task.dart';
 import '../models/task_reminder_mode.dart';
+import '../models/task_status.dart';
 import '../planner_controller.dart';
 import '../today_helpers.dart';
 import '../widgets/status_views.dart';

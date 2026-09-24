@@ -15,7 +15,7 @@ class PlannerSearchDetailScreen extends StatelessWidget {
     final parts = route.split('/');
     if (parts.length < 3) {
       return const Scaffold(
-        appBar: AppBar(title: Text('Planner details')),
+        appBar: const AppBar(title: Text('Planner details')),
         body: Center(child: Text("Couldn't load this Planner item.")),
       );
     }
@@ -25,7 +25,7 @@ class PlannerSearchDetailScreen extends StatelessWidget {
       'event' => EventDetailScreen(planner: planner, eventId: parts[2]),
       'list' => ListDetailScreen(planner: planner, listId: parts[2]),
       _ => const Scaffold(
-          appBar: AppBar(title: Text('Planner details')),
+          appBar: const AppBar(title: Text('Planner details')),
           body: Center(child: Text("Couldn't load this Planner item.")),
         ),
     };

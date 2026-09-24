@@ -63,7 +63,8 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     _showDetails = (task?.description?.isNotEmpty ?? false);
     _showMore = _listId != null || _showDetails || _reminderMode != TaskReminderMode.none;
     if (widget.planner.taskLists.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => planner.loadTaskLists());
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => widget.planner.loadTaskLists());
     }
   }
 
