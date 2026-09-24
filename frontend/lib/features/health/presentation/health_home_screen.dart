@@ -1,5 +1,3 @@
-import 'dart:ui' show TextDirection;
-
 import 'package:flutter/material.dart';
 
 import '../../app_scope.dart';
@@ -1427,7 +1425,7 @@ class _MeasurementChartPainter extends CustomPainter {
           text: label,
           style: const TextStyle(color: Color(0xFF65758E), fontSize: 9),
         ),
-        textDirection: TextDirection.ltr,
+        textDirection: WidgetsBinding.instance.platformDispatcher.textDirection,
       )..layout();
       double dx = points[index].dx - painter.width / 2;
       dx = dx.clamp(0, size.width - painter.width).toDouble();
@@ -1438,7 +1436,7 @@ class _MeasurementChartPainter extends CustomPainter {
   void _paintText(Canvas canvas, String text, Offset offset, TextStyle style) {
     final TextPainter painter = TextPainter(
       text: TextSpan(text: text, style: style),
-      textDirection: TextDirection.ltr,
+      textDirection: WidgetsBinding.instance.platformDispatcher.textDirection,
     )..layout();
     painter.paint(canvas, offset);
   }

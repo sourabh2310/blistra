@@ -1,5 +1,3 @@
-import 'dart:ui' show TextDirection;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -1162,7 +1160,7 @@ class _TimelinePainter extends CustomPainter {
           text: item.$2,
           style: const TextStyle(color: Colors.white, fontFamily: 'serif', fontSize: 11, fontWeight: FontWeight.w700),
         ),
-        textDirection: TextDirection.ltr,
+        textDirection: WidgetsBinding.instance.platformDispatcher.textDirection,
       )..layout();
       painter.paint(canvas, Offset(item.$1.left + (item.$1.width - painter.width) / 2, item.$1.top + (item.$1.height - painter.height) / 2));
     }

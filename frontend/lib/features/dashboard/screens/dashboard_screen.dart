@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show TextDirection;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -1770,7 +1769,7 @@ class _WeekProgressPainter extends CustomPainter {
       final y = size.height * .12 + (index ~/ 2) * 27;
       final painter = TextPainter(
         text: TextSpan(text: labels[index], style: labelStyle),
-        textDirection: TextDirection.ltr,
+        textDirection: WidgetsBinding.instance.platformDispatcher.textDirection,
       )..layout();
       painter.paint(canvas, Offset(x, y));
     }
