@@ -129,7 +129,10 @@ void main() {
           jsonEncode({
             'date': '2026-09-24',
             'generatedAt': '2026-09-24T08:00:00+05:30',
-            'user': {'displayName': 'Ananya', 'firstName': 'Ananya'},
+            'user': {
+              'displayName': 'Sourabhkumar Chandrasekhar',
+              'firstName': 'Sourabhkumar Chandrasekhar',
+            },
             'planner': {
               'overdueTasks': [],
               'todayTasks': [],
@@ -147,21 +150,26 @@ void main() {
       await tester.binding.setSurfaceSize(size);
       await tester.pumpWidget(_home(
         controller: controller,
-         homeWidgets: const [
-           'TODAY_OVERVIEW',
-           'TODAYS_SCHEDULE',
-           'NEEDS_ATTENTION',
-           'YOUR_LIFE',
-           'THIS_WEEK',
-           'HEALTH',
-           'MEDICINES',
-           'DIET',
-           'HABITS',
-           'FINANCE',
-         ],
+        homeWidgets: const [
+          'TODAY_OVERVIEW',
+          'TODAYS_SCHEDULE',
+          'NEEDS_ATTENTION',
+          'YOUR_LIFE',
+          'THIS_WEEK',
+          'HEALTH',
+          'MEDICINES',
+          'DIET',
+          'HABITS',
+          'FINANCE',
+        ],
       ));
       await tester.pump();
+      expect(find.text('Sourabhkumar Chandrasekhar'), findsOneWidget);
       expect(find.text('Today overview'), findsOneWidget);
+      expect(find.text("Today's schedule"), findsOneWidget);
+      expect(find.text('Needs your attention'), findsOneWidget);
+      expect(find.text('Your life'), findsOneWidget);
+      expect(find.byTooltip('Planner'), findsNothing);
       expect(tester.takeException(), isNull);
     }
   });

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
@@ -55,7 +53,7 @@ class DashboardScreen extends StatelessWidget {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 1000),
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -64,7 +62,6 @@ class DashboardScreen extends StatelessWidget {
                                 onSearch: onSearch,
                                 onNotifications: onNotifications,
                                 onProfile: onProfile,
-                                onCalendar: () => onDestination?.call('PLANNER/TODAY'),
                               ),
                               const SizedBox(height: 20),
                               _Greeting(
@@ -120,95 +117,94 @@ class _Header extends StatelessWidget {
     this.onSearch,
     this.onNotifications,
     this.onProfile,
-    this.onCalendar,
   });
 
   final String displayName;
   final VoidCallback? onSearch;
   final VoidCallback? onNotifications;
   final VoidCallback? onProfile;
-  final VoidCallback? onCalendar;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      'Blistra',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.headlineLarge?.copyWith(
-                        fontFamily: 'serif',
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -1.2,
-                        color: const Color(0xFF174A3B),
-                      ),
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Blistra',
+                          maxLines: 1,
+                          style: theme.textTheme.headlineLarge?.copyWith(
+                            fontFamily: 'serif',
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1.2,
+                            color: const Color(0xFF174A3B),
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const _LeafMark(size: 32),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 2),
-                  const _LeafMark(size: 38),
-                ],
-              ),
-              Text(
-                'Everything you need. One app.',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF526B64),
-                  letterSpacing: .1,
                 ),
-              ),
-            ],
+                if (constraints.maxWidth >= 360)
+                  Text(
+                    'Everything you need. One app.',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF526B64),
+                      letterSpacing: .1,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 6),
-        _HeaderAction(
-          tooltip: 'Search',
-          icon: Icons.search_rounded,
-          onPressed: onSearch,
-        ),
-        _HeaderAction(
-          tooltip: 'Planner',
-          icon: Icons.calendar_today_outlined,
-          onPressed: onCalendar,
-        ),
-        _HeaderAction(
-          tooltip: 'Notifications',
-          icon: Icons.notifications_none_outlined,
-          onPressed: onNotifications,
-        ),
-        Semantics(
-          label: 'Profile',
-          button: true,
-          child: InkWell(
-            onTap: onProfile,
-            customBorder: const CircleBorder(),
-            child: Padding(
-              padding: const EdgeInsets.all(2),
-              child: CircleAvatar(
-                radius: 21,
-                backgroundColor: theme.colorScheme.secondaryContainer,
-                child: Text(
-                  initialsForName(displayName),
-                  style: TextStyle(
-                    color: theme.colorScheme.onSecondaryContainer,
-                    fontWeight: FontWeight.w800,
+          const SizedBox(width: 8),
+          _HeaderAction(
+            tooltip: 'Search',
+            icon: Icons.search_rounded,
+            onPressed: onSearch,
+          ),
+          _HeaderAction(
+            tooltip: 'Notifications',
+            icon: Icons.notifications_none_outlined,
+            onPressed: onNotifications,
+          ),
+          Semantics(
+            label: 'Profile',
+            button: true,
+            child: InkWell(
+              onTap: onProfile,
+              customBorder: const CircleBorder(),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: theme.colorScheme.secondaryContainer,
+                  child: Text(
+                    initialsForName(displayName),
+                    style: TextStyle(
+                      color: theme.colorScheme.onSecondaryContainer,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -226,16 +222,18 @@ class _HeaderAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(left: 5),
+        padding: const EdgeInsets.only(left: 4),
         child: IconButton(
           onPressed: onPressed,
           tooltip: tooltip,
+          constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+          padding: EdgeInsets.zero,
           style: IconButton.styleFrom(
             backgroundColor: Colors.white.withValues(alpha: .72),
             side: const BorderSide(color: Color(0xFFE8E0D7)),
-            fixedSize: const Size(42, 42),
+            fixedSize: const Size(44, 44),
           ),
-          icon: Icon(icon, color: const Color(0xFF193D37), size: 23),
+          icon: Icon(icon, color: const Color(0xFF193D37), size: 22),
         ),
       );
 }
@@ -263,104 +261,89 @@ class _Greeting extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final attention = buildAttentionItems(dashboard, now: now, limit: 1000).length;
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${greetingForHour(now.hour)},',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontFamily: 'serif',
+            color: const Color(0xFF516B85),
+          ),
+        ),
+        const SizedBox(height: 1),
+        Text(
+          name,
+          style: theme.textTheme.displaySmall?.copyWith(
+            fontFamily: 'serif',
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1.4,
+            color: const Color(0xFF192A4C),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          DateFormat('EEEE, d MMMM').format(now),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontFamily: 'serif',
+            color: const Color(0xFF526B8C),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          attention == 0
+              ? "You're all caught up for today."
+              : 'You have $attention thing${attention == 1 ? '' : 's'} to take care of today.',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontFamily: 'serif',
+            height: 1.28,
+            color: const Color(0xFF526B85),
+          ),
+        ),
+      ],
+    );
+    final art = const ClipRRect(
+      borderRadius: BorderRadius.all(Radius.circular(28)),
+      child: CustomPaint(painter: _LandscapePainter()),
+    );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 620;
-        final textWidth = wide ? constraints.maxWidth * .5 : constraints.maxWidth * .61;
-        return SizedBox(
-          height: wide ? 230 : 218,
-          child: Stack(
+        final sideBySide = constraints.maxWidth >= 340;
+        if (sideBySide) {
+          return Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .42),
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: text),
+                const SizedBox(width: 14),
+                SizedBox(width: 132, height: 190, child: art),
+              ],
+            ),
+          );
+        }
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .42),
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Positioned(
-                right: wide ? 12 : 0,
-                top: 0,
-                bottom: 0,
-                width: wide ? constraints.maxWidth * .48 : constraints.maxWidth * .45,
-                child: const ClipRRect(
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(110),
-                    topRight: Radius.circular(24),
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                  child: CustomPaint(painter: _LandscapePainter()),
-                ),
-              ),
-              SizedBox(
-                width: textWidth,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${greetingForHour(now.hour)},',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontFamily: 'serif',
-                        color: const Color(0xFF516B85),
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.displaySmall?.copyWith(
-                              fontFamily: 'serif',
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -1.4,
-                              color: const Color(0xFF192A4C),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 9),
-                        const _SunMark(size: 38),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      DateFormat('EEEE, d MMMM').format(now),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontFamily: 'serif',
-                        color: const Color(0xFF526B8C),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      attention == 0
-                          ? "You're all caught up for today."
-                          : 'You have $attention thing${attention == 1 ? '' : 's'} to take care of today.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontFamily: 'serif',
-                        height: 1.28,
-                        color: const Color(0xFF526B85),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              text,
+              const SizedBox(height: 14),
+              SizedBox(height: 92, width: double.infinity, child: art),
             ],
           ),
         );
       },
     );
   }
-}
-
-class _SunMark extends StatelessWidget {
-  const _SunMark({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) => SizedBox.square(
-        dimension: size,
-        child: CustomPaint(painter: _SunMarkPainter()),
-      );
 }
 
 class _HomeContent extends StatelessWidget {
@@ -384,78 +367,16 @@ class _HomeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final sections = homeWidgets.where(HomeWidgets.sections.contains).toList();
     final children = <Widget>[];
-    for (var index = 0; index < sections.length; index++) {
-      final id = sections[index];
-      final next = index + 1 < sections.length ? sections[index + 1] : null;
-      if (next != null &&
-          {id, next}.length == 2 &&
-          {id, next}.contains(HomeWidgets.todaysSchedule) &&
-          {id, next}.contains(HomeWidgets.needsAttention)) {
-        children.add(LayoutBuilder(
-          builder: (context, constraints) => constraints.maxWidth >= 360
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: id == HomeWidgets.todaysSchedule ? 3 : 2,
-                      child: _SectionContent(
-                        id: id,
-                        dashboard: dashboard,
-                        now: now,
-                        onDestination: onDestination,
-                        onRefresh: onRefresh,
-                        homeWidgets: homeWidgets,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: next == HomeWidgets.todaysSchedule ? 3 : 2,
-                      child: _SectionContent(
-                        id: next,
-                        dashboard: dashboard,
-                        now: now,
-                        onDestination: onDestination,
-                        onRefresh: onRefresh,
-                        homeWidgets: homeWidgets,
-                      ),
-                    ),
-                  ],
-                )
-              : Column(
-                  children: [
-                    _SectionContent(
-                      id: id,
-                      dashboard: dashboard,
-                      now: now,
-                      onDestination: onDestination,
-                      onRefresh: onRefresh,
-                      homeWidgets: homeWidgets,
-                    ),
-                    const SizedBox(height: 12),
-                    _SectionContent(
-                      id: next,
-                      dashboard: dashboard,
-                      now: now,
-                      onDestination: onDestination,
-                      onRefresh: onRefresh,
-                      homeWidgets: homeWidgets,
-                    ),
-                  ],
-                ),
-        ));
-        children.add(const SizedBox(height: 12));
-        index++;
-      } else {
-        children.add(_SectionContent(
-          id: id,
-          dashboard: dashboard,
-          now: now,
-          onDestination: onDestination,
-          onRefresh: onRefresh,
-          homeWidgets: homeWidgets,
-        ));
-        children.add(const SizedBox(height: 12));
-      }
+    for (final id in sections) {
+      children.add(_SectionContent(
+        id: id,
+        dashboard: dashboard,
+        now: now,
+        onDestination: onDestination,
+        onRefresh: onRefresh,
+        homeWidgets: homeWidgets,
+      ));
+      children.add(const SizedBox(height: 12));
     }
     if (!hubPinned)
       children.add(Align(
@@ -544,25 +465,22 @@ class _TodayOverview extends StatelessWidget {
         else
           LayoutBuilder(
             builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 350 ? 4 : 2;
-              final textScale =
-                  MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
-              return GridView.count(
-                crossAxisCount: columns,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio:
-                    (columns == 4 ? .72 : 1.05) / textScale,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
+              const spacing = 10.0;
+              final cardWidth = (constraints.maxWidth - spacing) / 2;
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
                 children: [
                   for (final metric in metrics.availableMetrics)
-                    _MetricCard(
-                      label: metric.label,
-                      value: metric.value,
-                      detail: metric.detail,
-                      icon: metric.icon,
-                      onTap: () => onDestination?.call(metric.destination),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _MetricCard(
+                        label: metric.label,
+                        value: metric.value,
+                        detail: metric.detail,
+                        icon: metric.icon,
+                        onTap: () => onDestination?.call(metric.destination),
+                      ),
                     ),
                 ],
               );
@@ -624,6 +542,10 @@ class _NeedsAttention extends StatelessWidget {
     return _Panel(
       title: 'Needs your attention',
       icon: Icons.notifications_active_outlined,
+      trailing: _SeeAll(
+        label: 'See details',
+        onTap: () => onDestination?.call('HUB'),
+      ),
       child: items.isEmpty
           ? const _EmptyState(message: "You're caught up for now.")
           : Column(
@@ -668,29 +590,23 @@ class _YourLife extends StatelessWidget {
           ? const _EmptyState(message: 'No modules selected.')
           : LayoutBuilder(
               builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 650
-                    ? 5
-                    : constraints.maxWidth >= 350
-                        ? 3
-                        : 1;
-                final textScale =
-                    MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
-                return GridView.count(
-                  crossAxisCount: columns,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio:
-                      (columns == 1 ? 1.7 : columns == 3 ? .95 : 1.35) /
-                          textScale,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+                const spacing = 10.0;
+                final columns = constraints.maxWidth >= 700 ? 3 : 2;
+                final cardWidth =
+                    (constraints.maxWidth - spacing * (columns - 1)) / columns;
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
                   children: [
                     for (final id in selected)
-                      _ModuleCard(
-                        id: id,
-                        dashboard: dashboard,
-                        onDestination: onDestination,
-                        onRefresh: onRefresh,
+                      SizedBox(
+                        width: cardWidth,
+                        child: _ModuleCard(
+                          id: id,
+                          dashboard: dashboard,
+                          onDestination: onDestination,
+                          onRefresh: onRefresh,
+                        ),
                       ),
                   ],
                 );
@@ -873,8 +789,7 @@ class _ModuleCard extends StatelessWidget {
         action: IconButton(
           onPressed: onRefresh,
           tooltip: 'Retry',
-          visualDensity: VisualDensity.compact,
-          constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+          constraints: const BoxConstraints.tightFor(width: 44, height: 44),
           padding: EdgeInsets.zero,
           icon: const Icon(Icons.refresh, size: 18),
         ),
@@ -997,65 +912,64 @@ class _ModuleCardShell extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: style.iconBackground,
-                      shape: BoxShape.circle,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 132),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: style.iconBackground,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: style.foreground, size: 20),
                     ),
-                    child: Icon(icon, color: style.foreground, size: 20),
-                  ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      HomeWidgets.label(id),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontFamily: 'serif',
-                        fontWeight: FontWeight.w800,
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        HomeWidgets.label(id),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontFamily: 'serif',
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
+                    if (onTap != null)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 1),
+                        child: Icon(Icons.chevron_right, size: 16),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  value,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontFamily: 'serif',
+                    fontWeight: FontWeight.w800,
                   ),
-                  if (onTap != null)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 1),
-                      child: Icon(Icons.chevron_right, size: 16),
-                    ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (action != null) ...[
+                  const SizedBox(height: 4),
+                  action!,
                 ],
-              ),
-              const Spacer(),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontFamily: 'serif',
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                detail,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              if (action != null) ...[
-                const SizedBox(height: 4),
-                action!,
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -1100,8 +1014,6 @@ class _Panel extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontFamily: 'serif',
                       fontWeight: FontWeight.w800,
@@ -1147,54 +1059,52 @@ class _MetricCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: style.iconBackground,
-                      shape: BoxShape.circle,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 148),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: style.iconBackground,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, size: 20, color: style.foreground),
                     ),
-                    child: Icon(icon, size: 20, color: style.foreground),
+                    const Icon(Icons.chevron_right, size: 19),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  value,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontFamily: 'serif',
+                    fontWeight: FontWeight.w800,
                   ),
-                  const Icon(Icons.chevron_right, size: 19),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontFamily: 'serif',
-                  fontWeight: FontWeight.w800,
                 ),
-              ),
-              Text(
-                label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontFamily: 'serif',
-                  color: theme.colorScheme.onSurfaceVariant,
+                Text(
+                  label,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'serif',
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              Text(
-                detail,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: .8),
+                Text(
+                  detail,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: .8),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1216,8 +1126,8 @@ class _ScheduleRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: SizedBox(
-        height: 54,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 62),
         child: Row(
           children: [
             SizedBox(
@@ -1280,7 +1190,7 @@ class _ScheduleRow extends StatelessWidget {
                       children: [
                         Text(
                           item.title,
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontFamily: 'serif',
@@ -1289,7 +1199,7 @@ class _ScheduleRow extends StatelessWidget {
                         ),
                         Text(
                           item.meta,
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
                         ),
@@ -1352,7 +1262,7 @@ class _AttentionRow extends StatelessWidget {
                   children: [
                     Text(
                       item.title,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontFamily: 'serif',
@@ -1361,7 +1271,7 @@ class _AttentionRow extends StatelessWidget {
                     ),
                     Text(
                       item.detail,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontSize: 10,
@@ -1541,33 +1451,6 @@ class _LeafMarkPainter extends CustomPainter {
       Offset(size.width * .61, size.height * .43),
       stem..strokeWidth = 1.2,
     );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _SunMarkPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * .5, size.height * .54);
-    final ray = Paint()
-      ..color = const Color(0xFFFFB62E)
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawCircle(center, size.width * .24, Paint()..color = const Color(0xFFFFBD35));
-    for (var index = 0; index < 8; index++) {
-      final angle = index * 3.1415926535 / 4;
-      final start = Offset(
-        center.dx + (size.width * .32) * math.cos(angle),
-        center.dy + (size.width * .32) * math.sin(angle),
-      );
-      final end = Offset(
-        center.dx + (size.width * .42) * math.cos(angle),
-        center.dy + (size.width * .42) * math.sin(angle),
-      );
-      canvas.drawLine(start, end, ray);
-    }
   }
 
   @override

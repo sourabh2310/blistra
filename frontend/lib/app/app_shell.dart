@@ -178,7 +178,6 @@ class _AppShellState extends State<AppShell> {
       );
     }
     return Scaffold(
-      extendBody: true,
       body: IndexedStack(index: selected, children: pages),
       bottomNavigationBar: _BlistraBottomBar(
         destinations: destinations,
@@ -587,45 +586,47 @@ class _BlistraBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Container(
-        height: 72,
-        margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(34),
-          border: Border.all(color: const Color(0xFFF0F2F0)),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1B2B28).withValues(alpha: 0.12),
-              blurRadius: 28,
-              spreadRadius: 1,
-              offset: const Offset(0, 9),
-            ),
-          ],
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: Row(
-            children: [
-              for (int i = 0; i < destinations.length; i++)
-                if (destinations[i] == ShellDestinations.add)
-                  SizedBox(
-                    width: 72,
-                    child: _AddButton(open: addOpen, onTap: () => onSelect(i)),
-                  )
-                else
-                  Expanded(
-                    child: _BarItem(
-                      label: ShellDestinations.label(destinations[i]),
-                      icon: ShellDestinations.icon(destinations[i]),
-                      selectedIcon:
-                          ShellDestinations.selectedIcon(destinations[i]),
-                      selected: index == i,
-                      onTap: () => onSelect(i),
-                    ),
-                  ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 72),
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(34),
+            border: Border.all(color: const Color(0xFFF0F2F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1B2B28).withValues(alpha: 0.12),
+                blurRadius: 28,
+                spreadRadius: 1,
+                offset: const Offset(0, 9),
+              ),
             ],
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: Row(
+              children: [
+                for (int i = 0; i < destinations.length; i++)
+                  if (destinations[i] == ShellDestinations.add)
+                    SizedBox(
+                      width: 72,
+                      child: _AddButton(open: addOpen, onTap: () => onSelect(i)),
+                    )
+                  else
+                    Expanded(
+                      child: _BarItem(
+                        label: ShellDestinations.label(destinations[i]),
+                        icon: ShellDestinations.icon(destinations[i]),
+                        selectedIcon:
+                            ShellDestinations.selectedIcon(destinations[i]),
+                        selected: index == i,
+                        onTap: () => onSelect(i),
+                      ),
+                    ),
+              ],
+            ),
           ),
         ),
       ),
@@ -646,41 +647,38 @@ class _AddButton extends StatelessWidget {
       button: true,
       child: GestureDetector(
         onTap: onTap,
-        child: Transform.translate(
-          offset: const Offset(0, -8),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF087D70), Color(0xFF07584F)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0A665A).withValues(alpha: 0.24),
-                  blurRadius: 14,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF087D70), Color(0xFF07584F)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              transitionBuilder: (Widget child, Animation<double> animation) =>
-                  FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(scale: animation, child: child),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0A665A).withValues(alpha: 0.24),
+                blurRadius: 14,
+                spreadRadius: 2,
+                offset: const Offset(0, 6),
               ),
-              child: Icon(
-                open ? Icons.close : Icons.add,
-                key: ValueKey(open),
-                color: Colors.white,
-                size: 38,
-              ),
+            ],
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            transitionBuilder: (Widget child, Animation<double> animation) =>
+                FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(scale: animation, child: child),
+            ),
+            child: Icon(
+              open ? Icons.close : Icons.add,
+              key: ValueKey(open),
+              color: Colors.white,
+              size: 36,
             ),
           ),
         ),
@@ -724,8 +722,7 @@ class _BarItem extends StatelessWidget {
               AnimatedContainer(
                 duration: const Duration(milliseconds: 190),
                 curve: Curves.easeOutCubic,
-                height: 44,
-                constraints: const BoxConstraints(minWidth: 54),
+                constraints: const BoxConstraints(minHeight: 44),
                 padding: EdgeInsets.symmetric(
                   horizontal: selected ? 10 : 4,
                   vertical: 3,
