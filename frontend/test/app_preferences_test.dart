@@ -52,8 +52,9 @@ PreferencesController _controllerWithMock({
     }
     return http.Response('{}', 404);
   });
-  final api =
-      PreferencesApi(ApiClient(baseUrl: 'http://localhost', httpClient: mock));
+  final api = PreferencesApi(
+    ApiClient(baseUrl: 'http://localhost', httpClient: mock),
+  );
   return PreferencesController(api);
 }
 
@@ -64,10 +65,13 @@ void main() {
 
   group('ShellDestinations.normalizeNav', () {
     test('defaults are valid', () {
-      expect(
-        ShellDestinations.normalizeNav(ShellDestinations.defaults),
-        ['HOME', 'PLANNER', 'ADD', 'HUB', 'HEALTH'],
-      );
+      expect(ShellDestinations.normalizeNav(ShellDestinations.defaults), [
+        'HOME',
+        'PLANNER',
+        'ADD',
+        'HUB',
+        'HEALTH',
+      ]);
     });
 
     test('Home cannot be removed', () {
@@ -86,8 +90,14 @@ void main() {
 
     test('maximum 5 items', () {
       expect(
-        () => ShellDestinations.normalizeNav(
-            ['HOME', 'PLANNER', 'ADD', 'HEALTH', 'HUB', 'DIET']),
+        () => ShellDestinations.normalizeNav([
+          'HOME',
+          'PLANNER',
+          'ADD',
+          'HEALTH',
+          'HUB',
+          'DIET',
+        ]),
         throwsArgumentError,
       );
     });
@@ -115,17 +125,13 @@ void main() {
 
     test('unknown widget rejected', () {
       expect(
-        () => HomeWidgets.normalizeWidgets(
-            ['TODAY_OVERVIEW', 'FAKE_FEATURE']),
+        () => HomeWidgets.normalizeWidgets(['TODAY_OVERVIEW', 'FAKE_FEATURE']),
         throwsArgumentError,
       );
     });
 
     test('empty rejected', () {
-      expect(
-        () => HomeWidgets.normalizeWidgets([]),
-        throwsArgumentError,
-      );
+      expect(() => HomeWidgets.normalizeWidgets([]), throwsArgumentError);
     });
   });
 
@@ -140,9 +146,20 @@ void main() {
     test('refresh loads the user payload', () async {
       final controller = _controllerWithMock();
       await controller.bindUser('alice@example.com');
-      expect(controller.bottomNav,
-          ['HOME', 'PLANNER', 'ADD', 'HUB', 'HEALTH']);
+      expect(controller.bottomNav, ['HOME', 'PLANNER', 'ADD', 'HUB', 'HEALTH']);
       expect(controller.homeWidgets.first, 'TODAY_OVERVIEW');
+    });
+
+    test('malformed payload preserves deterministic Home defaults', () async {
+      final controller = _controllerWithMock(
+        getPayload: {
+          'bottomNav': 'not-a-list',
+          'homeWidgets': <String, dynamic>{},
+        },
+      );
+      await controller.bindUser('alice@example.com');
+      expect(controller.bottomNav, ShellDestinations.defaults);
+      expect(controller.homeWidgets, HomeWidgets.defaults);
     });
 
     test('save persists valid configuration', () async {
@@ -153,8 +170,7 @@ void main() {
         homeWidgets: ['HEALTH', 'DIET'],
       );
       expect(ok, isTrue);
-       expect(controller.bottomNav,
-           ['HOME', 'HABITS', 'ADD', 'DIET', 'HUB']);
+      expect(controller.bottomNav, ['HOME', 'HABITS', 'ADD', 'DIET', 'HUB']);
       expect(controller.homeWidgets, contains('YOUR_LIFE'));
     });
 
@@ -165,7 +181,8 @@ void main() {
         return http.Response('{}', 200);
       });
       final controller = PreferencesController(
-          PreferencesApi(ApiClient(baseUrl: 'http://x', httpClient: mock)));
+        PreferencesApi(ApiClient(baseUrl: 'http://x', httpClient: mock)),
+      );
       await controller.bindUser('bob@example.com');
       final hitsBeforeSave = hits;
       await expectLater(
@@ -191,43 +208,46 @@ void main() {
       expect(controller.homeWidgets, HomeWidgets.defaults);
     });
 
-    test('late response from a previous user cannot overwrite the active user', () async {
-      final firstResponse = Completer<void>();
-      var getCount = 0;
-      final mock = MockClient((req) async {
-        if (req.method == 'GET') {
-          getCount++;
-          if (getCount == 1) {
-            await firstResponse.future;
+    test(
+      'late response from a previous user cannot overwrite the active user',
+      () async {
+        final firstResponse = Completer<void>();
+        var getCount = 0;
+        final mock = MockClient((req) async {
+          if (req.method == 'GET') {
+            getCount++;
+            if (getCount == 1) {
+              await firstResponse.future;
+              return http.Response(
+                jsonEncode({
+                  'bottomNav': ['HOME', 'ADD', 'FINANCE'],
+                  'homeWidgets': ['TODAY_OVERVIEW'],
+                }),
+                200,
+              );
+            }
             return http.Response(
               jsonEncode({
-                'bottomNav': ['HOME', 'ADD', 'FINANCE'],
+                'bottomNav': ['HOME', 'ADD', 'HABITS'],
                 'homeWidgets': ['TODAY_OVERVIEW'],
               }),
               200,
             );
           }
-          return http.Response(
-            jsonEncode({
-              'bottomNav': ['HOME', 'ADD', 'HABITS'],
-              'homeWidgets': ['TODAY_OVERVIEW'],
-            }),
-            200,
-          );
-        }
-        return http.Response('{}', 200);
-      });
-      final controller = PreferencesController(
-        PreferencesApi(ApiClient(baseUrl: 'http://x', httpClient: mock)),
-      );
-      final alice = controller.bindUser('alice');
-      await Future<void>.delayed(Duration.zero);
-      final bob = controller.bindUser('bob');
-      await bob;
-      firstResponse.complete();
-      await alice;
-      expect(controller.bottomNav, ['HOME', 'ADD', 'HABITS']);
-    });
+          return http.Response('{}', 200);
+        });
+        final controller = PreferencesController(
+          PreferencesApi(ApiClient(baseUrl: 'http://x', httpClient: mock)),
+        );
+        final alice = controller.bindUser('alice');
+        await Future<void>.delayed(Duration.zero);
+        final bob = controller.bindUser('bob');
+        await bob;
+        firstResponse.complete();
+        await alice;
+        expect(controller.bottomNav, ['HOME', 'ADD', 'HABITS']);
+      },
+    );
 
     test('cache restores the same user after restart', () async {
       final first = _controllerWithMock();
@@ -241,8 +261,9 @@ void main() {
       final failing = MockClient((req) async {
         return http.Response('boom', 500);
       });
-      final second = PreferencesController(PreferencesApi(
-          ApiClient(baseUrl: 'http://x', httpClient: failing)));
+      final second = PreferencesController(
+        PreferencesApi(ApiClient(baseUrl: 'http://x', httpClient: failing)),
+      );
       await second.bindUser('carol@example.com');
       expect(second.bottomNav, contains('FINANCE'));
     });

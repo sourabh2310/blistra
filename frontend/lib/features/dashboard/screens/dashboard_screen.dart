@@ -35,58 +35,72 @@ class DashboardScreen extends StatelessWidget {
           user: controller.dashboard?.user,
           email: scope.authState.userEmail,
         );
-        final Future<void> Function() refresh = () => controller.refresh(
-              date: now,
-              offsetMinutes: now.timeZoneOffset.inMinutes,
-            );
-        return Scaffold(
-          body: Stack(
+        Future<void> refresh() => controller.refresh(
+          date: now,
+          offsetMinutes: now.timeZoneOffset.inMinutes,
+        );
+        return Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
               const Positioned.fill(child: _AmbientLeaves()),
-              RefreshIndicator(
-                onRefresh: refresh,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: SafeArea(
-                    bottom: false,
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1000),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _Header(
-                                displayName: name,
-                                onSearch: onSearch,
-                                onNotifications: onNotifications,
-                                onProfile: onProfile,
+              Positioned.fill(
+                child: RefreshIndicator(
+                  onRefresh: refresh,
+                  child: SizedBox.expand(
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SafeArea(
+                        bottom: false,
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1000),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                12,
+                                16,
+                                24,
                               ),
-                              const SizedBox(height: 20),
-                              _Greeting(
-                                name: name,
-                                now: now,
-                                dashboard: controller.dashboard,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _Header(
+                                    displayName: name,
+                                    onSearch: onSearch,
+                                    onNotifications: onNotifications,
+                                    onProfile: onProfile,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  _Greeting(
+                                    name: name,
+                                    now: now,
+                                    dashboard: controller.dashboard,
+                                  ),
+                                  const SizedBox(height: 18),
+                                  if (controller.isLoading &&
+                                      controller.dashboard == null)
+                                    const _DashboardSkeleton()
+                                  else if (controller.dashboard == null)
+                                    _FullError(
+                                      message:
+                                          controller.error ??
+                                          'Home is unavailable right now.',
+                                      onRetry: refresh,
+                                    )
+                                  else
+                                    _HomeContent(
+                                      dashboard: controller.dashboard!,
+                                      now: now,
+                                      homeWidgets: _orderedWidgets(homeWidgets),
+                                      hubPinned: hubPinned,
+                                      onDestination: onDestination,
+                                      onRefresh: refresh,
+                                    ),
+                                ],
                               ),
-                              const SizedBox(height: 18),
-                              if (controller.isLoading && controller.dashboard == null)
-                                const _DashboardSkeleton()
-                              else if (controller.dashboard == null)
-                                _FullError(
-                                  message: controller.error ?? 'Home is unavailable right now.',
-                                  onRetry: refresh,
-                                )
-                              else
-                                _HomeContent(
-                                  dashboard: controller.dashboard!,
-                                  now: now,
-                                  homeWidgets: _orderedWidgets(homeWidgets),
-                                  hubPinned: hubPinned,
-                                  onDestination: onDestination,
-                                  onRefresh: refresh,
-                                ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -132,6 +146,7 @@ class _Header extends StatelessWidget {
         children: [
           Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Flexible(
@@ -222,20 +237,20 @@ class _HeaderAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(left: 4),
-        child: IconButton(
-          onPressed: onPressed,
-          tooltip: tooltip,
-          constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-          padding: EdgeInsets.zero,
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.white.withValues(alpha: .72),
-            side: const BorderSide(color: Color(0xFFE8E0D7)),
-            fixedSize: const Size(44, 44),
-          ),
-          icon: Icon(icon, color: const Color(0xFF193D37), size: 22),
-        ),
-      );
+    padding: const EdgeInsets.only(left: 4),
+    child: IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+      padding: EdgeInsets.zero,
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.white.withValues(alpha: .72),
+        side: const BorderSide(color: Color(0xFFE8E0D7)),
+        fixedSize: const Size(44, 44),
+      ),
+      icon: Icon(icon, color: const Color(0xFF193D37), size: 22),
+    ),
+  );
 }
 
 class _LeafMark extends StatelessWidget {
@@ -245,13 +260,17 @@ class _LeafMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox.square(
-        dimension: size,
-        child: CustomPaint(painter: _LeafMarkPainter()),
-      );
+    dimension: size,
+    child: CustomPaint(painter: _LeafMarkPainter()),
+  );
 }
 
 class _Greeting extends StatelessWidget {
-  const _Greeting({required this.name, required this.now, required this.dashboard});
+  const _Greeting({
+    required this.name,
+    required this.now,
+    required this.dashboard,
+  });
 
   final String name;
   final DateTime now;
@@ -260,7 +279,11 @@ class _Greeting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final attention = buildAttentionItems(dashboard, now: now, limit: 1000).length;
+    final attention = buildAttentionItems(
+      dashboard,
+      now: now,
+      limit: 1000,
+    ).length;
     final text = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -368,26 +391,34 @@ class _HomeContent extends StatelessWidget {
     final sections = homeWidgets.where(HomeWidgets.sections.contains).toList();
     final children = <Widget>[];
     for (final id in sections) {
-      children.add(_SectionContent(
-        id: id,
-        dashboard: dashboard,
-        now: now,
-        onDestination: onDestination,
-        onRefresh: onRefresh,
-        homeWidgets: homeWidgets,
-      ));
+      children.add(
+        _SectionContent(
+          id: id,
+          dashboard: dashboard,
+          now: now,
+          onDestination: onDestination,
+          onRefresh: onRefresh,
+          homeWidgets: homeWidgets,
+        ),
+      );
       children.add(const SizedBox(height: 12));
     }
-    if (!hubPinned)
-      children.add(Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-          onPressed: () => onDestination?.call('HUB'),
-          icon: const Icon(Icons.grid_view_outlined),
-          label: const Text('Explore Hub'),
+    if (!hubPinned) {
+      children.add(
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => onDestination?.call('HUB'),
+            icon: const Icon(Icons.grid_view_outlined),
+            label: const Text('Explore Hub'),
+          ),
         ),
-      ));
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
   }
 }
 
@@ -410,34 +441,34 @@ class _SectionContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => switch (id) {
-        HomeWidgets.todayOverview => _TodayOverview(
-            dashboard: dashboard,
-            onDestination: onDestination,
-            onRefresh: onRefresh,
-          ),
-        HomeWidgets.todaysSchedule => _TodaySchedule(
-            dashboard: dashboard,
-            now: now,
-            onDestination: onDestination,
-          ),
-        HomeWidgets.needsAttention => _NeedsAttention(
-            dashboard: dashboard,
-            now: now,
-            onDestination: onDestination,
-          ),
-        HomeWidgets.yourLife => _YourLife(
-            dashboard: dashboard,
-            homeWidgets: homeWidgets,
-            onDestination: onDestination,
-            onRefresh: onRefresh,
-          ),
-        HomeWidgets.thisWeek => _ThisWeek(
-            week: dashboard.week,
-            onDestination: onDestination,
-            onRefresh: onRefresh,
-          ),
-        _ => const SizedBox.shrink(),
-      };
+    HomeWidgets.todayOverview => _TodayOverview(
+      dashboard: dashboard,
+      onDestination: onDestination,
+      onRefresh: onRefresh,
+    ),
+    HomeWidgets.todaysSchedule => _TodaySchedule(
+      dashboard: dashboard,
+      now: now,
+      onDestination: onDestination,
+    ),
+    HomeWidgets.needsAttention => _NeedsAttention(
+      dashboard: dashboard,
+      now: now,
+      onDestination: onDestination,
+    ),
+    HomeWidgets.yourLife => _YourLife(
+      dashboard: dashboard,
+      homeWidgets: homeWidgets,
+      onDestination: onDestination,
+      onRefresh: onRefresh,
+    ),
+    HomeWidgets.thisWeek => _ThisWeek(
+      week: dashboard.week,
+      onDestination: onDestination,
+      onRefresh: onRefresh,
+    ),
+    _ => const SizedBox.shrink(),
+  };
 }
 
 class _TodayOverview extends StatelessWidget {
@@ -576,9 +607,9 @@ class _YourLife extends StatelessWidget {
   final Future<void> Function() onRefresh;
 
   List<String> get modules => [
-        for (final id in homeWidgets)
-          if (HomeWidgets.modules.contains(id)) id,
-      ];
+    for (final id in homeWidgets)
+      if (HomeWidgets.modules.contains(id)) id,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -647,14 +678,12 @@ class _ThisWeek extends StatelessWidget {
     }
     final taskProgress = value.tasksDue == 0
         ? 0.0
-        : (value.completedTasks / value.tasksDue)
-            .clamp(0.0, 1.0)
-            .toDouble();
+        : (value.completedTasks / value.tasksDue).clamp(0.0, 1.0).toDouble();
     final habitProgress = value.habitOccurrences == 0
         ? 0.0
         : (value.habitCompletions / value.habitOccurrences)
-            .clamp(0.0, 1.0)
-            .toDouble();
+              .clamp(0.0, 1.0)
+              .toDouble();
     return _Panel(
       title: 'This week',
       icon: Icons.bar_chart_rounded,
@@ -671,11 +700,11 @@ class _ThisWeek extends StatelessWidget {
                 height: 104,
                 width: chartWidth,
                 child: CustomPaint(
-                   painter: _WeekProgressPainter(
-                     habitProgress: habitProgress,
-                     taskProgress: taskProgress,
-                     textDirection: Directionality.of(context),
-                   ),
+                  painter: _WeekProgressPainter(
+                    habitProgress: habitProgress,
+                    taskProgress: taskProgress,
+                    textDirection: Directionality.of(context),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -707,7 +736,6 @@ class _WeekDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -721,10 +749,7 @@ class _WeekDetails extends StatelessWidget {
           label: 'Tasks completed',
         ),
         Container(width: 1, height: 46, color: const Color(0xFFE6E5E3)),
-        _WeekDetail(
-          value: '$activeDays / 7',
-          label: 'Days active',
-        ),
+        _WeekDetail(value: '$activeDays / 7', label: 'Days active'),
       ],
     );
   }
@@ -780,7 +805,7 @@ class _ModuleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final value = _moduleValue();
-    if (value.error) {
+    if (value.isError) {
       return _ModuleCardShell(
         id: id,
         icon: _moduleIcon(id),
@@ -811,9 +836,11 @@ class _ModuleCard extends StatelessWidget {
         if (section == null || section.unavailable) return _ModuleValue.error();
         final measurements = [...section.latestMeasurements];
         measurements.sort((a, b) {
-          final aDate = DateTime.tryParse(a.measuredAt ?? '') ??
+          final aDate =
+              DateTime.tryParse(a.measuredAt ?? '') ??
               DateTime.fromMillisecondsSinceEpoch(0);
-          final bDate = DateTime.tryParse(b.measuredAt ?? '') ??
+          final bDate =
+              DateTime.tryParse(b.measuredAt ?? '') ??
               DateTime.fromMillisecondsSinceEpoch(0);
           return bDate.compareTo(aDate);
         });
@@ -878,12 +905,15 @@ class _ModuleCard extends StatelessWidget {
 }
 
 class _ModuleValue {
-  const _ModuleValue(this.value, this.detail, {this.error = false});
-  const _ModuleValue.error() : this('Unavailable', '', error: true);
+  const _ModuleValue(this.value, this.detail) : isError = false;
+  const _ModuleValue.error()
+    : value = 'Unavailable',
+      detail = '',
+      isError = true;
 
   final String value;
   final String detail;
-  final bool error;
+  final bool isError;
 }
 
 class _ModuleCardShell extends StatelessWidget {
@@ -964,10 +994,7 @@ class _ModuleCardShell extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                if (action != null) ...[
-                  const SizedBox(height: 4),
-                  action!,
-                ],
+                if (action != null) ...[const SizedBox(height: 4), action!],
               ],
             ),
           ),
@@ -1100,7 +1127,9 @@ class _MetricCard extends StatelessWidget {
                 Text(
                   detail,
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: .8),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: .8,
+                    ),
                   ),
                 ),
               ],
@@ -1113,7 +1142,11 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _ScheduleRow extends StatelessWidget {
-  const _ScheduleRow({required this.item, required this.onTap, this.showDivider = true});
+  const _ScheduleRow({
+    required this.item,
+    required this.onTap,
+    this.showDivider = true,
+  });
 
   final TimelineItem item;
   final VoidCallback onTap;
@@ -1152,14 +1185,20 @@ class _ScheduleRow extends StatelessWidget {
                       left: 8,
                       top: 0,
                       bottom: 0,
-                      child: Container(width: 1, color: const Color(0xFFD8E1DF)),
+                      child: Container(
+                        width: 1,
+                        color: const Color(0xFFD8E1DF),
+                      ),
                     ),
                   Semantics(
                     label: _timelineStatusLabel(item.status),
                     child: Container(
                       width: 12,
                       height: 12,
-                      decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
                 ],
@@ -1201,7 +1240,9 @@ class _ScheduleRow extends StatelessWidget {
                           item.meta,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 10,
+                          ),
                         ),
                       ],
                     ),
@@ -1210,11 +1251,7 @@ class _ScheduleRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            Icon(
-              _timelineIcon(item.status),
-              size: 19,
-              color: statusColor,
-            ),
+            Icon(_timelineIcon(item.status), size: 19, color: statusColor),
           ],
         ),
       ),
@@ -1223,7 +1260,11 @@ class _ScheduleRow extends StatelessWidget {
 }
 
 class _AttentionRow extends StatelessWidget {
-  const _AttentionRow({required this.item, required this.onTap, this.showDivider = true});
+  const _AttentionRow({
+    required this.item,
+    required this.onTap,
+    this.showDivider = true,
+  });
 
   final AttentionItem item;
   final VoidCallback onTap;
@@ -1253,7 +1294,11 @@ class _AttentionRow extends StatelessWidget {
                   color: color.withValues(alpha: .16),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(_attentionIcon(item.detail), size: 18, color: color),
+                child: Icon(
+                  _attentionIcon(item.detail),
+                  size: 18,
+                  color: color,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -1323,14 +1368,13 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(
-          message,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Text(
+      message,
+      style: Theme.of(context).textTheme.bodyMedium
+          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+    ),
+  );
 }
 
 class _ErrorState extends StatelessWidget {
@@ -1340,16 +1384,18 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        children: [
-          Expanded(
-            child: Text(
-              moduleError ? 'Some Home data could not be loaded.' : 'Try again to load Home.',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
-        ],
-      );
+    children: [
+      Expanded(
+        child: Text(
+          moduleError
+              ? 'Some Home data could not be loaded.'
+              : 'Try again to load Home.',
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
+      ),
+      TextButton(onPressed: onRetry, child: const Text('Retry')),
+    ],
+  );
 }
 
 class _FullError extends StatelessWidget {
@@ -1359,24 +1405,27 @@ class _FullError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Home is unavailable', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Text(message),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Home is unavailable',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-        ),
-      );
+          const SizedBox(height: 8),
+          Text(message),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _DashboardSkeleton extends StatelessWidget {
@@ -1404,12 +1453,12 @@ class _SkeletonBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-        ),
-      );
+    height: height,
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(16),
+    ),
+  );
 }
 
 class _AmbientLeaves extends StatelessWidget {
@@ -1433,12 +1482,32 @@ class _LeafMarkPainter extends CustomPainter {
     );
     final left = Path()
       ..moveTo(size.width * .38, size.height * .7)
-      ..quadraticBezierTo(.05 * size.width, .72 * size.height, .1 * size.width, .36 * size.height)
-      ..quadraticBezierTo(.42 * size.width, .35 * size.height, .38 * size.height, .7 * size.height);
+      ..quadraticBezierTo(
+        .05 * size.width,
+        .72 * size.height,
+        .1 * size.width,
+        .36 * size.height,
+      )
+      ..quadraticBezierTo(
+        .42 * size.width,
+        .35 * size.height,
+        .38 * size.height,
+        .7 * size.height,
+      );
     final right = Path()
       ..moveTo(size.width * .58, size.height * .46)
-      ..quadraticBezierTo(.54 * size.width, .08 * size.height, .88 * size.width, .04 * size.height)
-      ..quadraticBezierTo(.94 * size.width, .34 * size.height, .58 * size.height, .46 * size.height);
+      ..quadraticBezierTo(
+        .54 * size.width,
+        .08 * size.height,
+        .88 * size.width,
+        .04 * size.height,
+      )
+      ..quadraticBezierTo(
+        .94 * size.width,
+        .34 * size.height,
+        .58 * size.height,
+        .46 * size.height,
+      );
     canvas.drawPath(left, Paint()..color = const Color(0xFF7DB787));
     canvas.drawPath(right, Paint()..color = const Color(0xFF4D9861));
     canvas.drawLine(
@@ -1534,7 +1603,12 @@ class _LandscapePainter extends CustomPainter {
       );
     }
     final table = RRect.fromRectAndRadius(
-      Rect.fromLTWH(size.width * .56, size.height * .84, size.width * .6, size.height * .12),
+      Rect.fromLTWH(
+        size.width * .56,
+        size.height * .84,
+        size.width * .6,
+        size.height * .12,
+      ),
       const Radius.circular(12),
     );
     canvas.drawRRect(table, Paint()..color = const Color(0xFF9B6444));
@@ -1543,12 +1617,22 @@ class _LandscapePainter extends CustomPainter {
       Paint()..color = const Color(0xFF70462F),
     );
     final cup = RRect.fromRectAndRadius(
-      Rect.fromLTWH(size.width * .75, size.height * .72, size.width * .17, size.height * .15),
+      Rect.fromLTWH(
+        size.width * .75,
+        size.height * .72,
+        size.width * .17,
+        size.height * .15,
+      ),
       const Radius.circular(8),
     );
     canvas.drawRRect(cup, Paint()..color = const Color(0xFFD7A778));
     canvas.drawArc(
-      Rect.fromLTWH(size.width * .86, size.height * .74, size.width * .12, size.height * .1),
+      Rect.fromLTWH(
+        size.width * .86,
+        size.height * .74,
+        size.width * .12,
+        size.height * .1,
+      ),
       -1.4,
       2.8,
       false,
@@ -1713,29 +1797,29 @@ _FeatureStyle _metricStyle(String label, ColorScheme scheme) {
 }
 
 _FeatureStyle _moduleStyle(String id, ColorScheme scheme) => switch (id) {
-      HomeWidgets.health => const _FeatureStyle(
-          background: Color(0xFFFFEEEE),
-          iconBackground: Color(0xFFFFD7D7),
-          foreground: Color(0xFFEF3E4D),
-        ),
-      HomeWidgets.medicines => const _FeatureStyle(
-          background: Color(0xFFEFF5FF),
-          iconBackground: Color(0xFFDDE9FF),
-          foreground: Color(0xFF2878EA),
-        ),
-      HomeWidgets.diet => const _FeatureStyle(
-          background: Color(0xFFFFF3E8),
-          iconBackground: Color(0xFFFFE3C6),
-          foreground: Color(0xFFE66A2C),
-        ),
-      HomeWidgets.habits => const _FeatureStyle(
-          background: Color(0xFFEAF7EF),
-          iconBackground: Color(0xFFD4F0E3),
-          foreground: Color(0xFF0B6B4F),
-        ),
-      HomeWidgets.finance => _metricStyle('Spending today', scheme),
-      _ => _metricStyle('', scheme),
-    };
+  HomeWidgets.health => const _FeatureStyle(
+    background: Color(0xFFFFEEEE),
+    iconBackground: Color(0xFFFFD7D7),
+    foreground: Color(0xFFEF3E4D),
+  ),
+  HomeWidgets.medicines => const _FeatureStyle(
+    background: Color(0xFFEFF5FF),
+    iconBackground: Color(0xFFDDE9FF),
+    foreground: Color(0xFF2878EA),
+  ),
+  HomeWidgets.diet => const _FeatureStyle(
+    background: Color(0xFFFFF3E8),
+    iconBackground: Color(0xFFFFE3C6),
+    foreground: Color(0xFFE66A2C),
+  ),
+  HomeWidgets.habits => const _FeatureStyle(
+    background: Color(0xFFEAF7EF),
+    iconBackground: Color(0xFFD4F0E3),
+    foreground: Color(0xFF0B6B4F),
+  ),
+  HomeWidgets.finance => _metricStyle('Spending today', scheme),
+  _ => _metricStyle('', scheme),
+};
 
 IconData _categoryIcon(String meta) {
   if (meta.startsWith('Medicine')) return Icons.medication_outlined;
@@ -1757,9 +1841,11 @@ Color _categoryColor(String meta) {
   return const Color(0xFF4A837B);
 }
 
-Color _timelineColor(TimelineStatus status, ColorScheme scheme) => switch (status) {
+Color _timelineColor(TimelineStatus status, ColorScheme scheme) =>
+    switch (status) {
       TimelineStatus.completed => const Color(0xFF18A768),
-      TimelineStatus.overdue || TimelineStatus.missed => const Color(0xFFE24545),
+      TimelineStatus.overdue ||
+      TimelineStatus.missed => const Color(0xFFE24545),
       TimelineStatus.due => const Color(0xFFE24545),
       TimelineStatus.cancelled => scheme.outline,
       TimelineStatus.upcoming => const Color(0xFF3278E8),
@@ -1838,69 +1924,78 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
   final metrics = <HomeMetric>[];
   final planner = dashboard.planner;
   if (planner != null && !planner.unavailable) {
-    final remaining = [...planner.todayTasks, ...planner.overdueTasks]
-        .where((task) {
-          final status = (task.status ?? '').toUpperCase();
-          return status != 'COMPLETED' && status != 'CANCELLED';
-        }).length;
-    metrics.add(HomeMetric(
-      label: 'Tasks remaining',
-      value: '$remaining',
-      detail: 'Today',
-      icon: Icons.checklist,
-      destination: 'PLANNER/TODAY',
-    ));
+    final remaining = [...planner.todayTasks, ...planner.overdueTasks].where((
+      task,
+    ) {
+      final status = (task.status ?? '').toUpperCase();
+      return status != 'COMPLETED' && status != 'CANCELLED';
+    }).length;
+    metrics.add(
+      HomeMetric(
+        label: 'Tasks remaining',
+        value: '$remaining',
+        detail: 'Today',
+        icon: Icons.checklist,
+        destination: 'PLANNER/TODAY',
+      ),
+    );
   }
   final medicines = dashboard.medicines;
   if (medicines != null && !medicines.unavailable) {
     final expected = medicines.dosesToday.length;
     final taken = medicines.dosesToday.where(_isTaken).length;
-    metrics.add(HomeMetric(
-      label: 'Medicines',
-      value: '$taken of $expected',
-      detail: 'Taken today',
-      icon: Icons.medication_outlined,
-      destination: 'MEDICINES',
-    ));
+    metrics.add(
+      HomeMetric(
+        label: 'Medicines',
+        value: '$taken of $expected',
+        detail: 'Taken today',
+        icon: Icons.medication_outlined,
+        destination: 'MEDICINES',
+      ),
+    );
   }
   final habits = dashboard.habits;
   if (habits != null && !habits.unavailable) {
-    metrics.add(HomeMetric(
-      label: 'Habits',
-      value: '${habits.completedToday} of ${habits.expectedToday}',
-      detail: 'Done today',
-      icon: Icons.repeat,
-      destination: 'HABITS',
-    ));
+    metrics.add(
+      HomeMetric(
+        label: 'Habits',
+        value: '${habits.completedToday} of ${habits.expectedToday}',
+        detail: 'Done today',
+        icon: Icons.repeat,
+        destination: 'HABITS',
+      ),
+    );
   }
   final finance = dashboard.finance;
   if (finance != null && !finance.unavailable && finance.today != null) {
     final currencies = finance.today!.currencies;
     if (currencies.isEmpty) {
-      metrics.add(HomeMetric(
-        label: 'Spending today',
-        value: 'No spending',
-        detail: 'No activity today',
-        icon: Icons.account_balance_wallet_outlined,
-        destination: 'FINANCE',
-      ));
+      metrics.add(
+        HomeMetric(
+          label: 'Spending today',
+          value: 'No spending',
+          detail: 'No activity today',
+          icon: Icons.account_balance_wallet_outlined,
+          destination: 'FINANCE',
+        ),
+      );
     } else {
-      final expense = currencies.length == 1
-        ? currencies.first.expense
-        : null;
-    metrics.add(HomeMetric(
-      label: 'Spending today',
-      value: expense == null || expense.isEmpty
-          ? currencies.length == 1
-              ? 'No spending'
-              : '${currencies.length} currencies'
-          : expense,
-      detail: currencies.length == 1
-          ? '${currencies.first.currency} today'
-          : 'Currency summaries',
-      icon: Icons.account_balance_wallet_outlined,
-      destination: 'FINANCE',
-    ));
+      final expense = currencies.length == 1 ? currencies.first.expense : null;
+      metrics.add(
+        HomeMetric(
+          label: 'Spending today',
+          value: expense == null || expense.isEmpty
+              ? currencies.length == 1
+                    ? 'No spending'
+                    : '${currencies.length} currencies'
+              : expense,
+          detail: currencies.length == 1
+              ? '${currencies.first.currency} today'
+              : 'Currency summaries',
+          icon: Icons.account_balance_wallet_outlined,
+          destination: 'FINANCE',
+        ),
+      );
     }
   }
   return HomeOverview(metrics);
@@ -1919,14 +2014,20 @@ List<AttentionItem> buildAttentionItems(
     for (final task in [...planner.overdueTasks, ...planner.todayTasks]) {
       final status = (task.status ?? '').toUpperCase();
       final at = DateTime.tryParse(task.dueAt ?? task.startAt ?? '')?.toLocal();
-      if (task.id.isEmpty || status == 'COMPLETED' || status == 'CANCELLED' || at == null || !at.isBefore(current)) {
+      if (task.id.isEmpty ||
+          status == 'COMPLETED' ||
+          status == 'CANCELLED' ||
+          at == null ||
+          !at.isBefore(current)) {
         continue;
       }
-      result.add(AttentionItem(
-        title: task.title,
-        detail: 'Task is overdue',
-        destination: 'PLANNER/TASK/${task.id}',
-      ));
+      result.add(
+        AttentionItem(
+          title: task.title,
+          detail: 'Task is overdue',
+          destination: 'PLANNER/TASK/${task.id}',
+        ),
+      );
     }
   }
   final medicines = dashboard.medicines;
@@ -1934,41 +2035,53 @@ List<AttentionItem> buildAttentionItems(
     for (final dose in medicines.dosesToday) {
       final status = dose.status.toUpperCase();
       final at = DateTime.tryParse(dose.scheduledAt)?.toLocal();
-      if (dose.medicineId.isEmpty || _isTaken(dose) || status == 'CANCELLED' || status == 'SKIPPED' || at == null) {
+      if (dose.medicineId.isEmpty ||
+          _isTaken(dose) ||
+          status == 'CANCELLED' ||
+          status == 'SKIPPED' ||
+          at == null) {
         continue;
       }
-      final isAttention = status == 'PENDING' || status == 'MISSED' ||
-          at.isBefore(current);
+      final isAttention =
+          status == 'PENDING' || status == 'MISSED' || at.isBefore(current);
       if (!isAttention) {
         continue;
       }
-      result.add(AttentionItem(
-        title: dose.medicineName,
-        detail: status == 'MISSED'
-            ? 'Medicine dose was missed'
-            : 'Medicine dose is still pending',
-        destination: 'MEDICINES/${dose.medicineId}',
-      ));
+      result.add(
+        AttentionItem(
+          title: dose.medicineName,
+          detail: status == 'MISSED'
+              ? 'Medicine dose was missed'
+              : 'Medicine dose is still pending',
+          destination: 'MEDICINES/${dose.medicineId}',
+        ),
+      );
     }
   }
   final habits = dashboard.habits;
   if (habits != null && !habits.unavailable) {
-    final incomplete = habits.todayHabits.where((habit) => !habit.completedToday).toList();
+    final incomplete = habits.todayHabits
+        .where((habit) => !habit.completedToday)
+        .toList();
     if (incomplete.isNotEmpty) {
       for (final habit in incomplete) {
         if (habit.id.isEmpty) continue;
-        result.add(AttentionItem(
-          title: habit.name,
-          detail: 'Habit is still due today',
-          destination: 'HABITS/${habit.id}',
-        ));
+        result.add(
+          AttentionItem(
+            title: habit.name,
+            detail: 'Habit is still due today',
+            destination: 'HABITS/${habit.id}',
+          ),
+        );
       }
     } else if (habits.expectedToday > habits.completedToday) {
-      result.add(AttentionItem(
-        title: 'Incomplete habits',
-        detail: '${habits.expectedToday - habits.completedToday} due today',
-        destination: 'HABITS',
-      ));
+      result.add(
+        AttentionItem(
+          title: 'Incomplete habits',
+          detail: '${habits.expectedToday - habits.completedToday} due today',
+          destination: 'HABITS',
+        ),
+      );
     }
   }
   return result.take(limit).toList();
@@ -1987,30 +2100,35 @@ List<TimelineItem> buildTimeline(
       final start = DateTime.tryParse(event.startAt)?.toLocal();
       if (start == null || event.id.isEmpty) continue;
       final end = DateTime.tryParse(event.endAt ?? '')?.toLocal();
-      items.add(TimelineItem(
-        at: start,
-        title: event.title,
-        meta: 'Event · ${_time(start)}${end == null ? '' : ' – ${_time(end)}'}',
-        status: _eventStatus(start, end, now),
-        destination: 'PLANNER/EVENT/${event.id}',
-      ));
+      items.add(
+        TimelineItem(
+          at: start,
+          title: event.title,
+          meta:
+              'Event · ${_time(start)}${end == null ? '' : ' – ${_time(end)}'}',
+          status: _eventStatus(start, end, now),
+          destination: 'PLANNER/EVENT/${event.id}',
+        ),
+      );
     }
     for (final task in [...planner.todayTasks, ...planner.overdueTasks]) {
       final status = (task.status ?? '').toUpperCase();
       if (status == 'CANCELLED') continue;
       final at = DateTime.tryParse(task.dueAt ?? task.startAt ?? '')?.toLocal();
       if (at == null || task.id.isEmpty) continue;
-      items.add(TimelineItem(
-        at: at,
-        title: task.title,
-        meta: 'Task · ${_time(at)}',
-        status: status == 'COMPLETED'
-            ? TimelineStatus.completed
-            : at.isBefore(now)
-                ? TimelineStatus.overdue
-                : TimelineStatus.upcoming,
-        destination: 'PLANNER/TASK/${task.id}',
-      ));
+      items.add(
+        TimelineItem(
+          at: at,
+          title: task.title,
+          meta: 'Task · ${_time(at)}',
+          status: status == 'COMPLETED'
+              ? TimelineStatus.completed
+              : at.isBefore(now)
+              ? TimelineStatus.overdue
+              : TimelineStatus.upcoming,
+          destination: 'PLANNER/TASK/${task.id}',
+        ),
+      );
     }
   }
   final medicines = dashboard.medicines;
@@ -2019,21 +2137,23 @@ List<TimelineItem> buildTimeline(
       final at = DateTime.tryParse(dose.scheduledAt)?.toLocal();
       if (at == null || dose.medicineId.isEmpty) continue;
       final status = dose.status.toUpperCase();
-      items.add(TimelineItem(
-        at: at,
-        title: dose.medicineName,
-        meta: 'Medicine · ${_time(at)}',
-        status: status == 'TAKEN'
-            ? TimelineStatus.completed
-            : status == 'CANCELLED' || status == 'SKIPPED'
-                ? TimelineStatus.cancelled
-                : at.isBefore(now)
-                    ? TimelineStatus.due
-                    : at.difference(now).inMinutes <= 60
-                        ? TimelineStatus.due
-                        : TimelineStatus.upcoming,
-        destination: 'MEDICINES/${dose.medicineId}',
-      ));
+      items.add(
+        TimelineItem(
+          at: at,
+          title: dose.medicineName,
+          meta: 'Medicine · ${_time(at)}',
+          status: status == 'TAKEN'
+              ? TimelineStatus.completed
+              : status == 'CANCELLED' || status == 'SKIPPED'
+              ? TimelineStatus.cancelled
+              : at.isBefore(now)
+              ? TimelineStatus.due
+              : at.difference(now).inMinutes <= 60
+              ? TimelineStatus.due
+              : TimelineStatus.upcoming,
+          destination: 'MEDICINES/${dose.medicineId}',
+        ),
+      );
     }
   }
   final diet = dashboard.diet;
@@ -2041,13 +2161,15 @@ List<TimelineItem> buildTimeline(
     for (final meal in diet.meals) {
       final at = DateTime.tryParse(meal.consumedAt ?? '')?.toLocal();
       if (at == null || meal.id.isEmpty) continue;
-      items.add(TimelineItem(
-        at: at,
-        title: _mealTitle(meal.type),
-        meta: 'Diet · ${_time(at)}',
-        status: TimelineStatus.completed,
-        destination: 'DIET/MEAL/${meal.id}',
-      ));
+      items.add(
+        TimelineItem(
+          at: at,
+          title: _mealTitle(meal.type),
+          meta: 'Diet · ${_time(at)}',
+          status: TimelineStatus.completed,
+          destination: 'DIET/MEAL/${meal.id}',
+        ),
+      );
     }
   }
   final health = dashboard.health;
@@ -2056,33 +2178,39 @@ List<TimelineItem> buildTimeline(
       final at = DateTime.tryParse(appointment.scheduledAt)?.toLocal();
       if (at == null || !_sameDay(at, now)) continue;
       final status = (appointment.status ?? '').toUpperCase();
-      items.add(TimelineItem(
-        at: at,
-        title: appointment.title,
-        meta: 'Health · ${_time(at)}',
-        status: status == 'COMPLETED'
-            ? TimelineStatus.completed
-            : status == 'CANCELLED'
-                ? TimelineStatus.cancelled
-                : at.isBefore(now)
-                    ? TimelineStatus.overdue
-                    : TimelineStatus.upcoming,
-        destination: 'HEALTH',
-      ));
+      items.add(
+        TimelineItem(
+          at: at,
+          title: appointment.title,
+          meta: 'Health · ${_time(at)}',
+          status: status == 'COMPLETED'
+              ? TimelineStatus.completed
+              : status == 'CANCELLED'
+              ? TimelineStatus.cancelled
+              : at.isBefore(now)
+              ? TimelineStatus.overdue
+              : TimelineStatus.upcoming,
+          destination: 'HEALTH',
+        ),
+      );
     }
   }
   final habits = dashboard.habits;
   if (habits != null && !habits.unavailable) {
-    for (final habit in habits.todayHabits.where((habit) => !habit.completedToday && habit.id.isNotEmpty)) {
+    for (final habit in habits.todayHabits.where(
+      (habit) => !habit.completedToday && habit.id.isNotEmpty,
+    )) {
       final anchor = DateTime(now.year, now.month, now.day);
-      items.add(TimelineItem(
-        at: anchor,
-        title: habit.name,
-        meta: 'Habit · Any time today',
-        status: TimelineStatus.upcoming,
-        destination: 'HABITS/${habit.id}',
-        anytime: true,
-      ));
+      items.add(
+        TimelineItem(
+          at: anchor,
+          title: habit.name,
+          meta: 'Habit · Any time today',
+          status: TimelineStatus.upcoming,
+          destination: 'HABITS/${habit.id}',
+          anytime: true,
+        ),
+      );
     }
   }
   items.sort((a, b) {
@@ -2095,30 +2223,30 @@ List<TimelineItem> buildTimeline(
 bool _isTaken(DoseSummary dose) => dose.status.toUpperCase() == 'TAKEN';
 
 IconData _moduleIcon(String id) => switch (id) {
-      HomeWidgets.health => Icons.favorite_outline,
-      HomeWidgets.medicines => Icons.medication_outlined,
-      HomeWidgets.diet => Icons.restaurant_outlined,
-      HomeWidgets.habits => Icons.repeat,
-      HomeWidgets.finance => Icons.account_balance_wallet_outlined,
-      _ => Icons.circle_outlined,
-    };
+  HomeWidgets.health => Icons.favorite_outline,
+  HomeWidgets.medicines => Icons.medication_outlined,
+  HomeWidgets.diet => Icons.restaurant_outlined,
+  HomeWidgets.habits => Icons.repeat,
+  HomeWidgets.finance => Icons.account_balance_wallet_outlined,
+  _ => Icons.circle_outlined,
+};
 
 String _moduleDestination(String id) => switch (id) {
-      HomeWidgets.health => 'HEALTH',
-      HomeWidgets.medicines => 'MEDICINES',
-      HomeWidgets.diet => 'DIET',
-      HomeWidgets.habits => 'HABITS',
-      HomeWidgets.finance => 'FINANCE',
-      _ => 'HUB',
-    };
+  HomeWidgets.health => 'HEALTH',
+  HomeWidgets.medicines => 'MEDICINES',
+  HomeWidgets.diet => 'DIET',
+  HomeWidgets.habits => 'HABITS',
+  HomeWidgets.finance => 'FINANCE',
+  _ => 'HUB',
+};
 
 IconData _timelineIcon(TimelineStatus status) => switch (status) {
-      TimelineStatus.completed => Icons.check_circle_outline,
-      TimelineStatus.overdue || TimelineStatus.missed => Icons.error_outline,
-      TimelineStatus.due => Icons.notifications_none,
-      TimelineStatus.cancelled => Icons.remove_circle_outline,
-      TimelineStatus.upcoming => Icons.circle_outlined,
-    };
+  TimelineStatus.completed => Icons.check_circle_outline,
+  TimelineStatus.overdue || TimelineStatus.missed => Icons.error_outline,
+  TimelineStatus.due => Icons.notifications_none,
+  TimelineStatus.cancelled => Icons.remove_circle_outline,
+  TimelineStatus.upcoming => Icons.circle_outlined,
+};
 
 String _time(DateTime value) => DateFormat('h:mm a').format(value);
 
@@ -2127,16 +2255,17 @@ String _mealTitle(String? value) {
   return '${value[0].toUpperCase()}${value.substring(1)}';
 }
 
-bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+bool _sameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
 
 String _timelineStatusLabel(TimelineStatus status) => switch (status) {
-      TimelineStatus.upcoming => 'Upcoming',
-      TimelineStatus.due => 'Due',
-      TimelineStatus.completed => 'Completed',
-      TimelineStatus.missed => 'Missed',
-      TimelineStatus.overdue => 'Overdue',
-      TimelineStatus.cancelled => 'Cancelled',
-    };
+  TimelineStatus.upcoming => 'Upcoming',
+  TimelineStatus.due => 'Due',
+  TimelineStatus.completed => 'Completed',
+  TimelineStatus.missed => 'Missed',
+  TimelineStatus.overdue => 'Overdue',
+  TimelineStatus.cancelled => 'Cancelled',
+};
 
 TimelineStatus _eventStatus(DateTime start, DateTime? end, DateTime now) {
   if ((end ?? start).isBefore(now)) return TimelineStatus.completed;

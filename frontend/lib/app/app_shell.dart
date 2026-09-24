@@ -112,8 +112,7 @@ class _AppShellState extends State<AppShell> {
     await _d.planner.loadToday();
     try {
       await _d.syncService.refresh();
-    } catch (_) {
-    }
+    } catch (_) {}
   }
 
   Future<void> _refreshNotifications() async {
@@ -160,24 +159,30 @@ class _AppShellState extends State<AppShell> {
               destinations: [
                 for (final id in destinations)
                   NavigationRailDestination(
-                    icon: Icon(id == ShellDestinations.add
-                        ? Icons.add_circle_outline
-                        : ShellDestinations.icon(id)),
-                    selectedIcon: Icon(id == ShellDestinations.add
-                        ? Icons.add_circle
-                        : ShellDestinations.selectedIcon(id)),
+                    icon: Icon(
+                      id == ShellDestinations.add
+                          ? Icons.add_circle_outline
+                          : ShellDestinations.icon(id),
+                    ),
+                    selectedIcon: Icon(
+                      id == ShellDestinations.add
+                          ? Icons.add_circle
+                          : ShellDestinations.selectedIcon(id),
+                    ),
                     label: Text(ShellDestinations.label(id)),
                   ),
               ],
             ),
             const VerticalDivider(width: 1),
             Expanded(
-                child: IndexedStack(index: selected, children: pages)),
+              child: IndexedStack(index: selected, children: pages),
+            ),
           ],
         ),
       );
     }
     return Scaffold(
+      extendBody: false,
       body: IndexedStack(index: selected, children: pages),
       bottomNavigationBar: _BlistraBottomBar(
         destinations: destinations,
@@ -283,7 +288,9 @@ class _AppShellState extends State<AppShell> {
       );
       return;
     }
-    if (id == ShellDestinations.diet && parts.length >= 3 && parts[1].toUpperCase() == 'MEAL') {
+    if (id == ShellDestinations.diet &&
+        parts.length >= 3 &&
+        parts[1].toUpperCase() == 'MEAL') {
       final tabIndex = _destinations.indexOf(ShellDestinations.diet);
       if (tabIndex >= 0) {
         setState(() => _selectedDestination = ShellDestinations.diet);
@@ -376,8 +383,7 @@ class _AppShellState extends State<AppShell> {
         );
         return;
       case ShellDestinations.medicines:
-        pushModulePage(context, const MedicineListPage(),
-            title: 'Medicines');
+        pushModulePage(context, const MedicineListPage(), title: 'Medicines');
         return;
       case ShellDestinations.diet:
         pushModulePage(context, const diet.TodayScreen(), title: 'Diet');
@@ -467,7 +473,9 @@ class _AppShellState extends State<AppShell> {
       };
     }
     if (dest.documentId != null) {
-      final document = await context.read<DocumentsProvider>().getById(dest.documentId!);
+      final document = await context.read<DocumentsProvider>().getById(
+        dest.documentId!,
+      );
       if (!context.mounted) return;
       if (document != null) {
         pushModulePage(
@@ -500,7 +508,10 @@ class _AppShellState extends State<AppShell> {
     if (detail != null) {
       // Habit detail requires an explicit scope outside HabitsHome.
       final page = route.startsWith('habits/')
-          ? HabitsScope(controller: _d.habits, child: Builder(builder: detail))
+          ? HabitsScope(
+              controller: _d.habits,
+              child: Builder(builder: detail),
+            )
           : Builder(builder: detail);
       pushModulePage(context, page, title: 'Details');
     }
@@ -516,14 +527,13 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _openCustomizeNav() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const CustomizeNavScreen()),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const CustomizeNavScreen()));
   }
 
   List<Widget> _pages(List<String> destinations) => [
-        for (final id in destinations) _pageFor(id),
-      ];
+    for (final id in destinations) _pageFor(id),
+  ];
 
   Widget _pageFor(String id) {
     switch (id) {
@@ -556,11 +566,9 @@ class _AppShellState extends State<AppShell> {
       case ShellDestinations.diet:
         return const diet.TodayScreen();
       case ShellDestinations.habits:
-        return HabitsScope(
-            controller: _d.habits, child: const HabitsHome());
+        return HabitsScope(controller: _d.habits, child: const HabitsHome());
       case ShellDestinations.finance:
-        return FinanceScope(
-            controller: _d.finance, child: const FinanceHome());
+        return FinanceScope(controller: _d.finance, child: const FinanceHome());
       default:
         return const SizedBox.shrink();
     }
@@ -586,8 +594,8 @@ class _BlistraBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 72),
+      child: SizedBox(
+        height: 72,
         child: Container(
           margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -612,15 +620,19 @@ class _BlistraBottomBar extends StatelessWidget {
                   if (destinations[i] == ShellDestinations.add)
                     SizedBox(
                       width: 72,
-                      child: _AddButton(open: addOpen, onTap: () => onSelect(i)),
+                      child: _AddButton(
+                        open: addOpen,
+                        onTap: () => onSelect(i),
+                      ),
                     )
                   else
                     Expanded(
                       child: _BarItem(
                         label: ShellDestinations.label(destinations[i]),
                         icon: ShellDestinations.icon(destinations[i]),
-                        selectedIcon:
-                            ShellDestinations.selectedIcon(destinations[i]),
+                        selectedIcon: ShellDestinations.selectedIcon(
+                          destinations[i],
+                        ),
                         selected: index == i,
                         onTap: () => onSelect(i),
                       ),
@@ -671,9 +683,9 @@ class _AddButton extends StatelessWidget {
             duration: const Duration(milliseconds: 180),
             transitionBuilder: (Widget child, Animation<double> animation) =>
                 FadeTransition(
-              opacity: animation,
-              child: ScaleTransition(scale: animation, child: child),
-            ),
+                  opacity: animation,
+                  child: ScaleTransition(scale: animation, child: child),
+                ),
             child: Icon(
               open ? Icons.close : Icons.add,
               key: ValueKey(open),
