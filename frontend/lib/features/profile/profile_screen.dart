@@ -182,7 +182,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                          label: 'Home & navigation',
                          value: 'Sections, modules and bottom bar',
                          onTap: () => _showCustomization(context),
-                      const _NotificationRow(),
+                       ),
+                       const _NotificationRow(),
                     ],
                   ),
                   _Section(

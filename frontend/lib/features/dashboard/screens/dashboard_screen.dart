@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../app/app_scope.dart';
+import '../../app_scope.dart';
 import '../../preferences/shell_destinations.dart';
 import '../models/dashboard_response.dart';
 
@@ -35,7 +35,7 @@ class DashboardScreen extends StatelessWidget {
           user: controller.dashboard?.user,
           email: scope.authState.userEmail,
         );
-        final refresh = () => controller.refresh(
+        final Future<void> Function() refresh = () => controller.refresh(
               date: now,
               offsetMinutes: now.timeZoneOffset.inMinutes,
             );
@@ -587,13 +587,15 @@ class _ModuleCard extends StatelessWidget {
       case HomeWidgets.health:
         final section = dashboard.health;
         if (section == null || section.unavailable) return _ModuleValue.error();
-        final item = section.latestMeasurements.isEmpty
-            ? null
-            : [...section.latestMeasurements]..sort((a, b) {
-                final aDate = DateTime.tryParse(a.measuredAt ?? '') ?? DateTime.min;
-                final bDate = DateTime.tryParse(b.measuredAt ?? '') ?? DateTime.min;
-                return bDate.compareTo(aDate);
-              }).first;
+        final measurements = [...section.latestMeasurements];
+        measurements.sort((a, b) {
+          final aDate = DateTime.tryParse(a.measuredAt ?? '') ??
+              DateTime.fromMillisecondsSinceEpoch(0);
+          final bDate = DateTime.tryParse(b.measuredAt ?? '') ??
+              DateTime.fromMillisecondsSinceEpoch(0);
+          return bDate.compareTo(aDate);
+        });
+        final item = measurements.isEmpty ? null : measurements.first;
         return _ModuleValue(
           item?.value ?? 'No readings',
           item == null
