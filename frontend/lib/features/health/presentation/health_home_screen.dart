@@ -1298,7 +1298,10 @@ class _WeightTrendCard extends StatelessWidget {
               height: 190,
               width: double.infinity,
               child: CustomPaint(
-                painter: _MeasurementChartPainter(history: history),
+                 painter: _MeasurementChartPainter(
+                   history: history,
+                   textDirection: Directionality.of(context),
+                 ),
               ),
             ),
             Row(
@@ -1329,9 +1332,13 @@ class _WeightTrendCard extends StatelessWidget {
 }
 
 class _MeasurementChartPainter extends CustomPainter {
-  const _MeasurementChartPainter({required this.history});
+  const _MeasurementChartPainter({
+    required this.history,
+    required this.textDirection,
+  });
 
   final List<HealthMeasurement> history;
+  final TextDirection textDirection;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1425,7 +1432,7 @@ class _MeasurementChartPainter extends CustomPainter {
           text: label,
           style: const TextStyle(color: Color(0xFF65758E), fontSize: 9),
         ),
-        textDirection: WidgetsBinding.instance.platformDispatcher.textDirection,
+        textDirection: textDirection,
       )..layout();
       double dx = points[index].dx - painter.width / 2;
       dx = dx.clamp(0, size.width - painter.width).toDouble();
@@ -1436,7 +1443,7 @@ class _MeasurementChartPainter extends CustomPainter {
   void _paintText(Canvas canvas, String text, Offset offset, TextStyle style) {
     final TextPainter painter = TextPainter(
       text: TextSpan(text: text, style: style),
-      textDirection: WidgetsBinding.instance.platformDispatcher.textDirection,
+      textDirection: textDirection,
     )..layout();
     painter.paint(canvas, offset);
   }

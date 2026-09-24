@@ -755,10 +755,11 @@ class _ThisWeek extends StatelessWidget {
                 height: 104,
                 width: chartWidth,
                 child: CustomPaint(
-                  painter: _WeekProgressPainter(
-                    habitProgress: habitProgress,
-                    taskProgress: taskProgress,
-                  ),
+                   painter: _WeekProgressPainter(
+                     habitProgress: habitProgress,
+                     taskProgress: taskProgress,
+                     textDirection: Directionality.of(context),
+                   ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1716,10 +1717,12 @@ class _WeekProgressPainter extends CustomPainter {
   const _WeekProgressPainter({
     required this.habitProgress,
     required this.taskProgress,
+    required this.textDirection,
   });
 
   final double habitProgress;
   final double taskProgress;
+  final TextDirection textDirection;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1769,7 +1772,7 @@ class _WeekProgressPainter extends CustomPainter {
       final y = size.height * .12 + (index ~/ 2) * 27;
       final painter = TextPainter(
         text: TextSpan(text: labels[index], style: labelStyle),
-        textDirection: WidgetsBinding.instance.platformDispatcher.textDirection,
+        textDirection: textDirection,
       )..layout();
       painter.paint(canvas, Offset(x, y));
     }

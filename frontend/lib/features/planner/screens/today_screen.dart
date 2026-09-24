@@ -480,9 +480,10 @@ class _TodayScreenState extends State<TodayScreen> {
             Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.45)),
             CustomPaint(
               painter: _TimelinePainter(
-                color: const Color(0xFF0B6259),
-                currentOffset: currentOffset,
-                rowHeight: _timelineRowHeight,
+                 color: const Color(0xFF0B6259),
+                 currentOffset: currentOffset,
+                 rowHeight: _timelineRowHeight,
+                 textDirection: Directionality.of(context),
               ),
               child: Column(
                 children: [
@@ -1121,11 +1122,17 @@ enum _PlannerViewMode { day, week, month, agenda }
 const double _timelineRowHeight = 82;
 
 class _TimelinePainter extends CustomPainter {
-  const _TimelinePainter({required this.color, required this.currentOffset, required this.rowHeight});
+  const _TimelinePainter({
+    required this.color,
+    required this.currentOffset,
+    required this.rowHeight,
+    required this.textDirection,
+  });
 
   final Color color;
   final double? currentOffset;
   final double rowHeight;
+  final TextDirection textDirection;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1160,7 +1167,7 @@ class _TimelinePainter extends CustomPainter {
           text: item.$2,
           style: const TextStyle(color: Colors.white, fontFamily: 'serif', fontSize: 11, fontWeight: FontWeight.w700),
         ),
-        textDirection: WidgetsBinding.instance.platformDispatcher.textDirection,
+        textDirection: textDirection,
       )..layout();
       painter.paint(canvas, Offset(item.$1.left + (item.$1.width - painter.width) / 2, item.$1.top + (item.$1.height - painter.height) / 2));
     }
