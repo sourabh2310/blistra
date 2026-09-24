@@ -2133,7 +2133,14 @@ class _MedicineHeroPainter extends CustomPainter {
     canvas.restore();
     _drawLeaf(canvas, size, const Offset(0.87, 0.16), 0.65, dark, 0.4);
     _drawLeaf(canvas, size, const Offset(0.94, 0.67), 0.9, mid, -0.65);
-    _drawLeaf(canvas, size, const Offset(0.65, 0.11), 0.42, const Color(0xFF78B58A), -0.35);
+    _drawLeaf(
+      canvas,
+      size,
+      const Offset(0.65, 0.11),
+      0.42,
+      Paint()..color = const Color(0xFF78B58A),
+      -0.35,
+    );
     final pill = Paint()..color = const Color(0xFFEA7B8C);
     canvas.save();
     canvas.translate(size.width * 0.62, size.height * 0.78);
@@ -2145,10 +2152,17 @@ class _MedicineHeroPainter extends CustomPainter {
       ),
       pill,
     );
-    canvas.drawLine(const Offset(-3, -7), const Offset(-3, 7), white, width: 2);
+    final pillDivider = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2;
+    canvas.drawLine(const Offset(-3, -7), const Offset(-3, 7), pillDivider);
     canvas.restore();
     canvas.drawCircle(Offset(size.width * 0.58, size.height * 0.78), 9, white);
-    canvas.drawCircle(Offset(size.width * 0.58, size.height * 0.78), 4, const Color(0xFFEA7B8C));
+    canvas.drawCircle(
+      Offset(size.width * 0.58, size.height * 0.78),
+      4,
+      Paint()..color = const Color(0xFFEA7B8C),
+    );
   }
 
   void _drawLeaf(
@@ -2156,7 +2170,7 @@ class _MedicineHeroPainter extends CustomPainter {
     Size size,
     Offset position,
     double scale,
-    Color color,
+    Paint color,
     double rotation,
   ) {
     final center = Offset(position.dx * size.width, position.dy * size.height);
@@ -2168,7 +2182,7 @@ class _MedicineHeroPainter extends CustomPainter {
     canvas.save();
     canvas.translate(center.dx, center.dy);
     canvas.rotate(rotation);
-    canvas.drawPath(leaf, Paint()..color = color);
+    canvas.drawPath(leaf, color);
     canvas.restore();
   }
 

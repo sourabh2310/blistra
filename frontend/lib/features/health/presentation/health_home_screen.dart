@@ -1,3 +1,5 @@
+import 'dart:ui' show TextDirection;
+
 import 'package:flutter/material.dart';
 
 import '../../app_scope.dart';
@@ -412,7 +414,12 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
           sleep: _todaySleep(repository.sleepRecords),
         ),
         const SizedBox(height: 14),
-        _QuickLogCard(onOpenResource: _showResourcePicker),
+        _QuickLogCard(
+          onOpenResource: _showResourcePicker,
+          onMeasurement: (type) {
+            _openMeasurementForm(initialType: type);
+          },
+        ),
         const SizedBox(height: 14),
         _RecentMeasurementsCard(
           measurements: recent,
@@ -431,7 +438,12 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
     return _pageShell(
       key: const ValueKey('measurements'),
       children: [
-        _QuickLogCard(onOpenResource: _showResourcePicker),
+        _QuickLogCard(
+          onOpenResource: _showResourcePicker,
+          onMeasurement: (type) {
+            _openMeasurementForm(initialType: type);
+          },
+        ),
         const SizedBox(height: 14),
         _RecentMeasurementsCard(
           measurements: measurements,
@@ -626,7 +638,11 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
           title: 'Health records',
         ),
         const SizedBox(height: 10),
-        _ResourceGrid(repository: repository, onOpen: _openResource),
+        _ResourceGrid(
+          repository: repository,
+          resources: _resources,
+          onOpen: _openResource,
+        ),
       ],
     );
   }
@@ -1633,9 +1649,13 @@ class _ProgressRingPainter extends CustomPainter {
 }
 
 class _QuickLogCard extends StatelessWidget {
-  const _QuickLogCard({required this.onOpenResource});
+  const _QuickLogCard({
+    required this.onOpenResource,
+    required this.onMeasurement,
+  });
 
   final VoidCallback onOpenResource;
+  final ValueChanged<MeasurementType> onMeasurement;
 
   @override
   Widget build(BuildContext context) {
@@ -1676,9 +1696,7 @@ class _QuickLogCard extends StatelessWidget {
                     child: _QuickTypeButton(
                       type: overviewTypes[index],
                       color: _quickColor(index),
-                      onTap: () => _openMeasurementForm(
-                        initialType: overviewTypes[index],
-                      ),
+                      onTap: () => onMeasurement(overviewTypes[index]),
                     ),
                   ),
                 _QuickMoreButton(onTap: onOpenResource),
@@ -2139,9 +2157,14 @@ class _SummaryLine extends StatelessWidget {
 }
 
 class _ResourceGrid extends StatelessWidget {
-  const _ResourceGrid({required this.repository, required this.onOpen});
+  const _ResourceGrid({
+    required this.repository,
+    required this.resources,
+    required this.onOpen,
+  });
 
   final HealthRepository repository;
+  final List<_ResourceEntry> resources;
   final ValueChanged<int> onOpen;
 
   @override
@@ -2164,7 +2187,7 @@ class _ResourceGrid extends StatelessWidget {
       mainAxisSpacing: 10,
       childAspectRatio: 2.1,
       children: [
-        for (int index = 0; index < _resources.length; index++)
+        for (int index = 0; index < resources.length; index++)
           Material(
             color: const Color(0xFFF2F4F3),
             borderRadius: BorderRadius.circular(16),
@@ -2176,7 +2199,7 @@ class _ResourceGrid extends StatelessWidget {
                 child: Row(
                   children: [
                     Icon(
-                      _resources[index].icon,
+                      resources[index].icon,
                       color: _HealthHomeScreenState._green,
                     ),
                     const SizedBox(width: 9),
@@ -2186,7 +2209,7 @@ class _ResourceGrid extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _resources[index].label,
+                            resources[index].label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

@@ -494,7 +494,7 @@ class _SearchField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
-          borderSide: const BorderSide(color: Color(0xFF84C8B5, width: 1.4),
+          borderSide: const BorderSide(color: Color(0xFF84C8B5), width: 1.4),
         ),
       ),
     );
@@ -1322,6 +1322,7 @@ String _monthName(int month) => const [
     ][month - 1];
 
 class _HeroPainter extends CustomPainter {
+  const _HeroPainter();
   @override
   void paint(Canvas canvas, Size size) {
     final wash = Paint()..color = const Color(0xFFFFE8D8);

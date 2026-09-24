@@ -40,7 +40,7 @@ class _TodayScreenState extends State<TodayScreen> {
       MaterialPageRoute(builder: (_) => const HistoryScreen()),
     );
     if (mounted) {
-      await context.read<DietController>().loadSummary(refresh: true);
+      await context.read<DietController>().loadSummary();
     }
   }
 

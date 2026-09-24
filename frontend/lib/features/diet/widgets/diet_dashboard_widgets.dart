@@ -127,6 +127,7 @@ class _Brand extends StatelessWidget {
 }
 
 class _LeafPainter extends CustomPainter {
+  const _LeafPainter();
   @override
   void paint(Canvas canvas, Size size) {
     final stem = Paint()
@@ -268,6 +269,7 @@ class DietHero extends StatelessWidget {
 }
 
 class _FoodHeroPainter extends CustomPainter {
+  const _FoodHeroPainter();
   @override
   void paint(Canvas canvas, Size size) {
     final peach = Paint()..color = const Color(0xFFFFDCC2);
@@ -595,20 +597,20 @@ class _MacroRingData {
   });
 
   factory _MacroRingData.total(double value) => _MacroRingData(
-        slices: [_RingSlice(0.68, const Color(0xFF2EBE73))],
+        slices: const [_RingSlice(0.68, color: Color(0xFF2EBE73))],
         hasValue: true,
       );
 
   factory _MacroRingData.count(int value) => _MacroRingData(
         slices: value == 0
             ? const []
-            : const [_RingSlice(0.68, Color(0xFF2EBE73))],
+            : const [_RingSlice(0.68, color: Color(0xFF2EBE73))],
         hasValue: value > 0,
       );
 
   factory _MacroRingData.water(double value) => _MacroRingData(
         slices: const [
-          _RingSlice(0.68, Color(0xFF168CEB)),
+          _RingSlice(0.68, color: Color(0xFF168CEB)),
         ],
         hasValue: value > 0,
       );
@@ -637,7 +639,7 @@ class _MacroRingData {
     for (var i = 0; i < values.length; i++) {
       if (values[i] <= 0) continue;
       final sweep = values[i] / total * math.pi * 2;
-      slices.add(_RingSlice(sweep, colors[i], startAngle: offset));
+      slices.add(_RingSlice(sweep, color: colors[i], startAngle: offset));
       offset += sweep;
     }
     return _MacroRingData(slices: slices, hasValue: true);

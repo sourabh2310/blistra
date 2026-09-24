@@ -783,7 +783,7 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
       }
       setState(() => _saving = false);
       if (ok) {
-        await controller.selectDate(DateTime.now());
+        controller.selectDate(DateTime.now());
         if (!mounted) return;
         Navigator.of(context).pop(true);
       } else {

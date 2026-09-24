@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show TextDirection;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -875,7 +876,6 @@ class _ModuleCard extends StatelessWidget {
           visualDensity: VisualDensity.compact,
           constraints: const BoxConstraints.tightFor(width: 24, height: 24),
           padding: EdgeInsets.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           icon: const Icon(Icons.refresh, size: 18),
         ),
       );
@@ -1575,6 +1575,7 @@ class _SunMarkPainter extends CustomPainter {
 }
 
 class _LandscapePainter extends CustomPainter {
+  const _LandscapePainter();
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
@@ -1682,8 +1683,9 @@ class _LandscapePainter extends CustomPainter {
 class _AmbientPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF4F8A57).withValues(alpha: .06);
-    void leaf(Offset origin, double length, double angle, Color color) {
+    final paint = Paint()
+      ..color = const Color(0xFF4F8A57).withValues(alpha: .06);
+    void leaf(Offset origin, double length, double angle, Paint color) {
       canvas.save();
       canvas.translate(origin.dx, origin.dy);
       canvas.rotate(angle);
@@ -1692,7 +1694,7 @@ class _AmbientPainter extends CustomPainter {
           ..moveTo(0, 0)
           ..quadraticBezierTo(length * .45, -length * .4, length, 0)
           ..quadraticBezierTo(length * .5, length * .4, 0, 0),
-        Paint()..color = color,
+        color,
       );
       canvas.restore();
     }
