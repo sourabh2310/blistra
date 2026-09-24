@@ -108,6 +108,14 @@ String? validateDisplayName(String? value) {
   return null;
 }
 
+String? validateDateOfBirth(DateTime? value, {DateTime? now}) {
+  if (value == null) return 'Date of birth is required';
+  final today = now ?? DateTime.now();
+  if (value.isAfter(today)) return 'Date of birth must be in the past';
+  if (value.year < 1900) return 'Enter a valid date of birth';
+  return null;
+}
+
 /// ISO-3166 alpha-2 country code.
 String? validateCountry(String? value) {
   if (value == null || value.trim().isEmpty) {

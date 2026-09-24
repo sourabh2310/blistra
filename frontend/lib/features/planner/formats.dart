@@ -51,6 +51,30 @@ class Formats {
     return date(value);
   }
 
+  static String taskScheduleLabel(PlannerTask task) {
+    if (task.startAt != null && task.endAt != null) {
+      final start = task.startAt!.toLocal();
+      final end = task.endAt!.toLocal();
+      return '${dayLabel(start)} · ${timeOfDay(start)} – ${timeOfDay(end)}';
+    }
+    if (task.startAt != null) {
+      final start = task.startAt!.toLocal();
+      return '${dayLabel(start)} · ${timeOfDay(start)}';
+    }
+    return taskDueLabel(task);
+  }
+
+  static String taskDurationLabel(PlannerTask task) {
+    if (task.startAt == null || task.endAt == null) return '';
+    final minutes = task.endAt!.difference(task.startAt!).inMinutes;
+    if (minutes <= 0) return '';
+    final hours = minutes ~/ 60;
+    final remainder = minutes.remainder(60);
+    if (hours == 0) return '${remainder}m';
+    if (remainder == 0) return '${hours}h';
+    return '${hours}h ${remainder}m';
+  }
+
   static String taskDueLabel(PlannerTask task) {
     if (task.dueDate == null) {
       return '';

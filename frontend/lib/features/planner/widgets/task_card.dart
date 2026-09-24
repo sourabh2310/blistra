@@ -12,6 +12,7 @@ class TaskCard extends StatelessWidget {
     super.key,
     required this.task,
     required this.onToggle,
+    required this.onOpen,
     required this.onEdit,
     required this.onDelete,
     this.onCancel,
@@ -19,6 +20,7 @@ class TaskCard extends StatelessWidget {
 
   final PlannerTask task;
   final VoidCallback onToggle;
+  final VoidCallback onOpen;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -29,33 +31,36 @@ class TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final done = task.status == TaskStatus.completed;
     final cancelled = task.status == TaskStatus.cancelled;
-    final dueLabel = Formats.taskDueLabel(task);
+    final settled = done || cancelled;
+    final dueLabel = Formats.taskScheduleLabel(task);
     final subtitle = [
       if (dueLabel.isNotEmpty) dueLabel,
+      if (Formats.taskDurationLabel(task).isNotEmpty)
+        Formats.taskDurationLabel(task),
       if (task.taskListName?.isNotEmpty == true) task.taskListName!,
     ].join(' · ');
 
     return InkWell(
-      onTap: onEdit,
+      onTap: onOpen,
       borderRadius: BorderRadius.circular(18),
       child: Opacity(
-        opacity: done || cancelled ? 0.72 : 1,
+        opacity: settled ? 0.72 : 1,
         child: Container(
           padding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFF0EDE8)),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: Row(
             children: [
               IconButton(
-                tooltip: done ? 'Reopen task' : 'Mark complete',
+                tooltip: settled ? 'Reopen task' : 'Mark complete',
                 onPressed: onToggle,
                 icon: Icon(
-                  done ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: done
+                  settled ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: settled
                       ? const Color(0xFF12A5A5)
                       : const Color(0xFF98A2B3),
                 ),
@@ -74,9 +79,9 @@ class TaskCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: done || cancelled
+                              color: settled
                                   ? const Color(0xFF98A2B3)
-                                  : const Color(0xFF101828),
+                                  : Theme.of(context).colorScheme.onSurface,
                               decoration: cancelled
                                   ? TextDecoration.lineThrough
                                   : null,
@@ -108,7 +113,7 @@ class TaskCard extends StatelessWidget {
                                   color: task.overdue &&
                                           task.status.isActive
                                       ? const Color(0xFFB42318)
-                                      : const Color(0xFF667085),
+                                       : Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ),
@@ -123,10 +128,13 @@ class TaskCard extends StatelessWidget {
                   switch (value) {
                     case 'edit':
                       onEdit();
+                      return;
                     case 'delete':
                       onDelete();
+                      return;
                     case 'cancel':
                       onCancel?.call();
+                      return;
                   }
                 },
                 itemBuilder: (context) => [

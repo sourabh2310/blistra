@@ -1,5 +1,6 @@
 package com.blistra.planner.dto;
 
+import com.blistra.planner.domain.TaskReminderMode;
 import com.blistra.planner.domain.TaskPriority;
 import com.blistra.planner.domain.TaskStatus;
 import jakarta.validation.constraints.NotBlank;
@@ -11,6 +12,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
@@ -37,6 +39,12 @@ public class TaskUpdateRequest {
     private LocalDate dueDate;
 
     private LocalTime dueTime;
+
+    private OffsetDateTime startAt;
+
+    private OffsetDateTime endAt;
+
+    private TaskReminderMode reminderMode;
 
     private UUID taskListId;
 }

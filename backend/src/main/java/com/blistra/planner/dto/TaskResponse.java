@@ -1,5 +1,6 @@
 package com.blistra.planner.dto;
 
+import com.blistra.planner.domain.TaskReminderMode;
 import com.blistra.planner.domain.TaskPriority;
 import com.blistra.planner.domain.TaskStatus;
 import lombok.AllArgsConstructor;
@@ -27,6 +28,9 @@ public class TaskResponse {
     private LocalDate dueDate;
     private LocalTime dueTime;
     private OffsetDateTime dueAt;
+    private OffsetDateTime startAt;
+    private OffsetDateTime endAt;
+    private TaskReminderMode reminderMode;
     private OffsetDateTime completedAt;
     private UUID taskListId;
     private String taskListName;

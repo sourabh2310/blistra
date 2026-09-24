@@ -99,16 +99,36 @@ class _EventFormScreenState extends State<EventFormScreen> {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
+          SnackBar(content: Text(_friendly(e))),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't save this event. Try again.")),
         );
       }
     }
+  }
+
+  String _friendly(ApiException error) {
+    if (error.fieldErrors.isNotEmpty) return error.fieldErrors.values.first;
+    if (error.message == 'Request validation failed') {
+      return "Couldn't save this event. Try again.";
+    }
+    return error.message.isEmpty ? "Couldn't save this event. Try again." : error.message;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Back',
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back),
+        ),
         title: Text(_isEditing ? 'Edit event' : 'New event'),
         actions: [
           TextButton(onPressed: _saving ? null : _save, child: const Text('Save')),

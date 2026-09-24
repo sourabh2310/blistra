@@ -8,9 +8,10 @@ import '../../../core/api/api_exception.dart';
 /// Backs the reminders list screen: loading, create/update/cancel (soft
 /// delete) and an in-memory refresh of the current user's SCHEDULED reminders.
 class RemindersController extends ChangeNotifier {
-  RemindersController({required this._api});
+  RemindersController({required this._api, this.onChanged});
 
   final NotificationsApi _api;
+  final Future<void> Function()? onChanged;
 
   List<Reminder> _reminders = const [];
   bool _loading = false;
@@ -95,6 +96,7 @@ class RemindersController extends ChangeNotifier {
     try {
       await action();
       await load();
+      await onChanged?.call();
       _message = 'Saved';
     } on ApiException catch (e) {
       _error = e.message;

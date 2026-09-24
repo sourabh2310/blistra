@@ -5,6 +5,9 @@
 /// onto [TimelineEntry] and delegates summary/sectioning here.
 library;
 
+import 'models/task.dart';
+import 'models/task_status.dart';
+
 /// One chronological row on the Today timeline.
 class TimelineEntry {
   TimelineEntry({
@@ -119,3 +122,53 @@ Map<DateTime, int> countByDay(List<TimelineEntry> entries) {
   }
   return counts;
 }
+
+bool taskHasExplicitTime(PlannerTask task) =>
+    task.startAt != null || task.dueTime != null;
+
+class TaskDateGroup {
+  const TaskDateGroup(this.label, this.tasks);
+
+  final String label;
+  final List<PlannerTask> tasks;
+}
+
+List<TaskDateGroup> groupTasksByDate(List<PlannerTask> tasks, DateTime now) {
+  final today = DateTime(now.year, now.month, now.day);
+  final tomorrow = today.add(const Duration(days: 1));
+  final overdue = <PlannerTask>[];
+  final dueToday = <PlannerTask>[];
+  final dueTomorrow = <PlannerTask>[];
+  final upcoming = <PlannerTask>[];
+  final undated = <PlannerTask>[];
+  for (final task in tasks.where((task) => task.status != TaskStatus.completed)) {
+    final day = taskScheduleDay(task);
+    if (task.overdue) {
+      overdue.add(task);
+    } else if (day == null) {
+      undated.add(task);
+    } else if (_sameDay(day, today)) {
+      dueToday.add(task);
+    } else if (_sameDay(day, tomorrow)) {
+      dueTomorrow.add(task);
+    } else {
+      upcoming.add(task);
+    }
+  }
+  return [
+    TaskDateGroup('Overdue', overdue),
+    TaskDateGroup('Today', dueToday),
+    TaskDateGroup('Tomorrow', dueTomorrow),
+    TaskDateGroup('Upcoming', upcoming),
+    TaskDateGroup('No date', undated),
+  ].where((group) => group.tasks.isNotEmpty).toList();
+}
+
+DateTime? taskScheduleDay(PlannerTask task) {
+  final value = task.startAt?.toLocal() ?? task.dueDate?.toLocal();
+  if (value == null) return null;
+  return DateTime(value.year, value.month, value.day);
+}
+
+bool _sameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;

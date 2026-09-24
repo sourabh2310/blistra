@@ -23,7 +23,7 @@ public class ProfileRequest {
     private LocalDate dateOfBirth;
 
     /** ISO-3166 alpha-2, e.g. IN, US. */
-    @Pattern(regexp = "^[A-Z]{2}$", message = "Country must be a 2-letter ISO code")
+    @Pattern(regexp = "^[A-Z]{2}$", message = "Country must be a valid ISO-3166 alpha-2 code")
     private String country;
 
     /** IANA timezone, e.g. Asia/Kolkata. */

@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/features/planner/models/task.dart';
+import 'package:frontend/features/planner/models/task_priority.dart';
+import 'package:frontend/features/planner/models/task_status.dart';
 import 'package:frontend/features/planner/today_helpers.dart';
 
 void main() {
@@ -93,6 +96,50 @@ void main() {
       ]);
       expect(counts[DateTime(2026, 9, 24)], 2);
       expect(counts[DateTime(2026, 9, 25)], 1);
+    });
+  });
+
+  group('task schedule grouping', () {
+    PlannerTask task(
+      String id, {
+      DateTime? dueDate,
+      DateTime? dueTime,
+      bool overdue = false,
+      TaskStatus status = TaskStatus.todo,
+    }) {
+      return PlannerTask(
+        id: id,
+        title: id,
+        status: status,
+        priority: TaskPriority.medium,
+        overdue: overdue,
+        dueDate: dueDate,
+        dueTime: dueTime,
+      );
+    }
+
+    test('distinguishes timed and untimed tasks without inventing times', () {
+      expect(taskHasExplicitTime(task('timed', dueTime: DateTime(2000, 1, 1, 9))), isTrue);
+      expect(taskHasExplicitTime(task('untimed', dueDate: DateTime(2026, 9, 24))), isFalse);
+    });
+
+    test('creates only non-empty Overdue Today Tomorrow Upcoming No date groups', () {
+      final groups = groupTasksByDate([
+        task('overdue', dueDate: DateTime(2026, 9, 23), overdue: true),
+        task('today', dueDate: DateTime(2026, 9, 24)),
+        task('tomorrow', dueDate: DateTime(2026, 9, 25)),
+        task('later', dueDate: DateTime(2026, 9, 30)),
+        task('undated'),
+        task('done', dueDate: DateTime(2026, 9, 24), status: TaskStatus.completed),
+      ], DateTime(2026, 9, 24, 12));
+      expect(groups.map((group) => group.label), [
+        'Overdue',
+        'Today',
+        'Tomorrow',
+        'Upcoming',
+        'No date',
+      ]);
+      expect(groups.every((group) => group.tasks.isNotEmpty), isTrue);
     });
   });
 }

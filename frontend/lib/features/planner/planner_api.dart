@@ -6,6 +6,7 @@ import 'models/schedule_view.dart';
 import 'models/task.dart';
 import 'models/task_list.dart';
 import 'models/task_priority.dart';
+import 'models/task_reminder_mode.dart';
 import 'models/task_status.dart';
 import 'models/task_view.dart';
 import 'models/today_view.dart';
@@ -39,6 +40,11 @@ class PlannerApi {
         data, PlannerTask.fromJson);
   }
 
+  Future<PlannerTask> getTask(String taskId) async {
+    final data = await _api.get('/api/v1/planner/tasks/$taskId');
+    return PlannerTask.fromJson(data);
+  }
+
   Future<PlannerTask> createTask({
     required String title,
     String? description,
@@ -46,6 +52,9 @@ class PlannerApi {
     TaskPriority? priority,
     DateTime? dueDate,
     DateTime? dueTime,
+    DateTime? startAt,
+    DateTime? endAt,
+    TaskReminderMode? reminderMode,
     String? taskListId,
   }) async {
     final data = await _api.post('/api/v1/planner/tasks', body: {
@@ -55,6 +64,9 @@ class PlannerApi {
       if (priority != null) 'priority': priority.wireName,
       if (dueDate != null) 'dueDate': _date(dueDate),
       if (dueTime != null) 'dueTime': _time(dueTime),
+      if (startAt != null) 'startAt': startAt.toUtc().toIso8601String(),
+      if (endAt != null) 'endAt': endAt.toUtc().toIso8601String(),
+      if (reminderMode != null) 'reminderMode': reminderMode.wireName,
       'taskListId': ?taskListId,
     });
     return PlannerTask.fromJson(data);
@@ -68,6 +80,9 @@ class PlannerApi {
     TaskPriority? priority,
     DateTime? dueDate,
     DateTime? dueTime,
+    DateTime? startAt,
+    DateTime? endAt,
+    TaskReminderMode? reminderMode,
     String? taskListId,
   }) async {
     final data = await _api.put('/api/v1/planner/tasks/$taskId', body: {
@@ -77,6 +92,9 @@ class PlannerApi {
       if (priority != null) 'priority': priority.wireName,
       if (dueDate != null) 'dueDate': _date(dueDate),
       if (dueTime != null) 'dueTime': _time(dueTime),
+      if (startAt != null) 'startAt': startAt.toUtc().toIso8601String(),
+      if (endAt != null) 'endAt': endAt.toUtc().toIso8601String(),
+      if (reminderMode != null) 'reminderMode': reminderMode.wireName,
       'taskListId': ?taskListId,
     });
     return PlannerTask.fromJson(data);
@@ -111,6 +129,11 @@ class PlannerApi {
       for (final item in data)
         if (item is Map<String, dynamic>) TaskList.fromJson(item),
     ];
+  }
+
+  Future<TaskList> getTaskList(String listId) async {
+    final data = await _api.get('/api/v1/planner/lists/$listId');
+    return TaskList.fromJson(data);
   }
 
   Future<TaskList> createTaskList({
@@ -156,6 +179,11 @@ class PlannerApi {
         data, PlannerEvent.fromJson);
   }
 
+  Future<PlannerEvent> getEvent(String eventId) async {
+    final data = await _api.get('/api/v1/planner/events/$eventId');
+    return PlannerEvent.fromJson(data);
+  }
+
   Future<PlannerEvent> createEvent({
     required String title,
     String? description,
@@ -168,8 +196,8 @@ class PlannerApi {
       'title': title,
       'description': ?description,
       'location': ?location,
-      'startAt': startAt.toIso8601String(),
-      'endAt': endAt.toIso8601String(),
+      'startAt': startAt.toUtc().toIso8601String(),
+      'endAt': endAt.toUtc().toIso8601String(),
       if (status != null) 'status': status.wireName,
     });
     return PlannerEvent.fromJson(data);
@@ -188,8 +216,8 @@ class PlannerApi {
       'title': title,
       'description': ?description,
       'location': ?location,
-      'startAt': startAt.toIso8601String(),
-      'endAt': endAt.toIso8601String(),
+      'startAt': startAt.toUtc().toIso8601String(),
+      'endAt': endAt.toUtc().toIso8601String(),
       if (status != null) 'status': status.wireName,
     });
     return PlannerEvent.fromJson(data);

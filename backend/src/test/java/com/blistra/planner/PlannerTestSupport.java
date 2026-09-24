@@ -3,6 +3,7 @@ package com.blistra.planner;
 import com.blistra.AbstractIntegrationTest;
 import com.blistra.auth.dto.LoginRequest;
 import com.blistra.auth.dto.RegisterRequest;
+import com.blistra.notifications.repository.ReminderRepository;
 import com.blistra.planner.repository.PlannerEventRepository;
 import com.blistra.planner.repository.TaskListRepository;
 import com.blistra.planner.repository.TaskRepository;
@@ -48,11 +49,15 @@ public abstract class PlannerTestSupport extends AbstractIntegrationTest {
     @Autowired
     protected PlannerEventRepository eventRepository;
 
+    @Autowired
+    protected ReminderRepository reminderRepository;
+
     @BeforeEach
     void cleanDatabase() {
         taskRepository.deleteAll();
         taskListRepository.deleteAll();
         eventRepository.deleteAll();
+        reminderRepository.deleteAll();
         deleteAllUsers();
     }
 

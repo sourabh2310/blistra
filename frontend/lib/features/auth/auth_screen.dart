@@ -20,14 +20,18 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../app/app_dependencies.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/auth/auth_state.dart';
+import '../../core/device/device_context.dart';
+import '../../core/theme/theme_controller.dart';
 import '../diet/models/dietary_preference.dart';
 import '../health/health_models.dart';
 import 'auth_validators.dart';
 import 'auth_widgets.dart';
+import 'country_data.dart';
 
 enum _Mode { signIn, register, forgot }
 
@@ -50,6 +54,8 @@ enum _Reg {
 }
 
 enum _Forgot { identifier, channel, code, reset, success }
+
+enum _HealthStep { height, weight, dietary }
 
 /// Live availability state for one identity field while typing.
 enum _Avail { idle, checking, available, taken }
@@ -80,7 +86,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   final _otp = TextEditingController();
   final _country = TextEditingController();
-  final _language = TextEditingController(text: 'en');
+  String? _selectedCountryCode;
   final _height = TextEditingController();
   final _weight = TextEditingController();
 
@@ -92,6 +98,7 @@ class _AuthScreenState extends State<AuthScreen> {
   _Mode _mode = _Mode.signIn;
   _Reg _reg = _Reg.welcome;
   _Forgot _forgot = _Forgot.identifier;
+  _HealthStep _healthStep = _HealthStep.height;
   bool _terms = false;
   bool _finishing = false;
   bool _saving = false;
@@ -150,6 +157,12 @@ class _AuthScreenState extends State<AuthScreen> {
       _prefillFromAccount();
     }
     _timezone = _guessTimezone();
+    final locale = WidgetsBinding.instance.platformDispatcher.locale;
+    final defaultCountry = DeviceContext.countryFromLocale(locale.toLanguageTag());
+    _selectedCountryCode = defaultCountry;
+    _units = DeviceContext.defaultUnitSystemForCountry(defaultCountry);
+    _heightUnit = _units == 'IMPERIAL' ? 'IN' : 'CM';
+    _weightUnit = _units == 'IMPERIAL' ? 'LB' : 'KG';
     _password.addListener(() {
       if (mounted) setState(() {});
     });
@@ -175,12 +188,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (account.phone != null) _phone.text = account.phone!;
   }
 
-  static String _guessTimezone() {
-    final offset = DateTime.now().timeZoneOffset;
-    if (offset.inMinutes == 330) return 'Asia/Kolkata';
-    if (offset.inMinutes == 0) return 'UTC';
-    return 'UTC';
-  }
+  static String _guessTimezone() => DeviceContext.currentTimezone();
 
   @override
   void dispose() {
@@ -199,7 +207,6 @@ class _AuthScreenState extends State<AuthScreen> {
     _signInPassword.dispose();
     _otp.dispose();
     _country.dispose();
-    _language.dispose();
     _height.dispose();
     _weight.dispose();
     _forgotIdentifier.dispose();
@@ -784,12 +791,19 @@ class _AuthScreenState extends State<AuthScreen> {
           () => _screenError = 'Please pick your date of birth.');
       return;
     }
-    if (_country.text.trim().isEmpty) {
-      setState(() => _screenError = 'Please enter your country.');
+    final dobError = validateDateOfBirth(_dob);
+    if (dobError != null) {
+      setState(() => _screenError = dobError);
+      return;
+    }
+    final countryError = validateCountry(_selectedCountryCode);
+    if (countryError != null || countryForCode(_selectedCountryCode) == null) {
+      setState(() => _screenError = countryError ??
+          'Please select your country.');
       return;
     }
     if (_timezone == null || _timezone!.isEmpty) {
-      setState(() => _screenError = 'Please choose your timezone.');
+      setState(() => _screenError = "Your device timezone couldn't be detected.");
       return;
     }
     setState(() {
@@ -802,10 +816,9 @@ class _AuthScreenState extends State<AuthScreen> {
           : _displayName.text.trim(),
       'dateOfBirth':
           '${_dob!.year.toString().padLeft(4, '0')}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}',
-      'country': _country.text.trim().toUpperCase(),
+      'country': _selectedCountryCode,
       'timezone': _timezone,
-      'language': _language.text.trim().toLowerCase(),
-      'unitSystem': _units,
+      'unitSystem': DeviceContext.defaultUnitSystemForCountry(_selectedCountryCode),
     });
     if (!mounted) return;
     setState(() => _saving = false);
@@ -823,46 +836,32 @@ class _AuthScreenState extends State<AuthScreen> {
       _saving = true;
     });
     try {
-      final heightRaw = double.tryParse(_height.text.trim());
-      if (heightRaw != null) {
-        final heightCm =
-            _heightUnit == 'IN' ? heightRaw * 2.54 : heightRaw;
-        try {
-          await widget.deps.health.saveProfile(HealthProfileInput(
-            heightCm: heightCm,
-            bloodType: null,
-            dateOfBirth: _dob,
-          ));
-        } catch (e) {
-          if (mounted) {
-            setState(() {
-              _screenError = 'Could not save height.';
-              _saving = false;
-            });
-          }
+      if (_healthStep == _HealthStep.height) {
+        final value = double.tryParse(_height.text.trim());
+        if (value == null || value < 50 || value > 250) {
+          setState(() => _screenError = 'Enter a valid height.');
           return;
         }
+        await widget.deps.health.saveProfile(HealthProfileInput(
+          heightCm: _heightUnit == 'IN' ? value * 2.54 : value,
+          bloodType: null,
+          dateOfBirth: _dob,
+        ));
+        if (mounted) setState(() => _healthStep = _HealthStep.weight);
+        return;
       }
-      final weightRaw = double.tryParse(_weight.text.trim());
-      if (weightRaw != null) {
-        try {
-          await widget.deps.health.createMeasurement(MeasurementInput(
-            type: MeasurementType.weight,
-            measuredAt: DateTime.now(),
-            value: weightRaw,
-            unit: _weightUnit,
-            source: 'onboarding',
-          ));
-        } catch (e) {
-          if (mounted) {
-            setState(() {
-              _screenError = 'Could not save weight.';
-              _saving = false;
-            });
-          }
-          return;
-        }
+      final value = double.tryParse(_weight.text.trim());
+      if (value == null || value < 5 || value > 900) {
+        setState(() => _screenError = 'Enter a valid weight.');
+        return;
       }
+      await widget.deps.health.createMeasurement(MeasurementInput(
+        type: MeasurementType.weight,
+        measuredAt: DateTime.now(),
+        value: value,
+        unit: _weightUnit,
+        source: 'onboarding',
+      ));
       if (_dietPreference != null) {
         await widget.deps.diet.saveProfile(
           dietaryPreference: _dietPreference!.wireName,
@@ -871,11 +870,15 @@ class _AuthScreenState extends State<AuthScreen> {
           notes: '',
         );
       }
+      if (mounted) setState(() => _reg = _Reg.done);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _screenError =
+            'We couldn\'t save your health details. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-    if (!mounted || _screenError != null) return;
-    setState(() => _reg = _Reg.done);
   }
 
   Future<void> _completeOnboarding() async {
@@ -1039,12 +1042,19 @@ class _AuthScreenState extends State<AuthScreen> {
         error.fieldErrors['username'] ??
         error.fieldErrors['phone'] ??
         error.fieldErrors['identifier'] ??
-        error.fieldErrors['password'];
+        error.fieldErrors['password'] ??
+        error.fieldErrors['dateOfBirth'] ??
+        error.fieldErrors['country'] ??
+        error.fieldErrors['timezone'] ??
+        error.fieldErrors['unitSystem'];
     if (field != null) return field;
     if (error.message.toLowerCase().contains('failed host') ||
         error.message.toLowerCase().contains('socket') ||
         error.message.toLowerCase().contains('network')) {
       return "Couldn't connect. Check your connection and try again.";
+    }
+    if (error.code == 'VALIDATION_ERROR') {
+      return "We couldn't save your details. Please try again.";
     }
     return error.message.isNotEmpty
         ? error.message
@@ -1077,13 +1087,16 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _auth,
-      builder: (context, _) {
-        if (_mode == _Mode.signIn) return _loginScreen();
-        if (_mode == _Mode.forgot) return _forgotScreen();
-        return _registerScreen();
-      },
+    return ChangeNotifierProvider<ThemeController>.value(
+      value: widget.deps.theme,
+      child: ListenableBuilder(
+        listenable: _auth,
+        builder: (context, _) {
+          if (_mode == _Mode.signIn) return _loginScreen();
+          if (_mode == _Mode.forgot) return _forgotScreen();
+          return _registerScreen();
+        },
+      ),
     );
   }
 
@@ -1820,7 +1833,12 @@ class _AuthScreenState extends State<AuthScreen> {
   // ── Profile / health / done (existing onboarding, premium skin) ──
 
   Widget _profileScreen() {
+    final locale = WidgetsBinding.instance.platformDispatcher.locale;
+    final countryCode = _selectedCountryCode ??
+        DeviceContext.countryFromLocale(locale.toLanguageTag());
+    final selected = countryForCode(countryCode);
     return AuthScaffold(
+      onBack: _busy ? null : () => _backTo(_Reg.phoneOtp),
       bottom: AuthPrimaryButton(
           label: 'Continue', busy: _saving, onPressed: _saveProfile),
       child: Column(
@@ -1833,231 +1851,142 @@ class _AuthScreenState extends State<AuthScreen> {
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
-          const Text('Used across Home, Planner and your modules.',
-              style:
-                  TextStyle(fontSize: 15, color: AuthColors.muted)),
-          const SizedBox(height: 24),
+          const Text('Just a couple of details to personalize Blistra.',
+              style: TextStyle(fontSize: 15, color: AuthColors.muted)),
+          const SizedBox(height: 30),
+          const Text('When were you born?',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(54),
+              minimumSize: const Size.fromHeight(56),
+              backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
             ),
             onPressed: _pickDob,
             icon: const Icon(Icons.cake_outlined),
             label: Text(_dob == null
-                ? 'Date of birth'
-                : 'Born ${_dob!.day}/${_dob!.month}/${_dob!.year}'),
+                ? 'Select date of birth'
+                : '${_dob!.day} ${_months[_dob!.month - 1]} ${_dob!.year}'),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 24),
+          const Text('Where are you based?',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(56),
+              backgroundColor: Colors.white,
+              alignment: Alignment.centerLeft,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: _pickCountry,
+            icon: Text(selected?.flag ?? '🌐'),
+            label: Text(selected?.name ?? 'Select country'),
+          ),
+          const SizedBox(height: 18),
           Row(
             children: [
-              Expanded(
-                flex: 2,
-                child: AuthTextField(
-                  controller: _country,
-                  hint: 'Country (IN)',
-                  textCapitalization:
-                      TextCapitalization.characters,
-                  semanticLabel: 'Country code',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 3,
-                child: AuthTextField(
-                  controller: _language,
-                  hint: 'Language (en)',
-                  semanticLabel: 'Language',
-                ),
+              Icon(Icons.auto_awesome_outlined,
+                  size: 16, color: AuthColors.muted),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text('Your device settings will handle your timezone automatically.',
+                    style: TextStyle(fontSize: 13, color: AuthColors.muted)),
               ),
             ],
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AuthColors.border),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _timezone,
-                isExpanded: true,
-                hint: const Text('Timezone'),
-                items: [
-                  for (final z in _commonTimezones)
-                    DropdownMenuItem(value: z, child: Text(z)),
-                ],
-                onChanged: (z) =>
-                    setState(() => _timezone = z),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                  value: 'METRIC', label: Text('Metric')),
-              ButtonSegment(
-                  value: 'IMPERIAL', label: Text('Imperial')),
-            ],
-            selected: {_units},
-            onSelectionChanged: (s) =>
-                setState(() => _units = s.first),
           ),
           if (_screenError != null) ...[
             const SizedBox(height: 12),
             InlineError(message: _screenError!),
           ],
-          const SizedBox(height: 120),
+          const SizedBox(height: 100),
         ],
       ),
     );
   }
 
-  static const _commonTimezones = [
-    'UTC',
-    'Asia/Kolkata',
-    'Asia/Dubai',
-    'Asia/Singapore',
-    'Asia/Tokyo',
-    'Australia/Sydney',
-    'Europe/London',
-    'Europe/Berlin',
-    'Europe/Paris',
-    'America/New_York',
-    'America/Chicago',
-    'America/Denver',
-    'America/Los_Angeles',
-    'America/Toronto',
-    'America/Sao_Paulo',
+  static const _months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
   ];
 
+  Future<void> _pickCountry() async {
+    final chosen = await showModalBottomSheet<CountryEntry>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const _CountryPicker(),
+    );
+    if (chosen != null && mounted) {
+      setState(() {
+        _selectedCountryCode = chosen.code;
+        _country.text = chosen.code;
+        _units = DeviceContext.defaultUnitSystemForCountry(chosen.code);
+        _heightUnit = _units == 'IMPERIAL' ? 'IN' : 'CM';
+        _weightUnit = _units == 'IMPERIAL' ? 'LB' : 'KG';
+      });
+    }
+  }
+
   Widget _healthScreen() {
+    final imperial = _units == 'IMPERIAL';
+    final title = _healthStep == _HealthStep.height
+        ? 'How tall are you?'
+        : "What's your current weight?";
+    final subtitle = _healthStep == _HealthStep.height
+        ? 'A little context helps personalize your health overview.'
+        : 'You can update this anytime in Health.';
     return AuthScaffold(
-      bottom: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AuthPrimaryButton(
-              label: 'Continue',
-              busy: _saving,
-              onPressed: _saveHealth),
-          Center(
-            child: TextButton(
-              onPressed: _saving
-                  ? null
-                  : () => setState(() => _reg = _Reg.done),
-              child: const Text('Skip for now',
-                  style: TextStyle(
-                      color: AuthColors.teal,
-                      fontWeight: FontWeight.w600)),
-            ),
-          ),
-        ],
-      ),
+      onBack: _busy
+          ? null
+          : () => setState(() => _healthStep =
+              _healthStep == _HealthStep.weight ? _HealthStep.height : _HealthStep.weight),
+      bottom: AuthPrimaryButton(
+          label: 'Continue', busy: _saving, onPressed: _saveHealth),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Health basics',
-              style: TextStyle(
+          const Text('Health setup',
+              style: TextStyle(fontSize: 14, color: AuthColors.muted,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          Text(title,
+              style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
-          const Text('Optional. You can always add this later.',
-              style:
-                  TextStyle(fontSize: 15, color: AuthColors.muted)),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: AuthTextField(
-                  controller: _height,
-                  hint: 'Height (optional)',
-                  keyboardType:
-                      const TextInputType.numberWithOptions(
-                          decimal: true),
-                  semanticLabel: 'Height',
-                ),
+          Text(subtitle,
+              style: const TextStyle(fontSize: 15, color: AuthColors.muted)),
+          const SizedBox(height: 28),
+          if (_healthStep == _HealthStep.height)
+            AuthTextField(
+              controller: _height,
+              hint: imperial ? 'Height in inches' : 'Height in cm',
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              semanticLabel: 'Height',
+              suffix: Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Text(imperial ? 'in' : 'cm',
+                    style: const TextStyle(color: AuthColors.muted)),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 2,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border:
-                        Border.all(color: AuthColors.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _heightUnit,
-                      isExpanded: true,
-                      items: const [
-                        DropdownMenuItem(
-                            value: 'CM', child: Text('cm')),
-                        DropdownMenuItem(
-                            value: 'IN', child: Text('in')),
-                      ],
-                      onChanged: (u) => setState(
-                          () => _heightUnit = u ?? 'CM'),
-                    ),
-                  ),
-                ),
+            )
+          else
+            AuthTextField(
+              controller: _weight,
+              hint: imperial ? 'Weight in pounds' : 'Weight in kg',
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              semanticLabel: 'Weight',
+              suffix: Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Text(imperial ? 'lb' : 'kg',
+                    style: const TextStyle(color: AuthColors.muted)),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: AuthTextField(
-                  controller: _weight,
-                  hint: 'Weight (optional)',
-                  keyboardType:
-                      const TextInputType.numberWithOptions(
-                          decimal: true),
-                  semanticLabel: 'Weight',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 2,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border:
-                        Border.all(color: AuthColors.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _weightUnit,
-                      isExpanded: true,
-                      items: const [
-                        DropdownMenuItem(
-                            value: 'KG', child: Text('kg')),
-                        DropdownMenuItem(
-                            value: 'LB', child: Text('lb')),
-                      ],
-                      onChanged: (u) => setState(
-                          () => _weightUnit = u ?? 'KG'),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
           if (_screenError != null) ...[
             const SizedBox(height: 12),
             InlineError(message: _screenError!),
@@ -2421,6 +2350,65 @@ class _AuthScreenState extends State<AuthScreen> {
                   TextStyle(fontSize: 15, color: AuthColors.muted)),
           SizedBox(height: 120),
         ],
+      ),
+    );
+  }
+}
+
+class _CountryPicker extends StatefulWidget {
+  const _CountryPicker();
+
+  @override
+  State<_CountryPicker> createState() => _CountryPickerState();
+}
+
+class _CountryPickerState extends State<_CountryPicker> {
+  final _query = TextEditingController();
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final results = searchCountries(_query.text);
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.82,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: TextField(
+                controller: _query,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  hintText: 'Search countries',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: results.length,
+                itemBuilder: (context, index) {
+                  final country = results[index];
+                  return ListTile(
+                    leading: Text(country.flag, style: const TextStyle(fontSize: 24)),
+                    title: Text(country.name),
+                    trailing: Text(country.code,
+                        style: const TextStyle(color: AuthColors.muted)),
+                    onTap: () => Navigator.of(context).pop(country),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

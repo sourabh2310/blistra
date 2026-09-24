@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import '../core/api/api_client.dart';
 import '../core/auth/auth_state.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/theme_controller.dart';
 import '../features/auth/auth_screen.dart';
 import '../features/dashboard/dashboard_controller.dart';
 import '../features/diet/diet_controller.dart';
@@ -47,6 +48,7 @@ class BlistraApp extends StatelessWidget {
         providers: [
           Provider<ApiClient>.value(value: deps.apiClient),
           ChangeNotifierProvider<AuthState>.value(value: deps.authState),
+          ChangeNotifierProvider<ThemeController>.value(value: deps.theme),
           ChangeNotifierProvider<DashboardController>.value(
               value: deps.dashboard),
           ChangeNotifierProvider<PlannerController>.value(value: deps.planner),
@@ -64,13 +66,17 @@ class BlistraApp extends StatelessWidget {
           ChangeNotifierProvider<SettingsController>.value(
               value: deps.settings),
         ],
-        child: MaterialApp(
-          title: 'Blistra',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(),
-          home: AuthGate(deps: deps),
-        ),
-      ),
+         child: ListenableBuilder(
+           listenable: deps.theme,
+           builder: (context, _) => MaterialApp(
+             title: 'Blistra',
+             debugShowCheckedModeBanner: false,
+             theme: AppTheme.light(),
+             darkTheme: AppTheme.dark(),
+             themeMode: deps.theme.mode,
+             home: AuthGate(deps: deps),
+           ),
+         ),
     );
   }
 }

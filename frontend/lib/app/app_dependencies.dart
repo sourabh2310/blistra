@@ -12,6 +12,7 @@ import '../core/api/api_client.dart';
 import '../core/auth/auth_state.dart';
 import '../core/auth/auth_storage.dart';
 import '../core/config/app_config.dart';
+import '../core/theme/theme_controller.dart';
 import '../features/dashboard/dashboard_api.dart';
 import '../features/dashboard/dashboard_controller.dart';
 import '../features/diet/diet_api.dart';
@@ -57,6 +58,7 @@ class AppDependencies {
     required this.settings,
     required this.syncService,
     required this.scheduler,
+    required this.theme,
   });
 
   final ApiClient apiClient;
@@ -78,6 +80,7 @@ class AppDependencies {
   final SettingsController settings;
   final ReminderSyncService syncService;
   final NotificationScheduler scheduler;
+  final ThemeController theme;
 
   /// Builds the production graph. Tests construct controllers directly.
   static Future<AppDependencies> create({
@@ -88,6 +91,8 @@ class AppDependencies {
     final resolvedBase = baseUrl ?? AppConfig.apiBaseUrl;
     final authStorage = storage ?? AuthStorage();
     final apiClient = ApiClient(baseUrl: resolvedBase);
+    final theme = ThemeController();
+    await theme.load();
     final authState = AuthState(apiClient: apiClient, storage: authStorage);
     apiClient.onUnauthorized = authState.handleUnauthorized;
     await authState.restore();
@@ -98,7 +103,7 @@ class AppDependencies {
           date: DateTime.now(),
           offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
         );
-    final planner = PlannerController(PlannerApi(apiClient));
+    late final PlannerController planner;
     final preferences =
         PreferencesController(PreferencesApi(apiClient));
     final profile = ProfileController(apiClient);
@@ -141,10 +146,21 @@ class AppDependencies {
       scheduler: effectiveScheduler,
       tokens: legacyTokens,
     );
-    final reminders = RemindersController(api: notificationsApi);
+    final reminders = RemindersController(
+      api: notificationsApi,
+      onChanged: syncService.refresh,
+    );
     final settings = SettingsController(
       api: notificationsApi,
       syncService: syncService,
+    );
+    planner = PlannerController(
+      PlannerApi(apiClient),
+      onRemindersChanged: () async {
+        await syncService.refresh();
+        await reminders.load();
+      },
+      onDashboardChanged: refreshDashboard,
     );
 
     // Keep the legacy token cache in step with the secure session.
@@ -170,6 +186,7 @@ class AppDependencies {
       settings: settings,
       syncService: syncService,
       scheduler: effectiveScheduler,
+      theme: theme,
     );
   }
 }

@@ -98,7 +98,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
+              child: SafeArea(
+                bottom: false,
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 8),
@@ -147,6 +149,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Space for the floating bottom navigation.
                   const SizedBox(height: 110),
                 ],
+              ),
               ),
             ),
           ),
@@ -898,7 +901,7 @@ class _ModuleGrid extends StatelessWidget {
     for (final d in doses) {
       final s = d.status.toUpperCase();
       if (s == 'TAKEN' || s == 'CANCELLED' || s == 'SKIPPED') continue;
-      final at = DateTime.tryParse(d.scheduledAt);
+      final at = DateTime.tryParse(d.scheduledAt)?.toLocal();
       if (at == null) continue;
       if (at.isBefore(now)) continue;
       if (bestAt == null || at.isBefore(bestAt)) {
@@ -1022,6 +1025,12 @@ class _ModuleGrid extends StatelessWidget {
     final planner = dashboard?.planner;
     final available = planner != null && !planner.unavailable;
     final events = available ? planner.todayEvents : const <EventSummary>[];
+    final taskCount = (planner?.todayTasks.length ?? 0) + (planner?.overdueTasks.length ?? 0);
+    final plannerDestination = taskCount > 0
+        ? 'PLANNER/TASKS/TODAY'
+        : events.isNotEmpty
+            ? 'PLANNER/EVENTS'
+            : 'PLANNER/TODAY';
     final upcoming = events.where((e) {
       final start = DateTime.tryParse(e.startAt);
       final end =
@@ -1031,7 +1040,7 @@ class _ModuleGrid extends StatelessWidget {
       return true;
     }).toList()
       ..sort((a, b) => a.startAt.compareTo(b.startAt));
-    if (!available || events.isEmpty) {
+    if (!available || (events.isEmpty && taskCount == 0)) {
       return _Tile(
         color: const Color(0xFFFFF4E3),
         icon: Icons.calendar_month,
@@ -1039,7 +1048,7 @@ class _ModuleGrid extends StatelessWidget {
         iconColor: const Color(0xFFE8890C),
         title: 'Planner',
         subtitle: 'No upcoming events',
-        onTap: () => onDestination?.call('PLANNER'),
+        onTap: () => onDestination?.call(plannerDestination),
         actionLabel: 'View',
         body: const Text('Nothing scheduled',
             style: TextStyle(
@@ -1047,9 +1056,11 @@ class _ModuleGrid extends StatelessWidget {
       );
     }
     final shown = upcoming.isEmpty ? events : upcoming;
-    final countLabel = upcoming.isEmpty
-        ? '${events.length} event${events.length == 1 ? '' : 's'} today'
-        : '${upcoming.length} upcoming event${upcoming.length == 1 ? '' : 's'}';
+    final countLabel = events.isEmpty
+        ? '$taskCount task${taskCount == 1 ? '' : 's'} today'
+        : upcoming.isEmpty
+            ? '${events.length} event${events.length == 1 ? '' : 's'} today'
+            : '${upcoming.length} upcoming event${upcoming.length == 1 ? '' : 's'}';
     const dots = [Color(0xFF12B5CB), Color(0xFF7C3AED)];
     return _Tile(
       color: const Color(0xFFFFF4E3),
@@ -1058,11 +1069,14 @@ class _ModuleGrid extends StatelessWidget {
       iconColor: const Color(0xFFE8890C),
       title: 'Planner',
       subtitle: countLabel,
-      onTap: () => onDestination?.call('PLANNER'),
+      onTap: () => onDestination?.call(plannerDestination),
       actionLabel: 'View',
       body: Column(
         children: [
-          for (int i = 0; i < shown.take(2).length; i++) ...[
+          if (shown.isEmpty)
+            const Text('Open your task list')
+          else
+            for (int i = 0; i < shown.take(2).length; i++) ...[
             if (i > 0) const SizedBox(height: 6),
             _PlannerRow(
               dot: dots[i % dots.length],
@@ -1161,7 +1175,7 @@ String _shortNumber(String raw) {
 
 String _formatTime(String? iso) {
   if (iso == null) return '';
-  final dt = DateTime.tryParse(iso);
+  final dt = DateTime.tryParse(iso)?.toLocal();
   if (dt == null) return '';
   return DateFormat('h:mm a').format(dt);
 }
@@ -1483,12 +1497,14 @@ class TimelineItem {
     required this.title,
     required this.meta,
     required this.status,
+    required this.destination,
   });
 
   final DateTime at;
   final String title;
   final String meta;
   final TimelineStatus status;
+  final String destination;
 
   bool get done => status == TimelineStatus.completed;
 }
@@ -1501,10 +1517,10 @@ List<TimelineItem> buildTimeline(DashboardResponse? dashboard,
   final planner = dashboard.planner;
   if (planner != null && !planner.unavailable) {
     for (final e in planner.todayEvents) {
-      final start = DateTime.tryParse(e.startAt);
+      final start = DateTime.tryParse(e.startAt)?.toLocal();
       if (start == null) continue;
       final end =
-          e.endAt != null ? DateTime.tryParse(e.endAt!) : null;
+          e.endAt != null ? DateTime.tryParse(e.endAt!)?.toLocal() : null;
       items.add(TimelineItem(
         at: start,
         title: e.title,
@@ -1512,36 +1528,37 @@ List<TimelineItem> buildTimeline(DashboardResponse? dashboard,
             ? '${_formatTime(e.startAt)} – ${_formatTime(e.endAt)}'
             : _formatTime(e.startAt),
         status: _eventStatus(start, end, now),
+        destination: 'PLANNER/EVENT/${e.id}',
       ));
     }
     for (final t in planner.todayTasks) {
       final s = (t.status ?? '').toUpperCase();
       if (s == 'CANCELLED') continue;
-      final due =
-          t.dueAt != null ? DateTime.tryParse(t.dueAt!) : null;
+      final due = DateTime.tryParse(t.startAt ?? t.dueAt ?? '')?.toLocal();
       if (due == null) continue;
       items.add(TimelineItem(
         at: due,
         title: t.title,
-        meta: _formatTime(t.dueAt),
+        meta: _formatTime(t.startAt ?? t.dueAt),
         status: s == 'COMPLETED'
             ? TimelineStatus.completed
             : due.isBefore(now)
                 ? TimelineStatus.overdue
                 : TimelineStatus.upcoming,
+        destination: 'PLANNER/TASK/${t.id}',
       ));
     }
     for (final t in planner.overdueTasks) {
       final s = (t.status ?? '').toUpperCase();
       if (s == 'COMPLETED' || s == 'CANCELLED') continue;
-      final due =
-          t.dueAt != null ? DateTime.tryParse(t.dueAt!) : null;
+      final due = DateTime.tryParse(t.startAt ?? t.dueAt ?? '')?.toLocal();
       if (due == null) continue;
       items.add(TimelineItem(
         at: due,
         title: t.title,
-        meta: 'Overdue · ${_formatTime(t.dueAt)}',
+        meta: 'Overdue · ${_formatTime(t.startAt ?? t.dueAt)}',
         status: TimelineStatus.overdue,
+        destination: 'PLANNER/TASK/${t.id}',
       ));
     }
   }
@@ -1549,7 +1566,7 @@ List<TimelineItem> buildTimeline(DashboardResponse? dashboard,
   final meds = dashboard.medicines;
   if (meds != null && !meds.unavailable) {
     for (final d in meds.dosesToday) {
-      final at = DateTime.tryParse(d.scheduledAt);
+      final at = DateTime.tryParse(d.scheduledAt)?.toLocal();
       if (at == null) continue;
       final s = d.status.toUpperCase();
       items.add(TimelineItem(
@@ -1565,6 +1582,7 @@ List<TimelineItem> buildTimeline(DashboardResponse? dashboard,
                     : at.difference(now).inMinutes <= 60
                         ? TimelineStatus.due
                         : TimelineStatus.upcoming,
+        destination: 'MEDICINES/${d.medicineId}',
       ));
     }
   }
@@ -1573,13 +1591,14 @@ List<TimelineItem> buildTimeline(DashboardResponse? dashboard,
   if (diet != null && !diet.unavailable) {
     for (final m in diet.meals) {
       if (m.consumedAt == null) continue;
-      final at = DateTime.tryParse(m.consumedAt!);
+      final at = DateTime.tryParse(m.consumedAt!)?.toLocal();
       if (at == null) continue;
       items.add(TimelineItem(
         at: at,
         title: _mealTitle(m.type),
         meta: 'Meal · ${_formatTime(m.consumedAt)}',
         status: TimelineStatus.completed,
+        destination: 'DIET/MEAL/${m.id}',
       ));
     }
   }
@@ -1587,7 +1606,7 @@ List<TimelineItem> buildTimeline(DashboardResponse? dashboard,
   final health = dashboard.health;
   if (health != null && !health.unavailable) {
     for (final a in health.upcomingAppointments) {
-      final at = DateTime.tryParse(a.scheduledAt);
+      final at = DateTime.tryParse(a.scheduledAt)?.toLocal();
       if (at == null) continue;
       // Timeline shows today only; appointments span 30 days.
       if (at.year != now.year ||
@@ -1607,6 +1626,7 @@ List<TimelineItem> buildTimeline(DashboardResponse? dashboard,
                 : at.isBefore(now)
                     ? TimelineStatus.overdue
                     : TimelineStatus.upcoming,
+        destination: 'HEALTH',
       ));
     }
   }
@@ -1656,7 +1676,7 @@ class _TimelineSection extends StatelessWidget {
                       fontSize: 20, fontWeight: FontWeight.w800)),
               const Spacer(),
               InkWell(
-                onTap: () => onDestination?.call('PLANNER'),
+                onTap: () => onDestination?.call('PLANNER/TODAY'),
                 child: const Row(
                   children: [
                     Text('View all',
@@ -1714,6 +1734,7 @@ class _TimelineSection extends StatelessWidget {
                             meta: items[i].meta,
                             trailing: _statusChip(items[i].status),
                             showDivider: i != items.length - 1,
+                            onTap: () => onDestination?.call(items[i].destination),
                           ),
                       ],
                     ),
@@ -1814,6 +1835,7 @@ class _TimelineRow extends StatelessWidget {
     required this.time,
     this.meta,
     this.trailing,
+    this.onTap,
     this.showDivider = true,
   });
 
@@ -1822,6 +1844,7 @@ class _TimelineRow extends StatelessWidget {
   final String time;
   final String? meta;
   final Widget? trailing;
+  final VoidCallback? onTap;
   final bool showDivider;
 
   @override
@@ -1829,8 +1852,13 @@ class _TimelineRow extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
             children: [
               Container(
                 width: 32,
@@ -1885,6 +1913,8 @@ class _TimelineRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    ),
         if (showDivider)
           const Divider(height: 1, color: Color(0xFFF0EDE8)),
       ],

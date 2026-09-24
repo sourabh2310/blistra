@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../../app/app_scope.dart';
 import '../../core/api/api_exception.dart';
+import '../../core/theme/theme_controller.dart';
 import '../dashboard/models/dashboard_response.dart';
 import '../notifications/state/settings_controller.dart';
 import '../preferences/screens/customize_home_screen.dart';
@@ -167,13 +168,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _editProfileField(context, controller, 'language'),
                       ),
                       _Row(
-                        icon: Icons.straighten_outlined,
-                        label: 'Units',
-                        value: profile?.unitSystem == 'IMPERIAL'
-                            ? 'Imperial'
-                            : 'Metric',
-                        onTap: () =>
-                            _editProfileField(context, controller, 'units'),
+                        icon: Icons.palette_outlined,
+                        label: 'Appearance',
+                        value: switch (context.watch<ThemeController>().mode) {
+                          ThemeMode.system => 'System',
+                          ThemeMode.light => 'Light',
+                          ThemeMode.dark => 'Dark',
+                        },
+                        onTap: () => _showAppearance(context),
                       ),
                       _Row(
                         icon: Icons.dashboard_customize_outlined,
@@ -268,6 +270,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
       ),
     );
+  }
+
+  Future<void> _showAppearance(BuildContext context) async {
+    final controller = context.read<ThemeController>();
+    final mode = await showDialog<ThemeMode>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Appearance'),
+        children: [
+          for (final mode in ThemeMode.values)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, mode),
+              child: Text(switch (mode) {
+                ThemeMode.system => 'System',
+                ThemeMode.light => 'Light',
+                ThemeMode.dark => 'Dark',
+              }),
+            ),
+        ],
+      ),
+    );
+    if (mode != null) await controller.setMode(mode);
   }
 
   // ── Personal/profile editing ───────────────────────────────────

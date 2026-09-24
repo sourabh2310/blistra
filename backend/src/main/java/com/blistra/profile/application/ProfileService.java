@@ -72,7 +72,11 @@ public class ProfileService {
             profile.setDateOfBirth(request.getDateOfBirth());
         }
         if (request.getCountry() != null) {
-            profile.setCountry(request.getCountry());
+            String country = request.getCountry().trim().toUpperCase(java.util.Locale.ROOT);
+            if (!isIsoCountryCode(country)) {
+                throw new BadRequestException("Country must be a valid ISO-3166 alpha-2 code");
+            }
+            profile.setCountry(country);
         }
         if (request.getTimezone() != null) {
             validateTimezone(request.getTimezone());
@@ -213,7 +217,7 @@ public class ProfileService {
         if (profile.getTimezone() == null) {
             missing.add("timezone");
         }
-        if (profile.getUnitSystem() == null) {
+        if (profile.getUnitSystem() == null || profile.getUnitSystem().isBlank()) {
             missing.add("unit system");
         }
         if (!missing.isEmpty()) {
@@ -236,6 +240,13 @@ public class ProfileService {
     private UserProfile profileFor(UUID userId) {
         return profileRepository.findByUserId(userId)
                 .orElseGet(() -> profileRepository.save(new UserProfile(userId)));
+    }
+
+    private static boolean isIsoCountryCode(String country) {
+        for (String isoCountry : java.util.Locale.getISOCountries()) {
+            if (isoCountry.equals(country)) return true;
+        }
+        return false;
     }
 
     private static void validateTimezone(String timezone) {

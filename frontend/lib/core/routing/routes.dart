@@ -9,6 +9,7 @@ import '../../features/diet/screens/meal_detail_screen.dart';
 import '../../features/diet/screens/profile_screen.dart';
 import '../../features/habits/screens/habit_detail_screen.dart';
 import '../../features/medicines/pages/medicine_detail_page.dart';
+import '../../features/planner/screens/planner_search_detail_screen.dart';
 
 /// Shell tabs in [AppShell] order.
 enum AppTab {
@@ -47,7 +48,10 @@ class AppRoutes {
   static SearchDestination resolveSearchRoute(String route) {
     final List<String> parts = route.split('/');
     if (parts.length >= 3 && parts[0] == 'planner') {
-      return const SearchDestination(tab: AppTab.planner);
+      return SearchDestination(
+        tab: AppTab.planner,
+        detail: (_) => PlannerSearchDetailScreen(route: route),
+      );
     }
     if (parts.length == 2 && parts[0] == 'medicines') {
       final String id = parts[1];

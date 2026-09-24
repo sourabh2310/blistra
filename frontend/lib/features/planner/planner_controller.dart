@@ -7,6 +7,7 @@ import 'models/schedule_view.dart';
 import 'models/task.dart';
 import 'models/task_list.dart';
 import 'models/task_priority.dart';
+import 'models/task_reminder_mode.dart';
 import 'models/task_status.dart';
 import 'models/task_view.dart';
 import 'models/today_view.dart';
@@ -17,12 +18,18 @@ import 'planner_api.dart';
 /// through this single place so the whole app stays consistent after each
 /// mutation.
 class PlannerController extends ChangeNotifier {
-  PlannerController(this._api);
+  PlannerController(
+    this._api, {
+    this.onRemindersChanged,
+    this.onDashboardChanged,
+  });
 
   final PlannerApi _api;
+  final Future<void> Function()? onRemindersChanged;
+  final Future<void> Function()? onDashboardChanged;
 
-  bool _loading = false;
-  final bool _mutating = false;
+  int _loadingCount = 0;
+  int _mutationCount = 0;
   String? _error;
 
   TaskView _taskView = TaskView.all;
@@ -46,11 +53,12 @@ class PlannerController extends ChangeNotifier {
   ScheduleView? _schedule;
   bool _scheduleLoading = false;
   String? _scheduleError;
+  int _scheduleRequest = 0;
   String _searchQuery = '';
 
-  bool get loading => _loading;
+  bool get loading => _loadingCount > 0;
 
-  bool get mutating => _mutating;
+  bool get mutating => _mutationCount > 0;
 
   String? get error => _error;
 
@@ -85,7 +93,8 @@ class PlannerController extends ChangeNotifier {
     return _selectedDate == today;
   }
 
-  /// Schedule items ordered by start time (events by startAt, tasks by dueAt).
+  /// Schedule items ordered by start time (events and time-blocked tasks by
+  /// startAt, untimed tasks by dueAt).
   List<PlannerEvent> get scheduleEventsOrdered {
     final events = List<PlannerEvent>.from(_schedule?.events ?? const []);
     events.sort((a, b) => a.startAt.compareTo(b.startAt));
@@ -95,8 +104,8 @@ class PlannerController extends ChangeNotifier {
   List<PlannerTask> get scheduleTasksOrdered {
     final tasks = List<PlannerTask>.from(_schedule?.tasks ?? const []);
     tasks.sort((a, b) {
-      final da = a.dueAt;
-      final db = b.dueAt;
+      final da = a.startAt ?? a.dueAt;
+      final db = b.startAt ?? b.dueAt;
       if (da == null && db == null) return a.title.compareTo(b.title);
       if (da == null) return 1;
       if (db == null) return -1;
@@ -116,22 +125,28 @@ class PlannerController extends ChangeNotifier {
     final requested = view ?? _taskView;
     _taskView = requested;
     await _run(() async {
-      final page = await _api.listTasks(
+      final result = await _fetchTasks(
         view: requested,
         taskListId: _taskListFilter,
         priority: _priorityFilter,
-        size: 50,
       );
-      _tasks = page.content;
-      _totalTasks = page.totalElements;
+      _tasks = result.tasks;
+      _totalTasks = result.total;
     });
+  }
+
+  void selectTaskView(TaskView view) {
+    if (_taskView == view) return;
+    _taskView = view;
+    notifyListeners();
   }
 
   Future<void> setTaskView(TaskView view) async {
     if (view == _taskView) {
       return;
     }
-    await loadTasks(view: view);
+    selectTaskView(view);
+    await loadTasks();
   }
 
   Future<void> setTaskListFilter(String? listId) async {
@@ -150,6 +165,16 @@ class PlannerController extends ChangeNotifier {
     await loadTasks();
   }
 
+  Future<PlannerTask> loadTask(String taskId) => _api.getTask(taskId);
+
+  Future<List<PlannerTask>> loadTasksForList(String listId) async {
+    final result = await _fetchTasks(
+      view: TaskView.all,
+      taskListId: listId,
+    );
+    return result.tasks;
+  }
+
   Future<void> createTask({
     required String title,
     String? description,
@@ -157,18 +182,26 @@ class PlannerController extends ChangeNotifier {
     TaskPriority? priority,
     DateTime? dueDate,
     DateTime? dueTime,
+    DateTime? startAt,
+    DateTime? endAt,
+    TaskReminderMode? reminderMode,
     String? taskListId,
   }) async {
-    await _api.createTask(
+    await _runMutation(() => _api.createTask(
       title: title,
       description: description,
       status: status,
       priority: priority,
       dueDate: dueDate,
       dueTime: dueTime,
+      startAt: startAt,
+      endAt: endAt,
+      reminderMode: reminderMode,
       taskListId: taskListId,
-    );
+    ));
     await _refreshTasksAndMeta();
+    await _syncTaskReminders();
+    await _refreshDashboardQuiet();
   }
 
   Future<void> updateTask(
@@ -179,9 +212,12 @@ class PlannerController extends ChangeNotifier {
     TaskPriority? priority,
     DateTime? dueDate,
     DateTime? dueTime,
+    DateTime? startAt,
+    DateTime? endAt,
+    TaskReminderMode? reminderMode,
     String? taskListId,
   }) async {
-    await _api.updateTask(
+    await _runMutation(() => _api.updateTask(
       taskId,
       title: title,
       description: description,
@@ -189,29 +225,42 @@ class PlannerController extends ChangeNotifier {
       priority: priority,
       dueDate: dueDate,
       dueTime: dueTime,
+      startAt: startAt,
+      endAt: endAt,
+      reminderMode: reminderMode,
       taskListId: taskListId,
-    );
+    ));
     await _refreshTasksAndMeta();
+    await _syncTaskReminders();
+    await _refreshDashboardQuiet();
   }
 
   Future<void> completeTask(String taskId) async {
-    await _api.completeTask(taskId);
+    await _runMutation(() => _api.completeTask(taskId));
     await _refreshTasksAndMeta();
+    await _syncTaskReminders();
+    await _refreshDashboardQuiet();
   }
 
   Future<void> reopenTask(String taskId) async {
-    await _api.reopenTask(taskId);
+    await _runMutation(() => _api.reopenTask(taskId));
     await _refreshTasksAndMeta();
+    await _syncTaskReminders();
+    await _refreshDashboardQuiet();
   }
 
   Future<void> cancelTask(String taskId) async {
-    await _api.cancelTask(taskId);
+    await _runMutation(() => _api.cancelTask(taskId));
     await _refreshTasksAndMeta();
+    await _syncTaskReminders();
+    await _refreshDashboardQuiet();
   }
 
   Future<void> deleteTask(String taskId) async {
-    await _api.deleteTask(taskId);
+    await _runMutation(() => _api.deleteTask(taskId));
     await _refreshTasksAndMeta();
+    await _syncTaskReminders();
+    await _refreshDashboardQuiet();
   }
 
   // ---------------------------------------------------------------------------
@@ -225,10 +274,11 @@ class PlannerController extends ChangeNotifier {
     });
   }
 
+  Future<TaskList> loadTaskList(String listId) => _api.getTaskList(listId);
+
   Future<void> createTaskList({required String name, String? description}) async {
-    await _api.createTaskList(name: name, description: description);
-    await loadTaskLists();
-    await loadTasks();
+    await _runMutation(() => _api.createTaskList(name: name, description: description));
+    await _refreshListViews();
   }
 
   Future<void> updateTaskList(
@@ -236,18 +286,18 @@ class PlannerController extends ChangeNotifier {
     required String name,
     String? description,
   }) async {
-    await _api.updateTaskList(listId, name: name, description: description);
-    await loadTaskLists();
-    await loadTasks();
+    await _runMutation(
+      () => _api.updateTaskList(listId, name: name, description: description),
+    );
+    await _refreshListViews();
   }
 
   Future<void> deleteTaskList(String listId) async {
-    await _api.deleteTaskList(listId);
+    await _runMutation(() => _api.deleteTaskList(listId));
     if (_taskListFilter == listId) {
       _taskListFilter = null;
     }
-    await loadTaskLists();
-    await loadTasks();
+    await _refreshListViews();
   }
 
   // ---------------------------------------------------------------------------
@@ -256,11 +306,13 @@ class PlannerController extends ChangeNotifier {
 
   Future<void> loadEvents() async {
     await _run(() async {
-      final page = await _api.listEvents(size: 50);
-      _events = page.content;
-      _totalEvents = page.totalElements;
+      final result = await _fetchEvents();
+      _events = result.events;
+      _totalEvents = result.total;
     });
   }
+
+  Future<PlannerEvent> loadEvent(String eventId) => _api.getEvent(eventId);
 
   Future<void> createEvent({
     required String title,
@@ -270,15 +322,16 @@ class PlannerController extends ChangeNotifier {
     required DateTime endAt,
     EventStatus? status,
   }) async {
-    await _api.createEvent(
+    await _runMutation(() => _api.createEvent(
       title: title,
       description: description,
       location: location,
       startAt: startAt,
       endAt: endAt,
       status: status,
-    );
+    ));
     await _refreshEventsToday();
+    await _refreshDashboardQuiet();
   }
 
   Future<void> updateEvent(
@@ -290,7 +343,7 @@ class PlannerController extends ChangeNotifier {
     required DateTime endAt,
     EventStatus? status,
   }) async {
-    await _api.updateEvent(
+    await _runMutation(() => _api.updateEvent(
       eventId,
       title: title,
       description: description,
@@ -298,33 +351,35 @@ class PlannerController extends ChangeNotifier {
       startAt: startAt,
       endAt: endAt,
       status: status,
-    );
+    ));
     await _refreshEventsToday();
+    await _refreshDashboardQuiet();
   }
 
   Future<void> deleteEvent(String eventId) async {
-    await _api.deleteEvent(eventId);
+    await _runMutation(() => _api.deleteEvent(eventId));
     await _refreshEventsToday();
+    await _refreshDashboardQuiet();
   }
 
   Future<PlannerEvent> completeEvent(String eventId) async {
-    final updated = await _api.completeEvent(eventId);
+    final updated = await _runMutation(() => _api.completeEvent(eventId));
     await _refreshEventsToday();
-    await loadSchedule();
+    await _refreshDashboardQuiet();
     return updated;
   }
 
   Future<PlannerEvent> cancelEvent(String eventId) async {
-    final updated = await _api.cancelEvent(eventId);
+    final updated = await _runMutation(() => _api.cancelEvent(eventId));
     await _refreshEventsToday();
-    await loadSchedule();
+    await _refreshDashboardQuiet();
     return updated;
   }
 
   Future<PlannerEvent> reopenEvent(String eventId) async {
-    final updated = await _api.reopenEvent(eventId);
+    final updated = await _runMutation(() => _api.reopenEvent(eventId));
     await _refreshEventsToday();
-    await loadSchedule();
+    await _refreshDashboardQuiet();
     return updated;
   }
 
@@ -343,25 +398,35 @@ class PlannerController extends ChangeNotifier {
   // ---------------------------------------------------------------------------
 
   Future<void> loadSchedule() async {
+    final request = ++_scheduleRequest;
+    final date = _selectedDate;
+    final days = _scope.days;
     _scheduleLoading = true;
     _scheduleError = null;
     notifyListeners();
     try {
-      _schedule = await _api.schedule(
-        date: _selectedDate,
-        days: _scope.days,
-      );
+      final schedule = await _api.schedule(date: date, days: days);
+      if (request != _scheduleRequest) return;
+      _schedule = schedule;
     } on ApiException catch (e) {
-      _scheduleError = e.message;
+      if (request == _scheduleRequest) _scheduleError = e.message;
     } catch (_) {
-      _scheduleError = 'Something went wrong. Please try again.';
+      if (request == _scheduleRequest) {
+        _scheduleError = 'Something went wrong. Please try again.';
+      }
+    } finally {
+      if (request == _scheduleRequest) {
+        _scheduleLoading = false;
+        notifyListeners();
+      }
     }
-    _scheduleLoading = false;
-    notifyListeners();
   }
 
   Future<void> selectDate(DateTime date) async {
-    final day = _day(date);
+    var day = _day(date);
+    if (_scope == ScheduleScope.week) {
+      day = day.subtract(Duration(days: day.weekday - 1));
+    }
     if (day == _selectedDate) return;
     _selectedDate = day;
     notifyListeners();
@@ -370,7 +435,11 @@ class PlannerController extends ChangeNotifier {
 
   Future<void> goToToday() async {
     final now = DateTime.now();
-    _selectedDate = _day(now);
+    var day = _day(now);
+    if (_scope == ScheduleScope.week) {
+      day = day.subtract(Duration(days: day.weekday - 1));
+    }
+    _selectedDate = day;
     notifyListeners();
     await loadSchedule();
   }
@@ -428,6 +497,13 @@ class PlannerController extends ChangeNotifier {
 
   // ---------------------------------------------------------------------------
 
+  Future<void> _syncTaskReminders() async {
+    try {
+      await onRemindersChanged?.call();
+    } catch (_) {
+    }
+  }
+
   void clearError() {
     if (_error != null) {
       _error = null;
@@ -435,33 +511,75 @@ class PlannerController extends ChangeNotifier {
     }
   }
 
+  Future<({List<PlannerTask> tasks, int total})> _fetchTasks({
+    required TaskView view,
+    String? taskListId,
+    TaskPriority? priority,
+  }) async {
+    final tasks = <PlannerTask>[];
+    var page = 0;
+    var total = 0;
+    var last = false;
+    do {
+      final result = await _api.listTasks(
+        view: view,
+        taskListId: taskListId,
+        priority: priority,
+        page: page,
+        size: 50,
+      );
+      tasks.addAll(result.content);
+      total = result.totalElements;
+      last = result.last || result.content.isEmpty;
+      page++;
+    } while (!last && page < 100);
+    return (tasks: tasks, total: total);
+  }
+
+  Future<({List<PlannerEvent> events, int total})> _fetchEvents() async {
+    final events = <PlannerEvent>[];
+    var page = 0;
+    var total = 0;
+    var last = false;
+    do {
+      final result = await _api.listEvents(page: page, size: 50);
+      events.addAll(result.content);
+      total = result.totalElements;
+      last = result.last || result.content.isEmpty;
+      page++;
+    } while (!last && page < 100);
+    return (events: events, total: total);
+  }
+
   Future<void> _refreshTasksAndMeta() async {
     await _run(() async {
-      final page = await _api.listTasks(
+      final result = await _fetchTasks(
         view: _taskView,
         taskListId: _taskListFilter,
         priority: _priorityFilter,
-        size: 50,
       );
-      _tasks = page.content;
-      _totalTasks = page.totalElements;
+      _tasks = result.tasks;
+      _totalTasks = result.total;
       if (_listsLoaded) {
         _taskLists = await _api.listTaskLists();
       }
-      if (_today != null) {
-        _today = await _api.today();
+      _today = await _api.today();
+      if (_schedule != null) {
+        _schedule = await _api.schedule(
+          date: _selectedDate,
+          days: _scope.days,
+        );
+        _scheduleError = null;
       }
     });
   }
 
   Future<void> _refreshEventsToday() async {
     await _run(() async {
-      final page = await _api.listEvents(size: 50);
-      _events = page.content;
-      _totalEvents = page.totalElements;
-      if (_today != null) {
-        _today = await _api.today();
-      }
+      final result = await _fetchEvents();
+      _events = result.events;
+      _totalEvents = result.total;
+      _today = await _api.today();
       // Keep the date-navigable schedule in sync without extra callers.
       try {
         _schedule = await _api.schedule(
@@ -475,9 +593,57 @@ class PlannerController extends ChangeNotifier {
     });
   }
 
+  Future<void> _refreshListViews() async {
+    await _run(() async {
+      _taskLists = await _api.listTaskLists();
+      _listsLoaded = true;
+      final result = await _fetchTasks(
+        view: _taskView,
+        taskListId: _taskListFilter,
+        priority: _priorityFilter,
+      );
+      _tasks = result.tasks;
+      _totalTasks = result.total;
+      _today = await _api.today();
+      if (_schedule != null) {
+        _schedule = await _api.schedule(
+          date: _selectedDate,
+          days: _scope.days,
+        );
+        _scheduleError = null;
+      }
+    });
+    await _refreshDashboardQuiet();
+  }
+
+  Future<void> _refreshDashboardQuiet() async {
+    try {
+      await onDashboardChanged?.call();
+    } catch (_) {
+    }
+  }
+
+  Future<T> _runMutation<T>(Future<T> Function() action) async {
+    _mutationCount++;
+    _error = null;
+    notifyListeners();
+    try {
+      return await action();
+    } on ApiException catch (e) {
+      _error = e.message;
+      rethrow;
+    } catch (_) {
+      _error = "Couldn't save this Planner item. Try again.";
+      rethrow;
+    } finally {
+      _mutationCount--;
+      notifyListeners();
+    }
+  }
+
   Future<void> _run(Future<void> Function() action) async {
     _error = null;
-    _loading = true;
+    _loadingCount++;
     notifyListeners();
     try {
       await action();
@@ -486,7 +652,7 @@ class PlannerController extends ChangeNotifier {
     } catch (_) {
       _error = 'Something went wrong. Please try again.';
     }
-    _loading = false;
+    _loadingCount--;
     notifyListeners();
   }
 }

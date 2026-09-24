@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/design_system.dart';
 import '../../../features/app_scope.dart';
 import '../models/task.dart';
+import '../models/task_status.dart';
 import '../models/task_view.dart';
 import '../planner_controller.dart';
-import '../widgets/task_card.dart';
+import '../today_helpers.dart';
 import '../widgets/status_views.dart';
+import '../widgets/task_card.dart';
+import 'task_detail_screen.dart';
 import 'task_form_screen.dart';
 
-/// Tasks tab: actionable work the user needs to complete.
-///
-/// Content-only widget (header + pill switcher live in [HomeScreen]).
-/// Uses an inline "+ Add task" CTA — never a floating button that could
-/// hide behind the global bottom navigation.
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
 
@@ -21,116 +21,62 @@ class TasksScreen extends StatefulWidget {
 }
 
 class _TasksScreenState extends State<TasksScreen> {
-  static const _teal = Color(0xFF0C6B6B);
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final planner = AppScope.of(context).planner;
-      if (planner.tasks.isEmpty && !planner.loading) {
-        planner.loadTasks();
-      }
-      if (planner.taskLists.isEmpty) {
-        planner.loadTaskLists();
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final planner = AppScope.of(context).planner;
     return ListenableBuilder(
       listenable: planner,
-      builder: (context, _) {
-        return RefreshIndicator(
-          color: _teal,
-          onRefresh: planner.loadTasks,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(child: _header(context, planner)),
-              SliverToBoxAdapter(child: _filters(planner)),
-              _bodySliver(context, planner),
-              const SliverToBoxAdapter(child: SizedBox(height: 110)),
-            ],
-          ),
-        );
-      },
+      builder: (context, _) => RefreshIndicator(
+        onRefresh: planner.loadTasks,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(child: _header(planner)),
+            SliverToBoxAdapter(child: _filters(planner)),
+            ..._body(context, planner),
+            const SliverToBoxAdapter(child: SizedBox(height: 110)),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _header(BuildContext context, PlannerController planner) {
+  Widget _header(PlannerController planner) {
     final visible = _visibleTasks(planner);
+    final count = planner.taskView == TaskView.completed
+        ? visible.length
+        : visible.where((task) => task.status != TaskStatus.completed).length;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Tasks',
-                    style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF101828))),
-                Text(
-                  visible.isEmpty
-                      ? 'Actions to complete'
-                      : '${visible.length} task${visible.length == 1 ? '' : 's'}',
-                  style:
-                      const TextStyle(fontSize: 13, color: Color(0xFF667085)),
-                ),
-              ],
-            ),
-          ),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: _teal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            onPressed: () => _openForm(context, planner),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add task'),
-          ),
+          Text('What do you need to get done?', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.xs),
+          Text('$count ${count == 1 ? 'task' : 'tasks'}', style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
     );
   }
 
   Widget _filters(PlannerController planner) {
-    const shown = [
+    const views = [
       TaskView.all,
-      TaskView.active,
-      TaskView.completed,
+      TaskView.today,
+      TaskView.upcoming,
       TaskView.overdue,
+      TaskView.completed,
     ];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
-          for (final view in shown)
+          for (final view in views)
             ChoiceChip(
               label: Text(_label(view)),
               selected: planner.taskView == view,
-              selectedColor: const Color(0xFFE6F6F3),
-              labelStyle: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: planner.taskView == view
-                    ? _teal
-                    : const Color(0xFF3E4A5A),
-              ),
-              side: BorderSide(
-                color: planner.taskView == view
-                    ? _teal
-                    : const Color(0xFFE4E7EC),
-              ),
               onSelected: (_) => planner.setTaskView(view),
             ),
         ],
@@ -138,153 +84,171 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _bodySliver(BuildContext context, PlannerController planner) {
+  List<Widget> _body(BuildContext context, PlannerController planner) {
     if (planner.loading && planner.tasks.isEmpty) {
-      return const SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(child: CircularProgressIndicator(color: _teal)),
-      );
+      return const [SliverToBoxAdapter(child: SkeletonLoader(rows: 5, rowHeight: 76))];
     }
     if (planner.error != null && planner.tasks.isEmpty) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child:
-            ErrorRetry(message: planner.error!, onRetry: planner.loadTasks),
-      );
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: ErrorRetry(
+            message: "Couldn't load your tasks.",
+            onRetry: planner.loadTasks,
+          ),
+        ),
+      ];
     }
     final visible = _visibleTasks(planner);
     if (visible.isEmpty) {
-      return SliverToBoxAdapter(child: _emptyState(context, planner));
-    }
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              16, index == 0 ? 12 : 8, 16, 0),
-          child: TaskCard(
-            task: visible[index],
-            onToggle: () => visible[index].status.isActive
-                ? planner.completeTask(visible[index].id)
-                : planner.reopenTask(visible[index].id),
-            onEdit: () =>
-                _openForm(context, planner, task: visible[index]),
-            onCancel: () => _confirm(
-              context,
-              'Cancel "${visible[index].title}"?',
-              () => planner.cancelTask(visible[index].id),
-            ),
-            onDelete: () => _confirm(
-              context,
-              'Delete "${visible[index].title}"?',
-              () => planner.deleteTask(visible[index].id),
-            ),
+      return [
+        SliverToBoxAdapter(
+          child: _emptyState(
+            title: planner.searchQuery.trim().isNotEmpty
+                ? 'No matching tasks'
+                : _emptyTitle(planner.taskView),
+            message: planner.searchQuery.trim().isNotEmpty
+                ? 'Try a different Planner search.'
+                : _emptyMessage(planner.taskView),
           ),
         ),
-        childCount: visible.length,
+      ];
+    }
+    if (planner.taskView == TaskView.completed) {
+      return [
+        _groupHeader('Completed', visible.length),
+        _taskList(context, planner, visible),
+      ];
+    }
+    final groups = groupTasksByDate(visible, DateTime.now());
+    return [
+      for (final group in groups) ...[
+        _groupHeader(group.label, group.tasks.length),
+        _taskList(context, planner, group.tasks),
+      ],
+    ];
+  }
+
+  Widget _groupHeader(String label, int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
+      child: Row(
+        children: [
+          Text(label, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          const Spacer(),
+          Text('$count', style: Theme.of(context).textTheme.labelLarge),
+        ],
       ),
     );
   }
 
+  Widget _taskList(BuildContext context, PlannerController planner, List<PlannerTask> tasks) {
+    return SliverList.builder(
+      itemCount: tasks.length,
+      itemBuilder: (context, index) {
+        final task = tasks[index];
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: TaskCard(
+            task: task,
+            onOpen: () => _openDetail(context, planner, task),
+            onToggle: () => _runAction(
+              context,
+              () => task.status.isActive
+                  ? planner.completeTask(task.id)
+                  : planner.reopenTask(task.id),
+            ),
+            onEdit: () => _openForm(context, planner, task: task),
+            onCancel: task.status.isActive
+                ? () => _confirm(context, 'Cancel this task?', () => planner.cancelTask(task.id))
+                : null,
+            onDelete: () => _confirm(context, 'Delete this task?', () => planner.deleteTask(task.id)),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openDetail(BuildContext context, PlannerController planner, PlannerTask task) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => TaskDetailScreen(planner: planner, taskId: task.id)),
+    );
+  }
+
   List<PlannerTask> _visibleTasks(PlannerController planner) {
-    final q = planner.searchQuery.trim().toLowerCase();
-    if (q.isEmpty) return planner.tasks;
-    return planner.tasks.where((t) {
-      return t.title.toLowerCase().contains(q) ||
-          (t.description?.toLowerCase().contains(q) ?? false);
+    final query = planner.searchQuery.trim().toLowerCase();
+    final tasks = List<PlannerTask>.from(planner.tasks);
+    if (query.isEmpty) return tasks;
+    return tasks.where((task) {
+      return task.title.toLowerCase().contains(query) ||
+          (task.description?.toLowerCase().contains(query) ?? false) ||
+          (task.taskListName?.toLowerCase().contains(query) ?? false);
     }).toList();
   }
 
-  Widget _emptyState(BuildContext context, PlannerController planner) {
+  Widget _emptyState({required String title, required String message}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFFF0EDE8)),
-        ),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      child: AppCard(
         child: Column(
           children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEAF2F2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_circle_outline,
-                  size: 30, color: _teal),
-            ),
-            const SizedBox(height: 12),
-            const Text('No tasks yet',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            const Text('Add something you need to get done.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF667085))),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: _teal),
-              onPressed: () => _openForm(context, planner),
-              icon: const Icon(Icons.add),
-              label: const Text('Add task'),
-            ),
+            Icon(Icons.task_alt, size: 48, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: AppSpacing.md),
+            Text(title, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
+            const SizedBox(height: AppSpacing.sm),
+            Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: AppSpacing.md),
+            const Text('Use the global Add button to create a task.'),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _openForm(
-    BuildContext context,
-    PlannerController planner, {
-    PlannerTask? task,
-  }) async {
+  Future<void> _openForm(BuildContext context, PlannerController planner, {PlannerTask? task}) async {
     final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-          builder: (_) => TaskFormScreen(planner: planner, task: task)),
+      MaterialPageRoute(builder: (_) => TaskFormScreen(planner: planner, task: task)),
     );
     if (saved == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text(task == null ? 'Task created' : 'Task updated')),
-      );
+      showAppMessage(context, task == null ? 'Task created' : 'Task updated');
     }
   }
 
-  Future<void> _confirm(
-    BuildContext context,
-    String message,
-    Future<void> Function() action,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(message),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Confirm')),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      action();
+  Future<void> _confirm(BuildContext context, String title, Future<void> Function() action) async {
+    final confirmed = await confirmAction(context, title: title, message: 'This action cannot be undone.');
+    if (confirmed) await _runAction(context, action);
+  }
+
+  Future<void> _runAction(BuildContext context, Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (_) {
+      if (context.mounted) showAppMessage(context, "Couldn't update this task.", error: true);
     }
   }
 
   static String _label(TaskView view) => switch (view) {
         TaskView.all => 'All',
-        TaskView.active => 'Open',
-        TaskView.completed => 'Completed',
-        TaskView.today => 'Due today',
-        TaskView.overdue => 'Overdue',
+        TaskView.today => 'Today',
         TaskView.upcoming => 'Upcoming',
+        TaskView.overdue => 'Overdue',
+        TaskView.completed => 'Completed',
+        TaskView.active => 'Open',
+      };
+
+  static String _emptyTitle(TaskView view) => switch (view) {
+        TaskView.today => 'Nothing due today',
+        TaskView.upcoming => 'Nothing upcoming',
+        TaskView.overdue => 'Nothing overdue',
+        TaskView.completed => 'No completed tasks',
+        _ => 'No tasks yet',
+      };
+
+  static String _emptyMessage(TaskView view) => switch (view) {
+        TaskView.today => 'Your Planner has no tasks scheduled for today.',
+        TaskView.upcoming => 'Tasks with future dates will appear here.',
+        TaskView.overdue => 'You are caught up on overdue tasks.',
+        TaskView.completed => 'Completed tasks will stay available here.',
+        _ => 'Use the global Add button when there is something to get done.',
       };
 }

@@ -331,6 +331,8 @@ class TaskSummary {
     this.priority,
     this.status,
     this.dueAt,
+    this.startAt,
+    this.endAt,
   });
 
   final String id;
@@ -340,6 +342,8 @@ class TaskSummary {
   final String? priority;
   final String? status;
   final String? dueAt;
+  final String? startAt;
+  final String? endAt;
 
   factory TaskSummary.fromJson(Map<String, dynamic> json) {
     return TaskSummary(
@@ -350,6 +354,8 @@ class TaskSummary {
       priority: json['priority'] as String?,
       status: json['status'] as String?,
       dueAt: json['dueAt'] as String?,
+      startAt: json['startAt'] as String?,
+      endAt: json['endAt'] as String?,
     );
   }
 
@@ -361,6 +367,8 @@ class TaskSummary {
         if (priority != null) 'priority': priority,
         if (status != null) 'status': status,
         if (dueAt != null) 'dueAt': dueAt,
+        if (startAt != null) 'startAt': startAt,
+        if (endAt != null) 'endAt': endAt,
       };
 }
 

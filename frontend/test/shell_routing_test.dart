@@ -333,6 +333,14 @@ void main() {
       expect(dest.detail, isNull);
     });
 
+    test('Planner task event and list search routes open owned details', () {
+      for (final route in ['planner/task/abc', 'planner/event/abc', 'planner/list/abc']) {
+        final dest = AppRoutes.resolveSearchRoute(route);
+        expect(dest.tab, AppTab.planner);
+        expect(dest.detail, isNotNull);
+      }
+    });
+
     test('documents resolve by id without switching tabs', () {
       final dest = AppRoutes.resolveSearchRoute('documents/doc-1');
       expect(dest.documentId, 'doc-1');

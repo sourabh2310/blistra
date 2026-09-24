@@ -6,6 +6,9 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/theme/theme_controller.dart';
 
 class AuthColors {
   AuthColors._();
@@ -33,27 +36,50 @@ class AuthScaffold extends StatelessWidget {
   final VoidCallback? onBack;
   final Widget? bottom;
 
+  Widget _themeToggle(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return Consumer<ThemeController>(
+      builder: (context, controller, _) => IconButton(
+        tooltip: controller.isDark(brightness)
+            ? 'Switch to light mode'
+            : 'Switch to dark mode',
+        onPressed: () => controller.toggle(brightness),
+        icon: Icon(
+          controller.isDark(brightness)
+              ? Icons.light_mode_outlined
+              : Icons.dark_mode_outlined,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AuthColors.cream,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
           children: [
-            if (onBack != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 4, top: 4),
-                  child: IconButton(
-                    tooltip: 'Back',
-                    onPressed: onBack,
-                    icon: const Icon(Icons.arrow_back,
-                        color: AuthColors.ink),
-                  ),
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
+              child: Row(
+                children: [
+                  if (onBack != null)
+                    IconButton(
+                      tooltip: 'Back',
+                      onPressed: onBack,
+                      icon: Icon(Icons.arrow_back,
+                          color: Theme.of(context).colorScheme.onSurface),
+                    )
+                  else
+                    const SizedBox(width: 48),
+                  const Spacer(),
+                  _themeToggle(context),
+                ],
               ),
+            ),
             Expanded(
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
@@ -167,8 +193,8 @@ class AuthTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
+           decoration: BoxDecoration(
+             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: hasError
@@ -192,8 +218,9 @@ class AuthTextField extends StatelessWidget {
               autofillHints: autofillHints,
               maxLength: maxLength,
               inputFormatters: inputFormatters,
-              style: const TextStyle(
-                  fontSize: 17, color: AuthColors.ink),
+               style: TextStyle(
+                   fontSize: 17,
+                   color: Theme.of(context).colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: hint,
                 labelText: label,
@@ -451,11 +478,11 @@ class _OtpInputState extends State<OtpInput> {
                     style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
-                        color: AuthColors.ink),
+                         color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
                       counterText: '',
                       filled: true,
-                      fillColor: Colors.white,
+                       fillColor: Theme.of(context).colorScheme.surface,
                       contentPadding:
                           const EdgeInsets.symmetric(vertical: 14),
                       enabledBorder: OutlineInputBorder(

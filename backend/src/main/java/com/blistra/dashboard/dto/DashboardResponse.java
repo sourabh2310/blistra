@@ -90,6 +90,8 @@ public class DashboardResponse {
         private String priority;
         private String status;
         private String dueAt;
+        private String startAt;
+        private String endAt;
     }
 
     @Data

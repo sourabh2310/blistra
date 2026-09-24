@@ -13,7 +13,7 @@ void main() {
       expect(actions, hasLength(6));
       expect(
         actions.map((a) => a.label).toList(),
-        ['Task', 'Event', 'Medicine', 'Meal', 'Water', 'Habit'],
+        ['Task', 'Planner event', 'Medicine', 'Meal', 'Water', 'Habit'],
       );
       // Stable identities, one per flow.
       expect(
@@ -52,7 +52,7 @@ void main() {
         labels,
         [
           'Add task',
-          'Add event',
+          'Add Planner event',
           'Add medicine',
           'Add meal',
           'Add water',
@@ -86,7 +86,7 @@ void main() {
       expect(find.text('TODAY'), findsOneWidget);
       // No generic MORE overflow section: exactly six destinations.
       expect(find.text('MORE'), findsNothing);
-      for (final label in ['Task', 'Event', 'Medicine', 'Meal', 'Water', 'Habit']) {
+      for (final label in ['Task', 'Planner event', 'Medicine', 'Meal', 'Water', 'Habit']) {
         expect(find.text(label), findsWidgets);
       }
       // No duplicate bottom navigation inside the sheet.
@@ -113,7 +113,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
 
-      await tester.tap(find.text('Event'));
+      await tester.tap(find.text('Planner event'));
       await tester.pump();
       final selected = await future;
       expect(selected!.kind, QuickAddKind.event);

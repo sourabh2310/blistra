@@ -72,10 +72,10 @@ List<QuickAddAction> get quickAddActions => const [
       ),
       QuickAddAction(
         kind: QuickAddKind.event,
-        label: 'Event',
+        label: 'Planner event',
         description: 'Schedule a time-bound commitment',
         icon: Icons.event_outlined,
-        semanticLabel: 'Add event',
+        semanticLabel: 'Add Planner event',
         tab: 1,
         tint: Color(0xFFEAF2FF),
         iconColor: Color(0xFF2E5AAC),
@@ -139,11 +139,6 @@ Future<void> openQuickAddCreation(
         MaterialPageRoute(builder: (_) => TaskFormScreen(planner: planner)),
       );
       if (saved == true && context.mounted) {
-        // ignore: discarded_futures
-        planner.loadSchedule();
-        // ignore: discarded_futures
-        planner.loadToday();
-        _refreshDashboardQuiet(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Task created')),
         );
@@ -160,11 +155,6 @@ Future<void> openQuickAddCreation(
         MaterialPageRoute(builder: (_) => EventFormScreen(planner: planner)),
       );
       if (saved == true && context.mounted) {
-        // ignore: discarded_futures
-        planner.loadSchedule();
-        // ignore: discarded_futures
-        planner.loadToday();
-        _refreshDashboardQuiet(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Event created')),
         );
@@ -317,7 +307,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             padding: EdgeInsets.fromLTRB(20, 10, 20, 16 + bottom),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFBF6),
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(28),
               boxShadow: [
                 BoxShadow(
@@ -337,25 +327,18 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
                       width: 44,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE4E7EC),
+                        color: Theme.of(context).colorScheme.outlineVariant,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Center(
-                    child: Text('Quick add',
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
-                            color: Color(0xFF101828))),
+                  Center(
+                    child: Text('Quick add', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.3)),
                   ),
                   const SizedBox(height: 2),
-                  const Center(
-                    child: Text('What would you like to add?',
-                        style: TextStyle(
-                            fontSize: 14, color: Color(0xFF667085))),
+                  Center(
+                    child: Text('What would you like to add?', style: Theme.of(context).textTheme.bodyMedium),
                   ),
                   const SizedBox(height: 14),
                   for (int i = 0; i < primary.length; i++)
@@ -371,15 +354,10 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
                     ),
                   _staggered(
                     index: 2,
-                    child: const Padding(
-                      padding: EdgeInsets.only(top: 2, bottom: 8),
-                      child: Text('TODAY',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                              color: Color(0xFF667085))),
-                    ),
+                     child: Padding(
+                       padding: const EdgeInsets.only(top: 2, bottom: 8),
+                       child: Text('TODAY', style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                     ),
                   ),
                   _staggered(
                     index: 3,
@@ -444,9 +422,9 @@ class _PrimaryCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFF0EDE8)),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: Row(
             children: [
@@ -465,14 +443,14 @@ class _PrimaryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(action.label,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF101828))),
+                            color: Theme.of(context).colorScheme.onSurface)),
                     const SizedBox(height: 1),
                     Text(action.description,
-                        style: const TextStyle(
-                            fontSize: 13, color: Color(0xFF667085))),
+                        style: TextStyle(
+                            fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ),
@@ -502,9 +480,9 @@ class _GridCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFF0EDE8)),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: Row(
             children: [
@@ -527,15 +505,15 @@ class _GridCard extends StatelessWidget {
                     Text(action.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF101828))),
+                         style: TextStyle(
+                             fontSize: 14,
+                             fontWeight: FontWeight.w700,
+                             color: Theme.of(context).colorScheme.onSurface)),
                     Text(action.description,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 11.5, color: Color(0xFF667085))),
+                         style: TextStyle(
+                             fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ),

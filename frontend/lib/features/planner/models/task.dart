@@ -1,3 +1,4 @@
+import 'task_reminder_mode.dart';
 import 'task_priority.dart';
 import 'task_status.dart';
 
@@ -14,6 +15,9 @@ class PlannerTask {
     this.dueDate,
     this.dueTime,
     this.dueAt,
+    this.startAt,
+    this.endAt,
+    this.reminderMode = TaskReminderMode.none,
     this.completedAt,
     this.taskListId,
     this.taskListName,
@@ -36,6 +40,9 @@ class PlannerTask {
 
   /// Resolved due instant (offset aware).
   final DateTime? dueAt;
+  final DateTime? startAt;
+  final DateTime? endAt;
+  final TaskReminderMode reminderMode;
   final DateTime? completedAt;
   final String? taskListId;
   final String? taskListName;
@@ -47,6 +54,8 @@ class PlannerTask {
     final dueDateRaw = json['dueDate'];
     final dueTimeRaw = json['dueTime'];
     final dueAtRaw = json['dueAt'];
+    final startAtRaw = json['startAt'];
+    final endAtRaw = json['endAt'];
     final completedRaw = json['completedAt'];
     final createdAtRaw = json['createdAt'];
     final updatedAtRaw = json['updatedAt'];
@@ -60,6 +69,9 @@ class PlannerTask {
       dueDate: dueDateRaw is String ? DateTime.parse(dueDateRaw) : null,
       dueTime: dueTimeRaw is String ? _parseTime(dueTimeRaw) : null,
       dueAt: dueAtRaw is String ? DateTime.parse(dueAtRaw) : null,
+      startAt: startAtRaw is String ? DateTime.parse(startAtRaw) : null,
+      endAt: endAtRaw is String ? DateTime.parse(endAtRaw) : null,
+      reminderMode: TaskReminderMode.fromWire(json['reminderMode'] as String?),
       completedAt: completedRaw is String ? DateTime.parse(completedRaw) : null,
       taskListId: json['taskListId'] as String?,
       taskListName: json['taskListName'] as String?,

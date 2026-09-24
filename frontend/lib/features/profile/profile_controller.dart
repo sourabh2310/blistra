@@ -50,7 +50,11 @@ class ProfileController extends ChangeNotifier {
       _profile = await _client.updateProfile(fields);
       return true;
     } on ApiException catch (e) {
-      _error = e.message;
+      _error = e.fieldErrors.isNotEmpty
+          ? e.fieldErrors.values.first
+          : e.message == 'Request validation failed'
+              ? 'We couldn\'t save your details. Please try again.'
+              : e.message;
       return false;
     } catch (_) {
       _error = 'Could not save your profile.';
@@ -69,7 +73,11 @@ class ProfileController extends ChangeNotifier {
       _profile = await _client.completeOnboarding();
       return true;
     } on ApiException catch (e) {
-      _error = e.message;
+      _error = e.fieldErrors.isNotEmpty
+          ? e.fieldErrors.values.first
+          : e.message == 'Request validation failed'
+              ? 'We couldn\'t save your details. Please try again.'
+              : e.message;
       return false;
     } catch (_) {
       _error = 'Could not complete onboarding.';
@@ -98,7 +106,11 @@ class ProfileController extends ChangeNotifier {
       );
       return true;
     } on ApiException catch (e) {
-      _error = e.message;
+      _error = e.fieldErrors.isNotEmpty
+          ? e.fieldErrors.values.first
+          : e.message == 'Request validation failed'
+              ? 'We couldn\'t save your details. Please try again.'
+              : e.message;
       return false;
     } catch (_) {
       _error = 'Could not update sign-in details.';
@@ -117,7 +129,11 @@ class ProfileController extends ChangeNotifier {
       _profile = await _client.confirmIdentity(code: code, channel: channel);
       return true;
     } on ApiException catch (e) {
-      _error = e.message;
+      _error = e.fieldErrors.isNotEmpty
+          ? e.fieldErrors.values.first
+          : e.message == 'Request validation failed'
+              ? 'We couldn\'t save your details. Please try again.'
+              : e.message;
       return false;
     } catch (_) {
       _error = 'Could not confirm the change.';
@@ -142,7 +158,11 @@ class ProfileController extends ChangeNotifier {
       );
       return true;
     } on ApiException catch (e) {
-      _error = e.message;
+      _error = e.fieldErrors.isNotEmpty
+          ? e.fieldErrors.values.first
+          : e.message == 'Request validation failed'
+              ? 'We couldn\'t save your details. Please try again.'
+              : e.message;
       return false;
     } catch (_) {
       _error = 'Could not change your password.';

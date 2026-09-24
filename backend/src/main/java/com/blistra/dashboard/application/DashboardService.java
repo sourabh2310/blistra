@@ -231,6 +231,8 @@ public class DashboardService {
                 .priority(t.getPriority() != null ? t.getPriority().name() : null)
                 .status(t.getStatus() != null ? t.getStatus().name() : null)
                 .dueAt(t.getDueAt() != null ? t.getDueAt().toString() : null)
+                .startAt(t.getStartAt() != null ? t.getStartAt().toString() : null)
+                .endAt(t.getEndAt() != null ? t.getEndAt().toString() : null)
                 .build()).toList();
     }
 

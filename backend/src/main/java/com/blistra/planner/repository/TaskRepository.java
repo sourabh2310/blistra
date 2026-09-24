@@ -39,8 +39,12 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
               AND t.status IN (:statuses)
               AND (CAST(:listId AS uuid) IS NULL OR t.list_id = :listId)
               AND (CAST(:priority AS text) IS NULL OR t.priority = :priority)
-              AND (CAST(:from AS timestamptz) IS NULL OR (t.due_at IS NOT NULL AND t.due_at >= :from))
-              AND (CAST(:to AS timestamptz) IS NULL OR (t.due_at IS NOT NULL AND t.due_at < :to))
+               AND (CAST(:from AS timestamptz) IS NULL OR
+                    ((t.due_at IS NOT NULL AND t.due_at >= :from) OR
+                     (t.start_at IS NOT NULL AND t.start_at >= :from)))
+               AND (CAST(:to AS timestamptz) IS NULL OR
+                    ((t.due_at IS NOT NULL AND t.due_at < :to) OR
+                     (t.start_at IS NOT NULL AND t.start_at < :to)))
               AND (CAST(:overdueCutoff AS timestamptz) IS NULL OR (t.due_at IS NOT NULL AND
                     (t.due_at < :todayStart OR (t.due_time IS NOT NULL AND t.due_at < :overdueCutoff))))
             ORDER BY
@@ -64,7 +68,8 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
             SELECT t FROM Task t
             WHERE t.user.id = :userId
               AND t.status IN :activeStatuses
-              AND t.dueAt IS NOT NULL AND t.dueAt >= :todayStart AND t.dueAt < :tomorrowStart
+              AND ((t.dueAt IS NOT NULL AND t.dueAt >= :todayStart AND t.dueAt < :tomorrowStart)
+                OR (t.startAt IS NOT NULL AND t.startAt >= :todayStart AND t.startAt < :tomorrowStart))
             """)
     java.util.List<Task> findDueToday(@Param("userId") UUID userId,
                                       @Param("activeStatuses") Collection<TaskStatus> activeStatuses,
@@ -76,7 +81,8 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
             SELECT t FROM Task t
             WHERE t.user.id = :userId
               AND t.status IN :activeStatuses
-              AND t.dueAt IS NOT NULL AND t.dueAt >= :startInclusive AND t.dueAt < :endExclusive
+              AND ((t.dueAt IS NOT NULL AND t.dueAt >= :startInclusive AND t.dueAt < :endExclusive)
+                OR (t.startAt IS NOT NULL AND t.startAt >= :startInclusive AND t.startAt < :endExclusive))
             ORDER BY t.dueAt ASC
             """)
     java.util.List<Task> findDueInRange(@Param("userId") UUID userId,

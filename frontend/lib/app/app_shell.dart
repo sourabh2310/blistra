@@ -24,12 +24,16 @@ import '../features/habits/habits_home.dart';
 import '../features/habits/habits_scope.dart';
 import '../features/health/presentation/health_home_screen.dart';
 import '../features/hub/hub_screen.dart';
+import '../features/diet/screens/meal_detail_screen.dart';
+import '../features/medicines/pages/medicine_detail_page.dart';
 import '../features/medicines/pages/medicine_list_page.dart';
 import '../features/notifications/screens/reminders_screen.dart';
 import '../features/preferences/screens/customize_home_screen.dart';
 import '../features/preferences/screens/customize_nav_screen.dart';
 import '../features/preferences/shell_destinations.dart';
+import '../features/planner/models/task_view.dart';
 import '../features/planner/screens/home_screen.dart' as planner;
+import '../features/planner/screens/planner_search_detail_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/search/screens/search_screen.dart';
 import '../features/search/search_api.dart';
@@ -46,6 +50,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+  planner.PlannerSection _plannerSection = planner.PlannerSection.today;
   bool _booted = false;
   bool _quickAddOpen = false;
 
@@ -103,6 +108,10 @@ class _AppShellState extends State<AppShell> {
     );
     if (!mounted) return;
     await _d.planner.loadToday();
+    try {
+      await _d.syncService.refresh();
+    } catch (_) {
+    }
   }
 
   Future<void> _refreshNotifications() async {
@@ -194,13 +203,65 @@ class _AppShellState extends State<AppShell> {
   /// Central destination router: tab-select when pinned, otherwise push the
   /// owning screen. Used by Home, Hub, search results and customization.
   void goToDestination(String rawId) {
-    final id = rawId.trim().toUpperCase();
+    final parts = rawId.trim().split('/');
+    final id = parts.first.toUpperCase();
     if (id == ShellDestinations.add) {
       _openQuickAdd(context);
       return;
     }
     if (id == 'PROFILE') {
       _openProfile();
+      return;
+    }
+    if (id == ShellDestinations.planner) {
+      final requested = parts.length > 1 ? parts[1].toLowerCase() : 'today';
+      final section = switch (requested) {
+        'task' || 'tasks' => planner.PlannerSection.tasks,
+        'list' || 'lists' => planner.PlannerSection.lists,
+        'event' || 'events' => planner.PlannerSection.events,
+        _ => planner.PlannerSection.today,
+      };
+      if (section == planner.PlannerSection.tasks &&
+          parts.length > 2 &&
+          parts[2].toUpperCase() == 'TODAY') {
+        _d.planner.selectTaskView(TaskView.today);
+      }
+      _showPlanner(section);
+      if (parts.length >= 3 &&
+          const {'task', 'event', 'list'}.contains(parts[1].toLowerCase())) {
+        final route = 'planner/${parts[1].toLowerCase()}/${parts[2]}';
+        pushModulePage(
+          context,
+          PlannerSearchDetailScreen(route: route),
+          title: 'Planner details',
+        );
+      }
+      return;
+    }
+    if (id == ShellDestinations.medicines && parts.length >= 2) {
+      final tabIndex = _destinations.indexOf(ShellDestinations.medicines);
+      if (tabIndex >= 0) {
+        setState(() => _index = tabIndex);
+        _refreshForDestination(ShellDestinations.medicines);
+      }
+      pushModulePage(
+        context,
+        MedicineDetailPage(medicineId: parts[1]),
+        title: 'Medicine details',
+      );
+      return;
+    }
+    if (id == ShellDestinations.diet && parts.length >= 3 && parts[1].toUpperCase() == 'MEAL') {
+      final tabIndex = _destinations.indexOf(ShellDestinations.diet);
+      if (tabIndex >= 0) {
+        setState(() => _index = tabIndex);
+        _refreshForDestination(ShellDestinations.diet);
+      }
+      pushModulePage(
+        context,
+        MealDetailScreen(mealId: parts[2]),
+        title: 'Meal details',
+      );
       return;
     }
     final destinations = _destinations;
@@ -211,6 +272,27 @@ class _AppShellState extends State<AppShell> {
       return;
     }
     _pushDestination(id);
+  }
+
+  void _showPlanner(planner.PlannerSection section) {
+    final destinations = _destinations;
+    final tabIndex = destinations.indexOf(ShellDestinations.planner);
+    if (tabIndex >= 0) {
+      setState(() {
+        _index = tabIndex;
+        _plannerSection = section;
+      });
+      _refreshForDestination(ShellDestinations.planner);
+      return;
+    }
+    pushModulePage(
+      context,
+      Scaffold(
+        appBar: AppBar(title: const Text('Planner')),
+        body: planner.HomeScreen(initialSection: section),
+      ),
+      title: 'Planner',
+    );
   }
 
   void _refreshForDestination(String id) {
@@ -236,13 +318,21 @@ class _AppShellState extends State<AppShell> {
   void _pushDestination(String id) {
     switch (id) {
       case ShellDestinations.home:
-        // Home is always pinned; defensive fallback only.
         setState(() => _index = 0);
+        return;
       case ShellDestinations.planner:
-        pushModulePage(context, const planner.HomeScreen(),
-            title: 'Planner');
+        pushModulePage(
+          context,
+          Scaffold(
+            appBar: AppBar(title: const Text('Planner')),
+            body: planner.HomeScreen(initialSection: _plannerSection),
+          ),
+          title: 'Planner',
+        );
+        return;
       case ShellDestinations.hub:
         _openHub();
+        return;
       case ShellDestinations.health:
         pushModulePage(
           context,
@@ -252,25 +342,31 @@ class _AppShellState extends State<AppShell> {
           ),
           title: 'Health',
         );
+        return;
       case ShellDestinations.medicines:
         pushModulePage(context, const MedicineListPage(),
             title: 'Medicines');
+        return;
       case ShellDestinations.diet:
         pushModulePage(context, const diet.TodayScreen(), title: 'Diet');
+        return;
       case ShellDestinations.habits:
         pushModulePage(
           context,
           HabitsScope(controller: _d.habits, child: const HabitsHome()),
           title: 'Habits',
         );
+        return;
       case ShellDestinations.finance:
         pushModulePage(
           context,
           FinanceScope(controller: _d.finance, child: const FinanceHome()),
           title: 'Finance',
         );
+        return;
       default:
         _openHub();
+        return;
     }
   }
 
@@ -324,22 +420,38 @@ class _AppShellState extends State<AppShell> {
   /// Search result routing through the real route contract: switch to the
   /// owning tab when pinned (or push the module), then push the detail page.
   void _openSearchRoute(String route) {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
     final dest = AppRoutes.resolveSearchRoute(route);
+    if (route.startsWith('planner/')) {
+      final parts = route.split('/');
+      final type = parts.length > 1 ? parts[1] : '';
+      _plannerSection = switch (type) {
+        'task' => planner.PlannerSection.tasks,
+        'event' => planner.PlannerSection.events,
+        'list' => planner.PlannerSection.lists,
+        _ => _plannerSection,
+      };
+    }
     if (dest.documentId != null) {
       pushModulePage(context, const DocumentsPage(), title: 'Documents');
       return;
     }
     final tab = dest.tab;
     if (tab != null) {
-      goToDestination(switch (tab) {
-        AppTab.dashboard => ShellDestinations.home,
-        AppTab.planner => ShellDestinations.planner,
-        AppTab.health => ShellDestinations.health,
-        AppTab.medicines => ShellDestinations.medicines,
-        AppTab.diet => ShellDestinations.diet,
-        AppTab.habits => ShellDestinations.habits,
-        AppTab.finance => ShellDestinations.finance,
-      });
+      if (tab == AppTab.planner) {
+        _showPlanner(_plannerSection);
+      } else {
+        goToDestination(switch (tab) {
+          AppTab.dashboard => ShellDestinations.home,
+          AppTab.health => ShellDestinations.health,
+          AppTab.medicines => ShellDestinations.medicines,
+          AppTab.diet => ShellDestinations.diet,
+          AppTab.habits => ShellDestinations.habits,
+          AppTab.finance => ShellDestinations.finance,
+        });
+      }
     }
     final detail = dest.detail;
     if (detail != null) {
@@ -389,7 +501,7 @@ class _AppShellState extends State<AppShell> {
           homeWidgets: _d.preferences.homeWidgets,
         );
       case ShellDestinations.planner:
-        return const planner.HomeScreen();
+        return planner.HomeScreen(initialSection: _plannerSection);
       case ShellDestinations.add:
         return const SizedBox.shrink(); // Add action, no page
       case ShellDestinations.hub:
@@ -514,7 +626,7 @@ class _AddButton extends StatelessWidget {
                 child: Icon(
                   open ? Icons.close : Icons.add,
                   key: ValueKey(open),
-                  color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
                   size: 32,
                 ),
               ),
@@ -547,8 +659,9 @@ class _BarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        selected ? const Color(0xFF0C6B6B) : const Color(0xFF98A2B3);
+    final color = selected
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.onSurfaceVariant;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),

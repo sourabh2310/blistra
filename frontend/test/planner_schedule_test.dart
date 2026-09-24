@@ -41,6 +41,26 @@ String _scheduleJson({String date = '2026-09-24'}) => jsonEncode({
       ],
     });
 
+String _taskJson({String id = 'task-new', String status = 'TODO'}) => jsonEncode({
+      'id': id,
+      'title': 'Scheduled task',
+      'status': status,
+      'priority': 'MEDIUM',
+      'overdue': false,
+      'reminderMode': 'AT_START',
+      'startAt': '2026-09-24T10:00:00Z',
+      'endAt': '2026-09-24T11:00:00Z',
+    });
+
+String _taskPage() => jsonEncode({
+      'content': [jsonDecode(_taskJson())],
+      'page': 0,
+      'size': 50,
+      'totalElements': 1,
+      'totalPages': 1,
+      'last': true,
+    });
+
 String _eventJson(String id, String status) => jsonEncode({
       'id': id,
       'title': 'Gym',
@@ -200,6 +220,71 @@ void main() {
       await controller.selectDate(DateTime(2026, 9, 30));
       expect(controller.scheduleEventsOrdered, isEmpty);
       expect(controller.scheduleTasksOrdered, isEmpty);
+    });
+  });
+
+  group('Planner mutation refresh', () {
+    test('task creation refreshes Today and shared Dashboard, then syncs reminders', () async {
+      var dashboardRefreshes = 0;
+      var reminderSyncs = 0;
+      final paths = <String>[];
+      final client = MockClient((request) async {
+        paths.add('${request.method} ${request.url.path}');
+        if (request.method == 'POST' && request.url.path == '/api/v1/planner/tasks') {
+          return http.Response(_taskJson(), 201);
+        }
+        if (request.method == 'GET' && request.url.path == '/api/v1/planner/tasks') {
+          return http.Response(_taskPage(), 200);
+        }
+        if (request.method == 'GET' && request.url.path == '/api/v1/planner/today') {
+          return http.Response(jsonEncode({'overdueTasks': [], 'todayTasks': [], 'todayEvents': []}), 200);
+        }
+        return http.Response('{}', 404);
+      });
+      final apiClient = ApiClient(baseUrl: 'http://localhost:8080', httpClient: client)..token = 't';
+      final controller = PlannerController(
+        PlannerApi(apiClient),
+        onRemindersChanged: () async {
+          reminderSyncs++;
+        },
+        onDashboardChanged: () async {
+          dashboardRefreshes++;
+        },
+      );
+      await controller.createTask(
+        title: 'Scheduled task',
+        startAt: DateTime.utc(2026, 9, 24, 10),
+        endAt: DateTime.utc(2026, 9, 24, 11),
+      );
+      expect(controller.tasks, hasLength(1));
+      expect(controller.today, isNotNull);
+      expect(reminderSyncs, 1);
+      expect(dashboardRefreshes, 1);
+      expect(paths, contains('GET /api/v1/planner/today'));
+    });
+
+    test('task mutation refreshes an already loaded schedule', () async {
+      var scheduleLoads = 0;
+      final client = MockClient((request) async {
+        if (request.url.path == '/api/v1/planner/schedule') {
+          scheduleLoads++;
+          return http.Response(jsonEncode({'date': '2026-09-24', 'days': 1, 'tasks': [], 'events': []}), 200);
+        }
+        if (request.method == 'POST' && request.url.path == '/api/v1/planner/tasks/task-1/complete') {
+          return http.Response(_taskJson(id: 'task-1', status: 'COMPLETED'), 200);
+        }
+        if (request.method == 'GET' && request.url.path == '/api/v1/planner/tasks') {
+          return http.Response(_taskPage(), 200);
+        }
+        if (request.method == 'GET' && request.url.path == '/api/v1/planner/today') {
+          return http.Response(jsonEncode({'overdueTasks': [], 'todayTasks': [], 'todayEvents': []}), 200);
+        }
+        return http.Response('{}', 404);
+      });
+      final controller = _controller(client);
+      await controller.loadSchedule();
+      await controller.completeTask('task-1');
+      expect(scheduleLoads, 2);
     });
   });
 }

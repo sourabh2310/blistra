@@ -3,6 +3,7 @@ package com.blistra.planner;
 import com.blistra.planner.dto.TaskCreateRequest;
 import com.blistra.planner.dto.TaskUpdateRequest;
 import com.blistra.planner.domain.TaskPriority;
+import com.blistra.planner.domain.TaskReminderMode;
 import com.blistra.planner.domain.TaskStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -13,6 +14,7 @@ import tools.jackson.databind.JsonNode;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -50,6 +52,40 @@ class PlannerTaskIntegrationTest extends PlannerTestSupport {
         assertThat(created.path("taskListName").isNull()).isTrue();
         assertThat(created.path("overdue").asBoolean()).isFalse();
         assertThat(created.path("createdAt").asText()).isNotEmpty();
+    }
+
+    @Test
+    void taskSupportsScheduledBlockAndReminders() throws Exception {
+        String token = registerAndLogin("planner-scheduled@blistra.com", "password123");
+        OffsetDateTime start = OffsetDateTime.now(USER_ZONE).plusDays(1).withHour(10).withMinute(0).withSecond(0).withNano(0);
+        OffsetDateTime end = start.plusHours(1);
+        JsonNode created = createTask(token, TaskCreateRequest.builder()
+                .title("Finish report")
+                .startAt(start)
+                .endAt(end)
+                .reminderMode(TaskReminderMode.AT_START_AND_END)
+                .build());
+        assertThat(created.path("startAt").asText()).isNotEmpty();
+        assertThat(created.path("endAt").asText()).isNotEmpty();
+        assertThat(created.path("reminderMode").asText()).isEqualTo("AT_START_AND_END");
+        assertThat(reminderRepository.findByUserIdOrderByScheduledAtAsc(
+                userRepository.findByEmail("planner-scheduled@blistra.com").orElseThrow().getId())).hasSize(2);
+    }
+
+    @Test
+    void taskRejectsEndBeforeStartAndInvalidReminder() throws Exception {
+        String token = registerAndLogin("planner-invalid@blistra.com", "password123");
+        OffsetDateTime now = OffsetDateTime.now(USER_ZONE).plusDays(1);
+        mockMvc.perform(post(TASKS_URL)
+                        .header(HttpHeaders.AUTHORIZATION, authHeader(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(TaskCreateRequest.builder()
+                                .title("Bad block")
+                                .startAt(now.plusHours(1))
+                                .endAt(now)
+                                .reminderMode(TaskReminderMode.AT_END)
+                                .build())))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
