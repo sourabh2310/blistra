@@ -2,7 +2,7 @@ import 'task_priority.dart';
 import 'task_status.dart';
 
 /// A planner task as returned by the backend. Field names mirror the
-/// {@code TaskResponse} contract.
+/// `TaskResponse` contract.
 class PlannerTask {
   PlannerTask({
     required this.id,
@@ -31,7 +31,7 @@ class PlannerTask {
   final DateTime? dueDate;
 
   /// Wall-clock time in the user's timezone (stored as a DateTime whose date
-  /// part is arbitrary and must be ignored; format with {@code HH:mm}).
+  /// part is arbitrary and must be ignored; format with `HH:mm`).
   final DateTime? dueTime;
 
   /// Resolved due instant (offset aware).

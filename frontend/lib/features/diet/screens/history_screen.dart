@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../diet_controller.dart';
@@ -41,6 +42,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
     await context.read<DietController>().loadHistory(refresh: true);
   }
 
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  String _dayLabel(DateTime day) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final that = DateTime(day.year, day.month, day.day);
+    if (that == today) {
+      return 'Today';
+    }
+    if (that == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday';
+    }
+    return DateFormat('EEE d MMM yyyy').format(day);
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<DietController>();
@@ -72,17 +89,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 subtitle: 'Your meal history will appear here.',
               )
             else ...[
-              for (final meal in history.content)
+              for (int i = 0; i < history.content.length; i++) ...[
+                if (i == 0 ||
+                    !_sameDay(history.content[i - 1].consumedAt,
+                        history.content[i].consumedAt))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12, bottom: 4),
+                    child: Text(
+                      _dayLabel(history.content[i].consumedAt),
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
                 MealTile(
-                  label: meal.mealType.label,
-                  title: meal.title,
-                  consumedAt: meal.consumedAt,
-                  itemCount: meal.itemCount,
+                  label: history.content[i].mealType.label,
+                  title: history.content[i].title,
+                  consumedAt: history.content[i].consumedAt,
+                  itemCount: history.content[i].itemCount,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => MealDetailScreen(
-                          mealId: meal.id,
+                          mealId: history.content[i].id,
                           // We could fetch the full meal, but MealDetailScreen
                           // will load it when initial is null.
                         ),
@@ -90,6 +117,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     );
                   },
                 ),
+              ],
               if (history.hasMore)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),

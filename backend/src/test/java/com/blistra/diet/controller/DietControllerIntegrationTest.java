@@ -621,6 +621,7 @@ class DietControllerIntegrationTest extends AbstractIntegrationTest {
 
         // Deleting a user cascades to their meals and water records.
         User user = new User("fk@example.com", "hash");
+        user.setUsername("fkuser");
         userRepository.save(user);
 
         Meal owned = new Meal(user.getId(), MealType.LUNCH, "Owned meal", null,

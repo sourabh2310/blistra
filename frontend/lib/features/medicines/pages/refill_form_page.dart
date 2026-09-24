@@ -2,11 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../../../core/auth/auth_state.dart';
-import '../../../core/api/api_client.dart';
-import '../data/medicines_api_client.dart';
 import '../models/refill.dart';
 import '../state/refill_form_controller.dart';
 
@@ -32,18 +28,6 @@ class _RefillFormPageState extends State<RefillFormPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_controller == null) {
-      final apiClient = context.read<ApiClient>();
-      final authState = context.read<AuthState>();
-      _controller = RefillFormController(
-        MedicinesApiClient(
-          tokenProvider: () => authState.apiClient.token ?? '',
-          onUnauthorized: () => authState.handleUnauthorized(),
-        ),
-        medicineId: widget.medicineId,
-        refill: widget.refill,
-      );
-    }
   }
 
   @override

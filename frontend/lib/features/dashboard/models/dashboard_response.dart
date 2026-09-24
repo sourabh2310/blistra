@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart';
 
 /// Complete dashboard aggregation for the authenticated user.
 class DashboardResponse {
   DashboardResponse({
     required this.date,
     required this.generatedAt,
+    this.user,
     this.planner,
     this.medicines,
     this.habits,
@@ -15,6 +15,7 @@ class DashboardResponse {
 
   final DateTime date;
   final DateTime generatedAt;
+  final DashboardUser? user;
   final PlannerSection? planner;
   final MedicineSection? medicines;
   final HabitSection? habits;
@@ -44,6 +45,9 @@ class DashboardResponse {
       finance: json['finance'] != null
           ? FinanceSection.fromJson(json['finance'] as Map<String, dynamic>)
           : null,
+      user: json['user'] != null
+          ? DashboardUser.fromJson(json['user'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -51,6 +55,7 @@ class DashboardResponse {
     return {
       'date': date.toIso8601String().split('T')[0],
       'generatedAt': generatedAt.toIso8601String(),
+      if (user != null) 'user': user!.toJson(),
       if (planner != null) 'planner': planner!.toJson(),
       if (medicines != null) 'medicines': medicines!.toJson(),
       if (habits != null) 'habits': habits!.toJson(),
@@ -776,6 +781,157 @@ class CategorySpend {
         'categoryName': categoryName,
         'amount': amount,
       };
+}
+
+class DashboardUser {
+  DashboardUser({this.email, this.displayName, this.firstName});
+
+  final String? email;
+  final String? displayName;
+  final String? firstName;
+
+  factory DashboardUser.fromJson(Map<String, dynamic> json) {
+    return DashboardUser(
+      email: json['email'] as String?,
+      displayName: json['displayName'] as String?,
+      firstName: json['firstName'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (email != null) 'email': email,
+        if (displayName != null) 'displayName': displayName,
+        if (firstName != null) 'firstName': firstName,
+      };
+}
+
+// ─── Pure Home helpers (no widgets): greeting, identity, day progress ───────
+
+/// Time-of-day greeting per product spec (local hour).
+/// 05:00–11:59 morning, 12:00–16:59 afternoon, 17:00–20:59 evening,
+/// otherwise night (21:00–04:59).
+String greetingForHour(int hour) {
+  if (hour >= 5 && hour < 12) return 'Good morning';
+  if (hour >= 12 && hour < 17) return 'Good afternoon';
+  if (hour >= 17 && hour < 21) return 'Good evening';
+  return 'Good night';
+}
+
+/// Resolve the header name exclusively from authenticated user data.
+/// Prefers backend firstName, then displayName, then the email local part.
+/// Returns 'there' when nothing usable exists (never a hardcoded persona).
+String resolveDisplayName({DashboardUser? user, String email = ''}) {
+  final first = user?.firstName?.trim() ?? '';
+  if (first.isNotEmpty) return first;
+  final display = user?.displayName?.trim() ?? '';
+  if (display.isNotEmpty) return display.split(RegExp(r'\s+')).first;
+  final raw = (user?.email ?? email).trim();
+  final local = raw.contains('@') ? raw.split('@').first : raw;
+  final cleaned = local.replaceAll(RegExp(r'[._\-+]+'), ' ').trim();
+  if (cleaned.isEmpty) return 'there';
+  final words = cleaned.split(RegExp(r'\s+'));
+  final firstWord = words.first;
+  return firstWord[0].toUpperCase() + firstWord.substring(1);
+}
+
+/// Initials for the avatar, derived from the resolved display name.
+String initialsForName(String name) {
+  final clean = name.trim();
+  if (clean.isEmpty || clean == 'there') return '';
+  final parts = clean.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  final word = parts.first.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+  if (word.isEmpty) return '';
+  if (word.length >= 2) return word.substring(0, 2).toUpperCase();
+  return word.toUpperCase();
+}
+
+/// Deterministic day-at-a-glance status text for a completion ratio.
+String dayStatusText(double pct) {
+  if (pct >= 1.0) return "You're all caught up";
+  if (pct >= 0.75) return "You're almost there";
+  if (pct >= 0.5) return "You're making good progress";
+  if (pct > 0.0) return "Let's keep moving";
+  return "Let's get your day started";
+}
+
+/// Aggregated day progress across planner tasks, medicine doses and habits.
+class DayProgress {
+  DayProgress({
+    required this.total,
+    required this.completed,
+    required this.attention,
+  });
+
+  final int total;
+  final int completed;
+  final int attention;
+
+  double? get pct => total == 0 ? null : (completed / total).clamp(0.0, 1.0);
+  bool get isEmpty => total == 0;
+
+  String get label =>
+      isEmpty ? 'No priorities yet' : '$completed of $total priorities completed';
+
+  String get status => pct == null ? "You're all caught up" : dayStatusText(pct!);
+}
+
+/// Compute day progress purely from a dashboard payload (no fallbacks).
+DayProgress computeDayProgress(DashboardResponse? dashboard, {DateTime? now}) {
+  if (dashboard == null) return DayProgress(total: 0, completed: 0, attention: 0);
+  final current = now ?? DateTime.now();
+
+  int plannerTotal = 0;
+  int plannerDone = 0;
+  int overdue = 0;
+  final planner = dashboard.planner;
+  if (planner != null && !planner.unavailable) {
+    final actionable = [...planner.todayTasks, ...planner.overdueTasks].where((t) {
+      final s = (t.status ?? '').toUpperCase();
+      return s != 'COMPLETED' && s != 'CANCELLED';
+    }).toList();
+    final done = [...planner.todayTasks, ...planner.overdueTasks].where((t) {
+      return (t.status ?? '').toUpperCase() == 'COMPLETED';
+    }).length;
+    plannerTotal = actionable.length + done;
+    plannerDone = done;
+    overdue = planner.overdueTasks.where((t) {
+      final s = (t.status ?? '').toUpperCase();
+      return s != 'COMPLETED' && s != 'CANCELLED';
+    }).length;
+  }
+
+  int medTotal = 0;
+  int medDone = 0;
+  int medOverdue = 0;
+  final meds = dashboard.medicines;
+  if (meds != null && !meds.unavailable) {
+    medTotal = meds.dosesToday.length;
+    medDone = meds.dosesToday
+        .where((d) => d.status.toUpperCase() == 'TAKEN')
+        .length;
+    medOverdue = meds.dosesToday.where((d) {
+      final s = d.status.toUpperCase();
+      if (s == 'TAKEN' || s == 'CANCELLED' || s == 'SKIPPED') return false;
+      final at = DateTime.tryParse(d.scheduledAt);
+      return at != null && at.isBefore(current);
+    }).length;
+  }
+
+  int habitTotal = 0;
+  int habitDone = 0;
+  final habits = dashboard.habits;
+  if (habits != null && !habits.unavailable) {
+    habitTotal = habits.expectedToday;
+    habitDone = habits.completedToday.clamp(0, habits.expectedToday);
+  }
+
+  final total = plannerTotal + medTotal + habitTotal;
+  final completed = plannerDone + medDone + habitDone;
+  final attention = overdue + medOverdue + (habitTotal - habitDone);
+  return DayProgress(total: total, completed: completed, attention: attention);
 }
 
 // Helper

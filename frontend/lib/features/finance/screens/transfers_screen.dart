@@ -27,7 +27,7 @@ class TransfersScreen extends StatelessWidget {
               : ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: controller.transfers.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 4),
+                  separatorBuilder: (_, _) => const SizedBox(height: 4),
                   itemBuilder: (BuildContext context, int index) {
                     final FinanceTransfer transfer = controller.transfers[index];
                     return _TransferCard(transfer: transfer);
@@ -69,7 +69,7 @@ class _TransferCard extends StatelessWidget {
         title: Text(
           '${transfer.sourceAccountName} → ${transfer.destinationAccountName}',
         ),
-        subtitle: Text('${transfer.note ?? ''}'
+        subtitle: Text((transfer.note ?? '')
             .isEmpty
             ? 'Moved between your accounts'
             : transfer.note!),

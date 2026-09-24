@@ -14,9 +14,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthStorage {
-  AuthStorage({FlutterSecureStorage? secure, SharedPreferences? prefs})
-      : _secure = secure,
-        _prefs = prefs;
+  AuthStorage({this._secure, this._prefs});
 
   static const String tokenKey = 'auth_token';
   static const String emailKey = 'auth_email';

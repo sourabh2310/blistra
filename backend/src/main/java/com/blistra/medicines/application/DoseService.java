@@ -1,15 +1,18 @@
 package com.blistra.medicines.application;
 
 import com.blistra.common.exception.BadRequestException;
+import com.blistra.common.exception.ResourceAlreadyExistsException;
 import com.blistra.common.exception.ResourceNotFoundException;
 import com.blistra.health.dto.PageResponse;
 import com.blistra.medicines.domain.DoseRecord;
 import com.blistra.medicines.domain.DoseStatus;
 import com.blistra.medicines.domain.Medicine;
+import com.blistra.medicines.domain.MedicationSchedule;
 import com.blistra.medicines.dto.DoseRequest;
 import com.blistra.medicines.dto.DoseResponse;
 import com.blistra.medicines.dto.DoseUpdateRequest;
 import com.blistra.medicines.repository.DoseRecordRepository;
+import com.blistra.medicines.repository.MedicationScheduleRepository;
 import com.blistra.medicines.repository.MedicineRepository;
 import com.blistra.users.application.CurrentUserProvider;
 import org.springframework.data.domain.Page;
@@ -34,13 +37,16 @@ public class DoseService {
 
     private final DoseRecordRepository doseRepository;
     private final MedicineRepository medicineRepository;
+    private final MedicationScheduleRepository scheduleRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public DoseService(DoseRecordRepository doseRepository,
                        MedicineRepository medicineRepository,
+                       MedicationScheduleRepository scheduleRepository,
                        CurrentUserProvider currentUserProvider) {
         this.doseRepository = doseRepository;
         this.medicineRepository = medicineRepository;
+        this.scheduleRepository = scheduleRepository;
         this.currentUserProvider = currentUserProvider;
     }
 
@@ -57,10 +63,14 @@ public class DoseService {
         Medicine medicine = requireOwnedMedicine(medicineId);
         OffsetDateTime takenAt = resolveTakenAt(request.getStatus(), request.getTakenAt());
         validateEventTimes(request.getStatus(), request.getScheduledAt(), takenAt);
+        rejectDuplicate(medicineId, request);
         DoseRecord record = new DoseRecord(medicine, request.getStatus());
         record.setScheduledAt(request.getScheduledAt());
         record.setTakenAt(takenAt);
         record.setNote(request.getNote());
+        if (request.getScheduleId() != null) {
+            record.setSchedule(requireOwnedSchedule(request.getScheduleId(), medicineId));
+        }
         return toResponse(doseRepository.save(record));
     }
 
@@ -95,6 +105,28 @@ public class DoseService {
         UUID userId = currentUserProvider.getCurrentUser().getId();
         return medicineRepository.findByIdAndUserId(medicineId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Medicine not found"));
+    }
+
+    private MedicationSchedule requireOwnedSchedule(UUID scheduleId, UUID medicineId) {
+        UUID userId = currentUserProvider.getCurrentUser().getId();
+        return scheduleRepository.findByIdAndMedicineIdAndMedicineUserId(scheduleId, medicineId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Schedule not found"));
+    }
+
+    /**
+     * Minimum accidental-duplicate protection for explicit "take now" taps:
+     * recording the same status twice for the same scheduled instant is
+     * rejected with 409. Corrections use the update endpoint instead.
+     */
+    private void rejectDuplicate(UUID medicineId, DoseRequest request) {
+        if (request.getScheduledAt() == null) {
+            return;
+        }
+        if (doseRepository.existsByMedicineIdAndScheduledAtAndStatus(
+                medicineId, request.getScheduledAt(), request.getStatus())) {
+            throw new ResourceAlreadyExistsException(
+                    "A " + request.getStatus().name() + " dose is already recorded for this time");
+        }
     }
 
     private OffsetDateTime resolveTakenAt(DoseStatus status, OffsetDateTime supplied) {

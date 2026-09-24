@@ -2,7 +2,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../habits_controller.dart';
 import '../habits_scope.dart';
@@ -17,7 +16,6 @@ class TodayScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final HabitsController controller = HabitsScope.of(context);
-    final ThemeData theme = Theme.of(context);
 
     if (controller.todayHabits.isEmpty) {
       return _EmptyState(
@@ -26,12 +24,18 @@ class TodayScreen extends StatelessWidget {
       );
     }
 
+    final int total = controller.todayHabits.length;
+    final int done = controller.doneToday.length;
+
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: controller.todayHabits.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemCount: controller.todayHabits.length + 1,
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (BuildContext context, int index) {
-        final HabitTodayResponse habit = controller.todayHabits[index];
+        if (index == 0) {
+          return _TodaySummary(done: done, total: total);
+        }
+        final HabitTodayResponse habit = controller.todayHabits[index - 1];
         return HabitTile(
           habit: habit,
           onToggle: (bool completed) => _toggleCompletion(context, habit, completed),
@@ -47,7 +51,10 @@ class TodayScreen extends StatelessWidget {
     bool completed,
   ) async {
     final HabitsController controller = HabitsScope.of(context);
-    final DateTime today = DateTime.now().toUtc();
+    // User-local calendar day: the backend compares against the user
+    // timezone's today, so a UTC conversion here would record completions
+    // on the wrong day around midnight.
+    final DateTime today = DateTime.now();
     try {
       if (completed) {
         // already completed - remove
@@ -91,6 +98,47 @@ class TodayScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       builder: (_) => const HabitFormScreen(),
+    );
+  }
+}
+
+/// Factual "done / total" summary of today's occurrences, derived from the
+/// loaded today list (never hardcoded, never placeholder habits).
+class _TodaySummary extends StatelessWidget {
+  const _TodaySummary({required this.done, required this.total});
+
+  final int done;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final double progress = total == 0 ? 0 : done / total;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Today', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              '$done / $total completed',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

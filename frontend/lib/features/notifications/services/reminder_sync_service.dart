@@ -19,12 +19,10 @@ import 'notification_scheduler.dart';
 /// 2. Re-schedule the active, future, preference-enabled subset.
 class ReminderSyncService {
   ReminderSyncService({
-    required NotificationsApi api,
-    required NotificationScheduler scheduler,
-    required TokenStore tokens,
-  })  : _api = api,
-        _scheduler = scheduler,
-        _tokens = tokens;
+    required this._api,
+    required this._scheduler,
+    required this._tokens,
+  });
 
   final NotificationsApi _api;
   final NotificationScheduler _scheduler;

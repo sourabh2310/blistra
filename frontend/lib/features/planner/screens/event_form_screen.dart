@@ -208,6 +208,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
   Future<void> _pickEnd(BuildContext context) async {
     final picked = await _pickDateTime(context, _end);
+    if (!context.mounted) return;
     if (picked == null) {
       return;
     }
@@ -230,6 +231,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
     if (date == null) {
       return null;
     }
+    if (!context.mounted) return null;
     final existing = initial;
     final time = await showTimePicker(
       context: context,

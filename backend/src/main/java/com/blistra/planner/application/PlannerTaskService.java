@@ -164,6 +164,16 @@ public class PlannerTaskService {
                 .stream().map(this::toResponse).toList();
     }
 
+    /**
+     * Tasks due inside an explicit calendar window. Ownership is enforced by
+     * the caller-supplied user id (always from the security context).
+     */
+    @Transactional(readOnly = true)
+    public List<TaskResponse> dueInRange(UUID userId, OffsetDateTime startInclusive, OffsetDateTime endExclusive) {
+        return taskRepository.findDueInRange(userId, ACTIVE_STATUSES, startInclusive, endExclusive)
+                .stream().map(this::toResponse).toList();
+    }
+
     private TaskResponse stateAction(UUID taskId, TaskStatus target) {
         User user = currentUserProvider.getCurrentUser();
         Task task = getOwned(taskId, user.getId());

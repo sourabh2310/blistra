@@ -312,7 +312,7 @@ class _DocumentCard extends StatelessWidget {
                           fit: BoxFit.cover,
                           width: 56,
                           height: 56,
-                          errorBuilder: (_, __, ___) => _fileIcon(document),
+                          errorBuilder: (_, _, _) => _fileIcon(document),
                         ),
                       )
                     : _fileIcon(document),

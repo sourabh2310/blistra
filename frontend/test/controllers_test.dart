@@ -12,7 +12,7 @@ import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
 
 class _FakeMedicinesApiClient extends MedicinesApiClient {
-  _FakeMedicinesApiClient({super.httpClient, super.baseUrl, super.tokenProvider});
+  _FakeMedicinesApiClient({super.httpClient, super.baseUrl});
 
   @override
   Future<Medicine> createMedicine(Map<String, dynamic> request) async {

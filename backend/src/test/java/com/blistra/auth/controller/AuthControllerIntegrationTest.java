@@ -54,7 +54,11 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNotEmpty())
                 .andExpect(jsonPath("$.email").value("test@example.com"))
-                .andExpect(jsonPath("$.status").value("ACTIVE"));
+                // V1 identity: legacy email-only registration derives the
+                // username and starts PENDING_VERIFICATION (not fully active).
+                .andExpect(jsonPath("$.status").value("PENDING_VERIFICATION"))
+                .andExpect(jsonPath("$.username").value("test"))
+                .andExpect(jsonPath("$.emailVerified").value(false));
     }
 
     @Test

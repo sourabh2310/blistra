@@ -64,7 +64,7 @@ class _LogFormScreenState extends State<LogFormScreen> {
 
   String get _severityLabel => _severity == null
       ? _noneLabel
-      : severityLabels[_severity] ?? '${_severity!.wire}';
+      : severityLabels[_severity] ?? _severity!.wire;
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) {

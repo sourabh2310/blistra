@@ -95,6 +95,54 @@ public class PlannerEventService {
                 .stream().map(this::toResponse).toList();
     }
 
+    /**
+     * Events overlapping an explicit calendar window. Used for date navigation
+     * and week views so only one day/week is fetched, never a lifetime.
+     */
+    @Transactional(readOnly = true)
+    public List<EventResponse> eventsForRange(UUID userId, java.time.OffsetDateTime startInclusive,
+                                              java.time.OffsetDateTime endExclusive) {
+        return eventRepository.findOverlapping(userId, EventStatus.CANCELLED, startInclusive, endExclusive)
+                .stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<EventResponse> eventsForDate(java.time.LocalDate date) {
+        User user = currentUserProvider.getCurrentUser();
+        return eventsForRange(user.getId(), time.dayStart(date), time.dayEndExclusive(date));
+    }
+
+    @Transactional(readOnly = true)
+    public List<EventResponse> eventsForRange(java.time.OffsetDateTime from, java.time.OffsetDateTime to) {
+        if (from == null || to == null || !to.isAfter(from)) {
+            throw new BadRequestException("Invalid range: 'to' must be after 'from'");
+        }
+        if (java.time.Duration.between(from, to).toDays() > 31) {
+            throw new BadRequestException("Range too large: max 31 days");
+        }
+        User user = currentUserProvider.getCurrentUser();
+        return eventsForRange(user.getId(), from, to);
+    }
+
+    public EventResponse complete(UUID eventId) {
+        return stateAction(eventId, EventStatus.COMPLETED);
+    }
+
+    public EventResponse cancel(UUID eventId) {
+        return stateAction(eventId, EventStatus.CANCELLED);
+    }
+
+    public EventResponse reopen(UUID eventId) {
+        return stateAction(eventId, EventStatus.SCHEDULED);
+    }
+
+    private EventResponse stateAction(UUID eventId, EventStatus target) {
+        User user = currentUserProvider.getCurrentUser();
+        PlannerEvent event = getOwned(eventId, user.getId());
+        event.setStatus(target);
+        return toResponse(eventRepository.save(event));
+    }
+
     private void applyFields(String title, String description, String location,
                              java.time.OffsetDateTime startAt, java.time.OffsetDateTime endAt,
                              PlannerEvent event) {

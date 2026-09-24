@@ -5,8 +5,12 @@ import com.blistra.common.exception.BadRequestException;
 import com.blistra.common.exception.InvalidCredentialsException;
 import com.blistra.common.exception.InvalidRequestException;
 import com.blistra.common.exception.InvalidStateException;
+import com.blistra.common.exception.OtpVerificationException;
+import com.blistra.common.exception.ResendCooldownException;
 import com.blistra.common.exception.ResourceAlreadyExistsException;
 import com.blistra.common.exception.ResourceNotFoundException;
+import com.blistra.common.exception.TooManyRequestsException;
+import com.blistra.common.exception.VerificationUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -235,6 +239,43 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    @ExceptionHandler(OtpVerificationException.class)
+    public ResponseEntity<ApiErrorResponse> handleOtpVerification(
+            OtpVerificationException ex,
+            HttpServletRequest request) {
+        return errorResponse(HttpStatus.BAD_REQUEST, ex.getCode(), ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ResendCooldownException.class)
+    public ResponseEntity<ApiErrorResponse> handleResendCooldown(
+            ResendCooldownException ex,
+            HttpServletRequest request) {
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.TOO_MANY_REQUESTS.value())
+                .code("RESEND_COOLDOWN")
+                .message(ex.getMessage())
+                .path(request.getServletPath())
+                .retryAfterSeconds(ex.getRetryAfterSeconds())
+                .build();
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(response);
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ApiErrorResponse> handleTooManyRequests(
+            TooManyRequestsException ex,
+            HttpServletRequest request) {
+        return errorResponse(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(VerificationUnavailableException.class)
+    public ResponseEntity<ApiErrorResponse> handleVerificationUnavailable(
+            VerificationUnavailableException ex,
+            HttpServletRequest request) {
+        return errorResponse(HttpStatus.SERVICE_UNAVAILABLE, "VERIFICATION_UNAVAILABLE",
+                ex.getMessage(), request);
     }
 
     private ResponseEntity<ApiErrorResponse> errorResponse(HttpStatus status, String code,

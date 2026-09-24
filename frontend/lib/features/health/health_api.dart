@@ -21,7 +21,7 @@ class HealthApi {
 
   Future<HealthProfile?> getProfile() async {
     try {
-      final Object? json = await _client.get('/api/v1/health/profile');
+      final Object json = await _client.get('/api/v1/health/profile');
       return json is Map<String, dynamic>
           ? HealthProfile.fromJson(json)
           : null;
@@ -34,7 +34,7 @@ class HealthApi {
   }
 
   Future<HealthProfile> saveProfile(HealthProfileInput input) async {
-    final Object? json =
+    final Object json =
         await _client.put('/api/v1/health/profile', body: input.toJson());
     return HealthProfile.fromJson(json as Map<String, dynamic>);
   }
@@ -55,21 +55,21 @@ class HealthApi {
       if (from != null) 'from': toWireTimestamp(from),
       if (to != null) 'to': toWireTimestamp(to),
     };
-    final Object? json =
+    final Object json =
         await _client.get('/api/v1/health/measurements', query: query);
     return HealthPage.fromJson(
         json as Map<String, dynamic>, HealthMeasurement.fromJson);
   }
 
   Future<HealthMeasurement> createMeasurement(MeasurementInput input) async {
-    final Object? json =
+    final Object json =
         await _client.post('/api/v1/health/measurements', body: input.toJson());
     return HealthMeasurement.fromJson(json as Map<String, dynamic>);
   }
 
   Future<HealthMeasurement> updateMeasurement(
       String id, MeasurementInput input) async {
-    final Object? json = await _client
+    final Object json = await _client
         .put('/api/v1/health/measurements/$id', body: input.toJson());
     return HealthMeasurement.fromJson(json as Map<String, dynamic>);
   }
@@ -91,18 +91,18 @@ class HealthApi {
       if (from != null) 'from': toWireTimestamp(from),
       if (to != null) 'to': toWireTimestamp(to),
     };
-    final Object? json = await _client.get('/api/v1/health/sleep', query: query);
+    final Object json = await _client.get('/api/v1/health/sleep', query: query);
     return HealthPage.fromJson(json as Map<String, dynamic>, HealthSleepRecord.fromJson);
   }
 
   Future<HealthSleepRecord> createSleep(SleepInput input) async {
-    final Object? json =
+    final Object json =
         await _client.post('/api/v1/health/sleep', body: input.toJson());
     return HealthSleepRecord.fromJson(json as Map<String, dynamic>);
   }
 
   Future<HealthSleepRecord> updateSleep(String id, SleepInput input) async {
-    final Object? json =
+    final Object json =
         await _client.put('/api/v1/health/sleep/$id', body: input.toJson());
     return HealthSleepRecord.fromJson(json as Map<String, dynamic>);
   }
@@ -124,19 +124,19 @@ class HealthApi {
       if (from != null) 'from': toWireTimestamp(from),
       if (to != null) 'to': toWireTimestamp(to),
     };
-    final Object? json =
+    final Object json =
         await _client.get('/api/v1/health/activity', query: query);
     return HealthPage.fromJson(json as Map<String, dynamic>, HealthActivity.fromJson);
   }
 
   Future<HealthActivity> createActivity(ActivityInput input) async {
-    final Object? json =
+    final Object json =
         await _client.post('/api/v1/health/activity', body: input.toJson());
     return HealthActivity.fromJson(json as Map<String, dynamic>);
   }
 
   Future<HealthActivity> updateActivity(String id, ActivityInput input) async {
-    final Object? json =
+    final Object json =
         await _client.put('/api/v1/health/activity/$id', body: input.toJson());
     return HealthActivity.fromJson(json as Map<String, dynamic>);
   }
@@ -158,18 +158,18 @@ class HealthApi {
       if (from != null) 'from': toWireTimestamp(from),
       if (to != null) 'to': toWireTimestamp(to),
     };
-    final Object? json = await _client.get('/api/v1/health/logs', query: query);
+    final Object json = await _client.get('/api/v1/health/logs', query: query);
     return HealthPage.fromJson(json as Map<String, dynamic>, HealthLogEntry.fromJson);
   }
 
   Future<HealthLogEntry> createLog(LogInput input) async {
-    final Object? json =
+    final Object json =
         await _client.post('/api/v1/health/logs', body: input.toJson());
     return HealthLogEntry.fromJson(json as Map<String, dynamic>);
   }
 
   Future<HealthLogEntry> updateLog(String id, LogInput input) async {
-    final Object? json =
+    final Object json =
         await _client.put('/api/v1/health/logs/$id', body: input.toJson());
     return HealthLogEntry.fromJson(json as Map<String, dynamic>);
   }
@@ -191,19 +191,19 @@ class HealthApi {
       if (from != null) 'from': toWireTimestamp(from),
       if (to != null) 'to': toWireTimestamp(to),
     };
-    final Object? json =
+    final Object json =
         await _client.get('/api/v1/health/events', query: query);
     return HealthPage.fromJson(json as Map<String, dynamic>, HealthEvent.fromJson);
   }
 
   Future<HealthEvent> createEvent(EventInput input) async {
-    final Object? json =
+    final Object json =
         await _client.post('/api/v1/health/events', body: input.toJson());
     return HealthEvent.fromJson(json as Map<String, dynamic>);
   }
 
   Future<HealthEvent> updateEvent(String id, EventInput input) async {
-    final Object? json =
+    final Object json =
         await _client.put('/api/v1/health/events/$id', body: input.toJson());
     return HealthEvent.fromJson(json as Map<String, dynamic>);
   }
@@ -225,21 +225,21 @@ class HealthApi {
       if (from != null) 'from': toWireTimestamp(from),
       if (to != null) 'to': toWireTimestamp(to),
     };
-    final Object? json =
+    final Object json =
         await _client.get('/api/v1/health/appointments', query: query);
     return HealthPage.fromJson(
         json as Map<String, dynamic>, HealthAppointment.fromJson);
   }
 
   Future<HealthAppointment> createAppointment(AppointmentInput input) async {
-    final Object? json =
+    final Object json =
         await _client.post('/api/v1/health/appointments', body: input.toJson());
     return HealthAppointment.fromJson(json as Map<String, dynamic>);
   }
 
   Future<HealthAppointment> updateAppointment(
       String id, AppointmentInput input) async {
-    final Object? json = await _client
+    final Object json = await _client
         .put('/api/v1/health/appointments/$id', body: input.toJson());
     return HealthAppointment.fromJson(json as Map<String, dynamic>);
   }

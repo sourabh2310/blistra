@@ -34,6 +34,7 @@ class DocumentRepositoryTest extends AbstractIntegrationTest {
         deleteAllUsers();
 
         user = new User("test@example.com", "hash");
+        user.setUsername("testuser");
         user = userRepository.save(user);
         userId = user.getId();
     }
@@ -129,6 +130,7 @@ class DocumentRepositoryTest extends AbstractIntegrationTest {
     @Test
     void searchOwned_otherUserNotIncluded() {
         User other = new User("other@example.com", "hash");
+        other.setUsername("otheruser");
         other = userRepository.save(other);
 
         Document d1 = new Document(user, "a.pdf", "k1", "application/pdf", 100L, "h1", DocumentCategory.MEDICAL, "d1");

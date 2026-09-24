@@ -30,6 +30,16 @@ blistra:
   documents:
     storage-root: ${DOCUMENTS_STORAGE_ROOT}
     max-file-size: ${DOCUMENTS_MAX_FILE_SIZE:10MB}
+  otp:
+    # Production: dev senders and the dev OTP endpoint are disabled.
+    # REQUIRED: BLISTRA_OTP_PEPPER (code-hash pepper) and real
+    # EmailSender/SmsSender provider beans (SMTP/SMS gateway).
+    dev-mode: ${BLISTRA_OTP_DEV_MODE:false}
+    ttl-minutes: ${BLISTRA_OTP_TTL_MINUTES:10}
+    max-attempts: ${BLISTRA_OTP_MAX_ATTEMPTS:5}
+    resend-cooldown-seconds: ${BLISTRA_OTP_RESEND_COOLDOWN:60}
+    max-per-hour: ${BLISTRA_OTP_MAX_PER_HOUR:10}
+    pepper: ${BLISTRA_OTP_PEPPER:}
 
 logging:
   level:

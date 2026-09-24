@@ -45,6 +45,17 @@ public class JwtProvider {
         return createToken(claims, userDetails.getUsername());
     }
 
+    /**
+     * Issues a token whose subject is the stable user id (survives email
+     * changes). Legacy email-subject tokens remain valid: resolution falls
+     * back to email lookup (see CustomUserDetailsService.loadBySubject).
+     */
+    public String generateToken(java.util.UUID userId, String email) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("email", email);
+        return createToken(claims, userId.toString());
+    }
+
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
                 .claims(claims)

@@ -16,14 +16,18 @@ import 'models/summary.dart';
 /// with every day-scoped request; the backend uses it to define the day
 /// boundary, never the server clock.
 class DietController extends ChangeNotifier {
-  DietController(this._api, {void Function()? onUnauthorized})
-      : _onUnauthorized = onUnauthorized;
+  DietController(this._api, {this._onUnauthorized, this.onMutated});
 
   final DietApi _api;
   final void Function()? _onUnauthorized;
 
+  /// Invoked after a successful meal/item/water mutation so owners (e.g. the
+  /// app shell) can refresh dependent state such as the Home dashboard.
+  /// Failures here must never break the Diet flow itself.
+  final Future<void> Function()? onMutated;
+
   DateTime _selectedDate = _dateOnly(DateTime.now());
-  int _offsetMinutes = DateTime.now().timeZoneOffset.inMinutes;
+  final int _offsetMinutes = DateTime.now().timeZoneOffset.inMinutes;
 
   DietSummary? _summary;
   PageResult<MealSummary>? _history;
@@ -113,14 +117,14 @@ class DietController extends ChangeNotifier {
       final firstPage = refresh ? 0 : _history?.page ?? 0;
       final page = await _api.listMeals(offsetMinutes: _offsetMinutes, page: firstPage);
       _history = page;
+    } on NetworkException {
+      _historyError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
         return;
       }
       _historyError = e.message;
-    } on NetworkException {
-      _historyError = 'Cannot reach the server.';
     } catch (_) {
       _historyError = 'Something went wrong while loading history.';
     } finally {
@@ -146,14 +150,14 @@ class DietController extends ChangeNotifier {
         totalElements: page.totalElements,
         totalPages: page.totalPages,
       );
+    } on NetworkException {
+      _historyError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
         return;
       }
       _historyError = e.message;
-    } on NetworkException {
-      _historyError = 'Cannot reach the server.';
     } catch (_) {
       _historyError = 'Something went wrong while loading more meals.';
     } finally {
@@ -162,19 +166,34 @@ class DietController extends ChangeNotifier {
     }
   }
 
+  /// Loads per-day summaries for the last [days] calendar days (oldest
+  /// first) for trends. Bounded and on-demand; callers handle errors so a
+  /// failed trends load never disturbs the rest of the Diet state.
+  Future<List<DietSummary>> loadRangeSummaries({int days = 7}) {
+    final now = DateTime.now();
+    final dates = [
+      for (int i = days - 1; i >= 0; i--)
+        DateTime(now.year, now.month, now.day)
+            .subtract(Duration(days: i)),
+    ];
+    return Future.wait(dates.map(
+      (date) => _api.dailySummary(date, offsetMinutes: _offsetMinutes),
+    ));
+  }
+
   Future<void> loadProfile() async {
     _profileLoading = true;
     notifyListeners();
     try {
       _profile = await _api.getProfile();
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
         return;
       }
       _lastActionError = e.message;
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } finally {
       _profileLoading = false;
       notifyListeners();
@@ -202,14 +221,14 @@ class DietController extends ChangeNotifier {
       ));
       notifyListeners();
       return true;
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
       } else {
         _lastActionError = e.message;
       }
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } catch (_) {
       _lastActionError = 'Could not save the profile.';
     }
@@ -238,15 +257,16 @@ class DietController extends ChangeNotifier {
       );
       notifyListeners();
       await loadSummary();
+      await _notifyMutated();
       return meal;
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
       } else {
         _lastActionError = e.message;
       }
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } catch (_) {
       _lastActionError = 'Could not save the meal.';
     }
@@ -274,15 +294,16 @@ class DietController extends ChangeNotifier {
       );
       notifyListeners();
       await loadSummary();
+      await _notifyMutated();
       return true;
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
       } else {
         _lastActionError = e.message;
       }
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } catch (_) {
       _lastActionError = 'Could not update the meal.';
     }
@@ -296,15 +317,16 @@ class DietController extends ChangeNotifier {
       await _api.deleteMeal(id);
       notifyListeners();
       await loadSummary();
+      await _notifyMutated();
       return true;
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
       } else {
         _lastActionError = e.message;
       }
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } catch (_) {
       _lastActionError = 'Could not delete the meal.';
     }
@@ -318,14 +340,14 @@ class DietController extends ChangeNotifier {
     try {
       final meal = await _api.getMeal(id);
       return meal;
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
       } else {
         _lastActionError = e.message;
       }
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } catch (_) {
       _lastActionError = 'Could not load the meal.';
     }
@@ -339,15 +361,16 @@ class DietController extends ChangeNotifier {
     try {
       await _api.addMealItem(mealId, item);
       notifyListeners();
+      await _notifyMutated();
       return true;
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
       } else {
         _lastActionError = e.message;
       }
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } catch (_) {
       _lastActionError = 'Could not add the item.';
     }
@@ -363,15 +386,16 @@ class DietController extends ChangeNotifier {
     try {
       await _api.updateMealItem(mealId, itemId, item);
       notifyListeners();
+      await _notifyMutated();
       return true;
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
       } else {
         _lastActionError = e.message;
       }
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } catch (_) {
       _lastActionError = 'Could not update the item.';
     }
@@ -386,15 +410,16 @@ class DietController extends ChangeNotifier {
     try {
       await _api.deleteMealItem(mealId, itemId);
       notifyListeners();
+      await _notifyMutated();
       return true;
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
       } else {
         _lastActionError = e.message;
       }
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } catch (_) {
       _lastActionError = 'Could not delete the item.';
     }
@@ -421,15 +446,16 @@ class DietController extends ChangeNotifier {
       await _api.createWater(amount: amount, unit: unit, consumedAt: at);
       notifyListeners();
       await loadSummary();
+      await _notifyMutated();
       return true;
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
       } else {
         _lastActionError = e.message;
       }
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } catch (_) {
       _lastActionError = 'Could not save the water record.';
     }
@@ -445,15 +471,16 @@ class DietController extends ChangeNotifier {
       await _api.deleteWater(id);
       notifyListeners();
       await loadSummary();
+      await _notifyMutated();
       return true;
+    } on NetworkException {
+      _lastActionError = 'Cannot reach the server.';
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         _handleUnauthorized();
       } else {
         _lastActionError = e.message;
       }
-    } on NetworkException {
-      _lastActionError = 'Cannot reach the server.';
     } catch (_) {
       _lastActionError = 'Could not delete the water record.';
     }
@@ -463,6 +490,14 @@ class DietController extends ChangeNotifier {
 
   void _handleUnauthorized() {
     _onUnauthorized?.call();
+  }
+
+  Future<void> _notifyMutated() async {
+    try {
+      await onMutated?.call();
+    } catch (_) {
+      // Dependent refresh (e.g. dashboard) must never break Diet itself.
+    }
   }
 
   static DateTime _dateOnly(DateTime dateTime) {

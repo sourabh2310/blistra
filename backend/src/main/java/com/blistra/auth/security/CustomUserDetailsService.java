@@ -19,10 +19,33 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        if (user.getStatus() != UserStatus.ACTIVE) {
+        if (user.isBlocked()) {
             throw new UsernameNotFoundException("User not found");
         }
 
         return new BlistraUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), java.util.List.of());
+    }
+
+    public UserDetails loadUserById(java.util.UUID id) throws UsernameNotFoundException {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        if (user.isBlocked()) {
+            throw new UsernameNotFoundException("User not found");
+        }
+
+        return new BlistraUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), java.util.List.of());
+    }
+
+    /**
+     * Resolves a token subject: new tokens carry the user id, legacy tokens
+     * carry the email. Blocked (inactive/suspended) accounts authenticate as
+     * absent in both cases.
+     */
+    public UserDetails loadBySubject(String subject) throws UsernameNotFoundException {
+        try {
+            return loadUserById(java.util.UUID.fromString(subject));
+        } catch (IllegalArgumentException e) {
+            return loadUserByUsername(subject);
+        }
     }
 }

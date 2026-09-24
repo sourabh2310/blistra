@@ -15,9 +15,14 @@ import 'models.dart';
 enum HabitsLoadStatus { idle, loading, ready, error }
 
 class HabitsController extends ChangeNotifier {
-  HabitsController({required this.api});
+  HabitsController({required this.api, this.onMutated});
 
   final HabitsApi api;
+
+  /// Invoked after a successful habit/schedule/completion mutation so owners
+  /// (e.g. the app shell) can refresh dependent state such as the Home
+  /// dashboard and Planner's aggregated habits. Never breaks Habits itself.
+  final Future<void> Function()? onMutated;
 
   HabitsLoadStatus _status = HabitsLoadStatus.idle;
   String? _errorMessage;
@@ -86,6 +91,7 @@ class HabitsController extends ChangeNotifier {
     );
     _habits = [..._habits, created]..sort(_compareNewestFirst);
     notifyListeners();
+    await _notifyMutated();
     return created;
   }
 
@@ -113,6 +119,7 @@ class HabitsController extends ChangeNotifier {
       for (final Habit h in _habits) h.id == id ? updated : h,
     ]..sort(_compareNewestFirst);
     notifyListeners();
+    await _notifyMutated();
     return updated;
   }
 
@@ -120,6 +127,7 @@ class HabitsController extends ChangeNotifier {
     await api.archiveHabit(id);
     await _loadHabits();
     await _loadTodayHabits();
+    await _notifyMutated();
   }
 
   Future<Schedule> upsertSchedule(
@@ -127,8 +135,10 @@ class HabitsController extends ChangeNotifier {
     required HabitFrequency frequency,
     List<String>? daysOfWeek,
   }) async {
-    return api.upsertSchedule(habitId,
+    final Schedule schedule = await api.upsertSchedule(habitId,
         frequency: frequency, daysOfWeek: daysOfWeek);
+    await _notifyMutated();
+    return schedule;
   }
 
   Future<Completion> recordCompletion(
@@ -144,6 +154,7 @@ class HabitsController extends ChangeNotifier {
       durationMinutes: durationMinutes,
     );
     await _loadTodayHabits();
+    await _notifyMutated();
     return completion;
   }
 
@@ -153,6 +164,7 @@ class HabitsController extends ChangeNotifier {
   ) async {
     await api.removeCompletion(habitId, completedOn);
     await _loadTodayHabits();
+    await _notifyMutated();
   }
 
   Future<HabitStatisticsResponse> fetchStatistics(String habitId) async {
@@ -166,6 +178,14 @@ class HabitsController extends ChangeNotifier {
 
   Future<void> _loadTodayHabits() async {
     _todayHabits = await api.fetchTodayHabits();
+  }
+
+  Future<void> _notifyMutated() async {
+    try {
+      await onMutated?.call();
+    } catch (_) {
+      // Dependent refresh (e.g. dashboard) must never break Habits itself.
+    }
   }
 
   static int _compareNewestFirst(Habit a, Habit b) {

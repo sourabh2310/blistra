@@ -98,7 +98,7 @@ void main() {
       final api = ApiClient(
           baseUrl: 'http://localhost:8080', httpClient: loginMock());
       final auth = AuthState(apiClient: api, storage: AuthStorage());
-      await auth.login('u@x.com', 'password123');
+      await auth.login(identifier: 'u@x.com', password: 'password123');
       expect(auth.isAuthenticated, isTrue);
       expect(api.token, 'tok-1');
 
@@ -113,7 +113,7 @@ void main() {
           baseUrl: 'http://localhost:8080', httpClient: loginMock());
       final storage = AuthStorage();
       final first = AuthState(apiClient: api, storage: storage);
-      await first.login('u@x.com', 'password123');
+      await first.login(identifier: 'u@x.com', password: 'password123');
 
       final api2 = ApiClient(
           baseUrl: 'http://localhost:8080', httpClient: loginMock());

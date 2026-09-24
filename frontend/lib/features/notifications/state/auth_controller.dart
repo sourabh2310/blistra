@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:frontend/features/notifications/api/auth_api.dart';
-import 'package:frontend/features/notifications/api/blistra_api_client.dart';
 import 'package:frontend/features/notifications/api/token_store.dart';
 import 'package:frontend/features/notifications/services/reminder_sync_service.dart';
 
@@ -14,12 +13,10 @@ import '../../../core/api/api_exception.dart';
 /// stored token.
 class AuthController extends ChangeNotifier {
   AuthController({
-    required AuthApi authApi,
-    required TokenStore tokens,
-    required ReminderSyncService syncService,
-  })  : _authApi = authApi,
-        _tokens = tokens,
-        _syncService = syncService;
+    required this._authApi,
+    required this._tokens,
+    required this._syncService,
+  });
 
   final AuthApi _authApi;
   final TokenStore _tokens;

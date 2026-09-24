@@ -103,7 +103,7 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
                 valueListenable: categoryController,
                 builder: (context, category, _) {
                   return DropdownButtonFormField<DocumentCategory>(
-                    value: category,
+                    initialValue: category,
                     decoration: const InputDecoration(labelText: 'Category'),
                     items: DocumentCategory.values.map((c) => DropdownMenuItem(
                           value: c,

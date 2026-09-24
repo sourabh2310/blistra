@@ -97,11 +97,17 @@ public class HabitCompletionService {
         LocalDate lastCompleted = completions.isEmpty()
                 ? null
                 : completions.get(completions.size() - 1).getCompletedOn();
+        int due = HabitStreakCalculator.dueOccurrences(schedule, lowerBound, today);
+        int completedDue =
+                HabitStreakCalculator.completedDueOccurrences(schedule, completedDays, lowerBound, today);
         return HabitStatisticsResponse.builder()
                 .totalCompletions(completions.size())
                 .currentStreak(HabitStreakCalculator.currentStreak(schedule, completedDays, lowerBound, today))
                 .bestStreak(HabitStreakCalculator.bestStreak(schedule, completedDays, lowerBound, today))
                 .lastCompletedOn(lastCompleted)
+                .dueOccurrences(due)
+                .completedDueOccurrences(completedDue)
+                .completionRate(due == 0 ? null : (double) completedDue / due)
                 .build();
     }
 

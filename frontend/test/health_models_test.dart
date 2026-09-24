@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/features/health/health_models.dart';
+import 'package:frontend/features/health/health_models.dart';
 
 void main() {
   group('HealthProfile', () {

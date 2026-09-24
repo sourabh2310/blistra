@@ -19,7 +19,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late final TextEditingController _heightController;
 
-  double? _heightCm;
   BloodType _bloodType = BloodType.unknown;
   DateTime? _dateOfBirth;
   bool _saving = false;
@@ -28,7 +27,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     final HealthProfile? profile = widget.repository.profile;
-    _heightCm = profile?.heightCm;
     _bloodType = profile?.bloodType ?? BloodType.unknown;
     _dateOfBirth = profile?.dateOfBirth;
     _heightController = TextEditingController(

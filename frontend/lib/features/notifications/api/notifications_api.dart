@@ -49,11 +49,11 @@ class NotificationsApi {
     String? timezone,
   }) async {
     final json = await _client.put('$_remindersPath/$id', body: {
-      if (title != null) 'title': title,
-      if (body != null) 'body': body,
+      'title': ?title,
+      'body': ?body,
       if (scheduledAtUtc != null)
         'scheduledAt': scheduledAtUtc.toUtc().toIso8601String(),
-      if (timezone != null) 'timezone': timezone,
+      'timezone': ?timezone,
     });
     return Reminder.fromJson(json);
   }
@@ -76,14 +76,13 @@ class NotificationsApi {
     bool? hideSensitiveContent,
   }) async {
     final json = await _client.put(_preferencesPath, body: {
-      if (enabled != null) 'enabled': enabled,
-      if (medicineEnabled != null) 'medicineEnabled': medicineEnabled,
-      if (habitEnabled != null) 'habitEnabled': habitEnabled,
-      if (plannerEnabled != null) 'plannerEnabled': plannerEnabled,
-      if (healthEnabled != null) 'healthEnabled': healthEnabled,
-      if (generalEnabled != null) 'generalEnabled': generalEnabled,
-      if (hideSensitiveContent != null)
-        'hideSensitiveContent': hideSensitiveContent,
+      'enabled': ?enabled,
+      'medicineEnabled': ?medicineEnabled,
+      'habitEnabled': ?habitEnabled,
+      'plannerEnabled': ?plannerEnabled,
+      'healthEnabled': ?healthEnabled,
+      'generalEnabled': ?generalEnabled,
+      'hideSensitiveContent': ?hideSensitiveContent,
     });
     return NotificationPreferences.fromJson(json);
   }

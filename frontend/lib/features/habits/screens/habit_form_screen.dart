@@ -57,7 +57,6 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
   Widget build(BuildContext context) {
     final bool isEdit = widget.existingHabit != null;
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -106,7 +105,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<HabitType>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Type'),
                 items: HabitType.values.map((HabitType t) {
                   return DropdownMenuItem(
@@ -193,7 +192,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                 const SizedBox(height: 12),
               ],
               DropdownButtonFormField<HabitStatus>(
-                value: _status,
+                initialValue: _status,
                 decoration: const InputDecoration(labelText: 'Status'),
                 items: HabitStatus.values.map((HabitStatus s) {
                   return DropdownMenuItem(

@@ -11,6 +11,7 @@ import com.blistra.habits.dto.HabitTodayResponse;
 import com.blistra.planner.application.PlannerTodayService;
 import com.blistra.planner.dto.TodayResponse;
 import com.blistra.users.application.CurrentUserProvider;
+import com.blistra.users.repository.UserProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ public class DashboardService {
     private final HealthSummaryProvider healthSummaryProvider;
     private final MedicineSummaryProvider medicineSummaryProvider;
     private final UserTime userTime;
+    private final UserProfileRepository userProfileRepository;
 
     public DashboardService(CurrentUserProvider currentUserProvider,
                             PlannerTodayService plannerTodayService,
@@ -43,7 +45,8 @@ public class DashboardService {
                             HabitService habitService,
                             HealthSummaryProvider healthSummaryProvider,
                             MedicineSummaryProvider medicineSummaryProvider,
-                            UserTime userTime) {
+                            UserTime userTime,
+                            UserProfileRepository userProfileRepository) {
         this.currentUserProvider = currentUserProvider;
         this.plannerTodayService = plannerTodayService;
         this.financeSummaryService = financeSummaryService;
@@ -52,6 +55,7 @@ public class DashboardService {
         this.healthSummaryProvider = healthSummaryProvider;
         this.medicineSummaryProvider = medicineSummaryProvider;
         this.userTime = userTime;
+        this.userProfileRepository = userProfileRepository;
     }
 
     public DashboardResponse getDashboard(LocalDate date, int offsetMinutes) {
@@ -78,12 +82,56 @@ public class DashboardService {
         return DashboardResponse.builder()
                 .date(date)
                 .generatedAt(userTime.now())
+                .user(userSummary(user))
                 .planner(planner)
                 .finance(finance)
                 .diet(diet)
                 .habits(habits)
                 .health(health)
                 .medicines(medicines)
+                .build();
+    }
+
+    private DashboardResponse.UserSummary userSummary(com.blistra.users.domain.User user) {
+        String email = user.getEmail();
+        // Prefer the real profile display name; fall back to deterministic
+        // derivation from the email local part (never fake data).
+        String profileName = userProfileRepository.findByUserId(user.getId())
+                .map(p -> p.getDisplayName())
+                .filter(n -> n != null && !n.isBlank())
+                .orElse(null);
+        if (profileName != null) {
+            String first = profileName.trim().split("\\s+")[0];
+            return DashboardResponse.UserSummary.builder()
+                    .email(email)
+                    .displayName(profileName.trim())
+                    .firstName(first)
+                    .build();
+        }
+        String local = email != null && email.contains("@")
+                ? email.substring(0, email.indexOf('@'))
+                : (email != null ? email : "");
+        String cleaned = local.replaceAll("[._\\-+]+", " ").trim();
+        String displayName = cleaned.isEmpty() ? "" : Character.toUpperCase(cleaned.charAt(0))
+                + (cleaned.length() > 1 ? cleaned.substring(1) : "");
+        String firstName = displayName.isEmpty() ? "" : displayName.split("\\s+")[0];
+        // Capitalize each word's first letter for multi-word local parts.
+        if (!displayName.isEmpty() && displayName.contains(" ")) {
+            String[] parts = displayName.split("\\s+");
+            StringBuilder sb = new StringBuilder();
+            for (String p : parts) {
+                if (p.isEmpty()) continue;
+                if (sb.length() > 0) sb.append(' ');
+                sb.append(Character.toUpperCase(p.charAt(0)));
+                if (p.length() > 1) sb.append(p.substring(1));
+            }
+            displayName = sb.toString();
+            firstName = displayName.split("\\s+")[0];
+        }
+        return DashboardResponse.UserSummary.builder()
+                .email(email)
+                .displayName(displayName)
+                .firstName(firstName)
                 .build();
     }
 

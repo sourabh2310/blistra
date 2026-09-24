@@ -41,9 +41,9 @@ class HabitsApi {
         'type': enumToJson(type),
         if (description != null && description.isNotEmpty)
           'description': description,
-        if (targetValue != null) 'targetValue': targetValue,
-        if (targetUnit != null) 'targetUnit': targetUnit,
-        if (targetMinutes != null) 'targetMinutes': targetMinutes,
+        'targetValue': ?targetValue,
+        'targetUnit': ?targetUnit,
+        'targetMinutes': ?targetMinutes,
         if (status != null) 'status': enumToJson(status),
       },
     );
@@ -74,9 +74,9 @@ class HabitsApi {
         'type': enumToJson(type),
         if (description != null && description.isNotEmpty)
           'description': description,
-        if (targetValue != null) 'targetValue': targetValue,
-        if (targetUnit != null) 'targetUnit': targetUnit,
-        if (targetMinutes != null) 'targetMinutes': targetMinutes,
+        'targetValue': ?targetValue,
+        'targetUnit': ?targetUnit,
+        'targetMinutes': ?targetMinutes,
         if (status != null) 'status': enumToJson(status),
       },
     );
@@ -111,7 +111,7 @@ class HabitsApi {
       '/api/v1/habits/$habitId/schedule',
       body: {
         'frequency': enumToJson(frequency),
-        if (daysOfWeek != null) 'daysOfWeek': daysOfWeek,
+        'daysOfWeek': ?daysOfWeek,
       },
     );
     return Schedule.fromJson(body);
@@ -127,8 +127,8 @@ class HabitsApi {
       '/api/v1/habits/$habitId/completions',
       body: {
         'completedOn': _dateOnly(completedOn),
-        if (value != null) 'value': value,
-        if (durationMinutes != null) 'durationMinutes': durationMinutes,
+        'value': ?value,
+        'durationMinutes': ?durationMinutes,
       },
     );
     return Completion.fromJson(body);

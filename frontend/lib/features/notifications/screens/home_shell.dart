@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../state/auth_controller.dart';
 import '../state/reminders_controller.dart';
 import '../state/settings_controller.dart';
-import 'auth_screen.dart';
 import 'notification_settings_screen.dart';
 import 'reminders_screen.dart';
 

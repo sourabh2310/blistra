@@ -21,7 +21,7 @@ class DashboardApi {
     }
 
     final data = await apiClient.get('/api/v1/dashboard', query: query);
-    return DashboardResponse.fromJson(data as Map<String, dynamic>);
+    return DashboardResponse.fromJson(data);
   }
 
   static String _dateOnly(DateTime value) {

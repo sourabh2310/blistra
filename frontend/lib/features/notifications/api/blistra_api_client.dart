@@ -17,12 +17,10 @@ class BlistraApiClient {
     required this.baseUrl,
     http.Client? httpClient,
     TokenStore? tokenStore,
-    String? Function()? tokenProvider,
-    Future<void> Function()? onUnauthorized,
+    this._tokenProvider,
+    this._onUnauthorized,
   })  : _http = httpClient ?? http.Client(),
-        _tokens = tokenStore,
-        _tokenProvider = tokenProvider,
-        _onUnauthorized = onUnauthorized;
+        _tokens = tokenStore;
 
   final String baseUrl;
   final http.Client _http;
@@ -115,7 +113,7 @@ class BlistraApiClient {
   Future<void> _maybeUnauthorized(int statusCode) async {
     if (statusCode == 401 && _onUnauthorized != null) {
       try {
-        await _onUnauthorized!();
+        await _onUnauthorized();
       } catch (_) {
         // Logout must never crash the failing request.
       }

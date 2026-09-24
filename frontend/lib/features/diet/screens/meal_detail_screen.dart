@@ -185,6 +185,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   }
 
   Future<void> _addItem() async {
+    final controller = context.read<DietController>();
     final draft = await showModalBottomSheet<ItemDraft>(
       context: context,
       isScrollControlled: true,
@@ -193,7 +194,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     if (draft == null) {
       return;
     }
-    final controller = context.read<DietController>();
     final ok = await controller.addMealItem(widget.mealId, draft.toMealItem());
     if (ok && mounted) {
       _refresh();
@@ -203,6 +203,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   }
 
   Future<void> _editItem(MealItem item) async {
+    final controller = context.read<DietController>();
     final draft = await showModalBottomSheet<ItemDraft>(
       context: context,
       isScrollControlled: true,
@@ -211,7 +212,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     if (draft == null) {
       return;
     }
-    final controller = context.read<DietController>();
     final ok = await controller.updateMealItem(
       widget.mealId,
       item.id!,
@@ -225,6 +225,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   }
 
   Future<void> _deleteItem(MealItem item) async {
+    final controller = context.read<DietController>();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -239,7 +240,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     if (confirm != true) {
       return;
     }
-    final controller = context.read<DietController>();
     final ok = await controller.deleteMealItem(widget.mealId, item.id!);
     if (ok && mounted) {
       _refresh();
@@ -249,6 +249,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   }
 
   Future<void> _confirmDeleteMeal() async {
+    final controller = context.read<DietController>();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -263,7 +264,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     if (confirm != true) {
       return;
     }
-    final controller = context.read<DietController>();
     final ok = await controller.deleteMeal(widget.mealId);
     if (ok && mounted) {
       Navigator.of(context).pop(true); // signal parent to refresh

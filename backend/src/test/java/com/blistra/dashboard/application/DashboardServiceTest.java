@@ -62,6 +62,9 @@ class DashboardServiceTest {
     @Mock
     private com.blistra.common.time.UserTime userTime;
 
+    @Mock
+    private com.blistra.users.repository.UserProfileRepository userProfileRepository;
+
     private DashboardService dashboardService;
     private User testUser;
 
@@ -75,7 +78,8 @@ class DashboardServiceTest {
                 habitService,
                 healthSummaryProvider,
                 medicineSummaryProvider,
-                userTime
+                userTime,
+                userProfileRepository
         );
 
         testUser = new User();

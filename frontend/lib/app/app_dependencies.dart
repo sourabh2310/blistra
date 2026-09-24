@@ -34,6 +34,7 @@ import '../features/notifications/state/reminders_controller.dart';
 import '../features/notifications/state/settings_controller.dart';
 import '../features/planner/planner_api.dart';
 import '../features/planner/planner_controller.dart';
+import '../features/profile/profile_controller.dart';
 
 class AppDependencies {
   AppDependencies._({
@@ -42,6 +43,7 @@ class AppDependencies {
     required this.authStorage,
     required this.dashboard,
     required this.planner,
+    required this.profile,
     required this.diet,
     required this.habits,
     required this.finance,
@@ -60,6 +62,7 @@ class AppDependencies {
 
   final DashboardController dashboard;
   final PlannerController planner;
+  final ProfileController profile;
   final DietController diet;
   final HabitsController habits;
   final FinanceController finance;
@@ -87,13 +90,31 @@ class AppDependencies {
 
     final dashboard =
         DashboardController(api: DashboardApi(apiClient: apiClient));
+    Future<void> refreshDashboard() => dashboard.refresh(
+          date: DateTime.now(),
+          offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
+        );
     final planner = PlannerController(PlannerApi(apiClient));
+    final profile = ProfileController(apiClient);
     final diet = DietController(
       HttpDietApi(apiClient),
       onUnauthorized: () => authState.handleUnauthorized(),
+      // Diet owns food/water data; Home and Planner aggregate it, so they
+      // refresh from the same dashboard payload after every mutation.
+      onMutated: refreshDashboard,
     );
-    final habits = HabitsController(api: HabitsApi(apiClient: apiClient));
-    final finance = FinanceController(api: FinanceApi(apiClient: apiClient));
+    final habits = HabitsController(
+      api: HabitsApi(apiClient: apiClient),
+      // Habits own habit + occurrence data; Home and Planner aggregate it,
+      // so they refresh from the same dashboard payload after every mutation.
+      onMutated: refreshDashboard,
+    );
+    final finance = FinanceController(
+      api: FinanceApi(apiClient: apiClient),
+      // Finance owns all finance data; Home and Planner aggregate it, so
+      // they refresh from the same dashboard payload after every mutation.
+      onMutated: refreshDashboard,
+    );
     final health = HealthRepository(HealthApi(apiClient));
     final documents =
         DocumentsProvider(DocumentsRepository(apiClient));
@@ -131,6 +152,7 @@ class AppDependencies {
       authStorage: authStorage,
       dashboard: dashboard,
       planner: planner,
+      profile: profile,
       diet: diet,
       habits: habits,
       finance: finance,

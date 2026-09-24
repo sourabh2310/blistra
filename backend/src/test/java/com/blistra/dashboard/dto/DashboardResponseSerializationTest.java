@@ -145,6 +145,34 @@ class DashboardResponseSerializationTest {
     }
 
     @Test
+    void dashboardUserSummarySerializesAndDeserializes() throws Exception {
+        DashboardResponse response = DashboardResponse.builder()
+                .date(LocalDate.of(2026, 9, 24))
+                .generatedAt(OffsetDateTime.now())
+                .user(DashboardResponse.UserSummary.builder()
+                        .email("sourabh.patel@example.com")
+                        .displayName("Sourabh Patel")
+                        .firstName("Sourabh")
+                        .build())
+                .build();
+
+        String json = mapper.writeValueAsString(response);
+
+        assertThat(json).contains("\"user\"");
+        assertThat(json).contains("\"firstName\":\"Sourabh\"");
+
+        DashboardResponse back = mapper.readValue(json, DashboardResponse.class);
+        assertThat(back.getUser().getEmail()).isEqualTo("sourabh.patel@example.com");
+        assertThat(back.getUser().getFirstName()).isEqualTo("Sourabh");
+
+        // Absent user stays null for backward compatibility.
+        DashboardResponse legacy = mapper.readValue(
+                "{\"date\":\"2026-09-24\",\"generatedAt\":\"2026-09-24T08:00:00+05:30\"}",
+                DashboardResponse.class);
+        assertThat(legacy.getUser()).isNull();
+    }
+
+    @Test
     void sectionUnavailableFlagSerializesCorrectly() throws Exception {
         DashboardResponse.PlannerSection section = DashboardResponse.PlannerSection.builder()
                 .unavailable(true)

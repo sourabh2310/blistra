@@ -68,7 +68,7 @@ class HabitTile extends StatelessWidget {
               Switch(
                 value: habit.completedToday,
                 onChanged: onToggle,
-                activeColor: scheme.primary,
+                activeThumbColor: scheme.primary,
               ),
             ],
           ),
@@ -85,8 +85,6 @@ class _TypeIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-
     IconData icon;
     Color color;
     switch (type) {

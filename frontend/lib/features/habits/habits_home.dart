@@ -2,7 +2,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'habits_controller.dart';
 import 'habits_scope.dart';

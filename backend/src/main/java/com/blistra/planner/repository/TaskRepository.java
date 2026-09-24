@@ -76,6 +76,19 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
             SELECT t FROM Task t
             WHERE t.user.id = :userId
               AND t.status IN :activeStatuses
+              AND t.dueAt IS NOT NULL AND t.dueAt >= :startInclusive AND t.dueAt < :endExclusive
+            ORDER BY t.dueAt ASC
+            """)
+    java.util.List<Task> findDueInRange(@Param("userId") UUID userId,
+                                        @Param("activeStatuses") Collection<TaskStatus> activeStatuses,
+                                        @Param("startInclusive") OffsetDateTime startInclusive,
+                                        @Param("endExclusive") OffsetDateTime endExclusive);
+
+    @EntityGraph(attributePaths = {"list"})
+    @Query("""
+            SELECT t FROM Task t
+            WHERE t.user.id = :userId
+              AND t.status IN :activeStatuses
               AND t.dueAt IS NOT NULL
               AND (t.dueAt < :todayStart OR (t.dueTime IS NOT NULL AND t.dueAt < :now))
             """)

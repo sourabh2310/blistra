@@ -147,6 +147,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
   }
 
   Future<void> _archive(BuildContext context) async {
+    final HabitsController controller = HabitsScope.of(context);
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
@@ -167,21 +168,18 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     );
     if (confirm != true) return;
 
-    final HabitsController controller = HabitsScope.of(context);
     try {
       await controller.archiveHabit(_habit!.id);
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Habit archived')),
-        );
-      }
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Habit archived')),
+      );
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $error')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $error')),
+      );
     }
   }
 }
@@ -408,6 +406,32 @@ class _StatisticsSummary extends StatelessWidget {
                 ),
               ],
             ),
+            if (stats!.completionRateLabel != null ||
+                stats!.occurrencesLabel != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (stats!.completionRateLabel != null)
+                    Expanded(
+                      child: _StatItem(
+                        label: 'Completion Rate',
+                        value: stats!.completionRateLabel!,
+                        icon: Icons.percent,
+                        color: Colors.teal,
+                      ),
+                    ),
+                  if (stats!.occurrencesLabel != null)
+                    Expanded(
+                      child: _StatItem(
+                        label: 'Completed',
+                        value: stats!.occurrencesLabel!,
+                        icon: Icons.fact_check_outlined,
+                        color: Colors.blueGrey,
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -496,7 +520,7 @@ class _CompletionsList extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: completions.length,
-            separatorBuilder: (_, __) => Divider(
+            separatorBuilder: (_, _) => Divider(
               height: 1,
               indent: 16,
               endIndent: 16,
@@ -504,29 +528,69 @@ class _CompletionsList extends StatelessWidget {
             ),
             itemBuilder: (BuildContext context, int index) {
               final Completion c = completions[index];
-              return ListTile(
-                dense: true,
-                leading: CircleAvatar(
-                  radius: 14,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Text(
-                    DateFormat('d').format(c.completedOn.toLocal()),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
+              final bool showHeader = index == 0 ||
+                  !_sameDay(
+                      completions[index - 1].completedOn, c.completedOn);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (showHeader)
+                    Padding(
+                      padding:
+                          const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Text(
+                        _dayLabel(c.completedOn),
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
                     ),
+                  ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      radius: 14,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      child: Text(
+                        DateFormat('d').format(c.completedOn.toLocal()),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      DateFormat('EEEE, MMM d, yyyy')
+                          .format(c.completedOn.toLocal()),
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    subtitle: _completionSubtitle(c),
                   ),
-                ),
-                title: Text(
-                  DateFormat('EEEE, MMM d, yyyy').format(c.completedOn.toLocal()),
-                  style: theme.textTheme.bodyMedium,
-                ),
-                subtitle: _completionSubtitle(c),
+                ],
               );
             },
           ),
         ],
       ),
     );
+  }
+
+  bool _sameDay(DateTime a, DateTime b) {
+    final DateTime x = a.toLocal();
+    final DateTime y = b.toLocal();
+    return x.year == y.year && x.month == y.month && x.day == y.day;
+  }
+
+  String _dayLabel(DateTime day) {
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime local = day.toLocal();
+    final DateTime that = DateTime(local.year, local.month, local.day);
+    if (that == today) {
+      return 'Today';
+    }
+    if (that == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday';
+    }
+    return DateFormat('EEE d MMM yyyy').format(local);
   }
 
   Widget? _completionSubtitle(Completion c) {

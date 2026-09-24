@@ -2,11 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../../../core/auth/auth_state.dart';
-import '../../../core/api/api_client.dart';
-import '../data/medicines_api_client.dart';
 import '../models/medicine.dart';
 import '../models/medicine_enums.dart';
 import '../state/medicine_form_controller.dart';
@@ -28,17 +24,6 @@ class _MedicineFormPageState extends State<MedicineFormPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_controller == null) {
-      final apiClient = context.read<ApiClient>();
-      final authState = context.read<AuthState>();
-      _controller = MedicineFormController(
-        MedicinesApiClient(
-          tokenProvider: () => authState.apiClient.token ?? '',
-          onUnauthorized: () => authState.handleUnauthorized(),
-        ),
-        medicine: widget.medicine,
-      );
-    }
   }
 
   @override
@@ -235,7 +220,7 @@ class _DropdownFormField<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       items: items,
       onChanged: onChanged,
       decoration: InputDecoration(

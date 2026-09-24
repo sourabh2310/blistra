@@ -32,6 +32,9 @@ public class DashboardResponse {
     @Schema(description = "Server timestamp when the aggregation was generated")
     private OffsetDateTime generatedAt;
 
+    @Schema(description = "Authenticated user identity for header personalization")
+    private UserSummary user;
+
     @Schema(description = "Planner tasks and events for today")
     private PlannerSection planner;
 
@@ -49,6 +52,17 @@ public class DashboardResponse {
 
     @Schema(description = "Account balances and period income/expense")
     private FinanceSection finance;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class UserSummary {
+        private String email;
+        private String displayName;
+        private String firstName;
+    }
 
     @Data
     @NoArgsConstructor

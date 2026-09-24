@@ -26,7 +26,7 @@ class StatisticsScreen extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: controller.activeHabits.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (BuildContext context, int index) {
         final Habit habit = controller.activeHabits[index];
         return _StatisticsCard(habitId: habit.id, habitName: habit.name);
@@ -127,6 +127,24 @@ class _StatisticsCardState extends State<_StatisticsCard> {
                 icon: Icons.check_circle_outline,
                 color: Colors.green,
               ),
+              if (_stats!.completionRateLabel != null) ...[
+                const SizedBox(height: 8),
+                _StatRow(
+                  label: 'Completion Rate',
+                  value: _stats!.completionRateLabel!,
+                  icon: Icons.percent,
+                  color: Colors.teal,
+                ),
+              ],
+              if (_stats!.occurrencesLabel != null) ...[
+                const SizedBox(height: 8),
+                _StatRow(
+                  label: 'Completed',
+                  value: _stats!.occurrencesLabel!,
+                  icon: Icons.fact_check_outlined,
+                  color: Colors.blueGrey,
+                ),
+              ],
               const SizedBox(height: 8),
               _StatRow(
                 label: 'Last Completed',

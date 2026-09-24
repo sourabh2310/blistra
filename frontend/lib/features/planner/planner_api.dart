@@ -2,6 +2,7 @@ import '../../core/api/api_client.dart';
 import 'models/event_status.dart';
 import 'models/page_response.dart';
 import 'models/planner_event.dart';
+import 'models/schedule_view.dart';
 import 'models/task.dart';
 import 'models/task_list.dart';
 import 'models/task_priority.dart';
@@ -31,11 +32,11 @@ class PlannerApi {
       'view': view.wireName,
       'page': '$page',
       'size': '$size',
-      if (taskListId != null) 'taskListId': taskListId,
+      'taskListId': ?taskListId,
       if (priority != null) 'priority': priority.wireName,
     });
     return PageResponse.fromJson(
-        data as Map<String, dynamic>, PlannerTask.fromJson);
+        data, PlannerTask.fromJson);
   }
 
   Future<PlannerTask> createTask({
@@ -49,14 +50,14 @@ class PlannerApi {
   }) async {
     final data = await _api.post('/api/v1/planner/tasks', body: {
       'title': title,
-      if (description != null) 'description': description,
+      'description': ?description,
       if (status != null) 'status': status.wireName,
       if (priority != null) 'priority': priority.wireName,
       if (dueDate != null) 'dueDate': _date(dueDate),
       if (dueTime != null) 'dueTime': _time(dueTime),
-      if (taskListId != null) 'taskListId': taskListId,
+      'taskListId': ?taskListId,
     });
-    return PlannerTask.fromJson(data as Map<String, dynamic>);
+    return PlannerTask.fromJson(data);
   }
 
   Future<PlannerTask> updateTask(
@@ -71,29 +72,29 @@ class PlannerApi {
   }) async {
     final data = await _api.put('/api/v1/planner/tasks/$taskId', body: {
       'title': title,
-      if (description != null) 'description': description,
+      'description': ?description,
       if (status != null) 'status': status.wireName,
       if (priority != null) 'priority': priority.wireName,
       if (dueDate != null) 'dueDate': _date(dueDate),
       if (dueTime != null) 'dueTime': _time(dueTime),
-      if (taskListId != null) 'taskListId': taskListId,
+      'taskListId': ?taskListId,
     });
-    return PlannerTask.fromJson(data as Map<String, dynamic>);
+    return PlannerTask.fromJson(data);
   }
 
   Future<PlannerTask> completeTask(String taskId) async {
     final data = await _api.post('/api/v1/planner/tasks/$taskId/complete', expectStatus: 200);
-    return PlannerTask.fromJson(data as Map<String, dynamic>);
+    return PlannerTask.fromJson(data);
   }
 
   Future<PlannerTask> reopenTask(String taskId) async {
     final data = await _api.post('/api/v1/planner/tasks/$taskId/reopen', expectStatus: 200);
-    return PlannerTask.fromJson(data as Map<String, dynamic>);
+    return PlannerTask.fromJson(data);
   }
 
   Future<PlannerTask> cancelTask(String taskId) async {
     final data = await _api.post('/api/v1/planner/tasks/$taskId/cancel', expectStatus: 200);
-    return PlannerTask.fromJson(data as Map<String, dynamic>);
+    return PlannerTask.fromJson(data);
   }
 
   Future<void> deleteTask(String taskId) async {
@@ -118,9 +119,9 @@ class PlannerApi {
   }) async {
     final data = await _api.post('/api/v1/planner/lists', body: {
       'name': name,
-      if (description != null) 'description': description,
+      'description': ?description,
     });
-    return TaskList.fromJson(data as Map<String, dynamic>);
+    return TaskList.fromJson(data);
   }
 
   Future<TaskList> updateTaskList(
@@ -130,9 +131,9 @@ class PlannerApi {
   }) async {
     final data = await _api.put('/api/v1/planner/lists/$listId', body: {
       'name': name,
-      if (description != null) 'description': description,
+      'description': ?description,
     });
-    return TaskList.fromJson(data as Map<String, dynamic>);
+    return TaskList.fromJson(data);
   }
 
   Future<void> deleteTaskList(String listId) async {
@@ -152,7 +153,7 @@ class PlannerApi {
       'size': '$size',
     });
     return PageResponse.fromJson(
-        data as Map<String, dynamic>, PlannerEvent.fromJson);
+        data, PlannerEvent.fromJson);
   }
 
   Future<PlannerEvent> createEvent({
@@ -165,13 +166,13 @@ class PlannerApi {
   }) async {
     final data = await _api.post('/api/v1/planner/events', body: {
       'title': title,
-      if (description != null) 'description': description,
-      if (location != null) 'location': location,
+      'description': ?description,
+      'location': ?location,
       'startAt': startAt.toIso8601String(),
       'endAt': endAt.toIso8601String(),
       if (status != null) 'status': status.wireName,
     });
-    return PlannerEvent.fromJson(data as Map<String, dynamic>);
+    return PlannerEvent.fromJson(data);
   }
 
   Future<PlannerEvent> updateEvent(
@@ -185,17 +186,55 @@ class PlannerApi {
   }) async {
     final data = await _api.put('/api/v1/planner/events/$eventId', body: {
       'title': title,
-      if (description != null) 'description': description,
-      if (location != null) 'location': location,
+      'description': ?description,
+      'location': ?location,
       'startAt': startAt.toIso8601String(),
       'endAt': endAt.toIso8601String(),
       if (status != null) 'status': status.wireName,
     });
-    return PlannerEvent.fromJson(data as Map<String, dynamic>);
+    return PlannerEvent.fromJson(data);
   }
 
   Future<void> deleteEvent(String eventId) async {
     await _api.delete('/api/v1/planner/events/$eventId');
+  }
+
+  Future<PlannerEvent> completeEvent(String eventId) async {
+    final data = await _api.post('/api/v1/planner/events/$eventId/complete',
+        expectStatus: 200);
+    return PlannerEvent.fromJson(data);
+  }
+
+  Future<PlannerEvent> cancelEvent(String eventId) async {
+    final data = await _api.post('/api/v1/planner/events/$eventId/cancel',
+        expectStatus: 200);
+    return PlannerEvent.fromJson(data);
+  }
+
+  Future<PlannerEvent> reopenEvent(String eventId) async {
+    final data = await _api.post('/api/v1/planner/events/$eventId/reopen',
+        expectStatus: 200);
+    return PlannerEvent.fromJson(data);
+  }
+
+  Future<List<PlannerEvent>> eventsForDate(DateTime date) async {
+    final List<dynamic> data =
+        await _api.getList('/api/v1/planner/events/by-date', query: {
+      'date': _date(DateTime(date.year, date.month, date.day)),
+    });
+    return [
+      for (final item in data)
+        if (item is Map<String, dynamic>) PlannerEvent.fromJson(item),
+    ];
+  }
+
+  Future<ScheduleView> schedule({DateTime? date, int days = 1}) async {
+    final effective = date ?? DateTime.now();
+    final data = await _api.get('/api/v1/planner/schedule', query: {
+      'date': _date(DateTime(effective.year, effective.month, effective.day)),
+      'days': '$days',
+    });
+    return ScheduleView.fromJson(data);
   }
 
   // ---------------------------------------------------------------------------
@@ -204,7 +243,7 @@ class PlannerApi {
 
   Future<TodayView> today() async {
     final data = await _api.get('/api/v1/planner/today');
-    return TodayView.fromJson(data as Map<String, dynamic>);
+    return TodayView.fromJson(data);
   }
 
   static String _date(DateTime value) =>

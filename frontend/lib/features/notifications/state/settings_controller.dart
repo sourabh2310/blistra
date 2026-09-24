@@ -10,10 +10,9 @@ import '../../../core/api/api_exception.dart';
 /// take effect immediately.
 class SettingsController extends ChangeNotifier {
   SettingsController({
-    required NotificationsApi api,
-    required ReminderSyncService syncService,
-  })  : _api = api,
-        _syncService = syncService;
+    required this._api,
+    required this._syncService,
+  });
 
   final NotificationsApi _api;
   final ReminderSyncService _syncService;

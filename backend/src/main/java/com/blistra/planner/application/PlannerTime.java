@@ -41,6 +41,23 @@ public class PlannerTime {
     }
 
     /**
+     * Half-open day window for an explicit calendar date in the user zone.
+     * Used for date navigation so "previous/next day" reloads exactly one day.
+     */
+    public OffsetDateTime dayStart(LocalDate date) {
+        return date.atStartOfDay(userZone).toOffsetDateTime();
+    }
+
+    public OffsetDateTime dayEndExclusive(LocalDate date) {
+        return date.plusDays(1).atStartOfDay(userZone).toOffsetDateTime();
+    }
+
+    public OffsetDateTime rangeEndExclusive(LocalDate date, int days) {
+        int safeDays = Math.min(Math.max(days, 1), 31);
+        return date.plusDays(safeDays).atStartOfDay(userZone).toOffsetDateTime();
+    }
+
+    /**
      * Resolves the user-facing calendar fields to a precise instant in the user
      * timezone. An all-day deadline resolves to the start of that calendar day.
      */

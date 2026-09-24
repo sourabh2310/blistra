@@ -21,6 +21,8 @@ public class ApiErrorResponse {
     private String message;
     private String path;
     private List<FieldError> errors;
+    /** Present on 429 resend-cooldown responses: seconds until retry. */
+    private Long retryAfterSeconds;
 
     @Data
     @NoArgsConstructor

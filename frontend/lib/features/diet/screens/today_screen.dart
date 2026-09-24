@@ -10,6 +10,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/error_state.dart';
 import '../widgets/meal_tile.dart';
 import '../widgets/nutrition_card.dart';
+import '../widgets/trends_card.dart';
 import 'add_edit_meal_screen.dart';
 import 'history_screen.dart';
 import 'meal_detail_screen.dart';
@@ -52,22 +53,33 @@ class _TodayScreenState extends State<TodayScreen> {
           .showSnackBar(SnackBar(content: Text(amount)));
       return;
     }
-    final controller = context.read<DietController>();
-    final ok = await controller.addWater(
-      amount: double.parse(_waterAmount.text.trim()),
-      unit: _waterUnit.wireName,
+    final ok = await _recordWater(
+      double.parse(_waterAmount.text.trim()),
+      _waterUnit.wireName,
     );
-    if (!mounted) {
-      return;
-    }
     if (ok) {
       setState(() => _waterAmount.clear());
-    } else {
+    }
+  }
+
+  Future<void> _quickAddWater(double milliliters) async {
+    await _recordWater(milliliters, WaterUnit.ml.wireName);
+  }
+
+  Future<bool> _recordWater(double amount, String unit) async {
+    final controller = context.read<DietController>();
+    final ok = await controller.addWater(amount: amount, unit: unit);
+    if (!mounted) {
+      return ok;
+    }
+    if (!ok) {
       final error = controller.lastActionError;
       if (error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error)));
       }
     }
+    return ok;
   }
 
   @override
@@ -127,6 +139,7 @@ class _TodayScreenState extends State<TodayScreen> {
               unit: _waterUnit,
               onUnitChanged: (unit) => setState(() => _waterUnit = unit),
               onAdd: _addWater,
+              onQuickAdd: _quickAddWater,
               waterCount: summary?.waterCount ?? 0,
               waterTotal: summary?.waterTotalMilliliters,
             ),
@@ -186,6 +199,8 @@ class _TodayScreenState extends State<TodayScreen> {
                     ],
                   ),
                 ),
+              const SizedBox(height: 12),
+              const TrendsCard(),
             ],
           ],
         ),
@@ -260,6 +275,7 @@ class _WaterCard extends StatelessWidget {
     required this.unit,
     required this.onUnitChanged,
     required this.onAdd,
+    required this.onQuickAdd,
     required this.waterCount,
     required this.waterTotal,
   });
@@ -268,6 +284,7 @@ class _WaterCard extends StatelessWidget {
   final WaterUnit unit;
   final ValueChanged<WaterUnit> onUnitChanged;
   final VoidCallback onAdd;
+  final ValueChanged<double> onQuickAdd;
   final int waterCount;
   final double? waterTotal;
 
@@ -340,6 +357,20 @@ class _WaterCard extends StatelessWidget {
                   tooltip: 'Add water',
                   onPressed: onAdd,
                   icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                ActionChip(
+                  label: const Text('+250 ml'),
+                  onPressed: () => onQuickAdd(250),
+                ),
+                ActionChip(
+                  label: const Text('+500 ml'),
+                  onPressed: () => onQuickAdd(500),
                 ),
               ],
             ),

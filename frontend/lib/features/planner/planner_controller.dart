@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../core/api/api_exception.dart';
 import 'models/event_status.dart';
 import 'models/planner_event.dart';
+import 'models/schedule_view.dart';
 import 'models/task.dart';
 import 'models/task_list.dart';
 import 'models/task_priority.dart';
@@ -21,7 +22,7 @@ class PlannerController extends ChangeNotifier {
   final PlannerApi _api;
 
   bool _loading = false;
-  bool _mutating = false;
+  final bool _mutating = false;
   String? _error;
 
   TaskView _taskView = TaskView.all;
@@ -38,6 +39,14 @@ class PlannerController extends ChangeNotifier {
   int _totalEvents = 0;
 
   TodayView? _today;
+
+  // --- Date-navigable schedule (Planner page 02) ---------------------------
+  DateTime _selectedDate = _day(DateTime.now());
+  ScheduleScope _scope = ScheduleScope.day;
+  ScheduleView? _schedule;
+  bool _scheduleLoading = false;
+  String? _scheduleError;
+  String _searchQuery = '';
 
   bool get loading => _loading;
 
@@ -62,6 +71,42 @@ class PlannerController extends ChangeNotifier {
   int get totalEvents => _totalEvents;
 
   TodayView? get today => _today;
+
+  DateTime get selectedDate => _selectedDate;
+  ScheduleScope get scope => _scope;
+  ScheduleView? get schedule => _schedule;
+  bool get scheduleLoading => _scheduleLoading;
+  String? get scheduleError => _scheduleError;
+  String get searchQuery => _searchQuery;
+
+  bool get isTodaySelected {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return _selectedDate == today;
+  }
+
+  /// Schedule items ordered by start time (events by startAt, tasks by dueAt).
+  List<PlannerEvent> get scheduleEventsOrdered {
+    final events = List<PlannerEvent>.from(_schedule?.events ?? const []);
+    events.sort((a, b) => a.startAt.compareTo(b.startAt));
+    return _applyEventQuery(events);
+  }
+
+  List<PlannerTask> get scheduleTasksOrdered {
+    final tasks = List<PlannerTask>.from(_schedule?.tasks ?? const []);
+    tasks.sort((a, b) {
+      final da = a.dueAt;
+      final db = b.dueAt;
+      if (da == null && db == null) return a.title.compareTo(b.title);
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da.compareTo(db);
+    });
+    return _applyTaskQuery(tasks);
+  }
+
+  static DateTime _day(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
 
   // ---------------------------------------------------------------------------
   // Tasks
@@ -262,6 +307,27 @@ class PlannerController extends ChangeNotifier {
     await _refreshEventsToday();
   }
 
+  Future<PlannerEvent> completeEvent(String eventId) async {
+    final updated = await _api.completeEvent(eventId);
+    await _refreshEventsToday();
+    await loadSchedule();
+    return updated;
+  }
+
+  Future<PlannerEvent> cancelEvent(String eventId) async {
+    final updated = await _api.cancelEvent(eventId);
+    await _refreshEventsToday();
+    await loadSchedule();
+    return updated;
+  }
+
+  Future<PlannerEvent> reopenEvent(String eventId) async {
+    final updated = await _api.reopenEvent(eventId);
+    await _refreshEventsToday();
+    await loadSchedule();
+    return updated;
+  }
+
   // ---------------------------------------------------------------------------
   // Today
   // ---------------------------------------------------------------------------
@@ -270,6 +336,94 @@ class PlannerController extends ChangeNotifier {
     await _run(() async {
       _today = await _api.today();
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Date-navigable schedule
+  // ---------------------------------------------------------------------------
+
+  Future<void> loadSchedule() async {
+    _scheduleLoading = true;
+    _scheduleError = null;
+    notifyListeners();
+    try {
+      _schedule = await _api.schedule(
+        date: _selectedDate,
+        days: _scope.days,
+      );
+    } on ApiException catch (e) {
+      _scheduleError = e.message;
+    } catch (_) {
+      _scheduleError = 'Something went wrong. Please try again.';
+    }
+    _scheduleLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> selectDate(DateTime date) async {
+    final day = _day(date);
+    if (day == _selectedDate) return;
+    _selectedDate = day;
+    notifyListeners();
+    await loadSchedule();
+  }
+
+  Future<void> goToToday() async {
+    final now = DateTime.now();
+    _selectedDate = _day(now);
+    notifyListeners();
+    await loadSchedule();
+  }
+
+  Future<void> previousDay() async {
+    final step = _scope == ScheduleScope.week ? 7 : 1;
+    _selectedDate = _selectedDate.subtract(Duration(days: step));
+    notifyListeners();
+    await loadSchedule();
+  }
+
+  Future<void> nextDay() async {
+    final step = _scope == ScheduleScope.week ? 7 : 1;
+    _selectedDate = _selectedDate.add(Duration(days: step));
+    notifyListeners();
+    await loadSchedule();
+  }
+
+  Future<void> setScope(ScheduleScope scope) async {
+    if (scope == _scope) return;
+    _scope = scope;
+    if (scope == ScheduleScope.week) {
+      // Snap week windows to Monday so the strip is stable.
+      final weekday = _selectedDate.weekday;
+      _selectedDate = _selectedDate.subtract(Duration(days: weekday - 1));
+    }
+    notifyListeners();
+    await loadSchedule();
+  }
+
+  void setSearchQuery(String query) {
+    if (query == _searchQuery) return;
+    _searchQuery = query;
+    notifyListeners();
+  }
+
+  List<PlannerEvent> _applyEventQuery(List<PlannerEvent> events) {
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isEmpty) return events;
+    return events.where((e) {
+      return e.title.toLowerCase().contains(q) ||
+          (e.description?.toLowerCase().contains(q) ?? false) ||
+          (e.location?.toLowerCase().contains(q) ?? false);
+    }).toList();
+  }
+
+  List<PlannerTask> _applyTaskQuery(List<PlannerTask> tasks) {
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isEmpty) return tasks;
+    return tasks.where((t) {
+      return t.title.toLowerCase().contains(q) ||
+          (t.description?.toLowerCase().contains(q) ?? false);
+    }).toList();
   }
 
   // ---------------------------------------------------------------------------
@@ -307,6 +461,16 @@ class PlannerController extends ChangeNotifier {
       _totalEvents = page.totalElements;
       if (_today != null) {
         _today = await _api.today();
+      }
+      // Keep the date-navigable schedule in sync without extra callers.
+      try {
+        _schedule = await _api.schedule(
+          date: _selectedDate,
+          days: _scope.days,
+        );
+        _scheduleError = null;
+      } on ApiException catch (e) {
+        _scheduleError = e.message;
       }
     });
   }

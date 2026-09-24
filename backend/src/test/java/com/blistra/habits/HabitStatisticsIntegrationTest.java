@@ -162,6 +162,63 @@ class HabitStatisticsIntegrationTest extends HabitsTestSupport {
     }
 
     @Test
+    void completionRateReflectsDueOccurrences() throws Exception {
+        String token = registerAndLogin("alice@example.com", "password123");
+        String habitId = createBooleanHabit(token, "Stretch");
+        upsertSchedule(token, habitId, HabitFrequency.DAILY, List.of());
+        LocalDate today = userToday();
+
+        // Habit created today: due window is just today; 2 of 3 past
+        // completions would predate creation, so complete today only and
+        // assert the rate over the observed window.
+        recordCompletion(token, habitId, today, null, null);
+
+        mockMvc.perform(get(HABITS_URL + "/" + habitId + "/statistics")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completedDueOccurrences", is(1)))
+                .andExpect(jsonPath("$.dueOccurrences", is(1)))
+                .andExpect(jsonPath("$.completionRate", is(1.0)));
+    }
+
+    @Test
+    void completionRateCountsMissedDueDays() throws Exception {
+        String token = registerAndLogin("alice@example.com", "password123");
+        String habitId = createBooleanHabit(token, "Stretch");
+        upsertSchedule(token, habitId, HabitFrequency.DAILY, List.of());
+        LocalDate today = userToday();
+
+        // Complete today and two days ago: yesterday was due and missed.
+        recordCompletion(token, habitId, today.minusDays(2), null, null);
+        recordCompletion(token, habitId, today, null, null);
+
+        mockMvc.perform(get(HABITS_URL + "/" + habitId + "/statistics")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completedDueOccurrences", is(2)))
+                .andExpect(jsonPath("$.dueOccurrences", is(3)))
+                .andExpect(jsonPath("$.completionRate").value(
+                        org.hamcrest.Matchers.closeTo(0.6667, 0.001)));
+    }
+
+    @Test
+    void weeklyRateCountsOnlySelectedDays() throws Exception {
+        String token = registerAndLogin("alice@example.com", "password123");
+        String habitId = createBooleanHabit(token, "Gym");
+        LocalDate today = userToday();
+        // A weekly schedule due only today: one due occurrence.
+        upsertSchedule(token, habitId, HabitFrequency.WEEKLY, List.of(today.getDayOfWeek()));
+        recordCompletion(token, habitId, today, null, null);
+
+        mockMvc.perform(get(HABITS_URL + "/" + habitId + "/statistics")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completedDueOccurrences", is(1)))
+                .andExpect(jsonPath("$.dueOccurrences", is(1)))
+                .andExpect(jsonPath("$.completionRate", is(1.0)));
+    }
+
+    @Test
     void userCannotReadAnotherUsersStatistics() throws Exception {
         String alice = registerAndLogin("alice@example.com", "password123");
         String bob = registerAndLogin("bob@example.com", "password123");

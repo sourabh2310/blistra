@@ -4,6 +4,7 @@ import com.blistra.medicines.domain.DoseRecord;
 import com.blistra.medicines.domain.DoseStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,6 +23,11 @@ public interface DoseRecordRepository extends JpaRepository<DoseRecord, UUID> {
 
     Optional<DoseRecord> findByIdAndMedicineIdAndMedicineUserId(UUID doseId, UUID medicineId, UUID userId);
 
+    boolean existsByMedicineIdAndScheduledAtAndStatus(UUID medicineId, OffsetDateTime scheduledAt, DoseStatus status);
+
+    // Today/dashboard aggregation reads each record's medicine (and
+    // schedule); fetch-join both to avoid one lazy query per record.
+    @EntityGraph(attributePaths = {"medicine", "schedule"})
     @Query("""
             SELECT d FROM DoseRecord d
             WHERE d.medicine.user.id = :userId
