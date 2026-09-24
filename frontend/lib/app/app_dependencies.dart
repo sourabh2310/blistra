@@ -34,6 +34,8 @@ import '../features/notifications/state/reminders_controller.dart';
 import '../features/notifications/state/settings_controller.dart';
 import '../features/planner/planner_api.dart';
 import '../features/planner/planner_controller.dart';
+import '../features/preferences/preferences_api.dart';
+import '../features/preferences/preferences_controller.dart';
 import '../features/profile/profile_controller.dart';
 
 class AppDependencies {
@@ -43,6 +45,7 @@ class AppDependencies {
     required this.authStorage,
     required this.dashboard,
     required this.planner,
+    required this.preferences,
     required this.profile,
     required this.diet,
     required this.habits,
@@ -62,6 +65,7 @@ class AppDependencies {
 
   final DashboardController dashboard;
   final PlannerController planner;
+  final PreferencesController preferences;
   final ProfileController profile;
   final DietController diet;
   final HabitsController habits;
@@ -95,6 +99,8 @@ class AppDependencies {
           offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
         );
     final planner = PlannerController(PlannerApi(apiClient));
+    final preferences =
+        PreferencesController(PreferencesApi(apiClient));
     final profile = ProfileController(apiClient);
     final diet = DietController(
       HttpDietApi(apiClient),
@@ -152,6 +158,7 @@ class AppDependencies {
       authStorage: authStorage,
       dashboard: dashboard,
       planner: planner,
+      preferences: preferences,
       profile: profile,
       diet: diet,
       habits: habits,

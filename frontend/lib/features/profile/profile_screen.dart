@@ -13,6 +13,8 @@ import '../../app/app_scope.dart';
 import '../../core/api/api_exception.dart';
 import '../dashboard/models/dashboard_response.dart';
 import '../notifications/state/settings_controller.dart';
+import '../preferences/screens/customize_home_screen.dart';
+import '../preferences/screens/customize_nav_screen.dart';
 import 'profile_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -172,6 +174,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             : 'Metric',
                         onTap: () =>
                             _editProfileField(context, controller, 'units'),
+                      ),
+                      _Row(
+                        icon: Icons.dashboard_customize_outlined,
+                        label: 'Customize Home',
+                        value: 'Widgets and layout',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const CustomizeHomeScreen(),
+                          ),
+                        ),
+                      ),
+                      _Row(
+                        icon: Icons.tune_outlined,
+                        label: 'Customize Navigation',
+                        value: 'Bottom bar destinations',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const CustomizeNavScreen(),
+                          ),
+                        ),
                       ),
                       const _NotificationRow(),
                     ],

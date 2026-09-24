@@ -2,7 +2,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../core/auth/auth_state.dart';
+import '../data/medicines_api_client.dart';
 import '../models/medicine.dart';
 import '../models/medicine_enums.dart';
 import '../state/medicine_form_controller.dart';
@@ -21,9 +24,21 @@ class _MedicineFormPageState extends State<MedicineFormPage> {
   late MedicineFormController _controller;
   bool _saving = false;
 
+  bool _initialized = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (!_initialized) {
+      final authState = context.read<AuthState>();
+      final api = MedicinesApiClient(
+        tokenProvider: () => authState.apiClient.token ?? '',
+        onUnauthorized: () => authState.handleUnauthorized(),
+      );
+      _controller =
+          MedicineFormController(api, medicine: widget.medicine);
+      _initialized = true;
+    }
   }
 
   @override

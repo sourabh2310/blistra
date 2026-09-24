@@ -66,15 +66,9 @@ class _MedicineListPageState extends State<MedicineListPage> {
     }
 
     return Scaffold(
+      // No account actions here: sign-out lives in Profile.
       appBar: AppBar(
         title: const Text('Medicines'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => context.read<AuthState>().logout(),
-            tooltip: 'Logout',
-          ),
-        ],
       ),
       body: ListenableBuilder(
         listenable: controller,

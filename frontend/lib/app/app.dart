@@ -24,6 +24,7 @@ import '../features/health/health_repository.dart';
 import '../features/notifications/state/reminders_controller.dart';
 import '../features/notifications/state/settings_controller.dart';
 import '../features/planner/planner_controller.dart';
+import '../features/preferences/preferences_controller.dart';
 import '../features/profile/profile_controller.dart';
 import 'app_dependencies.dart';
 import 'app_scope.dart';
@@ -49,6 +50,8 @@ class BlistraApp extends StatelessWidget {
           ChangeNotifierProvider<DashboardController>.value(
               value: deps.dashboard),
           ChangeNotifierProvider<PlannerController>.value(value: deps.planner),
+          ChangeNotifierProvider<PreferencesController>.value(
+              value: deps.preferences),
           ChangeNotifierProvider<ProfileController>.value(value: deps.profile),
           ChangeNotifierProvider<DietController>.value(value: deps.diet),
           ChangeNotifierProvider<HabitsController>.value(value: deps.habits),

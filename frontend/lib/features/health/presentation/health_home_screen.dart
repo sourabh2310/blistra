@@ -231,29 +231,6 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
     }
   }
 
-  Future<void> _confirmLogout() async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign out'),
-        content: const Text('Sign out of this device?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await widget.onLogout();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final HealthRepository repository = _repository;
@@ -261,15 +238,9 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
       listenable: repository,
       builder: (context, _) {
         return Scaffold(
+          // No account actions here: sign-out lives in Profile.
           appBar: AppBar(
             title: const Text('Health'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: 'Sign out',
-                onPressed: _confirmLogout,
-              ),
-            ],
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: _measurementsLoading

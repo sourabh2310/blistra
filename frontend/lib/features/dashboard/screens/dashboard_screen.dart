@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../app_scope.dart';
+import '../../preferences/shell_destinations.dart';
+import '../../notifications/state/reminders_controller.dart';
 import '../models/dashboard_response.dart';
 
 /// Homepage replica of Homepage.png — Blistra "Everything you need. One app."
@@ -11,10 +14,31 @@ import '../models/dashboard_response.dart';
 /// to the JWT identity). Missing data renders an explicit empty state —
 /// never a hardcoded fallback number, name, or schedule entry.
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key, this.onNavigate});
+  const DashboardScreen({
+    super.key,
+    this.onDestination,
+    this.onSearch,
+    this.onNotifications,
+    this.onProfile,
+    this.onCustomizeHome,
+    this.hubPinned = true,
+    this.homeWidgets,
+  });
 
-  /// Navigate to a primary tab: 0 Home, 1 Planner, 2 Add, 3 Modules, 4 Profile.
-  final void Function(int tabIndex)? onNavigate;
+  /// Shell-level navigation by destination id (HOME/PLANNER/HEALTH/...).
+  final void Function(String destinationId)? onDestination;
+  final VoidCallback? onSearch;
+  final VoidCallback? onNotifications;
+  final VoidCallback? onProfile;
+  final VoidCallback? onCustomizeHome;
+
+  /// False when Hub is not pinned: Home then shows an explicit Hub entry so
+  /// every module stays reachable.
+  final bool hubPinned;
+
+  /// Visible Home widget ids in order (DAY_AT_A_GLANCE first). Null shows
+  /// the full default set.
+  final List<String>? homeWidgets;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -22,6 +46,27 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   static const _teal = Color(0xFF0C6B6B);
+  bool _remindersPrimed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Prime the real reminder count for the bell badge (best-effort, once).
+    if (!_remindersPrimed) {
+      _remindersPrimed = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          final reminders = context.read<RemindersController>();
+          if (reminders.reminders.isEmpty && !reminders.loading) {
+            // ignore: discarded_futures
+            reminders.load();
+          }
+        } catch (_) {
+          // No reminders scope (e.g. widget tests): no badge, no crash.
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,13 +79,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final dashboard = controller.dashboard;
         final name = resolveDisplayName(user: dashboard?.user, email: email);
         final now = DateTime.now();
+        bool hasDot = false;
+        try {
+          hasDot =
+              context.watch<RemindersController>().reminders.isNotEmpty;
+        } catch (_) {
+          hasDot = false;
+        }
+        // Single global Add lives in the bottom navigation; Home never adds
+        // a second floating button.
         return Scaffold(
           backgroundColor: const Color(0xFFFFFBF6),
-          floatingActionButton: _QuickAddFab(
-            onTap: () => _openQuickAdd(context),
-          ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.endFloat,
           body: RefreshIndicator(
             color: _teal,
             onRefresh: () => controller.refresh(
@@ -53,7 +102,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 8),
-                  _TopBar(displayName: name),
+                  _TopBar(
+                    displayName: name,
+                    hasNotifications: hasDot,
+                    onSearch: widget.onSearch,
+                    onNotifications: widget.onNotifications,
+                    onProfile: widget.onProfile,
+                  ),
                   _GreetingHeader(name: name, now: now),
                   const SizedBox(height: 6),
                   _DayAtAGlanceCard(
@@ -62,13 +117,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _ModuleGrid(
                     dashboard: dashboard,
                     now: now,
-                    onNavigate: widget.onNavigate,
+                    onDestination: widget.onDestination,
+                    onCustomizeHome: widget.onCustomizeHome,
+                    homeWidgets: widget.homeWidgets,
+                    hubPinned: widget.hubPinned,
                   ),
                   const SizedBox(height: 18),
                   _TimelineSection(
                     dashboard: dashboard,
                     now: now,
-                    onNavigate: widget.onNavigate,
+                    onDestination: widget.onDestination,
                   ),
                   if (controller.isLoading && dashboard == null)
                     const Padding(
@@ -86,7 +144,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                  // Space for FAB overlap + bottom nav.
+                  // Space for the floating bottom navigation.
                   const SizedBox(height: 110),
                 ],
               ),
@@ -96,31 +154,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
     );
   }
-
-  void _openQuickAdd(BuildContext context) {
-    final scope = AppScope.of(context);
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => _QuickAddSheet(
-        onNavigate: widget.onNavigate,
-        onRefresh: () => scope.dashboard.refresh(
-          date: DateTime.now(),
-          offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
-        ),
-      ),
-    );
-  }
 }
 
 // ─── Top bar ──────────────────────────────────────────────
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.displayName});
+  const _TopBar({
+    required this.displayName,
+    this.hasNotifications = false,
+    this.onSearch,
+    this.onNotifications,
+    this.onProfile,
+  });
 
   final String displayName;
+  final bool hasNotifications;
+  final VoidCallback? onSearch;
+  final VoidCallback? onNotifications;
+  final VoidCallback? onProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -162,28 +213,45 @@ class _TopBar extends StatelessWidget {
               ],
             ),
           ),
-          _IconCircle(icon: Icons.search, onTap: () {}),
+          Semantics(
+            label: 'Search',
+            button: true,
+            child: _IconCircle(icon: Icons.search, onTap: onSearch),
+          ),
           const SizedBox(width: 10),
-          _IconCircle(
-              icon: Icons.notifications_none_outlined,
-              dot: true,
-              onTap: () {}),
+          Semantics(
+            label: 'Notifications',
+            button: true,
+            child: _IconCircle(
+                icon: Icons.notifications_none_outlined,
+                // Real data only: the dot reflects scheduled reminders.
+                dot: hasNotifications,
+                onTap: onNotifications),
+          ),
           const SizedBox(width: 10),
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border:
-                  Border.all(color: const Color(0xFFE3F0F0), width: 2),
-              color: const Color(0xFFF3D9C8),
-            ),
-            child: Center(
-              child: Text(initials,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
-                      color: Color(0xFF5B3A29))),
+          Semantics(
+            label: 'Profile',
+            button: true,
+            child: InkWell(
+              onTap: onProfile,
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: const Color(0xFFE3F0F0), width: 2),
+                  color: const Color(0xFFF3D9C8),
+                ),
+                child: Center(
+                  child: Text(initials,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 20,
+                          color: Color(0xFF5B3A29))),
+                ),
+              ),
             ),
           ),
         ],
@@ -527,59 +595,101 @@ class _DayAtAGlanceCardMint {
 // ─── Module grid ──────────────────────────────────────────
 
 class _ModuleGrid extends StatelessWidget {
-  const _ModuleGrid(
-      {required this.dashboard,
-      required this.now,
-      required this.onNavigate});
+  const _ModuleGrid({
+    required this.dashboard,
+    required this.now,
+    required this.onDestination,
+    required this.onCustomizeHome,
+    required this.homeWidgets,
+    required this.hubPinned,
+  });
 
   final DashboardResponse? dashboard;
   final DateTime now;
-  final void Function(int tabIndex)? onNavigate;
+  final void Function(String destinationId)? onDestination;
+  final VoidCallback? onCustomizeHome;
+  final List<String>? homeWidgets;
+  final bool hubPinned;
+
+  /// Widget ids in the user's saved order (hero excluded: it has its own
+  /// zone above the grid).
+  List<String> get _ordered {
+    final saved = (homeWidgets ?? HomeWidgets.defaults)
+        .where((id) =>
+            id != HomeWidgets.dayAtAGlance &&
+            HomeWidgets.allowed.contains(id))
+        .toList();
+    if (saved.isEmpty) {
+      return HomeWidgets.defaults
+          .where((id) => id != HomeWidgets.dayAtAGlance)
+          .toList();
+    }
+    return saved;
+  }
+
+  Widget _tileFor(String widgetId) {
+    switch (widgetId) {
+      case HomeWidgets.health:
+        return _healthTile();
+      case HomeWidgets.medicines:
+        return _medicinesTile();
+      case HomeWidgets.diet:
+        return _dietTile();
+      case HomeWidgets.habits:
+        return _habitsTile();
+      case HomeWidgets.planner:
+        return _plannerTile();
+      case HomeWidgets.finance:
+        return _financeTile();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final tiles = _ordered;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _healthTile(),
+              const Expanded(
+                child: Text('Your day',
+                    style: TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w800)),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _medicinesTile(),
-              ),
+              if (onCustomizeHome != null)
+                TextButton(
+                  onPressed: onCustomizeHome,
+                  child: const Text('Customize'),
+                ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _dietTile(),
+          const SizedBox(height: 8),
+          for (int i = 0; i < tiles.length; i += 2) ...[
+            if (i > 0) const SizedBox(height: 12),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _tileFor(tiles[i])),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: i + 1 < tiles.length
+                        ? _tileFor(tiles[i + 1])
+                        : const SizedBox.shrink(),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _habitsTile(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _plannerTile(),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _financeTile(),
-              ),
-            ],
-          ),
+            ),
+          ],
+          if (!hubPinned) ...[
+            const SizedBox(height: 12),
+            _HubEntryCard(
+                onTap: () => onDestination?.call('HUB')),
+          ],
         ],
       ),
     );
@@ -620,7 +730,8 @@ class _ModuleGrid extends StatelessWidget {
       iconColor: const Color(0xFFE5484D),
       title: 'Health',
       subtitle: subtitle,
-      onTap: () => onNavigate?.call(3),
+      onTap: () => onDestination?.call('HEALTH'),
+      actionLabel: 'View',
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -695,15 +806,6 @@ class _ModuleGrid extends StatelessWidget {
               ),
             ],
           ),
-          if (!hasHealth || weight?.value == null)
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: Text('Add measurement',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFE5484D))),
-            ),
         ],
       ),
     );
@@ -723,8 +825,11 @@ class _ModuleGrid extends StatelessWidget {
         iconColor: const Color(0xFF3E9BE9),
         title: 'Medicines',
         subtitle: 'No medicines scheduled',
-        onTap: () => onNavigate?.call(3),
-        body: const Text('No medicines scheduled',
+        onTap: () => onDestination?.call('MEDICINES'),
+        actionLabel: 'Add medicine',
+        body: const Text('Your medicine schedule will appear here.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
                 fontSize: 13, color: Color(0xFF3E5A6B))),
       );
@@ -744,7 +849,8 @@ class _ModuleGrid extends StatelessWidget {
       iconColor: const Color(0xFF3E9BE9),
       title: 'Medicines',
       subtitle: subtitle,
-      onTap: () => onNavigate?.call(3),
+      onTap: () => onDestination?.call('MEDICINES'),
+      actionLabel: 'View',
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -821,12 +927,12 @@ class _ModuleGrid extends StatelessWidget {
         iconColor: const Color(0xFF3E8E41),
         title: 'Diet',
         subtitle: 'No meals logged today',
-        onTap: () => onNavigate?.call(3),
-        body: const Text('Log meal',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF3E8E41))),
+        onTap: () => onDestination?.call('DIET'),
+        actionLabel: 'Log meal',
+        body: const Text('Start logging meals to see your nutrition here.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 13, color: Color(0xFF3E5A6B))),
       );
     }
     final kcalLabel = kcalTotal != null && kcalItems > 0
@@ -839,7 +945,8 @@ class _ModuleGrid extends StatelessWidget {
       iconColor: const Color(0xFF3E8E41),
       title: 'Diet',
       subtitle: kcalLabel,
-      onTap: () => onNavigate?.call(3),
+      onTap: () => onDestination?.call('DIET'),
+      actionLabel: 'View',
       body: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -881,12 +988,12 @@ class _ModuleGrid extends StatelessWidget {
         iconColor: const Color(0xFF7C3AED),
         title: 'Habits',
         subtitle: 'No habits scheduled today',
-        onTap: () => onNavigate?.call(3),
-        body: const Text('Add habit',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF7C3AED))),
+        onTap: () => onDestination?.call('HABITS'),
+        actionLabel: 'Add habit',
+        body: const Text('Build your first habit.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 13, color: Color(0xFF3E5A6B))),
       );
     }
     final todayHabits = habits.todayHabits;
@@ -900,7 +1007,8 @@ class _ModuleGrid extends StatelessWidget {
       iconColor: const Color(0xFF7C3AED),
       title: 'Habits',
       subtitle: '$done of $total completed',
-      onTap: () => onNavigate?.call(3),
+      onTap: () => onDestination?.call('HABITS'),
+      actionLabel: 'View',
       body: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [for (final s in states) _HabitDot(done: s)],
@@ -931,7 +1039,8 @@ class _ModuleGrid extends StatelessWidget {
         iconColor: const Color(0xFFE8890C),
         title: 'Planner',
         subtitle: 'No upcoming events',
-        onTap: () => onNavigate?.call(1),
+        onTap: () => onDestination?.call('PLANNER'),
+        actionLabel: 'View',
         body: const Text('Nothing scheduled',
             style: TextStyle(
                 fontSize: 13, color: Color(0xFF667085))),
@@ -949,7 +1058,8 @@ class _ModuleGrid extends StatelessWidget {
       iconColor: const Color(0xFFE8890C),
       title: 'Planner',
       subtitle: countLabel,
-      onTap: () => onNavigate?.call(1),
+      onTap: () => onDestination?.call('PLANNER'),
+      actionLabel: 'View',
       body: Column(
         children: [
           for (int i = 0; i < shown.take(2).length; i++) ...[
@@ -985,8 +1095,11 @@ class _ModuleGrid extends StatelessWidget {
         iconColor: const Color(0xFF0C6B6B),
         title: 'Finance',
         subtitle: 'No transactions yet',
-        onTap: () => onNavigate?.call(3),
-        body: const Text('No transactions yet',
+        onTap: () => onDestination?.call('FINANCE'),
+        actionLabel: 'View',
+        body: const Text('Your overview will appear once you add transactions.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
                 fontSize: 13, color: Color(0xFF3E5A5A))),
       );
@@ -1002,7 +1115,8 @@ class _ModuleGrid extends StatelessWidget {
       iconColor: const Color(0xFF0C6B6B),
       title: 'Finance',
       subtitle: 'Spent this month',
-      onTap: () => onNavigate?.call(3),
+      onTap: () => onDestination?.call('FINANCE'),
+      actionLabel: 'View',
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -1067,6 +1181,10 @@ String _currencySymbol(String code) {
   }
 }
 
+/// Equal-height module card: header, constrained body, footer pinned to the
+/// bottom via [Spacer]. Rows use IntrinsicHeight + stretch so cards in the
+/// same row share dimensions; content uses line limits so a long text never
+/// stretches its card beyond its sibling.
 class _Tile extends StatelessWidget {
   const _Tile({
     required this.color,
@@ -1077,6 +1195,7 @@ class _Tile extends StatelessWidget {
     required this.subtitle,
     required this.body,
     this.onTap,
+    this.actionLabel = 'View',
   });
 
   final Color color;
@@ -1087,6 +1206,7 @@ class _Tile extends StatelessWidget {
   final String subtitle;
   final Widget body;
   final VoidCallback? onTap;
+  final String actionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -1115,10 +1235,14 @@ class _Tile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800)),
                       Text(subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 12.5,
                               color: Color(0xFF3E5A6B))),
@@ -1131,6 +1255,58 @@ class _Tile extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             body,
+            const Spacer(),
+            const SizedBox(height: 8),
+            Text('$actionLabel ›',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: iconColor)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-width Hub entry shown on Home only when Hub is not pinned, so every
+/// module stays reachable.
+class _HubEntryCard extends StatelessWidget {
+  const _HubEntryCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFFF0EDE8)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.grid_view_rounded,
+                color: Color(0xFF0C6B6B)),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Explore Hub',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700)),
+                  Text('Everything else, organized',
+                      style: TextStyle(
+                          fontSize: 13, color: Color(0xFF667085))),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Color(0xFF98A2B3)),
           ],
         ),
       ),
@@ -1460,11 +1636,11 @@ class _TimelineSection extends StatelessWidget {
   const _TimelineSection(
       {required this.dashboard,
       required this.now,
-      required this.onNavigate});
+      required this.onDestination});
 
   final DashboardResponse? dashboard;
   final DateTime now;
-  final void Function(int tabIndex)? onNavigate;
+  final void Function(String destinationId)? onDestination;
 
   @override
   Widget build(BuildContext context) {
@@ -1480,7 +1656,7 @@ class _TimelineSection extends StatelessWidget {
                       fontSize: 20, fontWeight: FontWeight.w800)),
               const Spacer(),
               InkWell(
-                onTap: () => onNavigate?.call(1),
+                onTap: () => onDestination?.call('PLANNER'),
                 child: const Row(
                   children: [
                     Text('View all',
@@ -1712,111 +1888,6 @@ class _TimelineRow extends StatelessWidget {
         if (showDivider)
           const Divider(height: 1, color: Color(0xFFF0EDE8)),
       ],
-    );
-  }
-}
-
-// ─── Quick add (routes to the owning module's real create flow) ───
-
-class _QuickAddFab extends StatelessWidget {
-  const _QuickAddFab({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 66,
-      height: 66,
-      margin: const EdgeInsets.only(bottom: 96),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0E8A8A), Color(0xFF0A5656)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-              color: const Color(0xFF0C6B6B).withValues(alpha: 0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 8)),
-        ],
-      ),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.white, size: 36),
-      ),
-    );
-  }
-}
-
-/// Quick-create entries. Each item routes to the owning module (Planner for
-/// scheduled items, Modules for the rest) where the real backend create flow
-/// lives. Home never creates dashboard-local records.
-class _QuickAddSheet extends StatelessWidget {
-  const _QuickAddSheet({required this.onNavigate, required this.onRefresh});
-  final void Function(int tabIndex)? onNavigate;
-  final Future<void> Function() onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    // (label, icon, tab): 1 = Planner, 3 = Modules (Health/Meds/Diet/...).
-    final items = [
-      ('Planner event', Icons.event, 1),
-      ('Task', Icons.add_task, 1),
-      ('Medicine', Icons.medication_outlined, 3),
-      ('Meal', Icons.restaurant, 3),
-      ('Water', Icons.water_drop_outlined, 3),
-      ('Habit', Icons.check_circle_outline, 3),
-      ('Expense', Icons.account_balance_wallet_outlined, 3),
-      ('Health measurement', Icons.monitor_heart_outlined, 3),
-    ];
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: const Color(0xFFE4E7EC),
-                    borderRadius: BorderRadius.circular(4))),
-            const SizedBox(height: 12),
-            const Text('Quick add',
-                style:
-                    TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 12),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  for (final (label, icon, tab) in items)
-                    ListTile(
-                      leading: Icon(icon,
-                          color: const Color(0xFF0C6B6B)),
-                      title: Text(label),
-                      trailing:
-                          const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.pop(context);
-                        onNavigate?.call(tab);
-                        // Refresh Home so the newly created record appears
-                        // once the user returns (creation itself happens in
-                        // the owning module against the real backend API).
-                        Future.delayed(
-                            const Duration(milliseconds: 500),
-                            () => onRefresh());
-                      },
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

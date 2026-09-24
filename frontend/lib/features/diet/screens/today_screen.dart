@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/auth/auth_state.dart';
 import '../diet_controller.dart';
 import '../models/water.dart';
 import '../validators.dart';
@@ -108,16 +107,6 @@ class _TodayScreenState extends State<TodayScreen> {
                 MaterialPageRoute(builder: (_) => const ProfileScreen()),
               );
             },
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'logout') {
-                context.read<AuthState>().logout();
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'logout', child: Text('Sign out')),
-            ],
           ),
         ],
       ),
