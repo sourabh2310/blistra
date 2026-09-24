@@ -14,9 +14,9 @@ class PlannerSearchDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final parts = route.split('/');
     if (parts.length < 3) {
-      return const Scaffold(
-        appBar: const AppBar(title: Text('Planner details')),
-        body: Center(child: Text("Couldn't load this Planner item.")),
+      return Scaffold(
+        appBar: AppBar(title: const Text('Planner details')),
+        body: const Center(child: Text("Couldn't load this Planner item.")),
       );
     }
     final planner = AppScope.of(context).planner;
@@ -24,9 +24,9 @@ class PlannerSearchDetailScreen extends StatelessWidget {
       'task' => TaskDetailScreen(planner: planner, taskId: parts[2]),
       'event' => EventDetailScreen(planner: planner, eventId: parts[2]),
       'list' => ListDetailScreen(planner: planner, listId: parts[2]),
-      _ => const Scaffold(
-          appBar: const AppBar(title: Text('Planner details')),
-          body: Center(child: Text("Couldn't load this Planner item.")),
+      _ => Scaffold(
+          appBar: AppBar(title: const Text('Planner details')),
+          body: const Center(child: Text("Couldn't load this Planner item.")),
         ),
     };
     return page;
