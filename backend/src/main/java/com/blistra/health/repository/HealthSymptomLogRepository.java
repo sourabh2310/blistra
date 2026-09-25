@@ -17,25 +17,14 @@ public interface HealthSymptomLogRepository extends JpaRepository<HealthSymptomL
 
     Optional<HealthSymptomLog> findByIdAndUserId(UUID id, UUID userId);
 
-    @Query("""
-            SELECT l FROM HealthSymptomLog l
-            WHERE l.user.id = :userId
-              AND (:from IS NULL OR l.observedAt >= :from)
-              AND (:to IS NULL OR l.observedAt <= :to)
-            """)
+    @Query(value = """
+            SELECT l.* FROM health_symptom_logs l
+            WHERE l.user_id = :userId
+              AND (CAST(:from AS timestamptz) IS NULL OR l.observed_at >= :from)
+              AND (CAST(:to AS timestamptz) IS NULL OR l.observed_at <= :to)
+            """, nativeQuery = true)
     Page<HealthSymptomLog> search(@Param("userId") UUID userId,
                                   @Param("from") OffsetDateTime from,
                                   @Param("to") OffsetDateTime to,
                                   Pageable pageable);
-
-    @Query("""
-            SELECT l FROM HealthSymptomLog l
-            WHERE l.user.id = :userId
-              AND (LOWER(l.title) LIKE LOWER(:term)
-                   OR LOWER(l.description) LIKE LOWER(:term)
-                   OR LOWER(l.notes) LIKE LOWER(:term))
-            """)
-    Page<HealthSymptomLog> searchByText(@Param("userId") UUID userId,
-                                        @Param("term") String term,
-                                        Pageable pageable);
 }

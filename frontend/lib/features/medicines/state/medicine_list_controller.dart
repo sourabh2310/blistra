@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../data/medicines_api_client.dart';
 import '../models/medicine.dart';
 import '../models/medicine_enums.dart';
+import '../models/page.dart';
 
 class MedicineListController extends ChangeNotifier {
   MedicineListController(this._api);

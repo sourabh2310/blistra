@@ -6,9 +6,17 @@ import 'appointment_form_screen.dart';
 import 'widgets.dart';
 
 class AppointmentsScreen extends StatelessWidget {
-  const AppointmentsScreen({super.key, required this.repository});
+  const AppointmentsScreen({
+    super.key,
+    required this.repository,
+    this.onChanged,
+  });
 
   final HealthRepository repository;
+
+  /// Invoked after a successful create/edit/delete: upcoming appointments
+  /// feed the Home dashboard and Planner timeline, so they must refresh.
+  final Future<void> Function()? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +28,7 @@ class AppointmentsScreen extends StatelessWidget {
       itemBuilder: (context, appointment) => _AppointmentTile(appointment),
       formBuilder: (context, edited) =>
           AppointmentFormScreen(repository: repository, initial: edited),
+      onChanged: onChanged,
     );
   }
 }

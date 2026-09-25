@@ -1,6 +1,7 @@
 package com.blistra.auth.security;
 
 import com.blistra.users.domain.User;
+import com.blistra.users.domain.UserStatus;
 import com.blistra.users.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,11 +18,34 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        if (user.isBlocked()) {
+            throw new UsernameNotFoundException("User not found");
+        }
 
-        // User roles/authorities can be extended later. Carrying the id on the
-        // principal lets domain modules derive resource ownership from the
-        // trusted security context without additional lookups.
         return new BlistraUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), java.util.List.of());
+    }
+
+    public UserDetails loadUserById(java.util.UUID id) throws UsernameNotFoundException {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        if (user.isBlocked()) {
+            throw new UsernameNotFoundException("User not found");
+        }
+
+        return new BlistraUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), java.util.List.of());
+    }
+
+    /**
+     * Resolves a token subject: new tokens carry the user id, legacy tokens
+     * carry the email. Blocked (inactive/suspended) accounts authenticate as
+     * absent in both cases.
+     */
+    public UserDetails loadBySubject(String subject) throws UsernameNotFoundException {
+        try {
+            return loadUserById(java.util.UUID.fromString(subject));
+        } catch (IllegalArgumentException e) {
+            return loadUserByUsername(subject);
+        }
     }
 }

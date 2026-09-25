@@ -2,10 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
 
-import '../lib/core/api_client.dart';
-import '../lib/core/api_exception.dart';
-import '../lib/features/health/health_api.dart';
-import '../lib/features/health/health_models.dart';
+import 'package:frontend/core/api/api_client.dart';
+import 'package:frontend/core/api/api_exception.dart';
+import 'package:frontend/features/health/health_api.dart';
+import 'package:frontend/features/health/health_models.dart';
 
 void main() {
   group('HealthApi', () {
@@ -18,7 +18,7 @@ void main() {
         // Default 404
         return http.Response('{}', 404);
       });
-      apiClient = ApiClient(httpClient: mockClient, tokenProvider: () => 'test-token');
+      apiClient = ApiClient(baseUrl: 'http://backend.test', httpClient: mockClient)..token = 'test-token';
       healthApi = HealthApi(apiClient);
     });
 
@@ -41,7 +41,7 @@ void main() {
           }
           return http.Response('{}', 404);
         });
-        apiClient = ApiClient(httpClient: mockClient, tokenProvider: () => 'test-token');
+        apiClient = ApiClient(baseUrl: 'http://backend.test', httpClient: mockClient)..token = 'test-token';
         healthApi = HealthApi(apiClient);
 
         final profile = await healthApi.getProfile();
@@ -58,7 +58,7 @@ void main() {
           }
           return http.Response('{}', 404);
         });
-        apiClient = ApiClient(httpClient: mockClient, tokenProvider: () => 'test-token');
+        apiClient = ApiClient(baseUrl: 'http://backend.test', httpClient: mockClient)..token = 'test-token';
         healthApi = HealthApi(apiClient);
 
         final profile = await healthApi.getProfile();
@@ -73,7 +73,7 @@ void main() {
           }
           return http.Response('{}', 404);
         });
-        apiClient = ApiClient(httpClient: mockClient, tokenProvider: () => 'test-token');
+        apiClient = ApiClient(baseUrl: 'http://backend.test', httpClient: mockClient)..token = 'test-token';
         healthApi = HealthApi(apiClient);
 
         expect(() => healthApi.getProfile(), throwsA(isA<ApiException>()));
@@ -101,7 +101,7 @@ void main() {
           }
           return http.Response('{}', 404);
         });
-        apiClient = ApiClient(httpClient: mockClient, tokenProvider: () => 'test-token');
+        apiClient = ApiClient(baseUrl: 'http://backend.test', httpClient: mockClient)..token = 'test-token';
         healthApi = HealthApi(apiClient);
 
         final page = await healthApi.listMeasurements(
@@ -133,7 +133,7 @@ void main() {
           }
           return http.Response('{}', 404);
         });
-        apiClient = ApiClient(httpClient: mockClient, tokenProvider: () => 'test-token');
+        apiClient = ApiClient(baseUrl: 'http://backend.test', httpClient: mockClient)..token = 'test-token';
         healthApi = HealthApi(apiClient);
 
         final input = MeasurementInput(
@@ -163,7 +163,7 @@ void main() {
           }
           return http.Response('{}', 404);
         });
-        apiClient = ApiClient(httpClient: mockClient, tokenProvider: () => 'test-token');
+        apiClient = ApiClient(baseUrl: 'http://backend.test', httpClient: mockClient)..token = 'test-token';
         healthApi = HealthApi(apiClient);
 
         final input = MeasurementInput(
@@ -188,7 +188,7 @@ void main() {
           }
           return http.Response('{}', 404);
         });
-        apiClient = ApiClient(httpClient: mockClient, tokenProvider: () => 'test-token');
+        apiClient = ApiClient(baseUrl: 'http://backend.test', httpClient: mockClient)..token = 'test-token';
         healthApi = HealthApi(apiClient);
 
         await healthApi.deleteMeasurement('m-1');
@@ -212,7 +212,7 @@ void main() {
           }
           return http.Response('{}', 404);
         });
-        apiClient = ApiClient(httpClient: mockClient, tokenProvider: () => 'test-token');
+        apiClient = ApiClient(baseUrl: 'http://backend.test', httpClient: mockClient)..token = 'test-token';
         healthApi = HealthApi(apiClient);
 
         final input = MeasurementInput(

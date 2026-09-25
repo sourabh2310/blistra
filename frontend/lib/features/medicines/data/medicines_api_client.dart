@@ -9,34 +9,37 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-import '../../../../core/api/api_exception.dart';
-import '../../../../core/config.dart';
+import '../../../core/api/api_exception.dart';
+import '../../../core/config/app_config.dart';
 import '../models/medicine.dart';
+import '../models/medicine_enums.dart';
 import '../models/dose_record.dart';
 import '../models/page.dart';
 import '../models/refill.dart';
 import '../models/schedule.dart';
+import '../models/today_doses.dart';
 
 class MedicinesApiClient {
   MedicinesApiClient({
     http.Client? httpClient,
     String? baseUrl,
-    String Function()? tokenProvider,
+    this._tokenProvider,
+    this._onUnauthorized,
   })  : _http = httpClient ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
-        _tokenProvider = tokenProvider;
+        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   final http.Client _http;
   final String _baseUrl;
   final String Function()? _tokenProvider;
+  final Future<void> Function()? _onUnauthorized;
 
   static const Duration _timeout = Duration(seconds: 20);
 
   Map<String, String> _headers() => {
         HttpHeaders.contentTypeHeader: 'application/json',
         HttpHeaders.acceptHeader: 'application/json',
-        if (_tokenProvider != null && _tokenProvider!().isNotEmpty)
-          HttpHeaders.authorizationHeader: 'Bearer ${_tokenProvider!()}',
+        if (_tokenProvider != null && _tokenProvider().isNotEmpty)
+          HttpHeaders.authorizationHeader: 'Bearer ${_tokenProvider()}',
       };
 
   Uri _uri(String path, {Map<String, String>? query}) {
@@ -58,6 +61,7 @@ class MedicinesApiClient {
     final response = await _send(method, path, body: body, query: query);
     final Object? decoded = _tryDecode(response.body);
     if (response.statusCode != expectStatus) {
+      await _maybeUnauthorized(response.statusCode);
       throw _toApiException(response.statusCode, decoded);
     }
     if (decoded == null) {
@@ -87,6 +91,7 @@ class MedicinesApiClient {
     final response = await _send(method, path, body: body, query: query);
     final Object? decoded = _tryDecode(response.body);
     if (response.statusCode != expectStatus) {
+      await _maybeUnauthorized(response.statusCode);
       throw _toApiException(response.statusCode, decoded);
     }
     if (decoded == null) {
@@ -115,6 +120,7 @@ class MedicinesApiClient {
   }) async {
     final response = await _send(method, path, body: body, query: query);
     if (response.statusCode != expectStatus) {
+      await _maybeUnauthorized(response.statusCode);
       final Object? decoded = _tryDecode(response.body);
       throw _toApiException(response.statusCode, decoded);
     }
@@ -150,6 +156,16 @@ class MedicinesApiClient {
       return jsonDecode(raw);
     } on FormatException {
       return null;
+    }
+  }
+
+  Future<void> _maybeUnauthorized(int statusCode) async {
+    if (statusCode == 401 && _onUnauthorized != null) {
+      try {
+        await _onUnauthorized();
+      } catch (_) {
+        // Logout must never crash the failing request.
+      }
     }
   }
 
@@ -193,6 +209,23 @@ class MedicinesApiClient {
       expectStatus: 200,
     );
     return Page.fromJson(data, Medicine.fromJson);
+  }
+
+  /// Expected doses for the user's current local date, expanded server-side
+  /// from active medicines and schedules and matched against recorded doses.
+  Future<MedicineToday> getTodayDoses({DateTime? date, int? offsetMinutes}) async {
+    final data = await _sendObject(
+      'GET',
+      '/api/v1/medicines/today',
+      query: {
+        if (date != null)
+          'date':
+              '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+        if (offsetMinutes != null) 'offsetMinutes': '$offsetMinutes',
+      },
+      expectStatus: 200,
+    );
+    return MedicineToday.fromJson(data);
   }
 
   Future<Medicine> getMedicine(String id) async {

@@ -34,7 +34,7 @@ public class SleepRecordController {
     public ResponseEntity<PageResponse<SleepRecordResponse>> list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to,
-            @PageableDefault(size = 20, sort = "startedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(sleepRecordService.list(from, to, pageable));
     }
 

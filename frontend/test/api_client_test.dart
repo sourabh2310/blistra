@@ -3,12 +3,7 @@ import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:frontend/features/medicines/data/medicines_api_client.dart';
-import 'package:frontend/features/medicines/models/medicine.dart';
 import 'package:frontend/features/medicines/models/medicine_enums.dart';
-import 'package:frontend/features/medicines/models/schedule.dart';
-import 'package:frontend/features/medicines/models/dose_record.dart';
-import 'package:frontend/features/medicines/models/refill.dart';
-import 'package:frontend/features/medicines/models/page.dart';
 import 'package:frontend/core/api/api_exception.dart';
 
 void main() {

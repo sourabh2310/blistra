@@ -43,7 +43,7 @@ public abstract class HabitsTestSupport extends AbstractIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
-        userRepository.deleteAll();
+        deleteAllUsers();
     }
 
     protected String registerAndLogin(String email, String password) throws Exception {

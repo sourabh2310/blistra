@@ -2,6 +2,8 @@ package com.blistra.notifications.repository;
 
 import com.blistra.notifications.domain.Reminder;
 import com.blistra.notifications.domain.ReminderStatus;
+import com.blistra.notifications.domain.ReminderType;
+import com.blistra.notifications.domain.ReminderStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,6 +16,9 @@ import java.util.UUID;
 public interface ReminderRepository extends JpaRepository<Reminder, UUID> {
 
     Optional<Reminder> findByIdAndUserId(UUID id, UUID userId);
+
+    List<Reminder> findByUserIdAndTypeAndSourceIdAndStatus(
+            UUID userId, ReminderType type, UUID sourceId, ReminderStatus status);
 
     List<Reminder> findByUserIdOrderByScheduledAtAsc(UUID userId);
 

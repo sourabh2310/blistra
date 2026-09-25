@@ -7,8 +7,11 @@ import '../data/medicines_api_client.dart';
 import '../models/dose_record.dart';
 import '../models/medicine.dart';
 import '../models/medicine_enums.dart';
+import '../models/page.dart';
 import '../models/refill.dart';
 import '../models/schedule.dart';
+import '../models/today_doses.dart';
+import '../util/dates.dart';
 
 class MedicineDetailController extends ChangeNotifier {
   MedicineDetailController(this._api, {required this.medicineId});
@@ -20,6 +23,7 @@ class MedicineDetailController extends ChangeNotifier {
   List<Schedule> _schedules = [];
   List<DoseRecord> _recentDoses = [];
   List<Refill> _refills = [];
+  List<ExpectedDose> _todaysDoses = [];
 
   bool _loading = true;
   bool _recordingDose = false;
@@ -30,6 +34,7 @@ class MedicineDetailController extends ChangeNotifier {
   List<Schedule> get schedules => List.unmodifiable(_schedules);
   List<DoseRecord> get recentDoses => List.unmodifiable(_recentDoses);
   List<Refill> get refills => List.unmodifiable(_refills);
+  List<ExpectedDose> get todaysDoses => List.unmodifiable(_todaysDoses);
   bool get isLoading => _loading;
   bool get isRecordingDose => _recordingDose;
   Object? get error => _error;
@@ -56,11 +61,28 @@ class MedicineDetailController extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+    await loadTodaysDoses();
+  }
+
+  /// Today's expected slots for this medicine only. Supplementary: a failure
+  /// here never hides the medicine itself.
+  Future<void> loadTodaysDoses() async {
+    try {
+      final MedicineToday today = await _api.getTodayDoses(
+        offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
+      );
+      _todaysDoses =
+          today.doses.where((d) => d.medicineId == medicineId).toList();
+      notifyListeners();
+    } catch (_) {
+      // Today's slots stay empty; core details and history still work.
+    }
   }
 
   Future<void> recordDose({
     required DoseStatus status,
     DateTime? scheduledAt,
+    String? scheduleId,
     String note = '',
   }) async {
     _recordingDose = true;
@@ -70,10 +92,13 @@ class MedicineDetailController extends ChangeNotifier {
     try {
       await _api.recordDose(medicineId, {
         'status': status.name.toUpperCase(),
-        'scheduledAt': scheduledAt?.toIso8601String(),
+        // Backend expects OffsetDateTime — never send zone-less local ISO.
+        'scheduledAt': scheduledAt != null ? toOffsetIso(scheduledAt) : nowOffsetIso(),
+        if (scheduleId case final String id) 'scheduleId': id,
         if (note.isNotEmpty) 'note': note,
       });
       await _reloadRecentDoses();
+      await loadTodaysDoses();
     } on Object catch (e) {
       _doseError = e;
     } finally {
@@ -111,11 +136,13 @@ class MedicineDetailController extends ChangeNotifier {
   Future<void> updateDose(String doseId, DoseStatus status) async {
     await _api.updateDose(medicineId, doseId, {'status': status.name.toUpperCase()});
     await _reloadRecentDoses();
+    await loadTodaysDoses();
   }
 
   Future<void> deleteDose(String doseId) async {
     await _api.deleteDose(medicineId, doseId);
     await _reloadRecentDoses();
+    await loadTodaysDoses();
   }
 
   Future<void> archive() async {

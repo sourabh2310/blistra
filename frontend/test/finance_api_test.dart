@@ -269,7 +269,7 @@ void main() {
           'message': 'Validation failed',
           'path': '/api/v1/finance/accounts',
           'errors': [
-            {'field': 'currency', 'message': 'must match ^[A-Z]{3}$'}
+            {'field': 'currency', 'message': 'must match ^[A-Z]{3}\$'}
           ],
         }, status: 400);
       });
@@ -282,7 +282,7 @@ void main() {
         expect(error.statusCode, 400);
         expect(error.isValidationError, isTrue);
         expect(error.code, 'INVALID_REQUEST');
-        expect(error.fieldErrors['currency'], 'must match ^[A-Z]{3}$');
+        expect(error.fieldErrors['currency'], 'must match ^[A-Z]{3}\$');
         expect(error.toString(), contains('currency'));
       }
     });

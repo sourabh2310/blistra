@@ -1,6 +1,5 @@
 import 'package:intl/intl.dart';
 
-import '../util/dates.dart';
 import 'medicine_enums.dart';
 
 class Schedule {
@@ -136,7 +135,7 @@ String scheduleRangeLabel(Schedule s) {
   if (start == null && end == null) {
     return 'Unlimited';
   }
-  final String f = DateFormat('dd MMM yyyy');
+  final f = DateFormat('dd MMM yyyy');
   if (start == null) {
     return 'until ${f.format(end!)}';
   }

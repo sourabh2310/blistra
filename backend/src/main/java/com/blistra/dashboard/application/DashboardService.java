@@ -1,5 +1,6 @@
 package com.blistra.dashboard.application;
 
+import com.blistra.common.time.UserTime;
 import com.blistra.dashboard.dto.DashboardResponse;
 import com.blistra.diet.application.DietSummaryService;
 import com.blistra.diet.dto.DietSummaryResponse;
@@ -10,12 +11,11 @@ import com.blistra.habits.dto.HabitTodayResponse;
 import com.blistra.planner.application.PlannerTodayService;
 import com.blistra.planner.dto.TodayResponse;
 import com.blistra.users.application.CurrentUserProvider;
+import com.blistra.users.repository.UserProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -35,14 +35,21 @@ public class DashboardService {
     private final HabitService habitService;
     private final HealthSummaryProvider healthSummaryProvider;
     private final MedicineSummaryProvider medicineSummaryProvider;
+    private final WeekSummaryProvider weekSummaryProvider;
+    private final UserTime userTime;
+    private final UserProfileRepository userProfileRepository;
 
     public DashboardService(CurrentUserProvider currentUserProvider,
                             PlannerTodayService plannerTodayService,
                             SummaryService financeSummaryService,
                             DietSummaryService dietSummaryService,
                             HabitService habitService,
-                            HealthSummaryProvider healthSummaryProvider,
-                            MedicineSummaryProvider medicineSummaryProvider) {
+                             HealthSummaryProvider healthSummaryProvider,
+                             MedicineSummaryProvider medicineSummaryProvider,
+                             WeekSummaryProvider weekSummaryProvider,
+                             UserTime userTime,
+
+                            UserProfileRepository userProfileRepository) {
         this.currentUserProvider = currentUserProvider;
         this.plannerTodayService = plannerTodayService;
         this.financeSummaryService = financeSummaryService;
@@ -50,6 +57,9 @@ public class DashboardService {
         this.habitService = habitService;
         this.healthSummaryProvider = healthSummaryProvider;
         this.medicineSummaryProvider = medicineSummaryProvider;
+        this.weekSummaryProvider = weekSummaryProvider;
+        this.userTime = userTime;
+        this.userProfileRepository = userProfileRepository;
     }
 
     public DashboardResponse getDashboard(LocalDate date, int offsetMinutes) {
@@ -71,17 +81,75 @@ public class DashboardService {
         DashboardResponse.HealthSection health = healthSummaryProvider.getHealthSummary();
 
         // Medicines
-        DashboardResponse.MedicineSection medicines = medicineSummaryProvider.getMedicineSummary(offsetMinutes);
+        DashboardResponse.MedicineSection medicines = medicineSummaryProvider.getMedicineSummary(date, offsetMinutes);
+
+        DashboardResponse.WeekSummary week = getWeekSection(date, offsetMinutes);
 
         return DashboardResponse.builder()
                 .date(date)
-                .generatedAt(OffsetDateTime.now())
+                .generatedAt(userTime.now())
+                .user(userSummary(user))
                 .planner(planner)
                 .finance(finance)
                 .diet(diet)
                 .habits(habits)
                 .health(health)
                 .medicines(medicines)
+                .week(week)
+                .build();
+    }
+
+    private DashboardResponse.WeekSummary getWeekSection(LocalDate date, int offsetMinutes) {
+        try {
+            return weekSummaryProvider.getWeekSummary(date, offsetMinutes);
+        } catch (Exception e) {
+            return DashboardResponse.WeekSummary.builder()
+                    .unavailable(true)
+                    .error("Week summary unavailable")
+                    .build();
+        }
+    }
+
+    private DashboardResponse.UserSummary userSummary(com.blistra.users.domain.User user) {
+        String email = user.getEmail();
+        // Prefer the real profile display name; fall back to deterministic
+        // derivation from the email local part (never fake data).
+        String profileName = userProfileRepository.findByUserId(user.getId())
+                .map(p -> p.getDisplayName())
+                .filter(n -> n != null && !n.isBlank())
+                .orElse(null);
+        if (profileName != null) {
+            String first = profileName.trim().split("\\s+")[0];
+            return DashboardResponse.UserSummary.builder()
+                    .email(email)
+                    .displayName(profileName.trim())
+                    .firstName(first)
+                    .build();
+        }
+        String local = email != null && email.contains("@")
+                ? email.substring(0, email.indexOf('@'))
+                : (email != null ? email : "");
+        String cleaned = local.replaceAll("[._\\-+]+", " ").trim();
+        String displayName = cleaned.isEmpty() ? "" : Character.toUpperCase(cleaned.charAt(0))
+                + (cleaned.length() > 1 ? cleaned.substring(1) : "");
+        String firstName = displayName.isEmpty() ? "" : displayName.split("\\s+")[0];
+        // Capitalize each word's first letter for multi-word local parts.
+        if (!displayName.isEmpty() && displayName.contains(" ")) {
+            String[] parts = displayName.split("\\s+");
+            StringBuilder sb = new StringBuilder();
+            for (String p : parts) {
+                if (p.isEmpty()) continue;
+                if (sb.length() > 0) sb.append(' ');
+                sb.append(Character.toUpperCase(p.charAt(0)));
+                if (p.length() > 1) sb.append(p.substring(1));
+            }
+            displayName = sb.toString();
+            firstName = displayName.split("\\s+")[0];
+        }
+        return DashboardResponse.UserSummary.builder()
+                .email(email)
+                .displayName(displayName)
+                .firstName(firstName)
                 .build();
     }
 
@@ -109,11 +177,17 @@ public class DashboardService {
             LocalDate to = date.withDayOfMonth(date.lengthOfMonth());
 
             SummaryResponse summary = financeSummaryService.summary(from, to);
+            SummaryResponse today = financeSummaryService.summary(date, date);
 
             return DashboardResponse.FinanceSection.builder()
                     .from(summary.from())
                     .to(summary.to())
                     .currencies(mapCurrencySections(summary.currencies()))
+                    .today(DashboardResponse.FinancePeriodSummary.builder()
+                            .from(today.from())
+                            .to(today.to())
+                            .currencies(mapCurrencySections(today.currencies()))
+                            .build())
                     .unavailable(false)
                     .build();
         } catch (Exception e) {
@@ -176,12 +250,13 @@ public class DashboardService {
         return tasks.stream().map(t -> DashboardResponse.TaskSummary.builder()
                 .id(t.getId().toString())
                 .title(t.getTitle())
-                .listId(t.getListId() != null ? t.getListId().toString() : null)
-                .listName(t.getListName())
+                .listId(t.getTaskListId() != null ? t.getTaskListId().toString() : null)
+                .listName(t.getTaskListName())
                 .priority(t.getPriority() != null ? t.getPriority().name() : null)
                 .status(t.getStatus() != null ? t.getStatus().name() : null)
-                .allDay(t.isAllDay())
                 .dueAt(t.getDueAt() != null ? t.getDueAt().toString() : null)
+                .startAt(t.getStartAt() != null ? t.getStartAt().toString() : null)
+                .endAt(t.getEndAt() != null ? t.getEndAt().toString() : null)
                 .build()).toList();
     }
 
@@ -191,7 +266,6 @@ public class DashboardService {
                 .title(e.getTitle())
                 .startAt(e.getStartAt().toString())
                 .endAt(e.getEndAt() != null ? e.getEndAt().toString() : null)
-                .allDay(e.isAllDay())
                 .build()).toList();
     }
 
@@ -203,7 +277,7 @@ public class DashboardService {
                 .net(s.net())
                 .transferIn(s.transferIn())
                 .transferOut(s.transferOut())
-                .topCategories(mapCategorySpends(s.topCategories()))
+                .topCategories(mapCategorySpends(s.spendingByCategory()))
                 .build()).toList();
     }
 
@@ -218,7 +292,7 @@ public class DashboardService {
     private List<DashboardResponse.MealSummary> mapMeals(List<com.blistra.diet.dto.MealResponse> meals) {
         return meals.stream().map(m -> DashboardResponse.MealSummary.builder()
                 .id(m.getId().toString())
-                .type(m.getType() != null ? m.getType().name() : null)
+                .type(m.getMealType() != null ? m.getMealType().name() : null)
                 .consumedAt(m.getConsumedAt() != null ? m.getConsumedAt().toString() : null)
                 .items(mapItems(m.getItems()))
                 .build()).toList();

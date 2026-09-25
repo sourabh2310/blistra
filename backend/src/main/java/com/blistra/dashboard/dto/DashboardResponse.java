@@ -32,6 +32,9 @@ public class DashboardResponse {
     @Schema(description = "Server timestamp when the aggregation was generated")
     private OffsetDateTime generatedAt;
 
+    @Schema(description = "Authenticated user identity for header personalization")
+    private UserSummary user;
+
     @Schema(description = "Planner tasks and events for today")
     private PlannerSection planner;
 
@@ -49,6 +52,20 @@ public class DashboardResponse {
 
     @Schema(description = "Account balances and period income/expense")
     private FinanceSection finance;
+
+    @Schema(description = "Factual activity summary for the current local week")
+    private WeekSummary week;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class UserSummary {
+        private String email;
+        private String displayName;
+        private String firstName;
+    }
 
     @Data
     @NoArgsConstructor
@@ -75,8 +92,9 @@ public class DashboardResponse {
         private String listName;
         private String priority;
         private String status;
-        private boolean allDay;
         private String dueAt;
+        private String startAt;
+        private String endAt;
     }
 
     @Data
@@ -89,7 +107,6 @@ public class DashboardResponse {
         private String title;
         private String startAt;
         private String endAt;
-        private boolean allDay;
     }
 
     @Data
@@ -159,9 +176,9 @@ public class DashboardResponse {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class DietSection {
         private LocalDate date;
-        private int mealCount;
+        private long mealCount;
         private List<MealSummary> meals;
-        private int waterCount;
+        private long waterCount;
         private List<WaterSummary> water;
         private String waterTotalMilliliters;
         private NutritionSummary nutrition;
@@ -227,7 +244,7 @@ public class DashboardResponse {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class MacroSummary {
         private String total;
-        private int recordedItems;
+        private long recordedItems;
     }
 
     @Data
@@ -273,12 +290,41 @@ public class DashboardResponse {
     @AllArgsConstructor
     @Builder
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class WeekSummary {
+        private LocalDate start;
+        private LocalDate end;
+        private int completedTasks;
+        private int tasksDueOrScheduled;
+        private int habitCompletions;
+        private int expectedHabitOccurrences;
+        private int activeDays;
+        private boolean unavailable;
+        private String error;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class FinanceSection {
         private LocalDate from;
         private LocalDate to;
         private List<CurrencySection> currencies;
+        private FinancePeriodSummary today;
         private boolean unavailable;
         private String error;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class FinancePeriodSummary {
+        private LocalDate from;
+        private LocalDate to;
+        private List<CurrencySection> currencies;
     }
 
     @Data

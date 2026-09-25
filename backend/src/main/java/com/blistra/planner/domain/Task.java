@@ -74,6 +74,16 @@ public class Task {
     @Column(name = "due_at")
     private OffsetDateTime dueAt;
 
+    @Column(name = "start_at")
+    private OffsetDateTime startAt;
+
+    @Column(name = "end_at")
+    private OffsetDateTime endAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reminder_mode", nullable = false, length = 24)
+    private TaskReminderMode reminderMode;
+
     @Column(name = "completed_at")
     private OffsetDateTime completedAt;
 
@@ -86,6 +96,7 @@ public class Task {
     public Task() {
         this.status = TaskStatus.TODO;
         this.priority = TaskPriority.MEDIUM;
+        this.reminderMode = TaskReminderMode.NONE;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -192,6 +203,30 @@ public class Task {
 
     public void setDueAt(OffsetDateTime dueAt) {
         this.dueAt = dueAt;
+    }
+
+    public OffsetDateTime getStartAt() {
+        return startAt;
+    }
+
+    public void setStartAt(OffsetDateTime startAt) {
+        this.startAt = startAt;
+    }
+
+    public OffsetDateTime getEndAt() {
+        return endAt;
+    }
+
+    public void setEndAt(OffsetDateTime endAt) {
+        this.endAt = endAt;
+    }
+
+    public TaskReminderMode getReminderMode() {
+        return reminderMode;
+    }
+
+    public void setReminderMode(TaskReminderMode reminderMode) {
+        this.reminderMode = reminderMode == null ? TaskReminderMode.NONE : reminderMode;
     }
 
     public OffsetDateTime getCompletedAt() {

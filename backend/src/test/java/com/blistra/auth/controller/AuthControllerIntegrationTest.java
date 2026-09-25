@@ -3,6 +3,7 @@ package com.blistra.auth.controller;
 import com.blistra.AbstractIntegrationTest;
 import com.blistra.auth.dto.LoginRequest;
 import com.blistra.auth.dto.RegisterRequest;
+import com.blistra.users.domain.UserStatus;
 import com.blistra.users.repository.UserRepository;
 import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +38,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
+        deleteAllUsers();
     }
 
     @Test
@@ -53,7 +54,11 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNotEmpty())
                 .andExpect(jsonPath("$.email").value("test@example.com"))
-                .andExpect(jsonPath("$.status").value("ACTIVE"));
+                // V1 identity: legacy email-only registration derives the
+                // username and starts PENDING_VERIFICATION (not fully active).
+                .andExpect(jsonPath("$.status").value("PENDING_VERIFICATION"))
+                .andExpect(jsonPath("$.username").value("test"))
+                .andExpect(jsonPath("$.emailVerified").value(false));
     }
 
     @Test
@@ -163,5 +168,59 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void testLoginRejectedForInactiveUser() throws Exception {
+        mockMvc.perform(post(REGISTER_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonMapper.writeValueAsString(RegisterRequest.builder()
+                        .email("inactive@example.com")
+                        .password("password123")
+                        .build())))
+                .andExpect(status().isCreated());
+
+        var user = userRepository.findByEmail("inactive@example.com").orElseThrow();
+        user.setStatus(UserStatus.INACTIVE);
+        userRepository.save(user);
+
+        MvcResult result = mockMvc.perform(post(LOGIN_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonMapper.writeValueAsString(LoginRequest.builder()
+                        .email("inactive@example.com")
+                        .password("password123")
+                        .build())))
+                .andExpect(status().isUnauthorized())
+                .andReturn();
+
+        // Generic message: must not reveal whether the account exists or its status.
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("INACTIVE");
+    }
+
+    @Test
+    void testLoginRejectedForSuspendedUser() throws Exception {
+        mockMvc.perform(post(REGISTER_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonMapper.writeValueAsString(RegisterRequest.builder()
+                        .email("suspended@example.com")
+                        .password("password123")
+                        .build())))
+                .andExpect(status().isCreated());
+
+        var user = userRepository.findByEmail("suspended@example.com").orElseThrow();
+        user.setStatus(UserStatus.SUSPENDED);
+        userRepository.save(user);
+
+        MvcResult result = mockMvc.perform(post(LOGIN_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonMapper.writeValueAsString(LoginRequest.builder()
+                        .email("suspended@example.com")
+                        .password("password123")
+                        .build())))
+                .andExpect(status().isUnauthorized())
+                .andReturn();
+
+        // Generic message: must not reveal whether the account exists or its status.
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("SUSPENDED");
     }
 }

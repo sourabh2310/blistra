@@ -1,6 +1,9 @@
 package com.blistra.medicines.application;
 
+import com.blistra.common.exception.BadRequestException;
 import com.blistra.common.exception.ResourceNotFoundException;
+import com.blistra.common.time.UserTime;
+import com.blistra.health.dto.PageResponse;
 import com.blistra.medicines.domain.Medicine;
 import com.blistra.medicines.domain.Refill;
 import com.blistra.medicines.dto.RefillRequest;
@@ -8,10 +11,12 @@ import com.blistra.medicines.dto.RefillResponse;
 import com.blistra.medicines.repository.MedicineRepository;
 import com.blistra.medicines.repository.RefillRepository;
 import com.blistra.users.application.CurrentUserProvider;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -25,28 +30,30 @@ public class RefillService {
     private final RefillRepository refillRepository;
     private final MedicineRepository medicineRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final UserTime userTime;
 
     public RefillService(RefillRepository refillRepository,
                          MedicineRepository medicineRepository,
-                         CurrentUserProvider currentUserProvider) {
+                         CurrentUserProvider currentUserProvider,
+                         UserTime userTime) {
         this.refillRepository = refillRepository;
         this.medicineRepository = medicineRepository;
         this.currentUserProvider = currentUserProvider;
+        this.userTime = userTime;
     }
 
     @Transactional(readOnly = true)
-    public List<RefillResponse> list(UUID medicineId) {
+    public PageResponse<RefillResponse> list(UUID medicineId, Pageable pageable) {
         requireOwnedMedicine(medicineId);
         UUID userId = currentUserProvider.getCurrentUser().getId();
-        return refillRepository
-                .findAllByMedicineIdAndMedicineUserIdOrderByRefillDateDesc(medicineId, userId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        Page<Refill> page = refillRepository
+                .findAllByMedicineIdAndMedicineUserIdOrderByRefillDateDesc(medicineId, userId, pageable);
+        return PageResponse.of(page.map(this::toResponse));
     }
 
     public RefillResponse create(UUID medicineId, RefillRequest request) {
         Medicine medicine = requireOwnedMedicine(medicineId);
+        validateRefillDate(request.getRefillDate());
         Refill refill = new Refill(medicine, request.getRefillDate(), request.getQuantity());
         refill.setRemainingQuantity(request.getRemainingQuantity());
         refill.setNotes(request.getNotes());
@@ -55,6 +62,7 @@ public class RefillService {
 
     public RefillResponse update(UUID medicineId, UUID refillId, RefillRequest request) {
         requireOwnedMedicine(medicineId);
+        validateRefillDate(request.getRefillDate());
         Refill refill = requireOwnedRefill(refillId, medicineId);
         refill.setRefillDate(request.getRefillDate());
         refill.setQuantity(request.getQuantity());
@@ -79,6 +87,12 @@ public class RefillService {
         UUID userId = currentUserProvider.getCurrentUser().getId();
         return medicineRepository.findByIdAndUserId(medicineId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Medicine not found"));
+    }
+
+    private void validateRefillDate(LocalDate refillDate) {
+        if (refillDate.isAfter(userTime.today().plusYears(1))) {
+            throw new BadRequestException("Refill date cannot be more than one year in the future");
+        }
     }
 
     private RefillResponse toResponse(Refill refill) {

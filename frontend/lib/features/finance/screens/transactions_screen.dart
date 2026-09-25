@@ -99,7 +99,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               : ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 4),
+                  separatorBuilder: (_, _) => const SizedBox(height: 4),
                   itemBuilder: (BuildContext context, int index) {
                     final FinanceTransaction t = items[index];
                     return _TransactionRow(transaction: t);
@@ -212,7 +212,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   }
 
   List<Category> _categoriesFor(FinanceController controller) {
-    return controller.categoriesOfType(_type);
+    final catType = _type == TransactionType.income ? CategoryType.income : CategoryType.expense;
+    return controller.categoriesOfType(catType);
   }
 
   Future<void> _save(FinanceController controller) async {
@@ -316,7 +317,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     final FinanceController controller = FinanceScope.of(context);
 
     if (_categoryId != null &&
-        controller.categoryById(_categoryId!)?.type != _type) {
+        controller.categoryById(_categoryId!)?.type.name != _type.name) {
       _categoryId = null;
     }
     final List<Category> availableCategories = _categoriesFor(controller);
@@ -465,16 +466,14 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-: const Text('Delete transaction'),
-                ),
-              ],
+                        : const Text('Delete transaction'),
+                  ),
+                ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
   }
-}
-
-  static DateTime _firstOfMonth(DateTime value) => DateTime(value.year, value.month);
 }

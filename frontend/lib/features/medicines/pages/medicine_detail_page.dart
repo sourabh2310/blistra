@@ -4,18 +4,16 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/auth/auth_state.dart';
-import '../../core/api/api_client.dart';
+import '../../../core/auth/auth_state.dart';
 import '../data/medicines_api_client.dart';
 import '../models/dose_record.dart';
 import '../models/medicine.dart';
 import '../models/medicine_enums.dart';
 import '../models/refill.dart';
 import '../models/schedule.dart';
+import '../models/today_doses.dart';
 import '../state/medicine_detail_controller.dart';
-import '../state/medicine_form_controller.dart';
-import '../state/refill_form_controller.dart';
-import '../state/schedule_form_controller.dart';
+import '../util/home_refresh.dart';
 import 'dose_history_page.dart';
 import 'medicine_form_page.dart';
 import 'refill_form_page.dart';
@@ -38,10 +36,12 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initialized) {
-      final apiClient = context.read<ApiClient>();
       final authState = context.read<AuthState>();
       _controller = MedicineDetailController(
-        MedicinesApiClient(tokenProvider: () => authState.apiClient.token ?? ''),
+        MedicinesApiClient(
+          tokenProvider: () => authState.apiClient.token ?? '',
+          onUnauthorized: () => authState.handleUnauthorized(),
+        ),
         medicineId: widget.medicineId,
       );
       _controller!.load();
@@ -63,12 +63,12 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
       appBar: AppBar(
         title: ListenableBuilder(
           listenable: controller,
-          builder: (_, __) => Text(controller.medicine?.name ?? 'Medicine'),
+          builder: (_, _) => Text(controller.medicine?.name ?? 'Medicine'),
         ),
         actions: [
           ListenableBuilder(
             listenable: controller,
-            builder: (_, __) {
+            builder: (_, _) {
               if (controller.medicine == null) return const SizedBox();
               return PopupMenuButton<String>(
                 onSelected: (value) {
@@ -116,14 +116,32 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
                 _MedicineHeader(medicine: med),
                 const SizedBox(height: 24),
                 _RecordDoseCard(
-                  onRecord: (status) => controller.recordDose(
-                    status: status,
-                    scheduledAt: DateTime.now(),
-                  ),
+                  onRecord: (status) async {
+                    await controller.recordDose(
+                      status: status,
+                      scheduledAt: DateTime.now(),
+                    );
+                    if (context.mounted) {
+                      await refreshHomeDashboard(context);
+                    }
+                  },
                   isLoading: controller.isRecordingDose,
                   error: controller.doseError,
                 ),
                 const SizedBox(height: 24),
+                if (controller.todaysDoses.isNotEmpty) ...[
+                  Text("Today's doses",
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  ...controller.todaysDoses.map(
+                    (d) => _TodayDoseTile(
+                      dose: d,
+                      isRecording: controller.isRecordingDose,
+                      onTake: () => _takeSlot(d),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
                 if (controller.recentDoses.isNotEmpty) ...[
                   _SectionHeader(
                     title: 'Recent Doses',
@@ -187,7 +205,26 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
         MaterialPageRoute(
           builder: (_) => MedicineFormPage(medicine: _controller!.medicine!),
         ),
-      ).then((_) => _controller!.load());
+      ).then((_) async {
+        await _controller!.load();
+        if (mounted) {
+          await refreshHomeDashboard(context);
+        }
+      });
+
+  Future<void> _takeSlot(ExpectedDose dose) async {
+    if (!dose.isPending || dose.scheduledAt.isAfter(DateTime.now())) {
+      return;
+    }
+    await _controller!.recordDose(
+      status: DoseStatus.taken,
+      scheduledAt: dose.scheduledAt,
+      scheduleId: dose.scheduleId,
+    );
+    if (mounted) {
+      await refreshHomeDashboard(context);
+    }
+  }
 
   void _confirmArchive() async {
     final ok = await showDialog<bool>(
@@ -210,6 +247,8 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
         false;
     if (ok && mounted) {
       await _controller!.archive();
+      if (!mounted) return;
+      await refreshHomeDashboard(context);
     }
   }
 
@@ -302,6 +341,8 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
         );
     if (status != null && mounted) {
       await _controller!.updateDose(dose.id, status);
+      if (!mounted) return;
+      await refreshHomeDashboard(context);
     }
   }
 
@@ -324,7 +365,9 @@ class _MedicineDetailPageState extends State<MedicineDetailPage> {
         ) ??
         false;
     if (ok && mounted) {
-      await _controller!.deleteDose(widget.medicineId, dose.id);
+      await _controller!.deleteDose(dose.id);
+      if (!mounted) return;
+      await refreshHomeDashboard(context);
     }
   }
 }
@@ -395,6 +438,49 @@ class _MedicineHeader extends StatelessWidget {
 
   String _fmtDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+/// One expected dose for today with an explicit Take action for due slots.
+class _TodayDoseTile extends StatelessWidget {
+  const _TodayDoseTile({
+    required this.dose,
+    required this.isRecording,
+    required this.onTake,
+  });
+
+  final ExpectedDose dose;
+  final bool isRecording;
+  final Future<void> Function() onTake;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool future = dose.scheduledAt.isAfter(DateTime.now());
+    final String time =
+        '${dose.scheduledAt.hour.toString().padLeft(2, '0')}:${dose.scheduledAt.minute.toString().padLeft(2, '0')}';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: dose.isPending
+            ? const Icon(Icons.schedule_outlined, color: Colors.grey)
+            : Icon(
+                _doseStatusIcon(dose.status!),
+                color: _doseStatusColor(dose.status!),
+              ),
+        title: Text(time),
+        subtitle: Text(
+          dose.isPending
+              ? (future ? 'Upcoming' : 'Due')
+              : _doseStatusLabel(dose.status!),
+        ),
+        trailing: dose.isPending && !future
+            ? FilledButton(
+                onPressed: isRecording ? null : onTake,
+                child: const Text('Take'),
+              )
+            : null,
+      ),
+    );
+  }
 }
 
 class _RecordDoseCard extends StatelessWidget {
@@ -580,7 +666,7 @@ class _ScheduleTile extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Times: ${schedule.timeLabels.join(", ")}'),
+            Text('Times: ${schedule.times.join(", ")}'),
             if (schedule.daysOfWeek != null && schedule.daysOfWeek!.isNotEmpty)
               Text('Days: ${schedule.daysOfWeek!.map(_dayLabel).join(", ")}'),
             if (schedule.doseAmount != null)
@@ -624,7 +710,7 @@ class _RefillTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.pharmacy)),
+        leading: CircleAvatar(child: Icon(Icons.local_pharmacy)),
         title: Text(refillDateLabel(refill.refillDate)),
         subtitle: Text('Qty: ${refill.quantityLabel} · Remaining: ${refill.remainingLabel}'),
         trailing: PopupMenuButton<String>(
@@ -696,18 +782,22 @@ class _DoseStatusDialogState extends State<_DoseStatusDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Change dose status'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: DoseStatus.values
-            .map(
-              (s) => RadioListTile<DoseStatus>(
-                title: Text(s.name.toUpperCase()),
-                value: s,
-                groupValue: _selected,
-                onChanged: (v) => setState(() => _selected = v!),
-              ),
-            )
-            .toList(),
+      content: RadioGroup<DoseStatus>(
+        groupValue: _selected,
+        onChanged: (v) {
+          if (v != null) setState(() => _selected = v);
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: DoseStatus.values
+              .map(
+                (s) => RadioListTile<DoseStatus>(
+                  title: Text(s.name.toUpperCase()),
+                  value: s,
+                ),
+              )
+              .toList(),
+        ),
       ),
       actions: [
         TextButton(
@@ -768,6 +858,17 @@ IconData _doseStatusIcon(DoseStatus status) {
       return Icons.remove_circle_outline;
     case DoseStatus.skipped:
       return Icons.help_outline;
+  }
+}
+
+String _doseStatusLabel(DoseStatus status) {
+  switch (status) {
+    case DoseStatus.taken:
+      return 'Taken';
+    case DoseStatus.missed:
+      return 'Missed';
+    case DoseStatus.skipped:
+      return 'Skipped';
   }
 }
 

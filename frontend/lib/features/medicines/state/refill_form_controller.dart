@@ -4,14 +4,17 @@ library;
 import '../data/medicines_api_client.dart';
 import '../models/refill.dart';
 import '../util/dates.dart';
+import '../util/numbers.dart';
 
 class RefillFormController {
   RefillFormController(this._api, {required this.medicineId, Refill? refill})
       : _refill = refill {
     if (refill != null) {
       _refillDate = refill.refillDate;
-      _quantity = refill.quantity.toString();
-      _remainingQuantity = refill.remainingQuantity?.toString() ?? '';
+      _quantity = trimNumber(refill.quantity);
+      _remainingQuantity = refill.remainingQuantity == null
+          ? ''
+          : trimNumber(refill.remainingQuantity!);
       _notes = refill.notes ?? '';
     }
   }
@@ -90,7 +93,7 @@ class RefillFormController {
     if (_refill == null) {
       return _api.createRefill(medicineId, toJson());
     } else {
-      return _api.updateRefill(medicineId, _refill!.id, toJson());
+      return _api.updateRefill(medicineId, _refill.id, toJson());
     }
   }
 }

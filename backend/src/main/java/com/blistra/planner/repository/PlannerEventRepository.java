@@ -33,12 +33,4 @@ public interface PlannerEventRepository extends JpaRepository<PlannerEvent, UUID
                                        @Param("startInclusive") OffsetDateTime startInclusive,
                                        @Param("endExclusive") OffsetDateTime endExclusive);
 
-    @Query("""
-            SELECT e FROM PlannerEvent e
-            WHERE e.user.id = :userId
-              AND (LOWER(e.title) LIKE LOWER(:term) OR LOWER(e.description) LIKE LOWER(:term) OR LOWER(e.location) LIKE LOWER(:term))
-            """)
-    Page<PlannerEvent> searchByText(@Param("userId") UUID userId,
-                                    @Param("term") String term,
-                                    Pageable pageable);
-}
+    }

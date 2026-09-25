@@ -108,6 +108,10 @@ public class DoseRecord {
     }
 
     public void setSchedule(MedicationSchedule schedule) {
+        if (schedule != null && medicine != null && schedule.getMedicine() != null
+                && !schedule.getMedicine().getId().equals(medicine.getId())) {
+            throw new IllegalArgumentException("Schedule does not belong to this dose's medicine");
+        }
         this.schedule = schedule;
     }
 

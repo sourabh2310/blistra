@@ -129,6 +129,55 @@ public class ReminderService {
      * Cancels a reminder. Idempotent: cancelling an already-cancelled reminder
      * succeeds without error. Cancelled reminders are never treated as active.
      */
+    public void reconcileTaskReminders(User user,
+                                       UUID taskId,
+                                       String title,
+                                       String timezone,
+                                       OffsetDateTime startAt,
+                                       OffsetDateTime endAt,
+                                       String mode) {
+        cancelTaskReminders(user.getId(), taskId);
+        if (mode == null || "NONE".equalsIgnoreCase(mode)) {
+            return;
+        }
+        boolean start = "AT_START".equalsIgnoreCase(mode)
+                || "AT_START_AND_END".equalsIgnoreCase(mode);
+        boolean end = "AT_END".equalsIgnoreCase(mode)
+                || "AT_START_AND_END".equalsIgnoreCase(mode);
+        if (start && startAt != null && startAt.toInstant().isAfter(OffsetDateTime.now().toInstant())) {
+            saveTaskReminder(user, taskId, title, timezone, startAt);
+        }
+        if (end && endAt != null && endAt.toInstant().isAfter(OffsetDateTime.now().toInstant())) {
+            saveTaskReminder(user, taskId, title, timezone, endAt);
+        }
+    }
+
+    public void cancelTaskReminders(UUID userId, UUID taskId) {
+        for (Reminder reminder : reminderRepository
+                .findByUserIdAndTypeAndSourceIdAndStatus(
+                        userId, ReminderType.PLANNER, taskId, ReminderStatus.SCHEDULED)) {
+            reminder.setStatus(ReminderStatus.CANCELLED);
+            reminderRepository.save(reminder);
+        }
+    }
+
+    private void saveTaskReminder(User user,
+                                  UUID taskId,
+                                  String title,
+                                  String timezone,
+                                  OffsetDateTime scheduledAt) {
+        Reminder reminder = new Reminder();
+        reminder.setUser(user);
+        reminder.setType(ReminderType.PLANNER);
+        reminder.setSourceId(taskId);
+        reminder.setTitle(title);
+        reminder.setBody("Task reminder");
+        reminder.setScheduledAt(scheduledAt);
+        reminder.setTimezone(timezone);
+        reminder.setStatus(ReminderStatus.SCHEDULED);
+        reminderRepository.save(reminder);
+    }
+
     public void cancel(UUID id) {
         User user = currentUserProvider.getCurrentUser();
         Reminder reminder = findOwned(id, user.getId());

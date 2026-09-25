@@ -1,8 +1,10 @@
 package com.blistra.planner.application;
 
+import com.blistra.common.exception.BadRequestException;
 import com.blistra.common.exception.ResourceNotFoundException;
 import com.blistra.planner.domain.Task;
 import com.blistra.planner.domain.TaskList;
+import com.blistra.planner.domain.TaskReminderMode;
 import com.blistra.planner.domain.TaskPriority;
 import com.blistra.planner.domain.TaskStatus;
 import com.blistra.planner.dto.PageResponse;
@@ -12,12 +14,12 @@ import com.blistra.planner.dto.TaskUpdateRequest;
 import com.blistra.planner.dto.TaskView;
 import com.blistra.planner.repository.TaskListRepository;
 import com.blistra.planner.repository.TaskRepository;
+import com.blistra.notifications.application.ReminderService;
 import com.blistra.users.application.CurrentUserProvider;
 import com.blistra.users.domain.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,15 +42,18 @@ public class PlannerTaskService {
     private final TaskListRepository taskListRepository;
     private final CurrentUserProvider currentUserProvider;
     private final PlannerTime time;
+    private final ReminderService reminderService;
 
     public PlannerTaskService(TaskRepository taskRepository,
                               TaskListRepository taskListRepository,
                               CurrentUserProvider currentUserProvider,
-                              PlannerTime time) {
+                              PlannerTime time,
+                              ReminderService reminderService) {
         this.taskRepository = taskRepository;
         this.taskListRepository = taskListRepository;
         this.currentUserProvider = currentUserProvider;
         this.time = time;
+        this.reminderService = reminderService;
     }
 
     @Transactional(readOnly = true)
@@ -79,9 +84,15 @@ public class PlannerTaskService {
             }
         }
 
-        Pageable safePageable = safePageable(pageable, effectiveView);
+        int size = Math.min(Math.max(pageable.getPageSize(), 1), MAX_PAGE_SIZE);
         Page<Task> page = taskRepository.search(
-                user.getId(), statuses, taskListId, priority, from, to, overdueCutoff, todayStart, safePageable);
+                user.getId(),
+                statuses.stream().map(Enum::name).toList(),
+                taskListId,
+                priority != null ? priority.name() : null,
+                from, to, overdueCutoff, todayStart,
+                effectiveView == TaskView.COMPLETED,
+                PageRequest.of(pageable.getPageNumber(), size));
         return PageResponse.of(page.map(this::toResponse));
     }
 
@@ -93,7 +104,7 @@ public class PlannerTaskService {
         task.setUser(user);
         task.setList(list);
         applyUserFields(request.getTitle(), request.getDescription(), request.getPriority(), request.getDueDate(),
-                request.getDueTime(), task);
+                request.getDueTime(), request.getStartAt(), request.getEndAt(), request.getReminderMode(), task);
 
         TaskStatus status = request.getStatus() != null ? request.getStatus() : TaskStatus.TODO;
         task.setStatus(status);
@@ -103,7 +114,9 @@ public class PlannerTaskService {
             task.setCompletedAt(null);
         }
 
-        return toResponse(taskRepository.save(task));
+        Task saved = taskRepository.save(task);
+        reconcileTaskReminders(user, saved);
+        return toResponse(saved);
     }
 
     public TaskResponse update(UUID taskId, TaskUpdateRequest request) {
@@ -113,11 +126,13 @@ public class PlannerTaskService {
 
         task.setList(list);
         applyUserFields(request.getTitle(), request.getDescription(), request.getPriority(), request.getDueDate(),
-                request.getDueTime(), task);
+                request.getDueTime(), request.getStartAt(), request.getEndAt(), request.getReminderMode(), task);
         if (request.getStatus() != null) {
             task.changeStatus(request.getStatus(), time.now());
         }
-        return toResponse(taskRepository.save(task));
+        Task saved = taskRepository.save(task);
+        reconcileTaskReminders(user, saved);
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -129,6 +144,7 @@ public class PlannerTaskService {
     public void delete(UUID taskId) {
         User user = currentUserProvider.getCurrentUser();
         Task task = getOwned(taskId, user.getId());
+        reminderService.cancelTaskReminders(user.getId(), taskId);
         taskRepository.delete(task);
     }
 
@@ -159,21 +175,64 @@ public class PlannerTaskService {
                 .stream().map(this::toResponse).toList();
     }
 
+    /**
+     * Tasks due inside an explicit calendar window. Ownership is enforced by
+     * the caller-supplied user id (always from the security context).
+     */
+    @Transactional(readOnly = true)
+    public List<TaskResponse> dueInRange(UUID userId, OffsetDateTime startInclusive, OffsetDateTime endExclusive) {
+        return taskRepository.findDueInRange(userId, ACTIVE_STATUSES, startInclusive, endExclusive)
+                .stream().map(this::toResponse).toList();
+    }
+
     private TaskResponse stateAction(UUID taskId, TaskStatus target) {
         User user = currentUserProvider.getCurrentUser();
         Task task = getOwned(taskId, user.getId());
         task.changeStatus(target, time.now());
-        return toResponse(taskRepository.save(task));
+        Task saved = taskRepository.save(task);
+        reconcileTaskReminders(user, saved);
+        return toResponse(saved);
     }
 
     private void applyUserFields(String title, String description, TaskPriority priority,
-                                 java.time.LocalDate dueDate, java.time.LocalTime dueTime, Task task) {
+                                 java.time.LocalDate dueDate, java.time.LocalTime dueTime,
+                                 OffsetDateTime startAt, OffsetDateTime endAt,
+                                 TaskReminderMode reminderMode, Task task) {
+        if (endAt != null && (startAt == null || !endAt.isAfter(startAt))) {
+            throw new BadRequestException("End time must be after the start time");
+        }
+        TaskReminderMode mode = reminderMode == null ? TaskReminderMode.NONE : reminderMode;
+        if (mode == TaskReminderMode.AT_START && startAt == null) {
+            throw new BadRequestException("A start time is required for this reminder");
+        }
+        if ((mode == TaskReminderMode.AT_END || mode == TaskReminderMode.AT_START_AND_END)
+                && endAt == null) {
+            throw new BadRequestException("An end time is required for this reminder");
+        }
         task.setTitle(title);
         task.setDescription(description);
         task.setPriority(priority != null ? priority : TaskPriority.MEDIUM);
         task.setDueDate(dueDate);
         task.setDueTime(dueTime);
         task.setDueAt(time.resolveDueAt(dueDate, dueTime));
+        task.setStartAt(startAt);
+        task.setEndAt(endAt);
+        task.setReminderMode(mode);
+    }
+
+    private void reconcileTaskReminders(User user, Task task) {
+        if (!task.isActive()) {
+            reminderService.cancelTaskReminders(user.getId(), task.getId());
+            return;
+        }
+        reminderService.reconcileTaskReminders(
+                user,
+                task.getId(),
+                task.getTitle(),
+                time.userZone().getId(),
+                task.getStartAt(),
+                task.getEndAt(),
+                task.getReminderMode().name());
     }
 
     private Task getOwned(UUID id, UUID userId) {
@@ -189,21 +248,6 @@ public class PlannerTaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Task list not found"));
     }
 
-    private Pageable safePageable(Pageable pageable, TaskView view) {
-        int size = Math.min(Math.max(pageable.getPageSize(), 1), MAX_PAGE_SIZE);
-        Sort sort = pageable.getSort().isSorted()
-                ? pageable.getSort()
-                : defaultSort(view);
-        return PageRequest.of(pageable.getPageNumber(), size, sort);
-    }
-
-    private Sort defaultSort(TaskView view) {
-        if (view == TaskView.COMPLETED) {
-            return Sort.by(Sort.Order.desc("completedAt").nullsLast());
-        }
-        return Sort.by(Sort.Order.asc("dueAt").nullsLast(), Sort.Order.desc("createdAt"));
-    }
-
     private TaskResponse toResponse(Task task) {
         TaskList list = task.getList();
         return TaskResponse.builder()
@@ -215,6 +259,9 @@ public class PlannerTaskService {
                 .dueDate(task.getDueDate())
                 .dueTime(task.getDueTime())
                 .dueAt(task.getDueAt())
+                .startAt(task.getStartAt())
+                .endAt(task.getEndAt())
+                .reminderMode(task.getReminderMode())
                 .completedAt(task.getCompletedAt())
                 .taskListId(list != null ? list.getId() : null)
                 .taskListName(list != null ? list.getName() : null)
@@ -232,4 +279,5 @@ public class PlannerTaskService {
         boolean dueEarlierToday = task.getDueTime() != null && task.getDueAt().isBefore(time.now());
         return beforeToday || dueEarlierToday;
     }
+
 }

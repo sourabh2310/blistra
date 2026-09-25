@@ -1,6 +1,5 @@
 import 'package:intl/intl.dart';
 
-import '../util/dates.dart';
 import 'medicine_enums.dart';
 
 class Medicine {

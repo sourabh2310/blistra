@@ -63,10 +63,10 @@ public final class ContentDispositionBuilder {
                 sb.append(c);
             } else {
                 sb.append('%');
-                sb.append(Character.forDigit((c >> 4) & 0xF, 16));
-                sb.append(Character.forDigit(c & 0xF, 16));
+                sb.append(Character.toUpperCase(Character.forDigit((c >> 4) & 0xF, 16)));
+                sb.append(Character.toUpperCase(Character.forDigit(c & 0xF, 16)));
             }
         }
-        return sb.toString().toUpperCase();
+        return sb.toString();
     }
 }

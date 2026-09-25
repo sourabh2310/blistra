@@ -1,6 +1,7 @@
 package com.blistra.diet.mapper;
 
 import com.blistra.diet.domain.WaterIntake;
+import com.blistra.diet.domain.WaterUnit;
 import com.blistra.diet.dto.WaterRequest;
 import com.blistra.diet.dto.WaterResponse;
 
@@ -22,7 +23,7 @@ public final class WaterMapper {
 
     public static void applyRequest(WaterIntake water, WaterRequest request) {
         water.setAmount(request.getAmount());
-        water.setUnit(request.getUnit());
+        water.setUnit(WaterUnit.normalize(request.getUnit()));
         water.setConsumedAt(request.getConsumedAt());
     }
 }

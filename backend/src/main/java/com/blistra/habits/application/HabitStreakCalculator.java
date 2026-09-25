@@ -21,7 +21,7 @@ public final class HabitStreakCalculator {
      */
     public static boolean isDue(HabitSchedule schedule, LocalDate date) {
         if (schedule == null) {
-            return true;
+            return false;
         }
         return switch (schedule.getFrequency()) {
             case DAILY -> true;
@@ -56,6 +56,37 @@ public final class HabitStreakCalculator {
             break;
         }
         return streak;
+    }
+
+    /**
+     * Due days in {@code [lowerBound, today]} (inclusive) given the schedule.
+     */
+    public static int dueOccurrences(HabitSchedule schedule, LocalDate lowerBound, LocalDate today) {
+        int due = 0;
+        LocalDate cursor = lowerBound;
+        while (!cursor.isAfter(today)) {
+            if (isDue(schedule, cursor)) {
+                due++;
+            }
+            cursor = cursor.plusDays(1);
+        }
+        return due;
+    }
+
+    /**
+     * Due days in {@code [lowerBound, today]} (inclusive) that were completed.
+     */
+    public static int completedDueOccurrences(HabitSchedule schedule, Set<LocalDate> completedDays,
+                                             LocalDate lowerBound, LocalDate today) {
+        int completed = 0;
+        LocalDate cursor = lowerBound;
+        while (!cursor.isAfter(today)) {
+            if (isDue(schedule, cursor) && completedDays.contains(cursor)) {
+                completed++;
+            }
+            cursor = cursor.plusDays(1);
+        }
+        return completed;
     }
 
     /**

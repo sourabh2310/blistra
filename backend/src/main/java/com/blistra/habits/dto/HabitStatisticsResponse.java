@@ -9,6 +9,10 @@ import java.time.LocalDate;
 
 /**
  * Streak and completion summary for a habit.
+ *
+ * <p>{@code completionRate} is the fraction of due occurrences completed over
+ * the habit's observed window (null when nothing was due yet). It describes
+ * recorded behavior only.</p>
  */
 @Data
 @NoArgsConstructor
@@ -20,4 +24,7 @@ public class HabitStatisticsResponse {
     private int currentStreak;
     private int bestStreak;
     private LocalDate lastCompletedOn;
+    private int dueOccurrences;
+    private int completedDueOccurrences;
+    private Double completionRate;
 }

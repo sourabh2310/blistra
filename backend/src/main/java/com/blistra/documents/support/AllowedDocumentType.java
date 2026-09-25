@@ -3,6 +3,7 @@ package com.blistra.documents.support;
 import org.springframework.http.MediaType;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Centrally defined allowed document types with their signatures, extensions, and MIME types.
@@ -55,7 +56,7 @@ public enum AllowedDocumentType {
         if (extension == null) {
             return null;
         }
-        String ext = extension.toLowerCase();
+        String ext = extension.toLowerCase(Locale.ROOT);
         for (AllowedDocumentType type : values()) {
             if (type.extensions.contains(ext)) {
                 return type;

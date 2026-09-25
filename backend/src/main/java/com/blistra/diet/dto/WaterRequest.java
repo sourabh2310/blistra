@@ -27,7 +27,7 @@ public class WaterRequest {
     private BigDecimal amount;
 
     @NotBlank(message = "Unit is required")
-    @Pattern(regexp = "^(ml|mL|L|l|glass|glasses|cup|cups)$", message = "Unit is not supported")
+    @Pattern(regexp = "^(ml|mL|ML|L|l|glass|glasses|GLASS|cup|cups|CUP)$", message = "Unit is not supported")
     private String unit;
 
     @NotNull(message = "Consumption time is required")

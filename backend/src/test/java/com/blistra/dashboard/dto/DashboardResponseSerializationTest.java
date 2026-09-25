@@ -48,7 +48,7 @@ class DashboardResponseSerializationTest {
                         .meals(List.of())
                         .waterCount(2)
                         .water(List.of())
-                        .waterTotalMilliliters(BigDecimal.valueOf(500))
+                        .waterTotalMilliliters("500")
                         .nutrition(DashboardResponse.NutritionSummary.builder()
                                 .caloriesKcal(DashboardResponse.MacroSummary.builder().total("500").recordedItems(1).build())
                                 .build())
@@ -63,6 +63,21 @@ class DashboardResponseSerializationTest {
                         .from(LocalDate.now().withDayOfMonth(1))
                         .to(LocalDate.now().withDayOfMonth(30))
                         .currencies(List.of())
+                        .today(DashboardResponse.FinancePeriodSummary.builder()
+                                .from(LocalDate.now())
+                                .to(LocalDate.now())
+                                .currencies(List.of())
+                                .build())
+                        .unavailable(false)
+                        .build())
+                .week(DashboardResponse.WeekSummary.builder()
+                        .start(LocalDate.now())
+                        .end(LocalDate.now().plusDays(6))
+                        .completedTasks(2)
+                        .tasksDueOrScheduled(3)
+                        .habitCompletions(4)
+                        .expectedHabitOccurrences(5)
+                        .activeDays(3)
                         .unavailable(false)
                         .build())
                 .build();
@@ -77,6 +92,10 @@ class DashboardResponseSerializationTest {
         assertThat(json).contains("\"diet\"");
         assertThat(json).contains("\"health\"");
         assertThat(json).contains("\"finance\"");
+        assertThat(json).contains("\"today\"");
+        assertThat(json).contains("\"week\"");
+        assertThat(json).contains("\"tasksDueOrScheduled\":3");
+        assertThat(json).contains("\"activeDays\":3");
         assertThat(json).contains("\"unavailable\":false");
     }
 
@@ -142,6 +161,34 @@ class DashboardResponseSerializationTest {
         assertThat(response.getDiet().getMealCount()).isEqualTo(1);
         assertThat(response.getHealth().isUnavailable()).isFalse();
         assertThat(response.getFinance().getFrom()).isEqualTo(LocalDate.of(2026, 9, 1));
+    }
+
+    @Test
+    void dashboardUserSummarySerializesAndDeserializes() throws Exception {
+        DashboardResponse response = DashboardResponse.builder()
+                .date(LocalDate.of(2026, 9, 24))
+                .generatedAt(OffsetDateTime.now())
+                .user(DashboardResponse.UserSummary.builder()
+                        .email("sourabh.patel@example.com")
+                        .displayName("Sourabh Patel")
+                        .firstName("Sourabh")
+                        .build())
+                .build();
+
+        String json = mapper.writeValueAsString(response);
+
+        assertThat(json).contains("\"user\"");
+        assertThat(json).contains("\"firstName\":\"Sourabh\"");
+
+        DashboardResponse back = mapper.readValue(json, DashboardResponse.class);
+        assertThat(back.getUser().getEmail()).isEqualTo("sourabh.patel@example.com");
+        assertThat(back.getUser().getFirstName()).isEqualTo("Sourabh");
+
+        // Absent user stays null for backward compatibility.
+        DashboardResponse legacy = mapper.readValue(
+                "{\"date\":\"2026-09-24\",\"generatedAt\":\"2026-09-24T08:00:00+05:30\"}",
+                DashboardResponse.class);
+        assertThat(legacy.getUser()).isNull();
     }
 
     @Test

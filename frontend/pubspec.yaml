@@ -39,10 +39,11 @@ dependencies:
   http: ^1.6.0
   intl: ^0.20.3
   shared_preferences: ^2.3.4
+  flutter_secure_storage: ^9.2.4
   provider: ^6.1.2
 
   # Document feature
-  file_picker: ^8.1.2
+  file_picker: ^10.3.10
   path_provider: ^2.1.4
   open_filex: ^4.5.0
 
@@ -50,9 +51,15 @@ dependencies:
   flutter_local_notifications: ^19.0.0
   timezone: ^0.10.0
 
+  http_parser: any
+  test: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # App icon generation from assets/icon/app_icon.png (Blistra.png).
+  # Run: flutter pub get && dart run flutter_launcher_icons
+  flutter_launcher_icons: ^0.14.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -71,6 +78,24 @@ flutter:
   # included in your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/icon/app_icon.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+  macos:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:blistra/features/documents/models/document.dart';
-import 'package:blistra/features/documents/providers/documents_provider.dart';
-import 'package:blistra/features/documents/upload_document_page.dart';
-import 'package:blistra/features/documents/document_detail_page.dart';
-import 'package:blistra/core/api/api_config.dart';
+import 'package:frontend/features/documents/models/document.dart';
+import 'package:frontend/features/documents/providers/documents_provider.dart';
+import 'package:frontend/features/documents/upload_document_page.dart';
+import 'package:frontend/features/documents/document_detail_page.dart';
+import 'package:frontend/core/auth/auth_state.dart';
 
 class DocumentsPage extends StatefulWidget {
   const DocumentsPage({super.key});
@@ -265,9 +265,8 @@ class _DocumentsPageState extends State<DocumentsPage> {
   }
 
   Future<void> _logout() async {
-    final auth = context.read<AuthRepository>();
-    await auth.logout();
-    // AuthGate will rebuild to show LoginPage
+    // AuthGate listens to AuthState and returns to the login screen.
+    context.read<AuthState>().logout();
   }
 }
 
@@ -313,7 +312,7 @@ class _DocumentCard extends StatelessWidget {
                           fit: BoxFit.cover,
                           width: 56,
                           height: 56,
-                          errorBuilder: (_, __, ___) => _fileIcon(document),
+                          errorBuilder: (_, _, _) => _fileIcon(document),
                         ),
                       )
                     : _fileIcon(document),

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:blistra/features/documents/models/document.dart';
-import 'package:blistra/features/documents/repositories/documents_repository.dart';
+import 'package:frontend/features/documents/models/document.dart';
+import 'package:frontend/features/documents/repositories/documents_repository.dart';
 import 'package:file_picker/file_picker.dart';
 
 /// State management for documents feature using ChangeNotifier
@@ -48,6 +48,15 @@ class DocumentsProvider extends ChangeNotifier {
       _setError(e.toString());
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<AppDocument?> getById(String id) async {
+    try {
+      return await _repository.get(id);
+    } catch (e) {
+      _setError(e.toString());
+      return null;
     }
   }
 

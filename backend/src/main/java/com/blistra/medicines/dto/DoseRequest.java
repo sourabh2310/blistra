@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 /**
  * Payload to record a new dose event.
@@ -28,6 +29,13 @@ public class DoseRequest {
     private DoseStatus status;
 
     private OffsetDateTime scheduledAt;
+
+    /**
+     * Optional schedule this dose fulfils. When present it must belong to the
+     * medicine; it lets "today" views match a record to its exact slot and
+     * prevents double-recording the same scheduled occurrence.
+     */
+    private UUID scheduleId;
 
     @PastOrPresent(message = "Taken time cannot be in the future")
     private OffsetDateTime takenAt;

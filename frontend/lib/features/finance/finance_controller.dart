@@ -7,7 +7,7 @@
 /// which is the source of truth.
 library;
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show ChangeNotifier;
 
 import '../../core/api/api_exception.dart';
 import 'finance_api.dart';
@@ -16,9 +16,14 @@ import 'models.dart';
 enum FinanceLoadStatus { idle, loading, ready, error }
 
 class FinanceController extends ChangeNotifier {
-  FinanceController({required this.api});
+  FinanceController({required this.api, this.onMutated});
 
   final FinanceApi api;
+
+  /// Invoked after a successful Finance mutation so owners (e.g. the app
+  /// shell) can refresh dependent state such as the Home dashboard, which
+  /// aggregates Finance data. Never breaks Finance itself.
+  final Future<void> Function()? onMutated;
 
   FinanceLoadStatus _status = FinanceLoadStatus.idle;
   String? _errorMessage;
@@ -144,6 +149,7 @@ class FinanceController extends ChangeNotifier {
     _accounts = [..._accounts, created];
     notifyListeners();
     await _refreshSensitiveSlices();
+    await _notifyMutated();
     return created;
   }
 
@@ -165,6 +171,9 @@ class FinanceController extends ChangeNotifier {
     );
     _accounts = [for (final Account a in _accounts) a.id == id ? updated : a];
     notifyListeners();
+    // Opening balance feeds every balance: recompute like other mutations.
+    await _refreshSensitiveSlices();
+    await _notifyMutated();
     return updated;
   }
 
@@ -172,9 +181,10 @@ class FinanceController extends ChangeNotifier {
     await api.archiveAccount(id);
     await _refreshSensitiveSlices();
     await _loadAccounts();
+    await _notifyMutated();
   }
 
-  // -------------------------------------------------------------------------
+  // ----.*
   // Categories
   // -------------------------------------------------------------------------
 
@@ -185,6 +195,7 @@ class FinanceController extends ChangeNotifier {
     final Category created = await api.createCategory(name: name, type: type);
     _categories = [..._categories, created]..sort((a, b) => a.name.compareTo(b.name));
     notifyListeners();
+    await _notifyMutated();
     return created;
   }
 
@@ -198,12 +209,14 @@ class FinanceController extends ChangeNotifier {
         [for (final Category c in _categories) c.id == id ? updated : c]
           ..sort((a, b) => a.name.compareTo(b.name));
     notifyListeners();
+    await _notifyMutated();
     return updated;
   }
 
   Future<void> archiveCategory(String id) async {
     await api.archiveCategory(id);
     await _loadCategories();
+    await _notifyMutated();
   }
 
   // -------------------------------------------------------------------------
@@ -231,6 +244,7 @@ class FinanceController extends ChangeNotifier {
     _transactions = [created, ..._transactions]..sort(_compareNewestFirst);
     notifyListeners();
     await _refreshSensitiveSlices();
+    await _notifyMutated();
     return created;
   }
 
@@ -259,6 +273,7 @@ class FinanceController extends ChangeNotifier {
     ]..sort(_compareNewestFirst);
     notifyListeners();
     await _refreshSensitiveSlices();
+    await _notifyMutated();
     return updated;
   }
 
@@ -268,6 +283,7 @@ class FinanceController extends ChangeNotifier {
         _transactions.where((FinanceTransaction t) => t.id != id).toList();
     notifyListeners();
     await _refreshSensitiveSlices();
+    await _notifyMutated();
   }
 
   // -------------------------------------------------------------------------
@@ -291,6 +307,7 @@ class FinanceController extends ChangeNotifier {
     _transfers = [created, ..._transfers]..sort(_compareTransferNewestFirst);
     notifyListeners();
     await _refreshSensitiveSlices();
+    await _notifyMutated();
     return created;
   }
 
@@ -300,6 +317,7 @@ class FinanceController extends ChangeNotifier {
         _transfers.where((FinanceTransfer t) => t.id != id).toList();
     notifyListeners();
     await _refreshSensitiveSlices();
+    await _notifyMutated();
   }
 
   // -------------------------------------------------------------------------
@@ -326,6 +344,14 @@ class FinanceController extends ChangeNotifier {
 
   Future<void> _loadSummary() async {
     _summary = await api.fetchSummary(from: _from, to: _to);
+  }
+
+  Future<void> _notifyMutated() async {
+    try {
+      await onMutated?.call();
+    } catch (_) {
+      // Dependent refresh (e.g. dashboard) must never break Finance itself.
+    }
   }
 
   /// Refreshes everything affected by a money movement so the UI never shows

@@ -109,8 +109,8 @@ class FinanceApi {
     final Map<String, dynamic> body = await apiClient.get(
       '/api/v1/finance/transactions',
       query: {
-        if (accountId != null) 'accountId': accountId,
-        if (categoryId != null) 'categoryId': categoryId,
+        'accountId': ?accountId,
+        'categoryId': ?categoryId,
         if (type != null) 'type': enumToJson(type),
         if (from != null) 'from': _dateOnly(from),
         if (to != null) 'to': _dateOnly(to),
@@ -187,9 +187,8 @@ class FinanceApi {
     final Map<String, dynamic> body = await apiClient.get(
       '/api/v1/finance/transfers',
       query: {
-        if (sourceAccountId != null) 'sourceAccountId': sourceAccountId,
-        if (destinationAccountId != null)
-          'destinationAccountId': destinationAccountId,
+        'sourceAccountId': ?sourceAccountId,
+        'destinationAccountId': ?destinationAccountId,
         if (from != null) 'from': _dateOnly(from),
         if (to != null) 'to': _dateOnly(to),
         'page': '$page',

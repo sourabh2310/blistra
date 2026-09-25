@@ -37,7 +37,7 @@ public class SearchController {
     public ResponseEntity<SearchResponse> search(
             @Parameter(description = "Search query (minimum 2 characters)", required = true)
             @RequestParam String q,
-            @Parameter(description = "Module filter (PLANNER, MEDICINES, HEALTH, DIET)")
+            @Parameter(description = "Module filter (PLANNER, MEDICINES, HEALTH, DIET, HABITS, FINANCE, DOCUMENTS)")
             @RequestParam(required = false) String type,
             @Parameter(description = "Start date for filtering")
             @RequestParam(required = false) OffsetDateTime from,

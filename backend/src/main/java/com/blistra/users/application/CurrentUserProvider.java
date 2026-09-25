@@ -1,5 +1,6 @@
 package com.blistra.users.application;
 
+import com.blistra.auth.security.BlistraUserPrincipal;
 import com.blistra.common.exception.InvalidCredentialsException;
 import com.blistra.users.domain.User;
 import com.blistra.users.repository.UserRepository;
@@ -34,8 +35,21 @@ public class CurrentUserProvider {
                 || !(authentication.getPrincipal() instanceof UserDetails userDetails)) {
             throw new InvalidCredentialsException("Authentication required");
         }
-        String email = userDetails.getUsername();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new InvalidCredentialsException("Authentication required"));
+        // Prefer the stable principal id (survives email changes); fall back
+        // to the email lookup for legacy tokens.
+        User user;
+        if (userDetails instanceof BlistraUserPrincipal principal) {
+            user = userRepository.findById(principal.getId())
+                    .orElseThrow(() -> new InvalidCredentialsException("Authentication required"));
+        } else {
+            user = userRepository.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new InvalidCredentialsException("Authentication required"));
+        }
+        // PENDING_VERIFICATION accounts may use the app (verify, onboard and
+        // manage their data); only blocked accounts are rejected here.
+        if (user.isBlocked()) {
+            throw new InvalidCredentialsException("Authentication required");
+        }
+        return user;
     }
 }

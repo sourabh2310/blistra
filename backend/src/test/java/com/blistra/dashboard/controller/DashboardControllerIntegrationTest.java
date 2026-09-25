@@ -1,7 +1,6 @@
 package com.blistra.dashboard.controller;
 
 import com.blistra.AbstractIntegrationTest;
-import com.blistra.auth.dto.AuthResponse;
 import com.blistra.auth.dto.LoginRequest;
 import com.blistra.auth.dto.RegisterRequest;
 import com.blistra.diet.domain.MealType;
@@ -55,31 +54,43 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        userRepository.deleteAll();
+        deleteAllUsers();
 
         // Create User A
-        RegisterRequest regA = RegisterRequest.builder()
-                .email("usera@example.com")
-                .password("password123")
-                .build();
-        MvcResult resultA = mockMvc.perform(post("/api/v1/auth/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(regA)))
+                        .content(jsonMapper.writeValueAsString(RegisterRequest.builder()
+                                .email("usera@example.com")
+                                .password("password123")
+                                .build())))
                 .andExpect(status().isCreated())
                 .andReturn();
-        userAToken = jsonMapper.readValue(resultA.getResponse().getContentAsString(), AuthResponse.class).getToken();
+        userAToken = login("usera@example.com", "password123");
 
         // Create User B
-        RegisterRequest regB = RegisterRequest.builder()
-                .email("userb@example.com")
-                .password("password123")
-                .build();
-        MvcResult resultB = mockMvc.perform(post("/api/v1/auth/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(regB)))
+                        .content(jsonMapper.writeValueAsString(RegisterRequest.builder()
+                                .email("userb@example.com")
+                                .password("password123")
+                                .build())))
                 .andExpect(status().isCreated())
                 .andReturn();
-        userBToken = jsonMapper.readValue(resultB.getResponse().getContentAsString(), AuthResponse.class).getToken();
+        userBToken = login("userb@example.com", "password123");
+    }
+
+    private String login(String email, String password) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(LoginRequest.builder()
+                                .email(email)
+                                .password(password)
+                                .build())))
+                .andExpect(status().isOk())
+                .andReturn();
+        return jsonMapper.readTree(result.getResponse().getContentAsString())
+                .get("token")
+                .asText();
     }
 
     private String authHeader(String token) {
@@ -108,6 +119,10 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
         assertThat(body).contains("\"habits\"");
         assertThat(body).contains("\"health\"");
         assertThat(body).contains("\"medicines\"");
+        assertThat(body).contains("\"week\"");
+        assertThat(body).contains("\"completedTasks\":0");
+        assertThat(body).contains("\"finance\"");
+        assertThat(body).contains("\"today\"");
     }
 
     @Test
@@ -153,8 +168,11 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(get("/api/v1/dashboard")
                         .header("Authorization", authHeader(userAToken)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.finance.unavailable").value(false));
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.finance.unavailable").value(false))
+                        .andExpect(jsonPath("$.finance.today").isMap())
+                        .andExpect(jsonPath("$.finance.today.currencies[0].currency").value("INR"));
+
     }
 
     @Test
@@ -262,7 +280,8 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
 
     private void createMealForUserA() throws Exception {
         com.blistra.diet.dto.CreateMealRequest request = com.blistra.diet.dto.CreateMealRequest.builder()
-                .type(MealType.LUNCH)
+                .mealType(MealType.LUNCH)
+                .title("Test Meal")
                 .consumedAt(OffsetDateTime.now())
                 .build();
         mockMvc.perform(post("/api/v1/diet/meals")
@@ -275,7 +294,7 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
     private void createHealthMeasurementForUserA() throws Exception {
         MeasurementRequest request = MeasurementRequest.builder()
                 .type(MeasurementType.WEIGHT)
-                .value(70.5)
+                .value(java.math.BigDecimal.valueOf(70.5))
                 .unit("kg")
                 .measuredAt(OffsetDateTime.now())
                 .build();
@@ -287,10 +306,26 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void createFinanceAccountAndTransactionForUserA() throws Exception {
+        // Create category (required by transaction payload)
+        com.blistra.finance.dto.CategoryRequest categoryReq = com.blistra.finance.dto.CategoryRequest.builder()
+                .name("Salary")
+                .type(com.blistra.finance.domain.CategoryType.INCOME)
+                .build();
+        MvcResult categoryResult = mockMvc.perform(post("/api/v1/finance/categories")
+                        .header("Authorization", authHeader(userAToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(categoryReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String categoryId = categoryResult.getResponse().getContentAsString()
+                .split("\"id\":\"")[1].split("\"")[0];
+
         // Create account
         AccountRequest accountReq = AccountRequest.builder()
                 .name("Test Account")
+                .type(com.blistra.finance.domain.AccountType.BANK)
                 .currency("INR")
+                .openingBalance("0.00")
                 .build();
         MvcResult accountResult = mockMvc.perform(post("/api/v1/finance/accounts")
                         .header("Authorization", authHeader(userAToken))
@@ -306,9 +341,9 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
         // Create transaction
         TransactionRequest txnReq = TransactionRequest.builder()
                 .accountId(UUID.fromString(accountId))
+                .categoryId(UUID.fromString(categoryId))
                 .type(TransactionType.INCOME)
                 .amount("1000.00")
-                .currency("INR")
                 .build();
         mockMvc.perform(post("/api/v1/finance/transactions")
                         .header("Authorization", authHeader(userAToken))

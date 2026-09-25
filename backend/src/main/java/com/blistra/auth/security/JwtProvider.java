@@ -3,6 +3,7 @@ package com.blistra.auth.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -16,18 +17,25 @@ import java.util.Map;
 @Component
 public class JwtProvider {
 
-    @Value("${JWT_SECRET:your-secret-key-change-in-production-minimum-256-bits}")
+    @Value("${JWT_SECRET:${jwt.secret:}}")
     private String jwtSecret;
 
-    @Value("${JWT_EXPIRATION:86400000}")
+    @Value("${JWT_EXPIRATION:${jwt.expiration:86400000}}")
     private long jwtExpirationMs;
 
-    private SecretKey getSigningKey() {
-        // Ensure the secret is at least 256 bits (32 bytes) for HS256
+    @PostConstruct
+    public void validateSecret() {
+        if (jwtSecret == null || jwtSecret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET is required but not configured");
+        }
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
-            throw new IllegalArgumentException("JWT secret must be at least 32 bytes for HS256");
+            throw new IllegalStateException("JWT_SECRET must be at least 32 bytes (256 bits) for HS256");
         }
+    }
+
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -35,6 +43,17 @@ public class JwtProvider {
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", userDetails.getUsername());
         return createToken(claims, userDetails.getUsername());
+    }
+
+    /**
+     * Issues a token whose subject is the stable user id (survives email
+     * changes). Legacy email-subject tokens remain valid: resolution falls
+     * back to email lookup (see CustomUserDetailsService.loadBySubject).
+     */
+    public String generateToken(java.util.UUID userId, String email) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("email", email);
+        return createToken(claims, userId.toString());
     }
 
     private String createToken(Map<String, Object> claims, String subject) {

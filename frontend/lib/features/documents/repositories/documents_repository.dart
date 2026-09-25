@@ -1,12 +1,16 @@
-import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
-import 'package:blistra/core/api/api_config.dart';
-import 'package:blistra/features/documents/models/document.dart';
-import 'package:file_picker/file_picker.dart';
 
-/// Repository for document operations
+import 'package:frontend/core/api/api_client.dart';
+import 'package:frontend/features/documents/models/document.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:intl/intl.dart';
+
+/// Repository for document operations, backed by the shared [ApiClient].
 class DocumentsRepository {
-  final ApiConfig _api;
+  final ApiClient _api;
 
   DocumentsRepository(this._api);
 
@@ -18,33 +22,28 @@ class DocumentsRepository {
     int page = 0,
     int size = 20,
   }) async {
-    final query = <String, dynamic>{
-      'page': page,
-      'size': size,
+    final query = <String, String>{
+      'page': '$page',
+      'size': '$size',
+      if (category != null) 'category': category.value,
+      // Backend expects zone-less LocalDateTime (ISO.DATE_TIME, no Z/millis).
+      if (from != null) 'from': _localDateTime(from),
+      if (to != null) 'to': _localDateTime(to),
     };
-    if (category != null) query['category'] = category.value;
-    if (from != null) query['from'] = from.toUtc().toIso8601String();
-    if (to != null) query['to'] = to.toUtc().toIso8601String();
 
-    final response = await _api.get('/documents', query: query);
-    _checkResponse(response);
-    return DocumentPage.fromJson(jsonDecode(response.body));
+    final json = await _api.get('/api/v1/documents', query: query);
+    return DocumentPage.fromJson(json);
   }
 
   /// Get document metadata by ID
   Future<AppDocument> get(String id) async {
-    final response = await _api.get('/documents/$id');
-    _checkResponse(response);
-    return AppDocument.fromJson(jsonDecode(response.body));
+    final json = await _api.get('/api/v1/documents/$id');
+    return AppDocument.fromJson(json);
   }
 
   /// Download document content as bytes
   Future<Uint8List> download(String id) async {
-    final response = await _api.get('/documents/$id/content');
-    if (response.statusCode != 200) {
-      throw _apiError(response, 'Failed to download document');
-    }
-    return response.bodyBytes;
+    return _api.getBytes('/api/v1/documents/$id/content');
   }
 
   /// Upload a new document with progress callback
@@ -54,34 +53,40 @@ class DocumentsRepository {
     String? description,
     void Function(double progress)? onProgress,
   }) async {
-    final multipartFile = ApiConfig.MultipartFile(
-      fieldName: 'file',
-      fileName: file.name,
-      contentType: file.mimeType ?? _guessMimeType(file.name),
-      bytes: file.bytes!,
+    // file_picker on mobile often returns path-only (bytes == null) unless
+    // withData: true was used. Fall back to reading the file from disk.
+    Uint8List? bytes = file.bytes;
+    if (bytes == null && file.path != null) {
+      bytes = await File(file.path!).readAsBytes();
+    }
+    if (bytes == null) {
+      throw ArgumentError.value(file, 'file', 'No file bytes to upload');
+    }
+    final multipartFile = http.MultipartFile.fromBytes(
+      'file',
+      bytes,
+      filename: file.name,
+      contentType: MediaType.parse(_guessMimeType(file.name)),
     );
 
     final fields = {
       'category': category.value,
-      if (description != null && description.isNotEmpty) 'description': description,
+      if (description != null && description.isNotEmpty)
+        'description': description,
     };
 
-    final streamed = await _api.uploadMultipart(
-      '/documents',
+    final json = await _api.uploadMultipart(
+      '/api/v1/documents',
       fields: fields,
       files: [multipartFile],
-      onProgress: onProgress != null
-          ? (sent, total) => onProgress(sent / total)
-          : null,
+      onProgress: onProgress,
     );
-
-    final response = await http.Response.fromStream(streamed);
-    _checkResponse(response);
-    return AppDocument.fromJson(jsonDecode(response.body));
+    return AppDocument.fromJson(json);
   }
 
   /// Update document metadata
-  Future<AppDocument> update(String id, {
+  Future<AppDocument> update(
+    String id, {
     DocumentCategory? category,
     String? description,
   }) async {
@@ -89,31 +94,13 @@ class DocumentsRepository {
     if (category != null) body['category'] = category.value;
     if (description != null) body['description'] = description;
 
-    final response = await _api.patch('/documents/$id', body: body);
-    _checkResponse(response);
-    return AppDocument.fromJson(jsonDecode(response.body));
+    final json = await _api.patch('/api/v1/documents/$id', body: body);
+    return AppDocument.fromJson(json);
   }
 
   /// Delete a document
   Future<void> delete(String id) async {
-    final response = await _api.delete('/documents/$id');
-    if (response.statusCode != 204) {
-      throw _apiError(response, 'Failed to delete document');
-    }
-  }
-
-  void _checkResponse(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
-    throw _apiError(response, 'Request failed');
-  }
-
-  Exception _apiError(http.Response response, String fallback) {
-    try {
-      final data = jsonDecode(response.body);
-      return Exception(data['message'] ?? '$fallback (${response.statusCode})');
-    } catch (_) {
-      return Exception('$fallback (${response.statusCode})');
-    }
+    await _api.delete('/api/v1/documents/$id');
   }
 
   String _guessMimeType(String fileName) {
@@ -129,5 +116,11 @@ class DocumentsRepository {
       default:
         return 'application/octet-stream';
     }
+  }
+
+  /// Backend `LocalDateTime` wire format: yyyy-MM-ddTHH:mm:ss (no zone).
+  static String _localDateTime(DateTime value) {
+    final local = value.toLocal();
+    return DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(local);
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import 'widgets.dart';
@@ -11,10 +11,14 @@ class MeasurementFormScreen extends StatefulWidget {
     super.key,
     required this.repository,
     this.initial,
+    this.initialType,
   });
 
   final HealthRepository repository;
   final HealthMeasurement? initial;
+
+  /// Prefills the type picker when creating (ignored when editing).
+  final MeasurementType? initialType;
 
   @override
   State<MeasurementFormScreen> createState() => _MeasurementFormScreenState();
@@ -38,7 +42,7 @@ class _MeasurementFormScreenState extends State<MeasurementFormScreen> {
   void initState() {
     super.initState();
     final HealthMeasurement? initial = widget.initial;
-    _type = initial?.type ?? MeasurementType.weight;
+    _type = initial?.type ?? widget.initialType ?? MeasurementType.weight;
     _unit = initial?.unit ?? defaultUnitFor(_type);
     _measuredAt = initial?.measuredAt ?? DateTime.now();
     _valueController =

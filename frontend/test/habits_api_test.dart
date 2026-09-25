@@ -14,7 +14,7 @@ const String _token = 'jwt-for-tests';
 Map<String, dynamic> _requestToJson(http.Request request) =>
     jsonDecode(request.body) as Map<String, dynamic>;
 
-http.Response _jsonResponse(Object body, {int status = 200}) =>
+http.Response _jsonResponse(Object? body, {int status = 200}) =>
     http.Response(jsonEncode(body), status,
         headers: {'content-type': 'application/json'});
 

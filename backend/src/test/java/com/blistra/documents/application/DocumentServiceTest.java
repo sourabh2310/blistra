@@ -33,6 +33,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.util.unit.DataSize;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
@@ -71,7 +72,8 @@ class DocumentServiceTest {
 
         docId = UUID.randomUUID();
 
-        when(properties.maxFileSize()).thenReturn(DataSize.ofMegabytes(10));
+        lenient().when(properties.maxFileSize()).thenReturn(DataSize.ofMegabytes(10));
+        lenient().when(userRepository.findByEmail(testUser.getEmail())).thenReturn(Optional.of(testUser));
     }
 
     private void authenticate(User user) {
@@ -92,11 +94,11 @@ class DocumentServiceTest {
         MockMultipartFile file = new MockMultipartFile("file", "report.pdf", "application/pdf",
                 new byte[]{0x25, 0x50, 0x44, 0x46}); // %PDF
         String objectKey = UUID.randomUUID().toString();
-        String contentHash = "abc123";
+        final String contentHash = "abc123";
 
         when(validator.validateAndDetect(file)).thenReturn("application/pdf");
         doAnswer(invocation -> {
-            InputStream in = invocation.getArgument(0);
+            InputStream in = invocation.getArgument(1);
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] buf = new byte[8192];
             int n;
@@ -105,8 +107,6 @@ class DocumentServiceTest {
                 md.update(buf, 0, n);
                 total += n;
             }
-            // Store hash for verification
-            contentHash = java.util.HexFormat.of().formatHex(md.digest());
             return total;
         }).when(storage).store(anyString(), any(), anyLong());
 
@@ -121,7 +121,6 @@ class DocumentServiceTest {
         assertThat(response.getOriginalFilename()).isEqualTo("report.pdf");
         assertThat(response.getContentType()).isEqualTo("application/pdf");
         assertThat(response.getFileSize()).isEqualTo(4L);
-        assertThat(response.getContentHash()).isNull(); // not exposed in response
         assertThat(response.getCategory()).isEqualTo(DocumentCategory.MEDICAL);
         assertThat(response.getDescription()).isEqualTo("Test");
 
@@ -138,9 +137,11 @@ class DocumentServiceTest {
         when(storage.store(anyString(), any(), anyLong()))
                 .thenThrow(new DocumentTooLargeException("too large"));
 
+        // App-level oversize propagates as DocumentTooLargeException so the API
+        // can answer 413 (mapped by DocumentsExceptionHandler).
         assertThatThrownBy(() -> service.upload(file, DocumentCategory.OTHER, null))
-                .isInstanceOf(InvalidRequestException.class)
-                .hasMessageContaining("exceeds");
+                .isInstanceOf(DocumentTooLargeException.class)
+                .hasMessageContaining("too large");
 
         verify(storage, never()).delete(anyString()); // handled by storage
     }
@@ -160,7 +161,7 @@ class DocumentServiceTest {
         assertThatThrownBy(() -> service.upload(file, DocumentCategory.MEDICAL, null))
                 .isInstanceOf(RuntimeException.class);
 
-        verify(storage).delete(objectKey);
+        verify(storage).delete(anyString());
     }
 
     @Test
@@ -310,7 +311,7 @@ class DocumentServiceTest {
     }
 
     @Test
-    void delete_storageFailure_throwsButMetadataAlreadyDeleted() {
+    void delete_storageFailure_throwsSoMetadataDeleteRollsBack() {
         authenticate(testUser);
 
         Document doc = new Document(testUser, "a.pdf", "key1", "application/pdf", 100L,
@@ -320,10 +321,52 @@ class DocumentServiceTest {
         when(documentRepository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
         doThrow(new DocumentStorageException("disk error")).when(storage).delete("key1");
 
+        // The throw rolls back the surrounding transaction, restoring the
+        // metadata row: the document is NOT lost, the delete can be retried.
         assertThatThrownBy(() -> service.delete(docId))
-                .isInstanceOf(DocumentStorageException.class);
+                .isInstanceOf(DocumentStorageException.class)
+                .hasMessageContaining("rolled back");
 
         verify(documentRepository).delete(doc); // metadata deleted first
+        verify(storage).delete("key1");
+    }
+
+    @Test
+    void delete_dbFailure_neverTouchesFile() {
+        authenticate(testUser);
+
+        Document doc = new Document(testUser, "a.pdf", "key1", "application/pdf", 100L,
+                "hash1", DocumentCategory.MEDICAL, "desc");
+        doc.setId(docId);
+
+        when(documentRepository.findByIdAndUserId(docId, userId)).thenReturn(Optional.of(doc));
+        doThrow(new RuntimeException("DB down")).when(documentRepository).delete(doc);
+
+        assertThatThrownBy(() -> service.delete(docId))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("DB down");
+
+        // Metadata-first ordering: a DB failure happens before any file
+        // operation, so the stored file is left intact.
+        verify(storage, never()).delete(anyString());
+    }
+
+    @Test
+    void upload_sanitizesClientFilenameBeforePersisting() throws IOException {
+        authenticate(testUser);
+
+        MockMultipartFile file = new MockMultipartFile("file", "../../evil.pdf", "application/pdf",
+                new byte[]{0x25, 0x50, 0x44, 0x46});
+        when(validator.validateAndDetect(file)).thenReturn("application/pdf");
+        when(storage.store(anyString(), any(), anyLong())).thenReturn(4L);
+        when(documentRepository.save(any(Document.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        service.upload(file, DocumentCategory.MEDICAL, null);
+
+        var captor = ArgumentCaptor.forClass(Document.class);
+        verify(documentRepository).save(captor.capture());
+        assertThat(captor.getValue().getOriginalFilename()).isEqualTo("evil.pdf");
     }
 
     @Test

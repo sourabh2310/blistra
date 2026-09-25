@@ -5,6 +5,7 @@ import '../data/medicines_api_client.dart';
 import '../models/medicine_enums.dart';
 import '../models/schedule.dart';
 import '../util/dates.dart';
+import '../util/numbers.dart';
 
 class ScheduleFormController {
   ScheduleFormController(this._api, {this.medicineId, Schedule? schedule})
@@ -13,7 +14,9 @@ class ScheduleFormController {
       _scheduleType = schedule.scheduleType;
       _times = schedule.times;
       _daysOfWeek = schedule.daysOfWeek ?? const [];
-      _doseAmount = schedule.doseAmount?.toString() ?? '';
+      _doseAmount = schedule.doseAmount == null
+          ? ''
+          : trimNumber(schedule.doseAmount!);
       _doseUnit = schedule.doseUnit ?? '';
       _active = schedule.active;
       _startDate = schedule.startDate;
@@ -84,9 +87,11 @@ class ScheduleFormController {
 
   Map<String, dynamic> toJson() {
     return {
-      'scheduleType': _scheduleType.name.toUpperCase(),
+      'scheduleType': _scheduleType.wire,
       'times': _scheduleType == ScheduleType.asNeeded ? <String>[] : _times,
-      'daysOfWeek': _daysOfWeek.map(_dayIndexToString).toList(),
+      'daysOfWeek': _scheduleType == ScheduleType.asNeeded
+          ? <String>[]
+          : _daysOfWeek.map(_dayIndexToString).toList(),
       'doseAmount': _doseAmount.trim().isEmpty ? null : double.tryParse(_doseAmount.trim()),
       'doseUnit': _doseUnit.trim().isEmpty ? null : _doseUnit.trim(),
       'startDate': isoDateOrNull(_startDate),
@@ -124,7 +129,7 @@ class ScheduleFormController {
       if (medicineId == null) throw Exception('medicineId required for create');
       return _api.createSchedule(medicineId!, toJson());
     } else {
-      return _api.updateSchedule(medicineId!, _schedule!.id, toJson());
+      return _api.updateSchedule(medicineId!, _schedule.id, toJson());
     }
   }
 }

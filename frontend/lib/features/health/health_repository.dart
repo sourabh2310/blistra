@@ -49,8 +49,18 @@ class HealthRepository extends ChangeNotifier {
 
   // -- Measurements -----------------------------------------------------------------
 
-  Future<List<HealthMeasurement>> loadMeasurements() async {
-    final HealthPage<HealthMeasurement> page = await api.listMeasurements();
+  Future<List<HealthMeasurement>> loadMeasurements({
+    MeasurementType? type,
+    DateTime? from,
+    DateTime? to,
+    int size = 20,
+  }) async {
+    final HealthPage<HealthMeasurement> page = await api.listMeasurements(
+      type: type,
+      from: from,
+      to: to,
+      size: size,
+    );
     _measurements = List.unmodifiable(page.content);
     notifyListeners();
     return _measurements;

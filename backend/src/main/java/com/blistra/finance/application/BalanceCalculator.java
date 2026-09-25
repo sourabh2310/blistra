@@ -74,12 +74,31 @@ public class BalanceCalculator {
      * Derives the balance for a single account, taking the opening balance into
      * account when the current balance needs to be absolute (monthly net, for
      * example, must NOT include the opening balance).
+     *
+     * <p>Uses single-account aggregate queries so callers that need one balance
+     * do not fan out over every account of the user.</p>
      */
     public BigDecimal balanceFor(Account account) {
-        BigDecimal transactions = balancesFor(account.getUser().getId())
-                .getOrDefault(account.getId(), BigDecimal.ZERO);
+        UUID userId = account.getUser().getId();
+        UUID accountId = account.getId();
+        BigDecimal income = BigDecimal.ZERO;
+        BigDecimal expense = BigDecimal.ZERO;
+        for (Object[] row : transactionRepository.sumByTypeForAccount(userId, accountId)) {
+            TransactionType type = (TransactionType) row[0];
+            BigDecimal sum = (BigDecimal) row[1];
+            if (type == TransactionType.INCOME) {
+                income = sum;
+            } else if (type == TransactionType.EXPENSE) {
+                expense = sum;
+            }
+        }
+        BigDecimal in = transferRepository.sumInForAccount(userId, accountId);
+        BigDecimal out = transferRepository.sumOutForAccount(userId, accountId);
         return account.getOpeningBalance()
-                .add(transactions)
+                .add(income == null ? BigDecimal.ZERO : income)
+                .subtract(expense == null ? BigDecimal.ZERO : expense)
+                .add(in == null ? BigDecimal.ZERO : in)
+                .subtract(out == null ? BigDecimal.ZERO : out)
                 .setScale(Money.SCALE, java.math.RoundingMode.UNNECESSARY);
     }
 

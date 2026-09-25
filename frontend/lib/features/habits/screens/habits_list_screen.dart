@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import '../habits_controller.dart';
 import '../habits_scope.dart';
 import '../models.dart';
-import '../widgets/habit_tile.dart';
+import 'habit_detail_screen.dart';
 import 'habit_form_screen.dart';
 
 class HabitsListScreen extends StatelessWidget {
@@ -23,7 +23,7 @@ class HabitsListScreen extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: controller.habits.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (BuildContext context, int index) {
         final Habit habit = controller.habits[index];
         return _HabitListTile(
@@ -61,6 +61,7 @@ class HabitsListScreen extends StatelessWidget {
   }
 
   Future<void> _archiveHabit(BuildContext context, Habit habit) async {
+    final HabitsController controller = HabitsScope.of(context);
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
@@ -81,7 +82,6 @@ class HabitsListScreen extends StatelessWidget {
     );
     if (confirm != true) return;
 
-    final HabitsController controller = HabitsScope.of(context);
     try {
       await controller.archiveHabit(habit.id);
       if (context.mounted) {

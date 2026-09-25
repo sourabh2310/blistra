@@ -5,6 +5,7 @@ import '../data/medicines_api_client.dart';
 import '../models/medicine.dart';
 import '../models/medicine_enums.dart';
 import '../util/dates.dart';
+import '../util/numbers.dart';
 
 class MedicineFormController {
   MedicineFormController(this._api, {Medicine? medicine}) : _medicine = medicine {
@@ -12,7 +13,8 @@ class MedicineFormController {
       _name = medicine.name;
       _genericName = medicine.genericName ?? '';
       _form = medicine.form ?? '';
-      _strength = medicine.strength?.toString() ?? '';
+      _strength =
+          medicine.strength == null ? '' : trimNumber(medicine.strength!);
       _strengthUnit = medicine.strengthUnit ?? '';
       _notes = medicine.notes ?? '';
       _status = medicine.status;
@@ -114,7 +116,7 @@ class MedicineFormController {
     if (_medicine == null) {
       return _api.createMedicine(toJson());
     } else {
-      return _api.updateMedicine(_medicine!.id, toJson());
+      return _api.updateMedicine(_medicine.id, toJson());
     }
   }
 }

@@ -21,6 +21,14 @@ HabitFrequency habitFrequencyFromJson(String value) =>
 
 String enumToJson(Enum value) => value.name.toUpperCase();
 
+/// Backend sends BigDecimal as JSON number OR string — accept both.
+String? decimalFromJson(Object? raw) {
+  if (raw == null) return null;
+  if (raw is String) return raw;
+  if (raw is num) return raw.toString();
+  return raw.toString();
+}
+
 class Habit {
   const Habit({
     required this.id,
@@ -55,7 +63,7 @@ class Habit {
         description: json['description'] as String?,
         type: habitTypeFromJson(json['type'] as String),
         status: habitStatusFromJson(json['status'] as String),
-        targetValue: json['targetValue'] as String?,
+        targetValue: decimalFromJson(json['targetValue']),
         targetUnit: json['targetUnit'] as String?,
         targetMinutes: json['targetMinutes'] as int?,
         createdAt: DateTime.parse(json['createdAt'] as String).toUtc(),
@@ -116,7 +124,7 @@ class Completion {
         id: json['id'] as String,
         habitId: json['habitId'] as String,
         completedOn: DateTime.parse(json['completedOn'] as String).toUtc(),
-        value: json['value'] as String?,
+        value: decimalFromJson(json['value']),
         durationMinutes: json['durationMinutes'] as int?,
         createdAt: DateTime.parse(json['createdAt'] as String).toUtc(),
         updatedAt: DateTime.parse(json['updatedAt'] as String).toUtc(),
@@ -152,7 +160,7 @@ class HabitTodayResponse {
         name: json['name'] as String,
         description: json['description'] as String?,
         type: habitTypeFromJson(json['type'] as String),
-        targetValue: json['targetValue'] as String?,
+        targetValue: decimalFromJson(json['targetValue']),
         targetUnit: json['targetUnit'] as String?,
         targetMinutes: json['targetMinutes'] as int?,
         schedule: json['schedule'] != null
@@ -168,12 +176,22 @@ class HabitStatisticsResponse {
     required this.currentStreak,
     required this.bestStreak,
     required this.lastCompletedOn,
+    this.dueOccurrences,
+    this.completedDueOccurrences,
+    this.completionRate,
   });
 
   final int totalCompletions;
   final int currentStreak;
   final int bestStreak;
   final DateTime? lastCompletedOn;
+
+  /// Due occurrences over the observed window, if the backend reported them.
+  final int? dueOccurrences;
+  final int? completedDueOccurrences;
+
+  /// Fraction of due occurrences completed (null when nothing was due yet).
+  final double? completionRate;
 
   factory HabitStatisticsResponse.fromJson(Map<String, dynamic> json) =>
       HabitStatisticsResponse(
@@ -183,7 +201,30 @@ class HabitStatisticsResponse {
         lastCompletedOn: json['lastCompletedOn'] != null
             ? DateTime.parse(json['lastCompletedOn'] as String).toUtc()
             : null,
+        dueOccurrences: (json['dueOccurrences'] as num?)?.toInt(),
+        completedDueOccurrences:
+            (json['completedDueOccurrences'] as num?)?.toInt(),
+        completionRate: (json['completionRate'] as num?)?.toDouble(),
       );
+
+  /// "82%" or null when no rate was reported. Factual description only.
+  String? get completionRateLabel {
+    final double? rate = completionRate;
+    if (rate == null) {
+      return null;
+    }
+    return '${(rate * 100).round()}%';
+  }
+
+  /// "23 / 28 occurrences" or null when counts were not reported.
+  String? get occurrencesLabel {
+    final int? done = completedDueOccurrences;
+    final int? total = dueOccurrences;
+    if (done == null || total == null) {
+      return null;
+    }
+    return '$done / $total occurrences';
+  }
 }
 
 class PageResult<T> {

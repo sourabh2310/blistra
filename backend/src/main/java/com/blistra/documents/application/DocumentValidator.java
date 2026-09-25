@@ -2,6 +2,7 @@ package com.blistra.documents.application;
 
 import com.blistra.common.exception.InvalidRequestException;
 import com.blistra.documents.config.DocumentsProperties;
+import com.blistra.documents.storage.DocumentTooLargeException;
 import com.blistra.documents.support.AllowedDocumentType;
 import com.blistra.documents.support.FilenameSanitizer;
 import org.springframework.http.MediaType;
@@ -35,24 +36,19 @@ public class DocumentValidator {
 
         String originalFilename = file.getOriginalFilename();
         String extension = extractExtension(originalFilename);
-
-        // 1. Extension must be allowed
         AllowedDocumentType byExt = AllowedDocumentType.fromExtension(extension);
-        if (byExt == null) {
-            throw new InvalidRequestException(
-                    "Unsupported file type. Allowed extensions: " + AllowedDocumentType.allExtensions());
-        }
 
-        // 2. Check declared size upfront (may be -1 if unknown)
+        // 1. Check declared size upfront (may be -1 if unknown). Mapped to
+        // HTTP 413 so clients can distinguish "too large" from "invalid".
         long declaredSize = file.getSize();
         if (declaredSize != -1 && declaredSize > maxBytes) {
-            throw new InvalidRequestException(
+            throw new DocumentTooLargeException(
                     "File exceeds maximum allowed size of " + formatBytes(maxBytes));
         }
 
-        // 3. Check declared Content-Type header (if present and not octet-stream)
+        // 2. Check declared Content-Type header (if present and not octet-stream)
         String declaredContentType = file.getContentType();
-        if (declaredContentType != null && !declaredContentType.isBlank()) {
+        if (declaredContentType != null && !declaredContentType.isBlank() && byExt != null) {
             String normalized = declaredContentType.toLowerCase(Locale.ROOT);
             if (!normalized.equals(MediaType.APPLICATION_OCTET_STREAM_VALUE)) {
                 boolean allowed = byExt.getMimeTypes().stream()
@@ -64,7 +60,7 @@ public class DocumentValidator {
             }
         }
 
-        // 4. Read magic bytes from actual content (authoritative)
+        // 3. Read magic bytes from actual content (authoritative)
         AllowedDocumentType detected;
         try (InputStream is = file.getInputStream()) {
             byte[] header = new byte[8]; // enough for PNG (8 bytes)
@@ -84,11 +80,13 @@ public class DocumentValidator {
 
         if (detected == null) {
             throw new InvalidRequestException(
-                    "File content is not a supported document type (PDF, JPEG, PNG)");
+                    "Unsupported file type. File content is not a supported document type (PDF, JPEG, PNG)");
         }
 
-        // 5. Extension must match detected type (prevents spoofing)
-        if (detected != byExt) {
+        // 4. When the filename carries an allowed extension it must match the
+        // detected content (prevents spoofing). Unknown or absent extensions are
+        // tolerated: type detection is content-driven.
+        if (byExt != null && detected != byExt) {
             throw new InvalidRequestException(
                     "File extension does not match actual content type. Expected: " + byExt.name()
                             + ", detected: " + detected.name());

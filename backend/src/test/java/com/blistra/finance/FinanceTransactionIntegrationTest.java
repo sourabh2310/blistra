@@ -150,6 +150,86 @@ class FinanceTransactionIntegrationTest extends FinanceTestSupport {
     }
 
     @Test
+    void updatesTransactionAccount() throws Exception {
+        String token = registerAndLogin("owner@example.com", "Password123!");
+        String account1 = createAccount(token, "Cash", "CASH", "USD", "100.0000");
+        String account2 = createAccount(token, "Bank", "BANK", "USD", "200.0000");
+        String expenseCategory = createCategory(token, "Food", "EXPENSE");
+        String txId = createTransaction(token, account1, expenseCategory, "EXPENSE", "30.0000", "2026-09-01");
+
+        ObjectNode update = jsonMapper.createObjectNode();
+        update.put("accountId", account2);
+        update.put("categoryId", expenseCategory);
+        update.put("type", "EXPENSE");
+        update.put("amount", "30.0000");
+
+        mockMvc.perform(put(TRANSACTIONS_URL + "/" + txId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonMapper.writeValueAsString(update)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountName").value("Bank"));
+
+        mockMvc.perform(get(ACCOUNTS_URL + "/" + account1)
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value("100.0000"));
+
+        mockMvc.perform(get(ACCOUNTS_URL + "/" + account2)
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value("170.0000"));
+    }
+
+    @Test
+    void cannotUpdateTransactionToAnotherUsersAccount() throws Exception {
+        String owner = registerAndLogin("owner@example.com", "Password123!");
+        String intruder = registerAndLogin("intruder@example.com", "Password123!");
+
+        String ownerAccount = createAccount(owner, "Owner Cash", "CASH", "USD", "100.0000");
+        String intruderAccount = createAccount(intruder, "Intruder Cash", "CASH", "USD", "100.0000");
+        String expenseCategory = createCategory(owner, "Food", "EXPENSE");
+        String txId = createTransaction(owner, ownerAccount, expenseCategory, "EXPENSE", "30.0000", "2026-09-01");
+
+        ObjectNode update = jsonMapper.createObjectNode();
+        update.put("accountId", intruderAccount);
+        update.put("categoryId", expenseCategory);
+        update.put("type", "EXPENSE");
+        update.put("amount", "30.0000");
+
+        mockMvc.perform(put(TRANSACTIONS_URL + "/" + txId)
+                .header("Authorization", "Bearer " + owner)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonMapper.writeValueAsString(update)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cannotUpdateTransactionToArchivedAccount() throws Exception {
+        String token = registerAndLogin("owner@example.com", "Password123!");
+        String account1 = createAccount(token, "Cash", "CASH", "USD", "100.0000");
+        String account2 = createAccount(token, "Bank", "BANK", "USD", "200.0000");
+        String expenseCategory = createCategory(token, "Food", "EXPENSE");
+        String txId = createTransaction(token, account1, expenseCategory, "EXPENSE", "30.0000", "2026-09-01");
+
+        mockMvc.perform(delete(ACCOUNTS_URL + "/" + account2)
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+
+        ObjectNode update = jsonMapper.createObjectNode();
+        update.put("accountId", account2);
+        update.put("categoryId", expenseCategory);
+        update.put("type", "EXPENSE");
+        update.put("amount", "30.0000");
+
+        mockMvc.perform(put(TRANSACTIONS_URL + "/" + txId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonMapper.writeValueAsString(update)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void deletesTransactionAndRecomputesBalance() throws Exception {
         String token = registerAndLogin("owner@example.com", "Password123!");
         String accountId = createAccount(token, "Cash", "CASH", "USD", "100.0000");

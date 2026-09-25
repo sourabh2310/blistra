@@ -4,10 +4,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/auth/auth_state.dart';
-import '../../core/api/api_client.dart';
+import '../../../core/auth/auth_state.dart';
 import '../data/medicines_api_client.dart';
 import '../models/medicine_enums.dart';
+import '../models/schedule.dart' show Schedule, scheduleTypeLabel;
 import '../state/schedule_form_controller.dart';
 
 class ScheduleFormPage extends StatefulWidget {
@@ -27,16 +27,20 @@ class ScheduleFormPage extends StatefulWidget {
 class _ScheduleFormPageState extends State<ScheduleFormPage> {
   final _formKey = GlobalKey<FormState>();
   late ScheduleFormController _controller;
+  MedicinesApiClient? _api;
   bool _saving = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_controller == null) {
-      final apiClient = context.read<ApiClient>();
+    if (_api == null) {
       final authState = context.read<AuthState>();
+      _api = MedicinesApiClient(
+        tokenProvider: () => authState.apiClient.token ?? '',
+        onUnauthorized: authState.handleUnauthorized,
+      );
       _controller = ScheduleFormController(
-        MedicinesApiClient(tokenProvider: () => authState.apiClient.token ?? ''),
+        _api!,
         medicineId: widget.medicineId,
         schedule: widget.schedule,
       );
@@ -45,6 +49,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
 
   @override
   void dispose() {
+    _api?.close();
     super.dispose();
   }
 
@@ -153,6 +158,10 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   }
 
   Future<void> _save() async {
+    if (!_controller.validate()) {
+      setState(() {});
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
@@ -177,7 +186,6 @@ class _TextFormField extends StatelessWidget {
     required this.onChanged,
     this.validator,
     this.keyboardType,
-    this.maxLines = 1,
     this.maxLength,
   });
 
@@ -186,7 +194,6 @@ class _TextFormField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final FormFieldValidator<String>? validator;
   final TextInputType? keyboardType;
-  final int maxLines;
   final int? maxLength;
 
   @override
@@ -196,7 +203,6 @@ class _TextFormField extends StatelessWidget {
       onChanged: onChanged,
       validator: validator,
       keyboardType: keyboardType,
-      maxLines: maxLines,
       maxLength: maxLength,
       decoration: InputDecoration(
         labelText: label,
@@ -222,7 +228,7 @@ class _DropdownFormField<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       items: items,
       onChanged: onChanged,
       decoration: InputDecoration(

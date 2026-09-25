@@ -8,7 +8,7 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../core/api_exception.dart';
+import '../../../core/api/api_exception.dart';
 import '../health_models.dart';
 
 // ---------------------------------------------------------------------------
@@ -175,6 +175,7 @@ class RecordListScreen<T> extends StatefulWidget {
     required this.delete,
     required this.itemBuilder,
     required this.formBuilder,
+    this.onChanged,
   });
 
   final String title;
@@ -183,6 +184,10 @@ class RecordListScreen<T> extends StatefulWidget {
   final Future<void> Function(T item) delete;
   final Widget Function(BuildContext context, T item) itemBuilder;
   final Widget Function(BuildContext context, T? edited) formBuilder;
+
+  /// Invoked after a successful create/edit/delete so owners (e.g. the Health
+  /// overview) can refresh dependent state such as the Home dashboard.
+  final Future<void> Function()? onChanged;
 
   @override
   State<RecordListScreen<T>> createState() => _RecordListScreenState<T>();
@@ -231,7 +236,8 @@ class _RecordListScreenState<T> extends State<RecordListScreen<T>> {
       ),
     );
     if (changed == true && mounted) {
-      _load();
+      await _load();
+      await widget.onChanged?.call();
     }
   }
 
@@ -261,7 +267,8 @@ class _RecordListScreenState<T> extends State<RecordListScreen<T>> {
       if (!mounted) {
         return;
       }
-      _load();
+      await _load();
+      await widget.onChanged?.call();
     } catch (error) {
       if (mounted) {
         showError(context, error);
@@ -298,7 +305,7 @@ class _RecordListScreenState<T> extends State<RecordListScreen<T>> {
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, _) => const Divider(height: 1),
         itemBuilder: (context, index) {
           final T item = items[index];
           return ListTile(

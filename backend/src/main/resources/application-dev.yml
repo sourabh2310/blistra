@@ -12,6 +12,8 @@ spring:
           time_zone: UTC
   jackson:
     time-zone: Asia/Kolkata
+    deserialization:
+      use-big-decimal-for-floats: true
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -25,6 +27,24 @@ blistra:
   documents:
     storage-root: ${DOCUMENTS_STORAGE_ROOT:${java.io.tmpdir}/blistra-documents}
     max-file-size: 10MB
+  otp:
+    # Local development: codes are printed as [DEV ONLY] console lines and the
+    # GET /api/v1/auth/dev/otp endpoint exposes the latest code. Production
+    # must set BLISTRA_OTP_DEV_MODE=false and supply BLISTRA_OTP_PEPPER plus a
+    # real EmailSender/SmsSender provider bean.
+    dev-mode: ${BLISTRA_OTP_DEV_MODE:true}
+    ttl-minutes: ${BLISTRA_OTP_TTL_MINUTES:10}
+    max-attempts: ${BLISTRA_OTP_MAX_ATTEMPTS:5}
+    resend-cooldown-seconds: ${BLISTRA_OTP_RESEND_COOLDOWN:60}
+    max-per-hour: ${BLISTRA_OTP_MAX_PER_HOUR:10}
+    pepper: ${BLISTRA_OTP_PEPPER:}
+
+jwt:
+  # Dev-only default so `spring-boot:run` works without env vars.
+  # Production must supply JWT_SECRET (>= 32 bytes); application-prod.yml
+  # intentionally provides no default so startup fails fast if missing.
+  secret: ${JWT_SECRET:dev-only-secret-please-override-min-32-bytes-1234567890}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 springdoc:
   swagger-ui:

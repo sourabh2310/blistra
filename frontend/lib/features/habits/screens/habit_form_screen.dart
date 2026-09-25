@@ -26,6 +26,16 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
 
   HabitType _type = HabitType.boolean;
   HabitStatus _status = HabitStatus.active;
+  HabitFrequency _frequency = HabitFrequency.daily;
+  final Set<String> _daysOfWeek = {
+    'MONDAY',
+    'TUESDAY',
+    'WEDNESDAY',
+    'THURSDAY',
+    'FRIDAY',
+    'SATURDAY',
+    'SUNDAY',
+  };
   bool _submitting = false;
 
   @override
@@ -57,7 +67,6 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
   Widget build(BuildContext context) {
     final bool isEdit = widget.existingHabit != null;
     final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -104,9 +113,71 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                 maxLines: 3,
                 maxLength: 500,
               ),
+              if (!isEdit) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Schedule',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<HabitFrequency>(
+                  segments: const [
+                    ButtonSegment(
+                      value: HabitFrequency.daily,
+                      label: Text('Daily'),
+                      icon: Icon(Icons.today_outlined),
+                    ),
+                    ButtonSegment(
+                      value: HabitFrequency.weekly,
+                      label: Text('Weekly'),
+                      icon: Icon(Icons.date_range_outlined),
+                    ),
+                  ],
+                  selected: {_frequency},
+                  onSelectionChanged: (selection) {
+                    setState(() => _frequency = selection.first);
+                  },
+                ),
+                if (_frequency == HabitFrequency.weekly) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final entry in const [
+                        ('MONDAY', 'Mon'),
+                        ('TUESDAY', 'Tue'),
+                        ('WEDNESDAY', 'Wed'),
+                        ('THURSDAY', 'Thu'),
+                        ('FRIDAY', 'Fri'),
+                        ('SATURDAY', 'Sat'),
+                        ('SUNDAY', 'Sun'),
+                      ])
+                        FilterChip(
+                          label: Text(entry.$2),
+                          selected: _daysOfWeek.contains(entry.$1),
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _daysOfWeek.add(entry.$1);
+                              } else {
+                                _daysOfWeek.remove(entry.$1);
+                              }
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                  if (_daysOfWeek.isEmpty)
+                    Text(
+                      'Choose at least one day',
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
+                ],
+              ],
               const SizedBox(height: 12),
               DropdownButtonFormField<HabitType>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Type'),
                 items: HabitType.values.map((HabitType t) {
                   return DropdownMenuItem(
@@ -115,7 +186,20 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                   );
                 }).toList(),
                 onChanged: (HabitType? value) {
-                  if (value != null) setState(() => _type = value);
+                  if (value != null) {
+                    setState(() {
+                      _type = value;
+                      // Clear hidden type-specific fields so stale values are
+                      // never sent (backend rejects inconsistent targets).
+                      if (value != HabitType.count) {
+                        _targetValueController.clear();
+                        _targetUnitController.clear();
+                      }
+                      if (value != HabitType.duration) {
+                        _targetMinutesController.clear();
+                      }
+                    });
+                  }
                 },
               ),
               const SizedBox(height: 12),
@@ -126,12 +210,22 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                       child: TextFormField(
                         controller: _targetValueController,
                         decoration: const InputDecoration(
-                          labelText: 'Target Value',
+                          labelText: 'Target Value *',
                           hintText: '8',
                         ),
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
+                        validator: (v) {
+                          if (_type != HabitType.count) return null;
+                          final t = (v ?? '').trim();
+                          if (t.isEmpty) return 'Target value is required';
+                          final n = double.tryParse(t);
+                          if (n == null || n <= 0) {
+                            return 'Enter a number greater than 0';
+                          }
+                          return null;
+                        },
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -152,15 +246,25 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
                 TextFormField(
                   controller: _targetMinutesController,
                   decoration: const InputDecoration(
-                    labelText: 'Target Minutes',
+                    labelText: 'Target Minutes *',
                     hintText: '20',
                   ),
                   keyboardType: TextInputType.number,
+                  validator: (v) {
+                    if (_type != HabitType.duration) return null;
+                    final t = (v ?? '').trim();
+                    if (t.isEmpty) return 'Target minutes is required';
+                    final n = int.tryParse(t);
+                    if (n == null || n <= 0) {
+                      return 'Enter whole minutes greater than 0';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
               ],
               DropdownButtonFormField<HabitStatus>(
-                value: _status,
+                initialValue: _status,
                 decoration: const InputDecoration(labelText: 'Status'),
                 items: HabitStatus.values.map((HabitStatus s) {
                   return DropdownMenuItem(
@@ -192,6 +296,12 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (widget.existingHabit == null &&
+        _frequency == HabitFrequency.weekly &&
+        _daysOfWeek.isEmpty) {
+      setState(() {});
+      return;
+    }
 
     setState(() => _submitting = true);
     final HabitsController controller = HabitsScope.of(context);
@@ -217,7 +327,7 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
           status: _status,
         );
       } else {
-        await controller.createHabit(
+        final created = await controller.createHabit(
           name: _nameController.text.trim(),
           type: _type,
           description: _descriptionController.text.trim().isEmpty
@@ -233,6 +343,13 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
               ? null
               : int.tryParse(_targetMinutesController.text),
           status: _status,
+        );
+        await controller.upsertSchedule(
+          created.id,
+          frequency: _frequency,
+          daysOfWeek: _frequency == HabitFrequency.weekly
+              ? _daysOfWeek.toList()
+              : null,
         );
       }
       if (mounted) {

@@ -6,9 +6,16 @@ import 'measurement_form_screen.dart';
 import 'widgets.dart';
 
 class MeasurementsScreen extends StatelessWidget {
-  const MeasurementsScreen({super.key, required this.repository});
+  const MeasurementsScreen({
+    super.key,
+    required this.repository,
+    this.onChanged,
+  });
 
   final HealthRepository repository;
+
+  /// Invoked after a successful create/edit/delete (for dashboard refresh).
+  final Future<void> Function()? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +29,7 @@ class MeasurementsScreen extends StatelessWidget {
         repository: repository,
         initial: edited,
       ),
+      onChanged: onChanged,
     );
   }
 }

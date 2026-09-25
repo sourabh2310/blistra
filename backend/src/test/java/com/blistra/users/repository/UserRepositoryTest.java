@@ -20,12 +20,13 @@ class UserRepositoryTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
+        deleteAllUsers();
     }
 
     @Test
     void testSaveAndRetrieveUser() {
         User user = new User("test@example.com", "hashed_password");
+        user.setUsername("testuser");
         User savedUser = userRepository.save(user);
 
         assertThat(savedUser.getId()).isNotNull();
@@ -36,6 +37,7 @@ class UserRepositoryTest extends AbstractIntegrationTest {
     @Test
     void testFindByEmailSuccess() {
         User user = new User("test@example.com", "hashed_password");
+        user.setUsername("testuser");
         userRepository.save(user);
 
         Optional<User> foundUser = userRepository.findByEmail("test@example.com");
@@ -54,9 +56,11 @@ class UserRepositoryTest extends AbstractIntegrationTest {
     @Test
     void testUniqueEmailConstraint() {
         User user1 = new User("test@example.com", "hashed_password1");
+        user1.setUsername("testuser");
         userRepository.save(user1);
 
         User user2 = new User("test@example.com", "hashed_password2");
+        user2.setUsername("testuser");
 
         assertThatThrownBy(() -> userRepository.save(user2))
                 .isInstanceOf(DataIntegrityViolationException.class);
@@ -65,6 +69,7 @@ class UserRepositoryTest extends AbstractIntegrationTest {
     @Test
     void testExistsByEmail() {
         User user = new User("test@example.com", "hashed_password");
+        user.setUsername("testuser");
         userRepository.save(user);
 
         assertThat(userRepository.existsByEmail("test@example.com")).isTrue();
@@ -74,6 +79,7 @@ class UserRepositoryTest extends AbstractIntegrationTest {
     @Test
     void testUserStatusDefault() {
         User user = new User("test@example.com", "hashed_password");
+        user.setUsername("testuser");
         User savedUser = userRepository.save(user);
 
         assertThat(savedUser.getStatus()).isEqualTo(UserStatus.ACTIVE);

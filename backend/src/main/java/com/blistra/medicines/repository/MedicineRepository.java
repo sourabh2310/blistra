@@ -21,18 +21,9 @@ public interface MedicineRepository extends JpaRepository<Medicine, UUID> {
 
     Page<Medicine> findAllByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
-    Page<Medicine> findAllByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, MedicineStatus status, Pageable pageable);
+    Page<Medicine> findAllByUserIdAndStatusNotOrderByCreatedAtDesc(UUID userId, MedicineStatus status, Pageable pageable);
 
-    @Query("""
-            SELECT m FROM Medicine m
-            WHERE m.user.id = :userId
-              AND (LOWER(m.name) LIKE LOWER(:term)
-                   OR LOWER(m.genericName) LIKE LOWER(:term)
-                   OR LOWER(m.notes) LIKE LOWER(:term))
-            """)
-    Page<Medicine> searchByText(@Param("userId") UUID userId,
-                                @Param("term") String term,
-                                Pageable pageable);
+    Page<Medicine> findAllByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, MedicineStatus status, Pageable pageable);
 
     long countByUserIdAndStatus(UUID userId, MedicineStatus status);
 }

@@ -2,13 +2,14 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/auth/auth_state.dart';
-import '../../core/api/api_client.dart';
+import '../../../core/auth/auth_state.dart';
 import '../data/medicines_api_client.dart';
 import '../models/dose_record.dart';
 import '../models/medicine_enums.dart';
+import '../util/home_refresh.dart';
 
 class DoseHistoryPage extends StatefulWidget {
   const DoseHistoryPage({super.key, required this.medicineId});
@@ -33,10 +34,10 @@ class _DoseHistoryPageState extends State<DoseHistoryPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_api == null) {
-      final apiClient = context.read<ApiClient>();
       final authState = context.read<AuthState>();
       _api = MedicinesApiClient(
         tokenProvider: () => authState.apiClient.token ?? '',
+        onUnauthorized: () => authState.handleUnauthorized(),
       );
       _loadFirstPage();
     }
@@ -114,14 +115,45 @@ class _DoseHistoryPageState extends State<DoseHistoryPage> {
             return const SizedBox.shrink();
           }
           final dose = _doses[index];
-          return _DoseTile(
-            dose: dose,
-            onEdit: () => _editDose(dose),
-            onDelete: () => _deleteDose(dose),
+          final bool showHeader = index == 0 ||
+              !_sameDay(_doses[index - 1].scheduledAt, dose.scheduledAt);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showHeader)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Text(
+                    _dayLabel(dose.scheduledAt),
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+              _DoseTile(
+                dose: dose,
+                onEdit: () => _editDose(dose),
+                onDelete: () => _deleteDose(dose),
+              ),
+            ],
           );
         },
       ),
     );
+  }
+
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  String _dayLabel(DateTime day) {
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime that = DateTime(day.year, day.month, day.day);
+    if (that == today) {
+      return 'Today';
+    }
+    if (that == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday';
+    }
+    return DateFormat('dd MMM yyyy').format(day);
   }
 
   Future<void> _editDose(DoseRecord dose) async {
@@ -133,6 +165,9 @@ class _DoseHistoryPageState extends State<DoseHistoryPage> {
       try {
         await _api!.updateDose(widget.medicineId, dose.id, {'status': status.name.toUpperCase()});
         await _loadFirstPage();
+        if (mounted) {
+          await refreshHomeDashboard(context);
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -165,6 +200,9 @@ class _DoseHistoryPageState extends State<DoseHistoryPage> {
       try {
         await _api!.deleteDose(widget.medicineId, dose.id);
         await _loadFirstPage();
+        if (mounted) {
+          await refreshHomeDashboard(context);
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -271,18 +309,22 @@ class _DoseStatusDialogState extends State<_DoseStatusDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Change dose status'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: DoseStatus.values
-            .map(
-              (s) => RadioListTile<DoseStatus>(
-                title: Text(s.name.toUpperCase()),
-                value: s,
-                groupValue: _selected,
-                onChanged: (v) => setState(() => _selected = v!),
-              ),
-            )
-            .toList(),
+      content: RadioGroup<DoseStatus>(
+        groupValue: _selected,
+        onChanged: (v) {
+          if (v != null) setState(() => _selected = v);
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: DoseStatus.values
+              .map(
+                (s) => RadioListTile<DoseStatus>(
+                  title: Text(s.name.toUpperCase()),
+                  value: s,
+                ),
+              )
+              .toList(),
+        ),
       ),
       actions: [
         TextButton(

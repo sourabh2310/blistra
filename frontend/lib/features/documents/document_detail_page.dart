@@ -5,9 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:blistra/features/documents/models/document.dart';
-import 'package:blistra/features/documents/providers/documents_provider.dart';
-import 'package:blistra/features/documents/repositories/documents_repository.dart';
+import 'package:frontend/features/documents/models/document.dart';
+import 'package:frontend/features/documents/providers/documents_provider.dart';
+import 'package:frontend/features/documents/repositories/documents_repository.dart';
 
 class DocumentDetailPage extends StatefulWidget {
   final AppDocument document;
@@ -103,7 +103,7 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
                 valueListenable: categoryController,
                 builder: (context, category, _) {
                   return DropdownButtonFormField<DocumentCategory>(
-                    value: category,
+                    initialValue: category,
                     decoration: const InputDecoration(labelText: 'Category'),
                     items: DocumentCategory.values.map((c) => DropdownMenuItem(
                           value: c,

@@ -18,17 +18,17 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     Optional<Document> findByIdAndUserId(UUID id, UUID userId);
 
-    @Query("""
-        SELECT d FROM Document d
-        WHERE d.user.id = :userId
-          AND (:category IS NULL OR d.category = :category)
-          AND (:from IS NULL OR d.createdAt >= :from)
-          AND (:to IS NULL OR d.createdAt <= :to)
-        ORDER BY d.createdAt DESC
-    """)
+    @Query(value = """
+        SELECT * FROM documents d
+        WHERE d.user_id = :userId
+          AND (CAST(:category AS text) IS NULL OR d.category = :category)
+          AND (CAST(:from AS timestamp) IS NULL OR d.created_at >= :from)
+          AND (CAST(:to AS timestamp) IS NULL OR d.created_at <= :to)
+        ORDER BY d.created_at DESC
+    """, nativeQuery = true)
     Page<Document> searchOwned(
             @Param("userId") UUID userId,
-            @Param("category") DocumentCategory category,
+            @Param("category") String category,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
             Pageable pageable
