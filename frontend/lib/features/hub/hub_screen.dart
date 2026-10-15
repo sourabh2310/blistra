@@ -8,6 +8,8 @@ import '../dashboard/models/dashboard_response.dart';
 import '../documents/documents_page.dart';
 import '../notifications/screens/notification_settings_screen.dart';
 import '../notifications/screens/reminders_screen.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/glass.dart';
 
 class HubScreen extends StatefulWidget {
   const HubScreen({
@@ -57,7 +59,7 @@ class _HubScreenState extends State<HubScreen> {
             .toList();
         final activities = _buildActivities(dashboard, now);
         return Scaffold(
-          backgroundColor: const Color(0xFFFFFBF6),
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             bottom: false,
             child: RefreshIndicator(
@@ -155,10 +157,10 @@ class _HubScreenState extends State<HubScreen> {
                           ),
                           const SizedBox(height: 26),
                           if (tools.isNotEmpty) ...[
-                            const Text(
+                            Text(
                               'More',
                               style: TextStyle(
-                                color: Color(0xFF0B1F35),
+                                color: BlistraColors.resolve(context).text,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.3,
@@ -243,40 +245,15 @@ class _BrandHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      'Blistra',
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      softWrap: false,
-                      style: const TextStyle(
-                        color: Color(0xFF075A48),
-                        fontFamily: 'serif',
-                        fontSize: 33,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -1.7,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 3),
-                  const Icon(
-                    Icons.eco_rounded,
-                    color: Color(0xFF20A474),
-                    size: 30,
-                  ),
-                ],
-              ),
+              BlistraWordmark(size: 33),
               const SizedBox(width: 2),
-              const Text(
+              Text(
                 'EVERYTHING YOU NEED. ONE APP.',
                 maxLines: 1,
                 overflow: TextOverflow.fade,
                 softWrap: false,
                 style: TextStyle(
-                  color: Color(0xFF4B6680),
+                  color: BlistraColors.resolve(context).muted,
                   fontSize: 9.5,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.25,
@@ -315,18 +292,18 @@ class _BrandHeader extends StatelessWidget {
               width: 42,
               height: 42,
               alignment: Alignment.center,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFFD6ECE4), Color(0xFF85BCA8)],
+                  colors: [softBg(context, Color(0xFFD6ECE4)), BlistraColors.resolve(context).muted],
                 ),
               ),
               child: Text(
                 displayName.trim().isEmpty ? 'B' : initialsForName(displayName),
-                style: const TextStyle(
-                  color: Color(0xFF075A48),
+                style: TextStyle(
+                  color: BlistraColors.resolve(context).accentText,
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                 ),
@@ -362,14 +339,14 @@ class _ActionCircle extends StatelessWidget {
         child: Container(
           width: 40,
           height: 40,
-          decoration: const BoxDecoration(
-            color: Color(0xFFF1F2F6),
+          decoration: BoxDecoration(
+            color: softBg(context, Color(0xFFF1F2F6)),
             shape: BoxShape.circle,
           ),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Icon(icon, color: const Color(0xFF0B2038), size: 23),
+              Icon(icon, color: BlistraColors.resolve(context).text, size: 23),
               if (showDot)
                 Positioned(
                   right: 8,
@@ -409,10 +386,10 @@ class _Hero extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Hub',
                     style: TextStyle(
-                      color: Color(0xFF0B2038),
+                      color: BlistraColors.resolve(context).text,
                       fontFamily: 'serif',
                       fontSize: 43,
                       height: 0.95,
@@ -421,11 +398,11 @@ class _Hero extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     'All parts of your life, in one place.',
                     maxLines: 2,
                     style: TextStyle(
-                      color: Color(0xFF4B6079),
+                      color: BlistraColors.resolve(context).muted,
                       fontSize: 16,
                       height: 1.22,
                     ),
@@ -462,13 +439,13 @@ class _SearchField extends StatelessWidget {
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: 'Search modules, tasks, health and more…',
-        hintStyle: const TextStyle(
-          color: Color(0xFF71829A),
+        hintStyle: TextStyle(
+          color: BlistraColors.resolve(context).muted,
           fontSize: 14.5,
         ),
-        prefixIcon: const Icon(
+        prefixIcon: Icon(
           Icons.search_rounded,
-          color: Color(0xFF233C5A),
+          color: BlistraColors.resolve(context).text,
           size: 27,
         ),
         suffixIcon: controller.text.isEmpty
@@ -479,7 +456,7 @@ class _SearchField extends StatelessWidget {
                 icon: const Icon(Icons.close_rounded),
               ),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: BlistraColors.resolve(context).glassFill,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 18,
@@ -490,7 +467,7 @@ class _SearchField extends StatelessWidget {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
-          borderSide: const BorderSide(color: Color(0xFFF0EBE5)),
+          borderSide: BorderSide(color: softBg(context, Color(0xFFF0EBE5))),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
@@ -521,8 +498,8 @@ class _SectionHeading extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF0B1F35),
+            style: TextStyle(
+              color: BlistraColors.resolve(context).text,
               fontFamily: 'serif',
               fontSize: 22,
               fontWeight: FontWeight.w800,
@@ -534,7 +511,7 @@ class _SectionHeading extends StatelessWidget {
           TextButton.icon(
             onPressed: onAction,
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF075A48),
+              foregroundColor: BlistraColors.resolve(context).accentText,
               visualDensity: VisualDensity.compact,
             ),
             icon: Icon(actionIcon, size: 19),
@@ -560,7 +537,7 @@ class _ModuleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: data.background,
+      color: softBg(context, data.background),
       borderRadius: BorderRadius.circular(22),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -590,15 +567,15 @@ class _ModuleCard extends StatelessWidget {
                         width: 43,
                         height: 43,
                         decoration: BoxDecoration(
-                          color: data.iconBackground,
+                          color: softBg(context, data.iconBackground),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: Icon(data.icon, color: data.accent, size: 25),
+                        child: Icon(data.icon, color: onGlass(context, data.accent), size: 25),
                       ),
                       const Spacer(),
                       Icon(
                         Icons.chevron_right_rounded,
-                        color: const Color(0xFF193B50),
+                        color: BlistraColors.resolve(context).text,
                         size: 27,
                       ),
                     ],
@@ -608,8 +585,8 @@ class _ModuleCard extends StatelessWidget {
                     data.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF0B1F35),
+                    style: TextStyle(
+                      color: BlistraColors.resolve(context).text,
                       fontFamily: 'serif',
                       fontSize: 19,
                       fontWeight: FontWeight.w800,
@@ -623,8 +600,8 @@ class _ModuleCard extends StatelessWidget {
                       data.subtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF516986),
+                      style: TextStyle(
+                        color: BlistraColors.resolve(context).muted,
                         fontFamily: 'serif',
                         fontSize: 12.5,
                         height: 1.08,
@@ -665,9 +642,9 @@ class _ConnectedBanner extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.auto_awesome_rounded,
-                      color: Color(0xFF075A48),
+                      color: BlistraColors.resolve(context).accentText,
                       size: 38,
                     ),
                     const SizedBox(width: 14),
@@ -679,7 +656,7 @@ class _ConnectedBanner extends StatelessWidget {
                           Text(
                             'Everything connected',
                             style: TextStyle(
-                              color: const Color(0xFF0B1F35).withValues(
+                              color: BlistraColors.resolve(context).text.withValues(
                                 alpha: 0.96,
                               ),
                               fontFamily: 'serif',
@@ -692,7 +669,7 @@ class _ConnectedBanner extends StatelessWidget {
                             'Your tasks, health, habits, diet and finance work together for a clearer picture.',
                             maxLines: 2,
                             style: TextStyle(
-                              color: const Color(0xFF3E5872).withValues(
+                              color: BlistraColors.resolve(context).muted.withValues(
                                 alpha: 0.88,
                               ),
                               fontFamily: 'serif',
@@ -703,9 +680,9 @@ class _ConnectedBanner extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
-                      color: Color(0xFF075A48),
+                      color: BlistraColors.resolve(context).accentText,
                       size: 28,
                     ),
                   ],
@@ -738,10 +715,10 @@ class _ActivityCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
         ),
-        child: const Text(
+        child: Text(
           'Your logged meals, health records, doses, habits and more will appear here.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF667B92), height: 1.35),
+          style: TextStyle(color: BlistraColors.resolve(context).muted, height: 1.35),
         ),
       );
     }
@@ -758,11 +735,11 @@ class _ActivityCard extends StatelessWidget {
               onTap: () => onDestination(activities[index].destination),
             ),
             if (index != activities.length - 1)
-              const Divider(
+              Divider(
                 height: 1,
                 thickness: 1,
                 indent: 72,
-                color: Color(0xFFF0EEE9),
+                color: softBg(context, Color(0xFFF0EEE9)),
               ),
           ],
         ],
@@ -791,10 +768,10 @@ class _ActivityRow extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: activity.background,
+                  color: softBg(context, activity.background),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(activity.icon, color: activity.accent, size: 22),
+                child: Icon(activity.icon, color: onGlass(context, activity.accent), size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -805,8 +782,8 @@ class _ActivityRow extends StatelessWidget {
                       activity.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF0B1F35),
+                      style: TextStyle(
+                        color: BlistraColors.resolve(context).text,
                         fontFamily: 'serif',
                         fontSize: 15.5,
                         fontWeight: FontWeight.w800,
@@ -817,8 +794,8 @@ class _ActivityRow extends StatelessWidget {
                       activity.subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF5A7190),
+                      style: TextStyle(
+                        color: BlistraColors.resolve(context).muted,
                         fontSize: 11.5,
                       ),
                     ),
@@ -828,16 +805,16 @@ class _ActivityRow extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 activity.when,
-                style: const TextStyle(
-                  color: Color(0xFF6A7F99),
+                style: TextStyle(
+                  color: BlistraColors.resolve(context).muted,
                   fontFamily: 'serif',
                   fontSize: 11.5,
                 ),
               ),
               const SizedBox(width: 3),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: Color(0xFF35516D),
+                color: BlistraColors.resolve(context).muted,
                 size: 23,
               ),
             ],
@@ -892,7 +869,7 @@ class _ToolCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: data.background,
+      color: softBg(context, data.background),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -901,14 +878,14 @@ class _ToolCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 12),
           child: Column(
             children: [
-              Icon(data.icon, color: data.accent, size: 25),
+              Icon(data.icon, color: onGlass(context, data.accent), size: 25),
               const SizedBox(height: 7),
               Text(
                 data.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF0B1F35),
+                style: TextStyle(
+                  color: BlistraColors.resolve(context).text,
                   fontFamily: 'serif',
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -931,16 +908,16 @@ class _NoMatches extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F3EF),
+        color: softBg(context, Color(0xFFF5F3EF)),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(Icons.search_off_rounded, color: Color(0xFF60758D)),
+          Icon(Icons.search_off_rounded, color: BlistraColors.resolve(context).muted),
           SizedBox(height: 8),
           Text(
             'No modules match your search.',
-            style: TextStyle(color: Color(0xFF405A73)),
+            style: TextStyle(color: BlistraColors.resolve(context).muted),
           ),
         ],
       ),
@@ -1012,7 +989,7 @@ class _ActivityItem {
   final DateTime? timestamp;
 }
 
-const List<_ModuleData> _moduleData = [
+List<_ModuleData> _moduleData = [
   _ModuleData(
     id: 'PLANNER',
     title: 'Planner',
@@ -1081,7 +1058,7 @@ const List<_ModuleData> _moduleData = [
   ),
 ];
 
-const List<_ToolData> _toolData = [
+List<_ToolData> _toolData = [
   _ToolData(
     id: 'DOCUMENTS',
     title: 'Documents',
@@ -1325,12 +1302,12 @@ class _HeroPainter extends CustomPainter {
   const _HeroPainter();
   @override
   void paint(Canvas canvas, Size size) {
-    final wash = Paint()..color = const Color(0xFFFFE8D8);
+    final wash = Paint()..color = ActiveColors.scene(Color(0xFFFFE8D8));
     canvas.drawCircle(Offset(size.width * 0.79, size.height * 0.45), 64, wash);
     canvas.drawCircle(
       Offset(size.width * 0.98, size.height * 0.74),
       38,
-      Paint()..color = const Color(0xFFFFDCC7),
+      Paint()..color = ActiveColors.scene(Color(0xFFFFDCC7)),
     );
     final backHill = Path()
       ..moveTo(size.width * 0.47, size.height * 0.72)
@@ -1349,7 +1326,7 @@ class _HeroPainter extends CustomPainter {
       ..lineTo(size.width, size.height)
       ..lineTo(size.width * 0.45, size.height)
       ..close();
-    canvas.drawPath(backHill, Paint()..color = const Color(0xFFB8DCD9));
+    canvas.drawPath(backHill, Paint()..color = ActiveColors.scene(Color(0xFFB8DCD9)));
     final frontHill = Path()
       ..moveTo(size.width * 0.53, size.height * 0.74)
       ..quadraticBezierTo(
@@ -1361,25 +1338,25 @@ class _HeroPainter extends CustomPainter {
       ..lineTo(size.width, size.height)
       ..lineTo(size.width * 0.48, size.height)
       ..close();
-    canvas.drawPath(frontHill, Paint()..color = const Color(0xFF74ACA9));
+    canvas.drawPath(frontHill, Paint()..color = ActiveColors.scene(Color(0xFF74ACA9)));
     canvas.drawCircle(
       Offset(size.width * 0.78, size.height * 0.38),
       17,
-      Paint()..color = const Color(0xFFFFCB73),
+      Paint()..color = ActiveColors.scene(Color(0xFFFFCB73)),
     );
     _plant(
       canvas,
       Offset(size.width * 0.68, size.height * 0.96),
       0.82,
-      const Color(0xFF176B5B),
-      const Color(0xFF4D8B6B),
+      ActiveColors.scene(Color(0xFF1C665B)),
+      ActiveColors.scene(Color(0xFF6D9E7C)),
     );
     _plant(
       canvas,
       Offset(size.width * 0.98, size.height * 0.95),
       1.0,
-      const Color(0xFF1C665B),
-      const Color(0xFF6D9E7C),
+      ActiveColors.scene(Color(0xFF1C665B)),
+      ActiveColors.scene(Color(0xFF6D9E7C)),
     );
   }
 
@@ -1458,7 +1435,7 @@ class _HeroPainter extends CustomPainter {
       Offset(0, leafSize.height / 2),
       Offset(0, -leafSize.height / 2 + 4),
       Paint()
-        ..color = const Color(0xFFB9D6B5)
+        ..color = ActiveColors.scene(Color(0xFFB9D6B5))
         ..strokeWidth = 1,
     );
     canvas.restore();
@@ -1512,14 +1489,14 @@ class _ModulePainter extends CustomPainter {
         Rect.fromLTWH(x, y, 52, 15),
         const Radius.circular(7),
       ),
-      Paint()..color = const Color(0xFFF0A35B),
+      Paint()..color = ActiveColors.scene(Color(0xFFF0A35B)),
     );
     final line = Paint()
-      ..color = const Color(0xFFB2B9B2)
+      ..color = ActiveColors.scene(Color(0xFFB2B9B2))
       ..strokeWidth = 2;
     canvas.drawLine(Offset(x + 14, y - 4), Offset(x + 14, y + 7), line);
     canvas.drawLine(Offset(x + 38, y - 4), Offset(x + 38, y + 7), line);
-    final dot = Paint()..color = const Color(0xFFD8DDD7);
+    final dot = Paint()..color = ActiveColors.scene(Color(0xFFD8DDD7));
     for (var row = 0; row < 3; row++) {
       for (var col = 0; col < 4; col++) {
         canvas.drawRRect(
@@ -1540,15 +1517,15 @@ class _ModulePainter extends CustomPainter {
 
   void _health(Canvas canvas, Size size) {
     final stem = Paint()
-      ..color = const Color(0xFF226754)
+      ..color = ActiveColors.scene(Color(0xFF226754))
       ..strokeWidth = 2.4
       ..strokeCap = StrokeCap.round;
     final base = Offset(size.width * 0.67, size.height * 0.96);
     canvas.drawLine(base, base.translate(-5, -54), stem);
     final leaves = [
-      (Offset(base.dx - 6, base.dy - 55), -0.5, const Color(0xFF2B7A61)),
-      (Offset(base.dx + 12, base.dy - 36), 0.75, const Color(0xFF6EA57A)),
-      (Offset(base.dx - 5, base.dy - 23), -0.8, const Color(0xFF4A8B6A)),
+      (Offset(base.dx - 6, base.dy - 55), -0.5, ActiveColors.scene(Color(0xFF2B7A61))),
+      (Offset(base.dx + 12, base.dy - 36), 0.75, ActiveColors.scene(Color(0xFF6EA57A))),
+      (Offset(base.dx - 5, base.dy - 23), -0.8, ActiveColors.scene(Color(0xFF4A8B6A))),
     ];
     for (final leaf in leaves) {
       canvas.save();
@@ -1577,14 +1554,14 @@ class _ModulePainter extends CustomPainter {
         Rect.fromLTWH(x + 6, y - 7, 20, 10),
         const Radius.circular(3),
       ),
-      Paint()..color = const Color(0xFF377FC6),
+      Paint()..color = ActiveColors.scene(Color(0xFF377FC6)),
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(x, y + 20, 32, 12),
         const Radius.circular(2),
       ),
-      Paint()..color = const Color(0xFF9FC5E8),
+      Paint()..color = ActiveColors.scene(Color(0xFF9FC5E8)),
     );
     final pill = Paint()..color = accent;
     canvas.save();
@@ -1616,7 +1593,7 @@ class _ModulePainter extends CustomPainter {
         size.height * 0.58,
       )
       ..close();
-    canvas.drawPath(bowl, Paint()..color = const Color(0xFFFFF9ED));
+    canvas.drawPath(bowl, Paint()..color = ActiveColors.scene(Color(0xFFFFF9ED)));
     canvas.drawArc(
       Rect.fromLTWH(
         size.width * 0.44,
@@ -1628,24 +1605,24 @@ class _ModulePainter extends CustomPainter {
       math.pi,
       false,
       Paint()
-        ..color = const Color(0xFFD5A66C)
+        ..color = ActiveColors.scene(Color(0xFFD5A66C))
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3,
     );
-    final greens = Paint()..color = const Color(0xFF4D9564);
+    final greens = Paint()..color = ActiveColors.scene(Color(0xFF4D9564));
     canvas.drawCircle(Offset(size.width * 0.62, size.height * 0.52), 12, greens);
     canvas.drawCircle(Offset(size.width * 0.76, size.height * 0.47), 13, greens);
     canvas.drawCircle(
       Offset(size.width * 0.86, size.height * 0.53),
       10,
-      Paint()..color = const Color(0xFFF2A23C),
+      Paint()..color = ActiveColors.scene(Color(0xFFF2A23C)),
     );
   }
 
   void _habits(Canvas canvas, Size size) {
     final y = size.height * 0.52;
     final paint = Paint()
-      ..color = const Color(0xFFB18B55)
+      ..color = ActiveColors.scene(Color(0xFFB18B55))
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(Offset(size.width * 0.42, y), Offset(size.width * 0.9, y), paint);
@@ -1653,7 +1630,7 @@ class _ModulePainter extends CustomPainter {
       Offset(size.width * 0.49, y - 10),
       Offset(size.width * 0.49, y + 10),
       Paint()
-        ..color = const Color(0xFF7A6246)
+        ..color = ActiveColors.scene(Color(0xFF7A6246))
         ..strokeWidth = 7
         ..strokeCap = StrokeCap.round,
     );
@@ -1661,7 +1638,7 @@ class _ModulePainter extends CustomPainter {
       Offset(size.width * 0.84, y - 10),
       Offset(size.width * 0.84, y + 10),
       Paint()
-        ..color = const Color(0xFF7A6246)
+        ..color = ActiveColors.scene(Color(0xFF7A6246))
         ..strokeWidth = 7
         ..strokeCap = StrokeCap.round,
     );
@@ -1669,9 +1646,9 @@ class _ModulePainter extends CustomPainter {
 
   void _finance(Canvas canvas, Size size) {
     final bars = [
-      (0.0, 30.0, const Color(0xFFF1B966)),
-      (0.25, 47.0, const Color(0xFFE59A42)),
-      (0.5, 64.0, const Color(0xFFD97A29)),
+      (0.0, 30.0, ActiveColors.scene(Color(0xFFF1B966))),
+      (0.25, 47.0, ActiveColors.scene(Color(0xFFE59A42))),
+      (0.5, 64.0, ActiveColors.scene(Color(0xFFD97A29))),
     ];
     for (final bar in bars) {
       canvas.drawRRect(
@@ -1688,7 +1665,7 @@ class _ModulePainter extends CustomPainter {
       );
     }
     final arrow = Paint()
-      ..color = const Color(0xFF2A8E68)
+      ..color = ActiveColors.scene(Color(0xFF2A8E68))
       ..strokeWidth = 2.4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -1719,7 +1696,7 @@ class _ConnectedPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final glow = Paint()..color = const Color(0xFFE4F3F0);
+    final glow = Paint()..color = ActiveColors.scene(Color(0xFFE4F3F0));
     canvas.drawCircle(Offset(size.width * 0.86, size.height * 0.76), 65, glow);
     final hill = Path()
       ..moveTo(size.width * 0.59, size.height * 0.8)
@@ -1732,17 +1709,17 @@ class _ConnectedPainter extends CustomPainter {
       ..lineTo(size.width, size.height)
       ..lineTo(size.width * 0.57, size.height)
       ..close();
-    canvas.drawPath(hill, Paint()..color = const Color(0xFFB7DDD2));
+    canvas.drawPath(hill, Paint()..color = ActiveColors.scene(Color(0xFFB7DDD2)));
     final stem = Paint()
-      ..color = const Color(0xFF2A775D)
+      ..color = ActiveColors.scene(Color(0xFF2A775D))
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
     final base = Offset(size.width * 0.86, size.height * 0.98);
     canvas.drawLine(base, base.translate(0, -48), stem);
     for (final data in [
-      (Offset(-2, -45), -0.45, const Color(0xFF4A8A68)),
-      (Offset(10, -31), 0.65, const Color(0xFF3B765C)),
-      (Offset(-2, -20), -0.65, const Color(0xFF75A97D)),
+      (Offset(-2, -45), -0.45, ActiveColors.scene(Color(0xFF4A8A68))),
+      (Offset(10, -31), 0.65, ActiveColors.scene(Color(0xFF3B765C))),
+      (Offset(-2, -20), -0.65, ActiveColors.scene(Color(0xFF75A97D))),
     ]) {
       canvas.save();
       canvas.translate(base.dx + data.$1.dx, base.dy + data.$1.dy);
@@ -1753,7 +1730,7 @@ class _ConnectedPainter extends CustomPainter {
       );
       canvas.restore();
     }
-    final flower = Paint()..color = const Color(0xFFF2BB55);
+    final flower = Paint()..color = ActiveColors.scene(Color(0xFFF2BB55));
     canvas.drawCircle(base.translate(0, -52), 4, flower);
   }
 

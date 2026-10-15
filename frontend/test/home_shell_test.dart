@@ -178,10 +178,10 @@ void main() {
       await tester.pump();
       expect(find.text('Sourabhkumar Chandrasekhar'), findsOneWidget);
       expect(find.text('Today overview'), findsOneWidget);
-      expect(find.text("Today's schedule"), findsOneWidget);
+      expect(find.text('Next up'), findsOneWidget);
       expect(find.text('Needs your attention'), findsOneWidget);
-      expect(find.text('Your life'), findsOneWidget);
-      expect(find.text('Your day is clear.'), findsOneWidget);
+      expect(find.text('Your wellbeing'), findsOneWidget);
+      expect(find.text('Nothing scheduled for today.'), findsOneWidget);
       expect(find.byTooltip('Planner'), findsNothing);
       expect(tester.takeException(), isNull);
     }

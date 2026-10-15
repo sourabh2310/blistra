@@ -12,11 +12,14 @@ import 'package:provider/provider.dart';
 import '../../app/app_scope.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/theme/theme_controller.dart';
+import '../../core/widgets/appearance_sheet.dart';
 import '../dashboard/models/dashboard_response.dart';
 import '../notifications/state/settings_controller.dart';
 import '../preferences/screens/customize_home_screen.dart';
 import '../preferences/screens/customize_nav_screen.dart';
 import 'profile_controller.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/glass.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -51,11 +54,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : name;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF6),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Profile',
             style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: const Color(0xFFFFFBF6),
+        backgroundColor: Colors.transparent,
       ),
       body: RefreshIndicator(
         onRefresh: controller.load,
@@ -170,12 +173,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _Row(
                         icon: Icons.palette_outlined,
                         label: 'Appearance',
-                        value: switch (context.watch<ThemeController>().mode) {
-                          ThemeMode.system => 'System',
-                          ThemeMode.light => 'Light',
-                          ThemeMode.dark => 'Dark',
-                        },
-                        onTap: () => _showAppearance(context),
+                        value: _appearanceSummary(
+                          context.watch<ThemeController>(),
+                        ),
+                        onTap: () => showAppearanceSheet(context),
                       ),
                       _Row(
                         icon: Icons.dashboard_customize_outlined,
@@ -288,26 +289,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _showAppearance(BuildContext context) async {
-    final controller = context.read<ThemeController>();
-    final mode = await showDialog<ThemeMode>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Appearance'),
-        children: [
-          for (final mode in ThemeMode.values)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, mode),
-              child: Text(switch (mode) {
-                ThemeMode.system => 'System',
-                ThemeMode.light => 'Light',
-                ThemeMode.dark => 'Dark',
-              }),
-            ),
-        ],
-      ),
-    );
-    if (mode != null) await controller.setMode(mode);
+  static String _appearanceSummary(ThemeController c) {
+    final mode = switch (c.mode) {
+      ThemeMode.system => 'System',
+      ThemeMode.light => 'Light',
+      ThemeMode.dark => 'Dark',
+    };
+    return '$mode · ${c.accent.label}';
   }
 
   // ── Personal/profile editing ───────────────────────────────────
@@ -411,9 +399,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (field != 'username')
-              const Text(
+              Text(
                 'Email/phone changes take effect only after you confirm the code sent to the new address.',
-                style: TextStyle(fontSize: 13, color: Color(0xFF667085)),
+                style: TextStyle(fontSize: 13, color: BlistraColors.resolve(context).muted),
               ),
             TextField(
               controller: value,
@@ -657,8 +645,15 @@ class _HeaderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E6E6E),
+        gradient: BlistraColors.resolve(context).gradient,
         borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: BlistraColors.resolve(context).accent.withValues(alpha: .35),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -667,10 +662,10 @@ class _HeaderCard extends StatelessWidget {
             backgroundColor: const Color(0xFFF3D9C8),
             child: Text(
               initialsForName(displayName),
-              style: const TextStyle(
+              style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 24,
-                  color: Color(0xFF5B3A29)),
+                  color: BlistraColors.resolve(context).text),
             ),
           ),
           const SizedBox(width: 14),
@@ -690,7 +685,7 @@ class _HeaderCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis),
                 Text('@$username',
                     style: const TextStyle(
-                        color: Color(0xFF8FE3C8), fontSize: 13),
+                        color: Colors.white70, fontSize: 13),
                     overflow: TextOverflow.ellipsis),
               ],
             ),
@@ -715,17 +710,17 @@ class _Section extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
           child: Text(title,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF667085),
+                  color: BlistraColors.resolve(context).muted,
                   letterSpacing: 0.4)),
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: BlistraColors.resolve(context).glassFill,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFF0EDE8)),
+            border: Border.all(color: BlistraColors.resolve(context).glassBorder),
           ),
           child: Column(children: children),
         ),
@@ -758,30 +753,30 @@ class _Row extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: const Color(0xFFE6F6F3),
+          color: softBg(context, Color(0xFFE6F6F3)),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: const Color(0xFF0C6B6B), size: 20),
+        child: Icon(icon, color: BlistraColors.resolve(context).accentText, size: 20),
       ),
       title: Text(label,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF667085))),
+          style: TextStyle(fontSize: 13, color: BlistraColors.resolve(context).muted)),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(value,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF101828))),
+                  color: BlistraColors.resolve(context).text)),
           if (subtitle != null)
             Text(subtitle!,
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF667085))),
+                style: TextStyle(
+                    fontSize: 12, color: BlistraColors.resolve(context).muted)),
         ],
       ),
       trailing: trailing ??
           (onTap != null
-              ? const Icon(Icons.chevron_right, color: Color(0xFF98A2B3))
+              ? Icon(Icons.chevron_right, color: BlistraColors.resolve(context).muted)
               : null),
       onTap: onTap,
     );
@@ -799,7 +794,7 @@ class _VerifiedChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color:
-            verified ? const Color(0xFFE6F6F3) : const Color(0xFFFDECEC),
+            verified ? softBg(context, Color(0xFFE6F6F3)) : softBg(context, Color(0xFFFDECEC)),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -808,7 +803,7 @@ class _VerifiedChip extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: verified
-              ? const Color(0xFF0C6B6B)
+              ? BlistraColors.resolve(context).accentText
               : const Color(0xFFB42318),
         ),
       ),
@@ -826,7 +821,7 @@ class _ActionChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0C6B6B),
+        color: BlistraColors.resolve(context).accent,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(label,
@@ -849,7 +844,7 @@ class _ErrorCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDECEC),
+        color: softBg(context, Color(0xFFFDECEC)),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -880,20 +875,20 @@ class _NotificationRow extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: const Color(0xFFE6F6F3),
+          color: softBg(context, Color(0xFFE6F6F3)),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.notifications_outlined,
-            color: Color(0xFF0C6B6B), size: 20),
+        child: Icon(Icons.notifications_outlined,
+            color: BlistraColors.resolve(context).accentText, size: 20),
       ),
-      title: const Text('Notifications',
-          style: TextStyle(fontSize: 13, color: Color(0xFF667085))),
+      title: Text('Notifications',
+          style: TextStyle(fontSize: 13, color: BlistraColors.resolve(context).muted)),
       subtitle: Text(
           settings.saving ? 'Saving…' : 'Reminder delivery master switch',
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF101828))),
+              color: BlistraColors.resolve(context).text)),
       trailing: Switch(
         value: settings.preferences.enabled,
         onChanged: settings.saving

@@ -12,6 +12,8 @@ import 'add_edit_meal_screen.dart';
 import 'history_screen.dart';
 import 'meal_detail_screen.dart';
 import 'profile_screen.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -152,11 +154,11 @@ class _TodayScreenState extends State<TodayScreen> {
     final controller = context.watch<DietController>();
     final summary = controller.summary;
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF6),
+      backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton(
         heroTag: 'diet-add-meal',
         elevation: 6,
-        backgroundColor: const Color(0xFF064F4A),
+        backgroundColor: BlistraColors.resolve(context).accent,
         foregroundColor: Colors.white,
         tooltip: 'Log a meal',
         onPressed: _createMeal,
@@ -302,11 +304,11 @@ class _DietTabs extends StatelessWidget {
       height: 48,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ActiveColors.glassFill,
         borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF24415E).withValues(alpha: 0.04),
+            color: BlistraColors.resolve(context).text.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -323,7 +325,7 @@ class _DietTabs extends StatelessWidget {
                   duration: const Duration(milliseconds: 180),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: selected == i ? const Color(0xFFDDEAE3) : Colors.transparent,
+                    color: selected == i ? softBg(context, Color(0xFFDDEAE3)) : Colors.transparent,
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: FittedBox(
@@ -332,8 +334,8 @@ class _DietTabs extends StatelessWidget {
                       labels[i],
                       style: TextStyle(
                         color: selected == i
-                            ? const Color(0xFF075E55)
-                            : const Color(0xFF172554),
+                            ? BlistraColors.resolve(context).accentText
+                            : BlistraColors.resolve(context).text,
                         fontSize: 12,
                         fontWeight: selected == i ? FontWeight.w800 : FontWeight.w600,
                       ),
@@ -414,14 +416,14 @@ class _WaterLogSheetState extends State<_WaterLogSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Icon(Icons.water_drop_rounded, color: Color(0xFF168CEB), size: 30),
                 SizedBox(width: 9),
                 Text(
                   'Log water',
                   style: TextStyle(
-                    color: Color(0xFF172554),
+                    color: BlistraColors.resolve(context).text,
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                   ),
@@ -479,9 +481,9 @@ class _WaterLogSheetState extends State<_WaterLogSheet> {
               ],
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Only ml and litre entries contribute to the daily millilitre total.',
-              style: TextStyle(color: Color(0xFF5573A4), fontSize: 12),
+              style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
             ),
             const SizedBox(height: 18),
             SizedBox(

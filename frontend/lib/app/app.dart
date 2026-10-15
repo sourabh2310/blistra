@@ -15,6 +15,9 @@ import '../core/api/api_client.dart';
 import '../core/auth/auth_state.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/theme_controller.dart';
+import '../core/theme/app_theme.dart' show BlistraColors;
+import '../core/widgets/glass.dart';
+import '../features/auth/auth_widgets.dart' show AuthColors;
 import '../features/auth/auth_screen.dart';
 import '../features/dashboard/dashboard_controller.dart';
 import '../features/diet/diet_controller.dart';
@@ -71,9 +74,18 @@ class BlistraApp extends StatelessWidget {
           builder: (context, _) => MaterialApp(
             title: 'Blistra',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(),
-            darkTheme: AppTheme.dark(),
+            theme: AppTheme.light(deps.theme.accent),
+            darkTheme: AppTheme.dark(deps.theme.accent),
             themeMode: deps.theme.mode,
+            // One backdrop above the Navigator so every pushed route shares
+            // the same accent glow.
+            builder: (context, child) => Builder(
+              builder: (context) {
+                AuthColors.sync(BlistraColors.resolve(context));
+                ActiveColors.sync(BlistraColors.resolve(context));
+                return BlistraBackdrop(child: child ?? const SizedBox.shrink());
+              },
+            ),
             home: AuthGate(deps: deps),
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../formats.dart';
 import '../models/event_status.dart';
 import '../models/planner_event.dart';
+import '../../../core/theme/app_theme.dart';
 
 /// Modern event card in the Home design language: time range first,
 /// then title, location, and status — a scheduled commitment, not a task.
@@ -53,9 +54,9 @@ class EventCard extends StatelessWidget {
                   children: [
                     Text(
                       '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF0C6B6B)),
+                          color: BlistraColors.resolve(context).accentText),
                     ),
                     const SizedBox(height: 2),
                     Container(
@@ -81,7 +82,7 @@ class EventCard extends StatelessWidget {
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: muted
-                            ? const Color(0xFF98A2B3)
+                            ? BlistraColors.resolve(context).muted
                             : Theme.of(context).colorScheme.onSurface,
                         decoration: cancelled
                             ? TextDecoration.lineThrough
@@ -110,7 +111,7 @@ class EventCard extends StatelessWidget {
                     settled ? Icons.check_circle : Icons.circle_outlined,
                     color: settled
                         ? const Color(0xFF12A5A5)
-                        : const Color(0xFF98A2B3),
+                        : BlistraColors.resolve(context).muted,
                   ),
                   onPressed: onToggleComplete,
                 ),

@@ -10,12 +10,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'accent_palette.dart';
+
 class ThemeController extends ChangeNotifier {
   static const storageKey = 'blistra:themeMode';
+  static const accentKey = 'blistra:accent';
 
   ThemeMode _mode = ThemeMode.system;
+  AccentPalette _accent = AccentPalette.lagoon;
 
   ThemeMode get mode => _mode;
+  AccentPalette get accent => _accent;
   bool get isDarkSelected => _mode == ThemeMode.dark;
   bool get isLightSelected => _mode == ThemeMode.light;
 
@@ -23,9 +28,22 @@ class ThemeController extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _mode = _parse(prefs.getString(storageKey));
+      _accent = AccentPalette.fromName(prefs.getString(accentKey));
       notifyListeners();
     } catch (_) {
-      // Best-effort cache: fall back to system.
+      // Best-effort cache: fall back to system + default accent.
+    }
+  }
+
+  Future<void> setAccent(AccentPalette accent) async {
+    if (_accent == accent) return;
+    _accent = accent;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(accentKey, accent.name);
+    } catch (_) {
+      // Persistence is best-effort only.
     }
   }
 

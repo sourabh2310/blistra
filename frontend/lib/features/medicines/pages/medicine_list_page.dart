@@ -20,6 +20,8 @@ import '../../search/search_api.dart';
 import 'dose_history_page.dart';
 import 'medicine_detail_page.dart';
 import 'medicine_form_page.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 
 class MedicineListPage extends StatefulWidget {
   const MedicineListPage({super.key});
@@ -69,7 +71,7 @@ class _MedicineListPageState extends State<MedicineListPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF6),
+      backgroundColor: Colors.transparent,
       body: ListenableBuilder(
         listenable: Listenable.merge([controller, today]),
         builder: (context, _) {
@@ -138,8 +140,8 @@ class _MedicineListPageState extends State<MedicineListPage> {
         title: 'Add a medicine',
         subtitle: 'Add a new medicine or supplement',
         onTap: _pushAdd,
-        color: const Color(0xFFEAF6EF),
-        iconColor: const Color(0xFF0A785A),
+        color: softBg(context, Color(0xFFEAF6EF)),
+        iconColor: BlistraColors.resolve(context).accentText,
       ),
       const SizedBox(height: 12),
       _EntryCards(
@@ -274,7 +276,7 @@ class _MedicineListPageState extends State<MedicineListPage> {
         title: 'Manage reminders',
         subtitle: 'View and edit your medicine and general reminders',
         onTap: _openReminders,
-        color: const Color(0xFFEAF3FF),
+        color: softBg(context, Color(0xFFEAF3FF)),
         iconColor: const Color(0xFF2D78C5),
       ),
       const SizedBox(height: 12),
@@ -489,28 +491,14 @@ class _BrandHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Blistra',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: const Color(0xFF0B4F46),
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1.1,
-                        ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.eco_rounded, color: Color(0xFF4A9B64), size: 24),
-                ],
-              ),
+              BlistraWordmark(size: 28),
               const SizedBox(height: 1),
               Text(
                 'EVERYTHING YOU NEED. ONE APP.',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: const Color(0xFF52717A),
+                      color: BlistraColors.resolve(context).muted,
                       letterSpacing: 1.3,
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
@@ -541,11 +529,11 @@ class _BrandHeader extends StatelessWidget {
             customBorder: const CircleBorder(),
             child: CircleAvatar(
               radius: 20,
-              backgroundColor: const Color(0xFFE2F1EE),
+              backgroundColor: softBg(context, Color(0xFFE2F1EE)),
               child: Text(
                 initials,
-                style: const TextStyle(
-                  color: Color(0xFF0B4F46),
+                style: TextStyle(
+                  color: BlistraColors.resolve(context).accentText,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -574,7 +562,7 @@ class _PageIntro extends StatelessWidget {
               Text(
                 'Medicines',
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      color: const Color(0xFF070B3B),
+                      color: BlistraColors.resolve(context).text,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -1.2,
                       height: 1.05,
@@ -584,7 +572,7 @@ class _PageIntro extends StatelessWidget {
               Text(
                 'Stay consistent. Take control.',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFF5163A1),
+                      color: BlistraColors.resolve(context).muted,
                       fontWeight: FontWeight.w600,
                     ),
               ),
@@ -599,7 +587,7 @@ class _PageIntro extends StatelessWidget {
             minimumSize: const Size(0, 42),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             side: const BorderSide(color: Color(0xFFB5D9D1)),
-            foregroundColor: const Color(0xFF0B6B5C),
+            foregroundColor: BlistraColors.resolve(context).accentText,
           ),
         ),
       ],
@@ -618,7 +606,7 @@ class _HeroBanner extends StatelessWidget {
       height: 144,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF4F0),
+        color: softBg(context, Color(0xFFEAF4F0)),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: const Color(0xFFD5E9E1)),
       ),
@@ -638,7 +626,7 @@ class _HeroBanner extends StatelessWidget {
                 Text(
                   'A healthier rhythm\nstarts here.',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: const Color(0xFF0B4F46),
+                        color: BlistraColors.resolve(context).accentText,
                         fontWeight: FontWeight.w800,
                         height: 1.05,
                       ),
@@ -650,7 +638,7 @@ class _HeroBanner extends StatelessWidget {
                   label: const Text('Start a routine'),
                   style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
-                    foregroundColor: const Color(0xFF0B6B5C),
+                    foregroundColor: BlistraColors.resolve(context).accentText,
                     textStyle: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -675,9 +663,9 @@ class _MedicineTabs extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ActiveColors.glassFill,
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: const Color(0xFFE7EAED)),
+        border: Border.all(color: softBg(context, Color(0xFFE7EAED))),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -691,14 +679,14 @@ class _MedicineTabs extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: index == selectedIndex
-                        ? const Color(0xFFDDEFE8)
+                        ? softBg(context, Color(0xFFDDEFE8))
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: Text(
                     labels[index],
                     style: TextStyle(
-                      color: const Color(0xFF071047),
+                      color: BlistraColors.resolve(context).text,
                       fontWeight: index == selectedIndex
                           ? FontWeight.w700
                           : FontWeight.w500,
@@ -734,7 +722,7 @@ class _SummaryCards extends StatelessWidget {
           value: data == null ? '—' : '${data.takenDoses}/${data.totalDoses}',
           label: 'Taken today',
           icon: Icons.check_rounded,
-          color: const Color(0xFFE5F7EC),
+          color: softBg(context, Color(0xFFE5F7EC)),
           iconColor: const Color(0xFF15934C),
           progress: progress,
         ),
@@ -743,7 +731,7 @@ class _SummaryCards extends StatelessWidget {
           value: data == null ? '—' : '${_dueLater(data)}',
           label: 'Due later',
           icon: Icons.schedule_rounded,
-          color: const Color(0xFFE8F3FF),
+          color: softBg(context, Color(0xFFE8F3FF)),
           iconColor: const Color(0xFF2385E8),
         ),
         const SizedBox(width: 8),
@@ -751,7 +739,7 @@ class _SummaryCards extends StatelessWidget {
           value: data == null ? '—' : '${_overdue(data)}',
           label: 'Overdue',
           icon: Icons.notifications_active_outlined,
-          color: const Color(0xFFFFEBEE),
+          color: softBg(context, Color(0xFFFFEBEE)),
           iconColor: const Color(0xFFE24454),
         ),
         const SizedBox(width: 8),
@@ -759,7 +747,7 @@ class _SummaryCards extends StatelessWidget {
           value: controller.isLoading || controller.error != null ? '—' : '$active',
           label: 'Active\nmedicines',
           icon: Icons.medical_services_outlined,
-          color: const Color(0xFFF3EAFF),
+          color: softBg(context, Color(0xFFF3EAFF)),
           iconColor: const Color(0xFF9145E8),
         ),
       ],
@@ -812,7 +800,7 @@ class _SummaryCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: const Color(0xFF071047),
+                    color: BlistraColors.resolve(context).text,
                     fontWeight: FontWeight.w800,
                   ),
             ),
@@ -822,7 +810,7 @@ class _SummaryCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: const Color(0xFF53618A),
+                    color: BlistraColors.resolve(context).muted,
                     height: 1.05,
                   ),
             ),
@@ -833,7 +821,7 @@ class _SummaryCard extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 5,
-                  backgroundColor: Colors.white.withValues(alpha: 0.75),
+                  backgroundColor: BlistraColors.resolve(context).glassFill,
                   color: const Color(0xFF19A853),
                 ),
               ),
@@ -873,22 +861,22 @@ class _TodayMedicinesCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: ActiveColors.glassFill,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE8EBEE)),
+            border: Border.all(color: softBg(context, Color(0xFFE8EBEE))),
           ),
           child: Column(
             children: [
               Row(
                 children: [
-                  const Icon(Icons.calendar_today_outlined,
-                      color: Color(0xFF0A6B59), size: 23),
+                  Icon(Icons.calendar_today_outlined,
+                      color: BlistraColors.resolve(context).accentText, size: 23),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       "Today's medicines",
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: const Color(0xFF071047),
+                            color: BlistraColors.resolve(context).text,
                             fontWeight: FontWeight.w800,
                           ),
                     ),
@@ -896,15 +884,15 @@ class _TodayMedicinesCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF0F2F3),
+                      color: softBg(context, Color(0xFFF0F2F3)),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Text(
                       current == null
                           ? 'Today'
                           : DateFormat('EEE, d MMM').format(current.date),
-                      style: const TextStyle(
-                        color: Color(0xFF53618A),
+                      style: TextStyle(
+                        color: BlistraColors.resolve(context).muted,
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),
@@ -981,8 +969,8 @@ class _TimelineDoseRow extends StatelessWidget {
               padding: const EdgeInsets.only(top: 17),
               child: Text(
                 DateFormat('h:mm a').format(dose.scheduledAt),
-                style: const TextStyle(
-                  color: Color(0xFF53618A),
+                style: TextStyle(
+                  color: BlistraColors.resolve(context).muted,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1014,7 +1002,7 @@ class _TimelineDoseRow extends StatelessWidget {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.78),
+                        color: BlistraColors.resolve(context).glassFill,
                         borderRadius: BorderRadius.circular(13),
                       ),
                       child: Icon(
@@ -1035,8 +1023,8 @@ class _TimelineDoseRow extends StatelessWidget {
                               dose.medicineName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF071047),
+                              style: TextStyle(
+                                color: BlistraColors.resolve(context).text,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 15,
                               ),
@@ -1048,8 +1036,8 @@ class _TimelineDoseRow extends StatelessWidget {
                                   : dose.doseLabel,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF53618A),
+                              style: TextStyle(
+                                color: BlistraColors.resolve(context).muted,
                                 fontSize: 12,
                               ),
                             ),
@@ -1113,7 +1101,7 @@ class _DoseAction extends StatelessWidget {
       return _MiniStatus(
         icon: Icons.schedule_outlined,
         label: label,
-        color: const Color(0xFF53618A),
+        color: BlistraColors.resolve(context).muted,
       );
     }
     final recording = today.isRecording(dose);
@@ -1190,7 +1178,7 @@ class _AllDoneBanner extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF8EE),
+        color: softBg(context, Color(0xFFEAF8EE)),
         borderRadius: BorderRadius.circular(14),
       ),
       child: const Row(
@@ -1244,7 +1232,7 @@ class _ActionCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: BlistraColors.resolve(context).glassFill,
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Icon(icon, color: iconColor, size: 25),
@@ -1256,8 +1244,8 @@ class _ActionCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: Color(0xFF071047),
+                      style: TextStyle(
+                        color: BlistraColors.resolve(context).text,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1267,15 +1255,15 @@ class _ActionCard extends StatelessWidget {
                       subtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF53618A),
+                      style: TextStyle(
+                        color: BlistraColors.resolve(context).muted,
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Color(0xFF071047)),
+              Icon(Icons.chevron_right, color: BlistraColors.resolve(context).text),
             ],
           ),
         ),
@@ -1305,7 +1293,7 @@ class _EntryCards extends StatelessWidget {
             title: 'Reminders',
             subtitle: 'Manage reminders and notifications',
             onTap: onReminders,
-            color: const Color(0xFFEAF3FF),
+            color: softBg(context, Color(0xFFEAF3FF)),
             iconColor: const Color(0xFF2D78C5),
           ),
         ),
@@ -1318,7 +1306,7 @@ class _EntryCards extends StatelessWidget {
                 ? 'Track your consistency today'
                 : 'Available after today loads',
             onTap: onAdherence,
-            color: const Color(0xFFEAF3FF),
+            color: softBg(context, Color(0xFFEAF3FF)),
             iconColor: const Color(0xFF2385E8),
           ),
         ),
@@ -1347,7 +1335,7 @@ class _EntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: ActiveColors.glassFill,
       borderRadius: BorderRadius.circular(19),
       child: InkWell(
         onTap: onTap,
@@ -1372,8 +1360,8 @@ class _EntryCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: Color(0xFF071047),
+                      style: TextStyle(
+                        color: BlistraColors.resolve(context).text,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1383,8 +1371,8 @@ class _EntryCard extends StatelessWidget {
                       subtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF53618A),
+                      style: TextStyle(
+                        color: BlistraColors.resolve(context).muted,
                         fontSize: 11,
                         height: 1.15,
                       ),
@@ -1392,7 +1380,7 @@ class _EntryCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Color(0xFF071047), size: 20),
+              Icon(Icons.chevron_right, color: BlistraColors.resolve(context).text, size: 20),
             ],
           ),
         ),
@@ -1428,21 +1416,21 @@ class _RecentActivity extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.fromLTRB(12, 13, 12, 7),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: ActiveColors.glassFill,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE8EBEE)),
+            border: Border.all(color: softBg(context, Color(0xFFE8EBEE))),
           ),
           child: Column(
             children: [
               Row(
                 children: [
-                  const Icon(Icons.history_rounded, color: Color(0xFF0A6B59)),
+                  Icon(Icons.history_rounded, color: BlistraColors.resolve(context).accentText),
                   const SizedBox(width: 9),
                   Expanded(
                     child: Text(
                       'Recent activity',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: const Color(0xFF071047),
+                            color: BlistraColors.resolve(context).text,
                             fontWeight: FontWeight.w800,
                           ),
                     ),
@@ -1453,20 +1441,20 @@ class _RecentActivity extends StatelessWidget {
                       icon: const Icon(Icons.arrow_forward_rounded, size: 17),
                       label: const Text('See all'),
                       style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF071047),
+                        foregroundColor: BlistraColors.resolve(context).text,
                         padding: EdgeInsets.zero,
                       ),
                     ),
                 ],
               ),
               if (records.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.fromLTRB(8, 8, 8, 10),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'No recorded activity today yet.',
-                      style: TextStyle(color: Color(0xFF53618A)),
+                      style: TextStyle(color: BlistraColors.resolve(context).muted),
                     ),
                   ),
                 )
@@ -1523,8 +1511,8 @@ class _ActivityRow extends StatelessWidget {
                     '$label ${dose.medicineName}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF071047),
+                    style: TextStyle(
+                      color: BlistraColors.resolve(context).text,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1532,17 +1520,17 @@ class _ActivityRow extends StatelessWidget {
                     '${dose.doseLabel.isEmpty ? 'Dose' : dose.doseLabel} · ${DateFormat('h:mm a').format(dose.scheduledAt)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Color(0xFF53618A), fontSize: 12),
+                    style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
                   ),
                 ],
               ),
             ),
             Text(
               DateFormat('d MMM').format(dose.scheduledAt),
-              style: const TextStyle(color: Color(0xFF6B78A3), fontSize: 12),
+              style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
             ),
             const SizedBox(width: 5),
-            const Icon(Icons.chevron_right, size: 18, color: Color(0xFF071047)),
+            Icon(Icons.chevron_right, size: 18, color: BlistraColors.resolve(context).text),
           ],
         ),
       ),
@@ -1565,20 +1553,20 @@ class _SectionHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF0A6B59), size: 23),
+        Icon(icon, color: BlistraColors.resolve(context).accentText, size: 23),
         const SizedBox(width: 9),
         Expanded(
           child: Text(
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: const Color(0xFF071047),
+                  color: BlistraColors.resolve(context).text,
                   fontWeight: FontWeight.w800,
                 ),
           ),
         ),
         Text(
           trailing,
-          style: const TextStyle(color: Color(0xFF6B78A3), fontSize: 12),
+          style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
         ),
       ],
     );
@@ -1611,9 +1599,9 @@ class _StatusFilterChips extends StatelessWidget {
                 label: Text(status == null ? 'All' : medicineStatusLabel(status)),
                 selected: controller.statusFilter == status,
                 onSelected: (_) => controller.setStatusFilter(status),
-                selectedColor: const Color(0xFFDDEFE8),
-                labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF071047)),
-                side: const BorderSide(color: Color(0xFFE2E6E5)),
+                selectedColor: softBg(context, Color(0xFFDDEFE8)),
+                labelStyle: TextStyle(fontSize: 12, color: BlistraColors.resolve(context).text),
+                side: BorderSide(color: softBg(context, Color(0xFFE2E6E5))),
               ),
             ),
         ],
@@ -1672,7 +1660,7 @@ class _MedicineTile extends StatelessWidget {
         child: const Icon(Icons.archive, color: Colors.white),
       ),
       child: Material(
-        color: Colors.white,
+        color: ActiveColors.glassFill,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           onTap: onTap,
@@ -1699,8 +1687,8 @@ class _MedicineTile extends StatelessWidget {
                         medicine.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF071047),
+                        style: TextStyle(
+                          color: BlistraColors.resolve(context).text,
                           fontWeight: FontWeight.w800,
                           fontSize: 15,
                         ),
@@ -1711,14 +1699,14 @@ class _MedicineTile extends StatelessWidget {
                           medicine.genericName!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Color(0xFF53618A), fontSize: 12),
+                          style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
                         ),
                       const SizedBox(height: 2),
                       Text(
                         _medicineDetails(medicine),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Color(0xFF6B78A3), fontSize: 12),
+                        style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
                       ),
                     ],
                   ),
@@ -1726,7 +1714,7 @@ class _MedicineTile extends StatelessWidget {
                 const SizedBox(width: 8),
                 _StatusChip(status: medicine.status),
                 const SizedBox(width: 3),
-                const Icon(Icons.chevron_right, color: Color(0xFF071047), size: 20),
+                Icon(Icons.chevron_right, color: BlistraColors.resolve(context).text, size: 20),
               ],
             ),
           ),
@@ -1748,7 +1736,7 @@ class _MedicineHistoryTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: Colors.white,
+        color: ActiveColors.glassFill,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           onTap: onTap,
@@ -1773,20 +1761,20 @@ class _MedicineHistoryTile extends StatelessWidget {
                     children: [
                       Text(
                         medicine.name,
-                        style: const TextStyle(
-                          color: Color(0xFF071047),
+                        style: TextStyle(
+                          color: BlistraColors.resolve(context).text,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
+                      Text(
                         'View recorded doses',
-                        style: TextStyle(color: Color(0xFF53618A), fontSize: 12),
+                        style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: Color(0xFF071047)),
+                Icon(Icons.chevron_right, color: BlistraColors.resolve(context).text),
               ],
             ),
           ),
@@ -1863,13 +1851,13 @@ class _InlineEmpty extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
       child: Column(
         children: [
-          Icon(icon, size: 34, color: const Color(0xFF8AA39D)),
+          Icon(icon, size: 34, color: BlistraColors.resolve(context).muted),
           const SizedBox(height: 8),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF071047),
+            style: TextStyle(
+              color: BlistraColors.resolve(context).text,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1877,7 +1865,7 @@ class _InlineEmpty extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF53618A), fontSize: 12),
+            style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
           ),
         ],
       ),
@@ -1896,17 +1884,17 @@ class _InlineNote extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F8F5),
+        color: softBg(context, Color(0xFFF2F8F5)),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF0A6B59), size: 19),
+          Icon(icon, color: BlistraColors.resolve(context).accentText, size: 19),
           const SizedBox(width: 9),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(color: Color(0xFF53618A), fontSize: 12),
+              style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
             ),
           ),
         ],
@@ -1926,23 +1914,23 @@ class _EmptyState extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ActiveColors.glassFill,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE8EBEE)),
+        border: Border.all(color: softBg(context, Color(0xFFE8EBEE))),
       ),
       child: Column(
         children: [
-          const Icon(Icons.medication_outlined, size: 44, color: Color(0xFF8AA39D)),
+          Icon(Icons.medication_outlined, size: 44, color: BlistraColors.resolve(context).muted),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'No medicines yet',
-            style: TextStyle(color: Color(0xFF071047), fontWeight: FontWeight.w800),
+            style: TextStyle(color: BlistraColors.resolve(context).text, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Add your first medicine to start building a routine.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF53618A), fontSize: 12),
+            style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
           ),
           const SizedBox(height: 14),
           FilledButton.icon(
@@ -1965,7 +1953,7 @@ class _LoadingCard extends StatelessWidget {
       height: 100,
       margin: const EdgeInsets.only(top: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ActiveColors.glassFill,
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Center(child: CircularProgressIndicator()),
@@ -2022,7 +2010,7 @@ class _ActionCircle extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.white.withValues(alpha: 0.78),
+        color: BlistraColors.resolve(context).glassFill,
         shape: const CircleBorder(),
         child: InkWell(
           onTap: onTap,
@@ -2030,7 +2018,7 @@ class _ActionCircle extends StatelessWidget {
           child: SizedBox(
             width: 40,
             height: 40,
-            child: Icon(icon, color: const Color(0xFF071047), size: 22),
+            child: Icon(icon, color: BlistraColors.resolve(context).text, size: 22),
           ),
         ),
       ),
@@ -2076,7 +2064,7 @@ class _TimelinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final line = Paint()
-      ..color = const Color(0xFFD5E5E0)
+      ..color = ActiveColors.scene(Color(0xFFD5E5E0))
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
     if (!first) {
@@ -2101,12 +2089,12 @@ class _TimelinePainter extends CustomPainter {
 class _MedicineHeroPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final back = Paint()..color = const Color(0xFFDCEFE8);
-    final mid = Paint()..color = const Color(0xFFB8DCC9);
-    final dark = Paint()..color = const Color(0xFF4A9B64);
-    final blue = Paint()..color = const Color(0xFF2D9FD0);
+    final back = Paint()..color = ActiveColors.scene(Color(0xFFDCEFE8));
+    final mid = Paint()..color = ActiveColors.scene(Color(0xFFB8DCC9));
+    final dark = Paint()..color = ActiveColors.scene(Color(0xFF4A9B64));
+    final blue = Paint()..color = ActiveColors.scene(Color(0xFF2D9FD0));
     final white = Paint()..color = Colors.white;
-    final shadow = Paint()..color = const Color(0xFF0A6B59).withValues(alpha: 0.12);
+    final shadow = Paint()..color = ActiveColors.scene(Color(0xFF0A6B59)).withValues(alpha: 0.12);
     final center = Offset(size.width * 0.78, size.height * 0.52);
     canvas.drawCircle(center, size.height * 0.55, back);
     canvas.drawCircle(Offset(size.width * 0.92, size.height * 0.24), size.height * 0.22, mid);
@@ -2138,10 +2126,10 @@ class _MedicineHeroPainter extends CustomPainter {
       size,
       const Offset(0.65, 0.11),
       0.42,
-      Paint()..color = const Color(0xFF78B58A),
+      Paint()..color = ActiveColors.scene(Color(0xFF78B58A)),
       -0.35,
     );
-    final pill = Paint()..color = const Color(0xFFEA7B8C);
+    final pill = Paint()..color = ActiveColors.scene(Color(0xFFEA7B8C));
     canvas.save();
     canvas.translate(size.width * 0.62, size.height * 0.78);
     canvas.rotate(-0.7);
@@ -2161,7 +2149,7 @@ class _MedicineHeroPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(size.width * 0.58, size.height * 0.78),
       4,
-      Paint()..color = const Color(0xFFEA7B8C),
+      Paint()..color = ActiveColors.scene(Color(0xFFEA7B8C)),
     );
   }
 
