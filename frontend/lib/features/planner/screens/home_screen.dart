@@ -11,6 +11,7 @@ import 'lists_screen.dart';
 import 'task_detail_screen.dart';
 import 'tasks_screen.dart';
 import 'today_screen.dart';
+import '../../../core/widgets/glass.dart';
 
 enum PlannerSection { today, tasks, lists, events }
 
@@ -135,30 +136,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Blistra',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontFamily: 'serif',
-                            color: const Color(0xFF0B544B),
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1.2,
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.only(left: 5, bottom: 2),
-                          child: Icon(Icons.eco, color: Color(0xFF5A9A55), size: 31),
-                        ),
-                      ],
-                    ),
+                    BlistraWordmark(size: 30),
                     const SizedBox(height: 1),
                     Text(
                       'EVERYTHING YOU NEED. ONE APP.',
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: const Color(0xFF294D65),
+                        color: BlistraColors.resolve(context).text,
                         letterSpacing: 2,
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
@@ -206,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             'Your day, your way.',
             style: theme.textTheme.titleMedium?.copyWith(
               fontFamily: 'serif',
-              color: const Color(0xFF294D65),
+              color: BlistraColors.resolve(context).text,
               fontSize: 18,
             ),
           ),
@@ -281,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: _tabs.index == index ? const Color(0xFFDDEBE6) : Colors.transparent,
+                          color: _tabs.index == index ? softBg(context, Color(0xFFDDEBE6)) : Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
@@ -290,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             Icon(
                               tabs[index].$1,
                               size: 15,
-                              color: _tabs.index == index ? const Color(0xFF0B6259) : scheme.onSurfaceVariant,
+                              color: _tabs.index == index ? BlistraColors.resolve(context).accentText : scheme.onSurfaceVariant,
                             ),
                             const SizedBox(width: 4),
                             Flexible(
@@ -301,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: _tabs.index == index ? const Color(0xFF0B6259) : scheme.onSurfaceVariant,
+                                  color: _tabs.index == index ? BlistraColors.resolve(context).accentText : scheme.onSurfaceVariant,
                                 ),
                               ),
                             ),

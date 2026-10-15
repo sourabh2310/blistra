@@ -4,6 +4,8 @@ import '../formats.dart';
 import '../models/task.dart';
 import '../models/task_priority.dart';
 import '../models/task_status.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 
 /// Modern task card in the Home design language: rounded white card,
 /// completion toggle, priority chip, due label.
@@ -62,7 +64,7 @@ class TaskCard extends StatelessWidget {
                   settled ? Icons.check_circle : Icons.radio_button_unchecked,
                   color: settled
                       ? const Color(0xFF12A5A5)
-                      : const Color(0xFF98A2B3),
+                      : BlistraColors.resolve(context).muted,
                 ),
               ),
               Expanded(
@@ -80,7 +82,7 @@ class TaskCard extends StatelessWidget {
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: settled
-                                  ? const Color(0xFF98A2B3)
+                                  ? BlistraColors.resolve(context).muted
                                   : Theme.of(context).colorScheme.onSurface,
                               decoration: cancelled
                                   ? TextDecoration.lineThrough
@@ -98,10 +100,10 @@ class TaskCard extends StatelessWidget {
                         child: Row(
                           children: [
                             if (task.overdue && task.status.isActive)
-                              const Padding(
+                              Padding(
                                 padding: EdgeInsets.only(right: 6),
                                 child: _Chip('Overdue',
-                                    bg: Color(0xFFFDECEC),
+                                    bg: softBg(context, Color(0xFFFDECEC)),
                                     fg: Color(0xFFB42318)),
                               ),
                             Flexible(

@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../preferences_controller.dart';
 import '../shell_destinations.dart';
+import '../../../core/theme/app_theme.dart';
 
 class CustomizeNavScreen extends StatefulWidget {
   const CustomizeNavScreen({super.key});
@@ -91,10 +92,10 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
   Widget build(BuildContext context) {
     final saving = context.watch<PreferencesController>().saving;
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF6),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Customize Navigation'),
-        backgroundColor: const Color(0xFFFFFBF6),
+        backgroundColor: Colors.transparent,
         actions: [
           TextButton(onPressed: saving ? null : _reset, child: const Text('Reset')),
         ],
@@ -102,21 +103,21 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
             child: Text(
               'Choose what appears in your navigation. Drag to reorder.',
-              style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+              style: TextStyle(fontSize: 14, color: BlistraColors.resolve(context).muted),
             ),
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Text('PINNED',
                 style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
-                    color: Color(0xFF667085))),
+                    color: BlistraColors.resolve(context).muted)),
           ),
           Expanded(
             child: ListView(
@@ -150,7 +151,7 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
                       child: ListTile(
                         leading: Icon(
                           ShellDestinations.icon(id),
-                          color: const Color(0xFF0C6B6B),
+                          color: BlistraColors.resolve(context).accentText,
                         ),
                         title: Text(
                             '${index + 1}. ${ShellDestinations.label(id)}'),
@@ -169,14 +170,14 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
                     );
                   },
                 ),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 12, bottom: 4),
                   child: Text('AVAILABLE',
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.8,
-                          color: Color(0xFF667085))),
+                          color: BlistraColors.resolve(context).muted)),
                 ),
                 if (_available.isEmpty)
                   const Card(
@@ -201,12 +202,12 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
                     ),
                   ),
                 if (_full)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 8),
                     child: Text(
                       'Maximum 5 destinations. Remove one to add another.',
                       style: TextStyle(
-                          fontSize: 13, color: Color(0xFF667085)),
+                          fontSize: 13, color: BlistraColors.resolve(context).muted),
                     ),
                   ),
               ],

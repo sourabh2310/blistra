@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/routing/routes.dart';
 import '../search_api.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({
@@ -69,10 +71,10 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF6),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Search'),
-        backgroundColor: const Color(0xFFFFFBF6),
+        backgroundColor: Colors.transparent,
       ),
       body: Column(
         children: [
@@ -99,7 +101,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           },
                         ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: BlistraColors.resolve(context).glassFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
@@ -154,18 +156,18 @@ class _SearchScreenState extends State<SearchScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 12, bottom: 6),
             child: Text(entry.key,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
-                    color: Color(0xFF667085))),
+                    color: BlistraColors.resolve(context).muted)),
           ),
           for (final item in entry.value)
             Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 leading: Icon(_groupIcon(entry.key),
-                    color: const Color(0xFF0C6B6B)),
+                    color: BlistraColors.resolve(context).accentText),
                 title: Text(item.title,
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: item.subtitle.isEmpty
@@ -240,10 +242,10 @@ class _Empty extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: const Color(0xFFE6F6F3),
+                color: softBg(context, Color(0xFFE6F6F3)),
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: Icon(icon, size: 36, color: const Color(0xFF0C6B6B)),
+              child: Icon(icon, size: 36, color: BlistraColors.resolve(context).accentText),
             ),
             const SizedBox(height: 16),
             Text(title,
@@ -255,7 +257,7 @@ class _Empty extends StatelessWidget {
             const SizedBox(height: 8),
             Text(message,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF667085),
+                      color: BlistraColors.resolve(context).muted,
                     ),
                 textAlign: TextAlign.center),
             if (actionLabel != null && onAction != null) ...[

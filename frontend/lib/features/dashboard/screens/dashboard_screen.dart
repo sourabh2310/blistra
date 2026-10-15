@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:provider/provider.dart';
 
+import '../../../core/auth/auth_state.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 import '../../app_scope.dart';
+import '../../habits/habits_controller.dart';
+import '../../medicines/data/medicines_api_client.dart';
+import '../../medicines/util/dates.dart';
+import '../../notifications/state/reminders_controller.dart';
 import '../../preferences/shell_destinations.dart';
 import '../models/dashboard_response.dart';
 
@@ -44,7 +52,6 @@ class DashboardScreen extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              const Positioned.fill(child: _AmbientLeaves()),
               Positioned.fill(
                 child: RefreshIndicator(
                   onRefresh: refresh,
@@ -156,6 +163,8 @@ class _Header extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        const BlistraMark(size: 30),
+                        const SizedBox(width: 8),
                         Text(
                           'Blistra',
                           maxLines: 1,
@@ -163,11 +172,9 @@ class _Header extends StatelessWidget {
                             fontFamily: 'serif',
                             fontWeight: FontWeight.w800,
                             letterSpacing: -1.2,
-                            color: const Color(0xFF174A3B),
+                            color: BlistraColors.resolve(context).text,
                           ),
                         ),
-                        const SizedBox(width: 2),
-                        const _LeafMark(size: 32),
                       ],
                     ),
                   ),
@@ -178,7 +185,7 @@ class _Header extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF526B64),
+                      color: BlistraColors.resolve(context).muted,
                       letterSpacing: .1,
                     ),
                   ),
@@ -191,11 +198,7 @@ class _Header extends StatelessWidget {
             icon: Icons.search_rounded,
             onPressed: onSearch,
           ),
-          _HeaderAction(
-            tooltip: 'Notifications',
-            icon: Icons.notifications_none_outlined,
-            onPressed: onNotifications,
-          ),
+          _NotificationAction(onPressed: onNotifications),
           Semantics(
             label: 'Profile',
             button: true,
@@ -206,11 +209,11 @@ class _Header extends StatelessWidget {
                 padding: const EdgeInsets.all(2),
                 child: CircleAvatar(
                   radius: 20,
-                  backgroundColor: theme.colorScheme.secondaryContainer,
+                  backgroundColor: BlistraColors.resolve(context).accent,
                   child: Text(
                     initialsForName(displayName),
-                    style: TextStyle(
-                      color: theme.colorScheme.onSecondaryContainer,
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -244,25 +247,73 @@ class _HeaderAction extends StatelessWidget {
       constraints: const BoxConstraints.tightFor(width: 44, height: 44),
       padding: EdgeInsets.zero,
       style: IconButton.styleFrom(
-        backgroundColor: Colors.white.withValues(alpha: .72),
+        backgroundColor: BlistraColors.resolve(context).glassFill,
         side: const BorderSide(color: Color(0xFFE8E0D7)),
         fixedSize: const Size(44, 44),
       ),
-      icon: Icon(icon, color: const Color(0xFF193D37), size: 22),
+      icon: Icon(icon, color: BlistraColors.resolve(context).text, size: 22),
     ),
   );
 }
 
-class _LeafMark extends StatelessWidget {
-  const _LeafMark({required this.size});
+/// Bell action with an unread dot driven exclusively by real reminder state.
+///
+/// Shows a dot only when a [RemindersController] is available above Home and
+/// it holds at least one active (scheduled) reminder. With no provider or no
+/// active reminders, no badge is rendered — never a fake permanent dot.
+class _NotificationAction extends StatelessWidget {
+  const _NotificationAction({required this.onPressed});
 
-  final double size;
+  final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-    dimension: size,
-    child: CustomPaint(painter: _LeafMarkPainter()),
-  );
+  Widget build(BuildContext context) {
+    bool hasActive = false;
+    try {
+      final reminders = context.watch<RemindersController>();
+      hasActive = reminders.reminders.any((r) => r.isActive);
+    } catch (_) {
+      hasActive = false;
+    }
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            onPressed: onPressed,
+            tooltip: 'Notifications',
+            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+            padding: EdgeInsets.zero,
+            style: IconButton.styleFrom(
+              backgroundColor: BlistraColors.resolve(context).glassFill,
+              side: const BorderSide(color: Color(0xFFE8E0D7)),
+              fixedSize: const Size(44, 44),
+            ),
+            icon: Icon(
+              Icons.notifications_none_outlined,
+              color: BlistraColors.resolve(context).text,
+              size: 22,
+            ),
+          ),
+          if (hasActive)
+            Positioned(
+              right: 9,
+              top: 9,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE24545),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Greeting extends StatelessWidget {
@@ -291,25 +342,41 @@ class _Greeting extends StatelessWidget {
           '${greetingForHour(now.hour)},',
           style: theme.textTheme.titleLarge?.copyWith(
             fontFamily: 'serif',
-            color: const Color(0xFF516B85),
+            color: BlistraColors.resolve(context).muted,
           ),
         ),
         const SizedBox(height: 1),
-        Text(
-          name,
-          style: theme.textTheme.displaySmall?.copyWith(
-            fontFamily: 'serif',
-            fontWeight: FontWeight.w800,
-            letterSpacing: -1.4,
-            color: const Color(0xFF192A4C),
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontFamily: 'serif',
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1.4,
+                  color: BlistraColors.resolve(context).text,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              _dayPartIcon(now.hour),
+              size: 30,
+              color: const Color(0xFFF0A63C),
+              semanticLabel: greetingForHour(now.hour),
+            ),
+          ],
         ),
         const SizedBox(height: 3),
         Text(
           DateFormat('EEEE, d MMMM').format(now),
           style: theme.textTheme.titleMedium?.copyWith(
             fontFamily: 'serif',
-            color: const Color(0xFF526B8C),
+            color: BlistraColors.resolve(context).muted,
           ),
         ),
         const SizedBox(height: 12),
@@ -320,25 +387,24 @@ class _Greeting extends StatelessWidget {
           style: theme.textTheme.bodyLarge?.copyWith(
             fontFamily: 'serif',
             height: 1.28,
-            color: const Color(0xFF526B85),
+            color: BlistraColors.resolve(context).muted,
           ),
         ),
       ],
     );
-    final art = const ClipRRect(
-      borderRadius: BorderRadius.all(Radius.circular(28)),
-      child: CustomPaint(painter: _LandscapePainter()),
+    final art = ClipRRect(
+      borderRadius: const BorderRadius.all(Radius.circular(28)),
+      child: CustomPaint(
+        painter: _LandscapePainter(BlistraColors.resolve(context)),
+      ),
     );
     return LayoutBuilder(
       builder: (context, constraints) {
         final sideBySide = constraints.maxWidth >= 340;
         if (sideBySide) {
-          return Container(
+          return GlassCard(
             padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .42),
-              borderRadius: BorderRadius.circular(28),
-            ),
+            radius: 28,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -349,12 +415,9 @@ class _Greeting extends StatelessWidget {
             ),
           );
         }
-        return Container(
+        return GlassCard(
           padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .42),
-            borderRadius: BorderRadius.circular(28),
-          ),
+          radius: 28,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -386,38 +449,76 @@ class _HomeContent extends StatelessWidget {
   final void Function(String destinationId)? onDestination;
   final Future<void> Function() onRefresh;
 
+  Widget _section(String id) => _SectionContent(
+    id: id,
+    dashboard: dashboard,
+    now: now,
+    onDestination: onDestination,
+    onRefresh: onRefresh,
+    homeWidgets: homeWidgets,
+  );
+
   @override
   Widget build(BuildContext context) {
     final sections = homeWidgets.where(HomeWidgets.sections.contains).toList();
-    final children = <Widget>[];
-    for (final id in sections) {
-      children.add(
-        _SectionContent(
-          id: id,
-          dashboard: dashboard,
-          now: now,
-          onDestination: onDestination,
-          onRefresh: onRefresh,
-          homeWidgets: homeWidgets,
-        ),
-      );
-      children.add(const SizedBox(height: 12));
-    }
-    if (!hubPinned) {
-      children.add(
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => onDestination?.call('HUB'),
-            icon: const Icon(Icons.grid_view_outlined),
-            label: const Text('Explore Hub'),
-          ),
-        ),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final children = <Widget>[];
+        // Reference places schedule + attention side by side. On wide
+        // layouts pair them in a row (in the user's configured order);
+        // phones keep the stacked mobile-first flow.
+        final wide = constraints.maxWidth >= 700;
+        final pair = wide &&
+            sections.contains(HomeWidgets.todaysSchedule) &&
+            sections.contains(HomeWidgets.needsAttention);
+        var paired = false;
+        for (final id in sections) {
+          final isPair = id == HomeWidgets.todaysSchedule ||
+              id == HomeWidgets.needsAttention;
+          if (pair && isPair) {
+            if (paired) continue;
+            paired = true;
+            final first = sections.firstWhere(
+              (s) =>
+                  s == HomeWidgets.todaysSchedule ||
+                  s == HomeWidgets.needsAttention,
+            );
+            final second = first == HomeWidgets.todaysSchedule
+                ? HomeWidgets.needsAttention
+                : HomeWidgets.todaysSchedule;
+            children.add(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _section(first)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _section(second)),
+                ],
+              ),
+            );
+            children.add(const SizedBox(height: 12));
+            continue;
+          }
+          children.add(_section(id));
+          children.add(const SizedBox(height: 12));
+        }
+        if (!hubPinned) {
+          children.add(
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => onDestination?.call('HUB'),
+                icon: const Icon(Icons.grid_view_outlined),
+                label: const Text('Explore Hub'),
+              ),
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        );
+      },
     );
   }
 }
@@ -485,44 +586,72 @@ class _TodayOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final metrics = computeHomeOverview(dashboard);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ExcludeSemantics(
-          child: Opacity(opacity: 0, child: Text('Today overview')),
-        ),
-        if (metrics.availableMetrics.isEmpty)
-          _ErrorState(onRetry: onRefresh, moduleError: true)
-        else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              const spacing = 10.0;
-              final cardWidth = (constraints.maxWidth - spacing) / 2;
-              return Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: [
-                  for (final metric in metrics.availableMetrics)
-                    SizedBox(
-                      width: cardWidth,
-                      child: _MetricCard(
-                        label: metric.label,
-                        value: metric.value,
-                        detail: metric.detail,
-                        icon: metric.icon,
-                        onTap: () => onDestination?.call(metric.destination),
-                      ),
-                    ),
-                ],
-              );
-            },
+    Widget card(int i) => _MetricCard(
+      label: metrics.availableMetrics[i].label,
+      value: metrics.availableMetrics[i].value,
+      detail: metrics.availableMetrics[i].detail,
+      icon: metrics.availableMetrics[i].icon,
+      caption: metrics.availableMetrics[i].caption,
+      semanticLabel: metrics.availableMetrics[i].semanticLabel,
+      onTap: () =>
+          onDestination?.call(metrics.availableMetrics[i].destination),
+    );
+    return _Panel(
+      title: 'Today',
+      icon: Icons.calendar_today_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ExcludeSemantics(
+            child: Opacity(opacity: 0, child: Text('Today overview')),
           ),
-      ],
+          if (metrics.availableMetrics.isEmpty)
+            _ErrorState(onRetry: onRefresh, moduleError: true)
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = 10.0;
+                // Reference hierarchy is a four-card pastel strip. Wide
+                // layouts show all four across; phones get a 2 x 2 grid so
+                // every card stays a full touch target with no overflow and
+                // no horizontal scrolling.
+                if (constraints.maxWidth >= 520) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0;
+                          i < metrics.availableMetrics.length;
+                          i++) ...[
+                        if (i > 0) const SizedBox(width: spacing),
+                        Expanded(child: card(i)),
+                      ],
+                    ],
+                  );
+                }
+                // Wrap sizes every card to its intrinsic content height,
+                // so the icon row + large metric + two-line caption can
+                // never clip on 320px phones (a fixed aspect ratio would).
+                final cardWidth =
+                    (constraints.maxWidth - spacing) / 2;
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: [
+                    for (var i = 0;
+                        i < metrics.availableMetrics.length;
+                        i++)
+                      SizedBox(width: cardWidth, child: card(i)),
+                  ],
+                );
+              },
+            ),
+        ],
+      ),
     );
   }
 }
 
-class _TodaySchedule extends StatelessWidget {
+class _TodaySchedule extends StatefulWidget {
   const _TodaySchedule({
     required this.dashboard,
     required this.now,
@@ -534,21 +663,134 @@ class _TodaySchedule extends StatelessWidget {
   final void Function(String destinationId)? onDestination;
 
   @override
+  State<_TodaySchedule> createState() => _TodayScheduleState();
+}
+
+class _TodayScheduleState extends State<_TodaySchedule> {
+  /// Keys of rows with a mutation in flight. Prevents double-submit from
+  /// rapid taps; the key is source + id so unrelated rows stay interactive.
+  final Set<String> _busy = {};
+
+  String _key(TimelineItem item) => '${item.source.name}:${item.sourceId}';
+
+  Future<void> _refreshHome() async {
+    try {
+      final scope = AppScope.of(context);
+      await scope.dashboard.refresh(
+        date: widget.now,
+        offsetMinutes: widget.now.timeZoneOffset.inMinutes,
+      );
+    } catch (_) {
+      // Refresh failures surface via the controller's error state.
+    }
+  }
+
+  void _fail(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _runGuarded(TimelineItem item, Future<void> Function() work) async {
+    final key = _key(item);
+    if (_busy.contains(key)) return;
+    setState(() => _busy.add(key));
+    try {
+      await work();
+      await _refreshHome();
+    } catch (_) {
+      _fail('Could not update "${item.title}". Try again.');
+    } finally {
+      if (mounted) setState(() => _busy.remove(key));
+    }
+  }
+
+  Future<void> _toggleTask(TimelineItem item) {
+    final completed =
+        item.rawStatus.toUpperCase() == 'COMPLETED' ||
+        item.status == TimelineStatus.completed;
+    return _runGuarded(item, () async {
+      final planner = AppScope.of(context).planner;
+      if (completed) {
+        await planner.reopenTask(item.sourceId);
+      } else {
+        await planner.completeTask(item.sourceId);
+      }
+    });
+  }
+
+  Future<void> _completeHabit(TimelineItem item) {
+    HabitsController habits;
+    try {
+      habits = context.read<HabitsController>();
+    } catch (_) {
+      widget.onDestination?.call(item.destination);
+      return Future.value();
+    }
+    final day = DateTime(widget.now.year, widget.now.month, widget.now.day);
+    return _runGuarded(
+      item,
+      () => habits.recordCompletion(item.sourceId, completedOn: day).then((_) {}),
+    );
+  }
+
+  /// Dose mutations go through the Medicines domain API directly: Home owns
+  /// no Today controller, and must never change dosage — only record the
+  /// domain-supported TAKEN / SKIPPED status for the exact scheduled slot.
+  Future<void> _recordDose(TimelineItem item, String status) {
+    if (status == 'TAKEN' && item.at.isAfter(DateTime.now())) {
+      _fail('This dose is not due yet.');
+      return Future.value();
+    }
+    return _runGuarded(item, () async {
+      final auth = context.read<AuthState>();
+      final api = MedicinesApiClient(
+        tokenProvider: () => auth.apiClient.token ?? '',
+        onUnauthorized: () => auth.handleUnauthorized(),
+      );
+      await api.recordDose(item.sourceId, {
+        'status': status,
+        'scheduledAt': toOffsetIso(item.at),
+        if (item.scheduleId != null) 'scheduleId': item.scheduleId,
+      });
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final items = buildTimeline(dashboard, now: now, limit: 5);
+    // "Next up" is a visual reframe of today's schedule: same TimelineItem
+    // model, same buildTimeline aggregation, same domain-owned mutations.
+    final items = buildTimeline(widget.dashboard, now: widget.now, limit: 6);
     return _Panel(
-      title: "Today's schedule",
-      icon: Icons.calendar_today_outlined,
-      trailing: _SeeAll(onTap: () => onDestination?.call('PLANNER/TODAY')),
+      title: 'Next up',
+      icon: Icons.schedule_rounded,
+      trailing: _SeeAll(
+        onTap: () => widget.onDestination?.call('PLANNER/TODAY'),
+      ),
       child: items.isEmpty
-          ? const _EmptyState(message: 'Your day is clear.')
+          ? const _EmptyState(message: 'Nothing scheduled for today.')
           : Column(
               children: [
                 for (var i = 0; i < items.length; i++)
                   _ScheduleRow(
                     item: items[i],
                     showDivider: i != items.length - 1,
-                    onTap: () => onDestination?.call(items[i].destination),
+                    busy: _busy.contains(_key(items[i])),
+                    onTap: () =>
+                        widget.onDestination?.call(items[i].destination),
+                    onCompleteTask: items[i].source == HomeSource.task
+                        ? () => _toggleTask(items[i])
+                        : null,
+                    onCompleteHabit: items[i].source == HomeSource.habit
+                        ? () => _completeHabit(items[i])
+                        : null,
+                    onTakeDose: items[i].source == HomeSource.medicine
+                        ? () => _recordDose(items[i], 'TAKEN')
+                        : null,
+                    onSkipDose: items[i].source == HomeSource.medicine
+                        ? () => _recordDose(items[i], 'SKIPPED')
+                        : null,
                   ),
               ],
             ),
@@ -569,7 +811,7 @@ class _NeedsAttention extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = buildAttentionItems(dashboard, now: now, limit: 3);
+    final items = buildAttentionItems(dashboard, now: now, limit: 4);
     return _Panel(
       title: 'Needs your attention',
       icon: Icons.notifications_active_outlined,
@@ -578,7 +820,7 @@ class _NeedsAttention extends StatelessWidget {
         onTap: () => onDestination?.call('HUB'),
       ),
       child: items.isEmpty
-          ? const _EmptyState(message: "You're caught up for now.")
+          ? const _AttentionEmptyState()
           : Column(
               children: [
                 for (var i = 0; i < items.length; i++)
@@ -593,6 +835,67 @@ class _NeedsAttention extends StatelessWidget {
   }
 }
 
+/// Positive empty state for the attention section, driven only by the real
+/// (empty) AttentionItem list — never hardcoded urgency.
+class _AttentionEmptyState extends StatelessWidget {
+  const _AttentionEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9F7EF),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: Color(0xFF0B6B4F),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.check, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "You're on track!",
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'serif',
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'No urgent items right now.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Home's personal snapshot. Previously "Your life" rendered every module
+/// card (medicines / habits / finance duplicated the TODAY metrics and the
+/// Hub). It now renders ONLY Health + Diet from the existing dashboard
+/// payload: medicines, habits and finance already live in TODAY and in
+/// their own Hub modules. The [HomeWidgets.yourLife] section token is kept
+/// so persisted preferences stay compatible; only the rendered content
+/// changed. Data, empty states and navigation reuse [_ModuleCard].
 class _YourLife extends StatelessWidget {
   const _YourLife({
     required this.dashboard,
@@ -606,43 +909,42 @@ class _YourLife extends StatelessWidget {
   final void Function(String destinationId)? onDestination;
   final Future<void> Function() onRefresh;
 
-  List<String> get modules => [
-    for (final id in homeWidgets)
-      if (HomeWidgets.modules.contains(id)) id,
-  ];
-
   @override
   Widget build(BuildContext context) {
-    final selected = modules;
+    // Wellbeing snapshot only — never repeat TODAY's tasks/medicines/
+    // habits/finance cards here, regardless of stored module preferences.
+    const selected = [HomeWidgets.health, HomeWidgets.diet];
     return _Panel(
-      title: 'Your life',
-      icon: Icons.auto_awesome_mosaic_outlined,
-      child: selected.isEmpty
-          ? const _EmptyState(message: 'No modules selected.')
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                const spacing = 10.0;
-                final columns = constraints.maxWidth >= 700 ? 3 : 2;
-                final cardWidth =
-                    (constraints.maxWidth - spacing * (columns - 1)) / columns;
-                return Wrap(
-                  spacing: spacing,
-                  runSpacing: spacing,
-                  children: [
-                    for (final id in selected)
-                      SizedBox(
-                        width: cardWidth,
-                        child: _ModuleCard(
-                          id: id,
-                          dashboard: dashboard,
-                          onDestination: onDestination,
-                          onRefresh: onRefresh,
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
+      title: 'Your wellbeing',
+      icon: Icons.favorite_outline,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const spacing = 10.0;
+          Widget card(String id) => _ModuleCard(
+            id: id,
+            dashboard: dashboard,
+            onDestination: onDestination,
+            onRefresh: onRefresh,
+          );
+          if (constraints.maxWidth >= 520) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: card(selected[0])),
+                const SizedBox(width: spacing),
+                Expanded(child: card(selected[1])),
+              ],
+            );
+          }
+          return Column(
+            children: [
+              card(selected[0]),
+              const SizedBox(height: spacing),
+              card(selected[1]),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -689,38 +991,167 @@ class _ThisWeek extends StatelessWidget {
       icon: Icons.bar_chart_rounded,
       trailing: _SeeAll(
         label: 'See details',
-        onTap: () => onDestination?.call('HABITS/STATS'),
+        onTap: () => onDestination?.call('DASHBOARD/WEEK'),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final chartWidth = constraints.maxWidth < 310 ? 88.0 : 112.0;
-          return Row(
-            children: [
-              SizedBox(
-                height: 104,
-                width: chartWidth,
-                child: CustomPaint(
-                  painter: _WeekProgressPainter(
-                    habitProgress: habitProgress,
-                    taskProgress: taskProgress,
-                    textDirection: Directionality.of(context),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _WeekDetails(
-                  habitProgress: habitProgress,
-                  taskProgress: taskProgress,
-                  activeDays: value.activeDays,
-                ),
-              ),
-            ],
-          );
-        },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Monday → Sunday bars visualise the same real aggregates used
+          // below (task/habit progress + active days). The backend exposes
+          // only week aggregates — never per-day completions — so bars show
+          // aggregate activity per active day, never invented daily values.
+          // Day letters/dates come from the real week [start].
+          _WeekBars(
+            start: value.start,
+            activeDays: value.activeDays,
+            taskProgress: taskProgress,
+            habitProgress: habitProgress,
+          ),
+          const SizedBox(height: 6),
+          _WeekDayStrip(start: value.start),
+          const SizedBox(height: 10),
+          _WeekDetails(
+            habitProgress: habitProgress,
+            taskProgress: taskProgress,
+            activeDays: value.activeDays,
+          ),
+        ],
       ),
     );
   }
+}
+
+/// Monday-through-Sunday activity bars built from the real week aggregates.
+/// Heights derive only from [taskProgress], [habitProgress] and
+/// [activeDays] — the backend provides no per-day completions, so no
+/// per-day values are claimed. The first [activeDays] columns (from Monday)
+/// render filled at aggregate height; the rest render as track. The date
+/// row itself is [_WeekDayStrip] with the real week [start] dates.
+class _WeekBars extends StatelessWidget {
+  const _WeekBars({
+    required this.start,
+    required this.activeDays,
+    required this.taskProgress,
+    required this.habitProgress,
+  });
+
+  final DateTime? start;
+  final int activeDays;
+  final double taskProgress;
+  final double habitProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    final monday = start ?? _WeekDayStrip.mondayOf(DateTime.now());
+    final today = DateTime.now();
+    final isThisWeek =
+        !today.isBefore(monday) &&
+        today.isBefore(monday.add(const Duration(days: 7)));
+    final overall =
+        ((taskProgress + habitProgress) / 2).clamp(0.15, 1.0).toDouble();
+    final filled = activeDays.clamp(0, 7);
+    return SizedBox(
+      height: 76,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var i = 0; i < 7; i++)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: _WeekBar(
+                  isActive: i < filled,
+                  isToday:
+                      isThisWeek &&
+                      monday.add(Duration(days: i)).day == today.day &&
+                      monday.add(Duration(days: i)).month == today.month,
+                  height: (i < filled ? 22 + 46 * overall : 10.0).toDouble(),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Single week-activity bar. Height and fill come exclusively from the
+/// real week aggregates computed in [_ThisWeek].
+class _WeekBar extends StatelessWidget {
+  const _WeekBar({
+    required this.isActive,
+    required this.isToday,
+    required this.height,
+  });
+
+  final bool isActive;
+  final bool isToday;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: const Duration(milliseconds: 300),
+    height: isToday && isActive ? height + 6 : height,
+    decoration: BoxDecoration(
+      color: isToday && isActive
+          ? BlistraColors.resolve(context).accent
+          : isActive
+          ? BlistraColors.resolve(context).accent.withValues(alpha: .75)
+          : BlistraColors.resolve(context).accent.withValues(alpha: .18),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
+    ),
+  );
+}
+
+/// Monday-through-Sunday strip built from the real week [start] returned by
+/// the backend. Shows honest calendar dates only — never invented activity.
+class _WeekDayStrip extends StatelessWidget {
+  const _WeekDayStrip({required this.start});
+
+  final DateTime? start;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final monday = start ?? _mondayOf(DateTime.now());
+    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        for (var i = 0; i < 7; i++)
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  labels[i],
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: BlistraColors.resolve(context).muted,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${monday.add(Duration(days: i)).day}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Monday of [day]'s week. Shared with [_WeekBars] so bars and date
+  /// labels always agree on the same real calendar days.
+  static DateTime mondayOf(DateTime day) {
+    final date = DateTime(day.year, day.month, day.day);
+    return date.subtract(Duration(days: date.weekday - 1));
+  }
+
+  static DateTime _mondayOf(DateTime day) => mondayOf(day);
 }
 
 class _WeekDetails extends StatelessWidget {
@@ -743,12 +1174,12 @@ class _WeekDetails extends StatelessWidget {
           value: '${(habitProgress * 100).round()}%',
           label: 'Habits completed',
         ),
-        Container(width: 1, height: 46, color: const Color(0xFFE6E5E3)),
+        Container(width: 1, height: 46, color: BlistraColors.resolve(context).glassBorder),
         _WeekDetail(
           value: '${(taskProgress * 100).round()}%',
           label: 'Tasks completed',
         ),
-        Container(width: 1, height: 46, color: const Color(0xFFE6E5E3)),
+        Container(width: 1, height: 46, color: BlistraColors.resolve(context).glassBorder),
         _WeekDetail(value: '$activeDays / 7', label: 'Days active'),
       ],
     );
@@ -846,9 +1277,9 @@ class _ModuleCard extends StatelessWidget {
         });
         final item = measurements.isEmpty ? null : measurements.first;
         return _ModuleValue(
-          item?.value ?? 'No readings',
+          item?.value ?? 'No recent measurement',
           item == null
-              ? 'No health readings'
+              ? 'No recent measurement'
               : '${item.type.replaceAll('_', ' ')}${item.unit == null || item.unit!.isEmpty ? '' : ' · ${item.unit}'}',
         );
       case HomeWidgets.medicines:
@@ -937,64 +1368,78 @@ class _ModuleCardShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = _moduleStyle(id, theme.colorScheme);
-    return Card(
-      color: style.background,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 132),
+    // Reference mini-card: circular icon left, title + live metric +
+    // supporting text stacked in the middle, chevron right.
+    return Semantics(
+      label: '${HomeWidgets.label(id)}: $value $detail',
+      button: onTap != null,
+      child: Card(
+        color: _tinted(context, style.foreground),
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: InkWell(
+          onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
+            child: Row(
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: style.iconBackground,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, color: style.foreground, size: 20),
-                    ),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: style.foreground.withValues(alpha: .2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: _iconFg(context, style.foreground), size: 24),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
                         HomeWidgets.label(id),
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontFamily: 'serif',
-                          fontWeight: FontWeight.w800,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: BlistraColors.resolve(context).text,
                         ),
                       ),
-                    ),
-                    if (onTap != null)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 1),
-                        child: Icon(Icons.chevron_right, size: 16),
+                      Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontFamily: 'serif',
+                          fontWeight: FontWeight.w800,
+                          color: BlistraColors.resolve(context).text,
+                        ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  value,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontFamily: 'serif',
-                    fontWeight: FontWeight.w800,
+                      Text(
+                        detail,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 11,
+                          color: BlistraColors.resolve(context).muted,
+                        ),
+                      ),
+                      if (action != null) action!,
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  detail,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                if (onTap != null)
+                  Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: .7,
+                    ),
                   ),
-                ),
-                if (action != null) ...[const SizedBox(height: 4), action!],
               ],
             ),
           ),
@@ -1020,13 +1465,9 @@ class _Panel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      color: Colors.white.withValues(alpha: .94),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: Color(0xFFF0EAE3)),
-      ),
+    return GlassCard(
+      radius: 22,
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -1035,7 +1476,7 @@ class _Panel extends StatelessWidget {
             Row(
               children: [
                 if (icon != null) ...[
-                  Icon(icon, size: 21, color: const Color(0xFF174A3B)),
+                  Icon(icon, size: 21, color: BlistraColors.resolve(context).text),
                   const SizedBox(width: 8),
                 ],
                 Expanded(
@@ -1044,7 +1485,7 @@ class _Panel extends StatelessWidget {
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontFamily: 'serif',
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF20375E),
+                      color: BlistraColors.resolve(context).text,
                     ),
                   ),
                 ),
@@ -1060,12 +1501,17 @@ class _Panel extends StatelessWidget {
   }
 }
 
+/// Reference-style today summary card: pastel surface, circular tinted icon
+/// with a chevron, large serif metric, two-line caption. The [value] is the
+/// live domain number; only the static caption copy is fixed.
 class _MetricCard extends StatelessWidget {
   const _MetricCard({
     required this.label,
     required this.value,
     required this.detail,
     required this.icon,
+    required this.caption,
+    required this.semanticLabel,
     required this.onTap,
   });
 
@@ -1073,23 +1519,28 @@ class _MetricCard extends StatelessWidget {
   final String value;
   final String detail;
   final IconData icon;
+  final String caption;
+  final String semanticLabel;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = _metricStyle(label, theme.colorScheme);
-    return Card(
-      color: style.background,
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 148),
+    return Semantics(
+      label: '$semanticLabel: $value $detail',
+      button: true,
+      child: Card(
+        color: _tinted(context, style.foreground),
+        elevation: 0,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: InkWell(
+          onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1098,38 +1549,42 @@ class _MetricCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: style.iconBackground,
+                        color: style.foreground.withValues(alpha: .2),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(icon, size: 20, color: style.foreground),
+                      child: Icon(icon, size: 22, color: _iconFg(context, style.foreground)),
                     ),
-                    const Icon(Icons.chevron_right, size: 19),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: .7,
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Text(
                   value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontFamily: 'serif',
                     fontWeight: FontWeight.w800,
+                    color: BlistraColors.resolve(context).text,
                   ),
                 ),
+                const SizedBox(height: 1),
                 Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'serif',
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Text(
-                  detail,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant.withValues(
-                      alpha: .8,
-                    ),
+                  caption,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    height: 1.2,
+                    color: BlistraColors.resolve(context).muted,
                   ),
                 ),
               ],
@@ -1146,11 +1601,21 @@ class _ScheduleRow extends StatelessWidget {
     required this.item,
     required this.onTap,
     this.showDivider = true,
+    this.busy = false,
+    this.onCompleteTask,
+    this.onCompleteHabit,
+    this.onTakeDose,
+    this.onSkipDose,
   });
 
   final TimelineItem item;
   final VoidCallback onTap;
   final bool showDivider;
+  final bool busy;
+  final VoidCallback? onCompleteTask;
+  final VoidCallback? onCompleteHabit;
+  final VoidCallback? onTakeDose;
+  final VoidCallback? onSkipDose;
 
   @override
   Widget build(BuildContext context) {
@@ -1171,7 +1636,7 @@ class _ScheduleRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontFamily: 'serif',
-                  color: const Color(0xFF60769A),
+                  color: BlistraColors.resolve(context).muted,
                 ),
               ),
             ),
@@ -1187,7 +1652,7 @@ class _ScheduleRow extends StatelessWidget {
                       bottom: 0,
                       child: Container(
                         width: 1,
-                        color: const Color(0xFFD8E1DF),
+                        color: BlistraColors.resolve(context).glassBorder,
                       ),
                     ),
                   Semantics(
@@ -1251,11 +1716,118 @@ class _ScheduleRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            Icon(_timelineIcon(item.status), size: 19, color: statusColor),
+            _ScheduleTrailing(
+              item: item,
+              statusColor: statusColor,
+              busy: busy,
+              onCompleteTask: onCompleteTask,
+              onCompleteHabit: onCompleteHabit,
+              onTakeDose: onTakeDose,
+              onSkipDose: onSkipDose,
+            ),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Trailing inline action for a schedule row. Mutations always go through
+/// the owning domain controller/API; Home never invents dosage, completion,
+/// or medical decisions. While a mutation is in flight a spinner replaces
+/// the action to prevent double-submit.
+class _ScheduleTrailing extends StatelessWidget {
+  const _ScheduleTrailing({
+    required this.item,
+    required this.statusColor,
+    required this.busy,
+    this.onCompleteTask,
+    this.onCompleteHabit,
+    this.onTakeDose,
+    this.onSkipDose,
+  });
+
+  final TimelineItem item;
+  final Color statusColor;
+  final bool busy;
+  final VoidCallback? onCompleteTask;
+  final VoidCallback? onCompleteHabit;
+  final VoidCallback? onTakeDose;
+  final VoidCallback? onSkipDose;
+
+  @override
+  Widget build(BuildContext context) {
+    if (busy) {
+      return const SizedBox(
+        width: 28,
+        height: 28,
+        child: Padding(
+          padding: EdgeInsets.all(5),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    final completed = item.status == TimelineStatus.completed;
+    if (onCompleteTask != null && item.source == HomeSource.task) {
+      return IconButton(
+        onPressed: onCompleteTask,
+        tooltip: completed ? 'Reopen task' : 'Complete task',
+        visualDensity: VisualDensity.compact,
+        icon: Icon(
+          completed ? Icons.undo_rounded : Icons.check_circle_outline,
+          size: 22,
+          color: completed ? statusColor : const Color(0xFF18A768),
+        ),
+      );
+    }
+    if (onCompleteHabit != null && item.source == HomeSource.habit) {
+      return IconButton(
+        onPressed: onCompleteHabit,
+        tooltip: 'Mark habit complete',
+        visualDensity: VisualDensity.compact,
+        icon: const Icon(
+          Icons.check_circle_outline,
+          size: 22,
+          color: Color(0xFF18A768),
+        ),
+      );
+    }
+    if (item.source == HomeSource.medicine && item.actionable) {
+      final due = !item.at.isAfter(DateTime.now());
+      if (!due) {
+        return Icon(
+          Icons.notifications_none,
+          size: 19,
+          color: statusColor,
+        );
+      }
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: onTakeDose,
+            tooltip: 'Take dose',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(
+              Icons.check_circle_outline,
+              size: 22,
+              color: Color(0xFF18A768),
+            ),
+          ),
+          IconButton(
+            onPressed: onSkipDose,
+            tooltip: 'Skip dose',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(
+              Icons.remove_circle_outline,
+              size: 20,
+              color: Color(0xFFE08A22),
+            ),
+          ),
+        ],
+      );
+    }
+    return Icon(_timelineIcon(item.status), size: 19, color: statusColor);
   }
 }
 
@@ -1461,89 +2033,50 @@ class _SkeletonBlock extends StatelessWidget {
   );
 }
 
-class _AmbientLeaves extends StatelessWidget {
-  const _AmbientLeaves();
-
-  @override
-  Widget build(BuildContext context) => CustomPaint(painter: _AmbientPainter());
-}
-
-class _LeafMarkPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final stem = Paint()
-      ..color = const Color(0xFF4F8A57)
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(size.width * .28, size.height * .9),
-      Offset(size.width * .78, size.height * .25),
-      stem,
-    );
-    final left = Path()
-      ..moveTo(size.width * .38, size.height * .7)
-      ..quadraticBezierTo(
-        .05 * size.width,
-        .72 * size.height,
-        .1 * size.width,
-        .36 * size.height,
-      )
-      ..quadraticBezierTo(
-        .42 * size.width,
-        .35 * size.height,
-        .38 * size.height,
-        .7 * size.height,
-      );
-    final right = Path()
-      ..moveTo(size.width * .58, size.height * .46)
-      ..quadraticBezierTo(
-        .54 * size.width,
-        .08 * size.height,
-        .88 * size.width,
-        .04 * size.height,
-      )
-      ..quadraticBezierTo(
-        .94 * size.width,
-        .34 * size.height,
-        .58 * size.height,
-        .46 * size.height,
-      );
-    canvas.drawPath(left, Paint()..color = const Color(0xFF7DB787));
-    canvas.drawPath(right, Paint()..color = const Color(0xFF4D9861));
-    canvas.drawLine(
-      Offset(size.width * .17, size.height * .42),
-      Offset(size.width * .37, size.height * .66),
-      stem..strokeWidth = 1.2,
-    );
-    canvas.drawLine(
-      Offset(size.width * .83, size.height * .12),
-      Offset(size.width * .61, size.height * .43),
-      stem..strokeWidth = 1.2,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 class _LandscapePainter extends CustomPainter {
-  const _LandscapePainter();
+  const _LandscapePainter(this.colors);
+
+  /// Scene colours follow the accent palette and light/dark mode.
+  final BlistraColors colors;
+
   @override
   void paint(Canvas canvas, Size size) {
+    final p = colors.accent;
+    final p2 = colors.accent2;
+    final dark = colors.isDark;
+    final skyTop = dark
+        ? Color.lerp(const Color(0xFF12113A), p, .28)!
+        : Color.lerp(const Color(0xFFFFF0D8), p2, .32)!;
+    final skyBottom = dark
+        ? Color.lerp(const Color(0xFF2A1848), p2, .6)!
+        : Color.lerp(const Color(0xFFEAF6F2), p, .28)!;
+    final farColor = dark
+        ? Color.lerp(const Color(0xFF1D1B4A), p, .4)!
+        : Color.lerp(const Color(0xFFDBE9EC), p, .4)!;
+    final nearColor = dark
+        ? Color.lerp(const Color(0xFF13113A), p, .28)!
+        : Color.lerp(const Color(0xFFBCD6D6), p, .62)!;
+    final waterColor = dark
+        ? Color.lerp(const Color(0xFF0A0A26), p, .2)!
+        : Color.lerp(const Color(0xFFBCD6D6), p, .45)!;
+    final treeColor = dark
+        ? const Color(0xFF0A0A26)
+        : Color.lerp(const Color(0xFF06251F), p, .8)!;
+    final sunColor = dark ? const Color(0xFFFFD9A0) : const Color(0xFFFFF4CC);
     final rect = Offset.zero & size;
     canvas.drawRect(
       rect,
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFDDEFF0), Color(0xFFFFF2D8)],
+          colors: [skyTop, skyBottom],
         ).createShader(rect),
     );
     canvas.drawCircle(
       Offset(size.width * .72, size.height * .42),
       size.width * .2,
-      Paint()..color = const Color(0xFFF6B766).withValues(alpha: .42),
+      Paint()..color = sunColor.withValues(alpha: dark ? .95 : .85),
     );
     final far = Path()
       ..moveTo(0, size.height * .58)
@@ -1554,7 +2087,7 @@ class _LandscapePainter extends CustomPainter {
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
       ..close();
-    canvas.drawPath(far, Paint()..color = const Color(0xFF8EB7C4));
+    canvas.drawPath(far, Paint()..color = farColor);
     final near = Path()
       ..moveTo(0, size.height * .64)
       ..lineTo(size.width * .28, size.height * .45)
@@ -1564,10 +2097,10 @@ class _LandscapePainter extends CustomPainter {
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
       ..close();
-    canvas.drawPath(near, Paint()..color = const Color(0xFF4F8090));
+    canvas.drawPath(near, Paint()..color = nearColor);
     canvas.drawRect(
       Rect.fromLTWH(0, size.height * .64, size.width, size.height * .36),
-      Paint()..color = const Color(0xFF78B4C2),
+      Paint()..color = waterColor,
     );
     for (var index = 0; index < 4; index++) {
       final y = size.height * (.7 + index * .055);
@@ -1579,7 +2112,7 @@ class _LandscapePainter extends CustomPainter {
           ..strokeWidth = 1.2,
       );
     }
-    final treePaint = Paint()..color = const Color(0xFF245E4B);
+    final treePaint = Paint()..color = treeColor;
     for (final point in const [
       Offset(.08, .75),
       Offset(.17, .79),
@@ -1644,111 +2177,24 @@ class _LandscapePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _LandscapePainter oldDelegate) =>
+      oldDelegate.colors.palette != colors.palette ||
+      oldDelegate.colors.brightness != colors.brightness;
 }
 
-class _AmbientPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF4F8A57).withValues(alpha: .06);
-    void leaf(Offset origin, double length, double angle, Paint color) {
-      canvas.save();
-      canvas.translate(origin.dx, origin.dy);
-      canvas.rotate(angle);
-      canvas.drawPath(
-        Path()
-          ..moveTo(0, 0)
-          ..quadraticBezierTo(length * .45, -length * .4, length, 0)
-          ..quadraticBezierTo(length * .5, length * .4, 0, 0),
-        color,
-      );
-      canvas.restore();
-    }
+/// Module icon colour: lightened in dark mode so it stays readable on glass.
+Color _iconFg(BuildContext context, Color module) =>
+    BlistraColors.resolve(context).isDark
+        ? Color.lerp(module, Colors.white, .4)!
+        : module;
 
-    final top = size.height * .13;
-    leaf(Offset(size.width - 5, top), 52, -1.2, paint);
-    leaf(Offset(size.width - 26, top + 45), 42, -.7, paint);
-    leaf(Offset(size.width - 58, top + 14), 38, -1.6, paint);
-    leaf(Offset(size.width - 18, top + 91), 36, -.4, paint);
-    leaf(Offset(0, size.height * .72), 64, .35, paint);
-    leaf(Offset(18, size.height * .81), 48, .65, paint);
-    leaf(Offset(size.width - 8, size.height * .88), 52, -1.8, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _WeekProgressPainter extends CustomPainter {
-  const _WeekProgressPainter({
-    required this.habitProgress,
-    required this.taskProgress,
-    required this.textDirection,
-  });
-
-  final double habitProgress;
-  final double taskProgress;
-  final TextDirection textDirection;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * .3, size.height * .5);
-    final radius = (size.height * .31).clamp(18.0, 34.0).toDouble();
-    final track = Paint()
-      ..color = const Color(0xFFE5ECE8)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round;
-    final habit = Paint()
-      ..color = const Color(0xFF8AC5A3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round;
-    final tasks = Paint()
-      ..color = const Color(0xFF0B6B4F)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round;
-    final outer = Rect.fromCircle(center: center, radius: radius);
-    final inner = Rect.fromCircle(center: center, radius: radius - 11);
-    canvas.drawArc(outer, -1.6, 4.9, false, habit);
-    canvas.drawArc(
-      outer,
-      -1.6,
-      4.9 * habitProgress.clamp(0.0, 1.0).toDouble(),
-      false,
-      tasks,
-    );
-    canvas.drawArc(inner, -1.6, 4.9, false, track);
-    canvas.drawArc(
-      inner,
-      -1.6,
-      4.9 * habitProgress.clamp(0.0, 1.0).toDouble(),
-      false,
-      habit,
-    );
-    final labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    final labelStyle = const TextStyle(
-      color: Color(0xFF5A6D69),
-      fontSize: 9,
-      fontWeight: FontWeight.w700,
-    );
-    for (var index = 0; index < labels.length; index++) {
-      final x = size.width * .62 + (index % 2) * 15;
-      final y = size.height * .12 + (index ~/ 2) * 27;
-      final painter = TextPainter(
-        text: TextSpan(text: labels[index], style: labelStyle),
-        textDirection: textDirection,
-      )..layout();
-      painter.paint(canvas, Offset(x, y));
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _WeekProgressPainter oldDelegate) =>
-      habitProgress != oldDelegate.habitProgress ||
-      taskProgress != oldDelegate.taskProgress;
+/// Module tint over the glass surface: pastel in light, deeper in dark.
+Color _tinted(BuildContext context, Color module) {
+  final colors = BlistraColors.resolve(context);
+  return Color.alphaBlend(
+    module.withValues(alpha: colors.isDark ? .18 : .12),
+    colors.glassFill,
+  );
 }
 
 class _FeatureStyle {
@@ -1865,6 +2311,11 @@ IconData _attentionIcon(String detail) {
 
 enum TimelineStatus { upcoming, due, completed, missed, overdue, cancelled }
 
+/// Owning domain of an aggregated Home schedule row. Home never duplicates
+/// domain entities; every row keeps its source + source id so taps and
+/// inline actions route to the owning domain.
+enum HomeSource { task, event, habit, medicine, meal, appointment }
+
 class TimelineItem {
   TimelineItem({
     required this.at,
@@ -1873,6 +2324,11 @@ class TimelineItem {
     required this.status,
     required this.destination,
     this.anytime = false,
+    this.source = HomeSource.task,
+    this.sourceId = '',
+    this.rawStatus = '',
+    this.scheduleId,
+    this.scheduledAt,
   });
 
   final DateTime at;
@@ -1882,7 +2338,35 @@ class TimelineItem {
   final String destination;
   final bool anytime;
 
+  /// Owning domain (medicines / planner / habits / diet / health).
+  final HomeSource source;
+
+  /// Id of the owning domain record (task id, dose medicine id, habit id,
+  /// meal id, event id, appointment id). Never synthesized.
+  final String sourceId;
+
+  /// Verbatim domain status string (e.g. TAKEN / COMPLETED / PENDING).
+  /// Display [status] is derived from this without inventing completion.
+  final String rawStatus;
+
+  /// Medicine schedule slot, when the source is a dose.
+  final String? scheduleId;
+
+  /// Original scheduled instant string, when the source is a dose.
+  final String? scheduledAt;
+
   bool get done => status == TimelineStatus.completed;
+
+  /// Whether Home may offer an inline mutation for this row. Meals, events
+  /// and appointments open details only; tasks, habits and pending doses
+  /// expose domain-owned actions.
+  bool get actionable =>
+      source == HomeSource.task ||
+      source == HomeSource.habit ||
+      (source == HomeSource.medicine &&
+          rawStatus.toUpperCase() != 'TAKEN' &&
+          rawStatus.toUpperCase() != 'CANCELLED' &&
+          rawStatus.toUpperCase() != 'SKIPPED');
 }
 
 class AttentionItem {
@@ -1904,6 +2388,8 @@ class HomeMetric {
     required this.detail,
     required this.icon,
     required this.destination,
+    required this.caption,
+    required this.semanticLabel,
   });
 
   final String label;
@@ -1911,6 +2397,14 @@ class HomeMetric {
   final String detail;
   final IconData icon;
   final String destination;
+
+  /// Two-line supporting caption rendered under the metric (e.g.
+  /// "tasks / remaining"). Static UI copy — the [value] above it is the
+  /// live domain number.
+  final String caption;
+
+  /// Accessibility label for the card action (e.g. "Open today's tasks").
+  final String semanticLabel;
 }
 
 class HomeOverview {
@@ -1935,8 +2429,10 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
         label: 'Tasks remaining',
         value: '$remaining',
         detail: 'Today',
-        icon: Icons.checklist,
+        icon: Icons.calendar_today_outlined,
         destination: 'PLANNER/TODAY',
+        caption: 'tasks\nremaining',
+        semanticLabel: "Open today's tasks",
       ),
     );
   }
@@ -1951,6 +2447,8 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
         detail: 'Taken today',
         icon: Icons.medication_outlined,
         destination: 'MEDICINES',
+        caption: 'medicines\ntaken',
+        semanticLabel: 'Open medicines',
       ),
     );
   }
@@ -1961,8 +2459,10 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
         label: 'Habits',
         value: '${habits.completedToday} of ${habits.expectedToday}',
         detail: 'Done today',
-        icon: Icons.repeat,
+        icon: Icons.eco_outlined,
         destination: 'HABITS',
+        caption: 'habits\ncompleted',
+        semanticLabel: 'Open habits',
       ),
     );
   }
@@ -1977,6 +2477,8 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
           detail: 'No activity today',
           icon: Icons.account_balance_wallet_outlined,
           destination: 'FINANCE',
+          caption: 'spent\ntoday',
+          semanticLabel: 'Open finance',
         ),
       );
     } else {
@@ -1994,6 +2496,8 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
               : 'Currency summaries',
           icon: Icons.account_balance_wallet_outlined,
           destination: 'FINANCE',
+          caption: 'spent\ntoday',
+          semanticLabel: 'Open finance',
         ),
       );
     }
@@ -2108,6 +2612,8 @@ List<TimelineItem> buildTimeline(
               'Event · ${_time(start)}${end == null ? '' : ' – ${_time(end)}'}',
           status: _eventStatus(start, end, now),
           destination: 'PLANNER/EVENT/${event.id}',
+          source: HomeSource.event,
+          sourceId: event.id,
         ),
       );
     }
@@ -2127,6 +2633,9 @@ List<TimelineItem> buildTimeline(
               ? TimelineStatus.overdue
               : TimelineStatus.upcoming,
           destination: 'PLANNER/TASK/${task.id}',
+          source: HomeSource.task,
+          sourceId: task.id,
+          rawStatus: task.status ?? '',
         ),
       );
     }
@@ -2152,6 +2661,11 @@ List<TimelineItem> buildTimeline(
               ? TimelineStatus.due
               : TimelineStatus.upcoming,
           destination: 'MEDICINES/${dose.medicineId}',
+          source: HomeSource.medicine,
+          sourceId: dose.medicineId,
+          rawStatus: dose.status,
+          scheduleId: dose.scheduleId,
+          scheduledAt: dose.scheduledAt,
         ),
       );
     }
@@ -2168,6 +2682,9 @@ List<TimelineItem> buildTimeline(
           meta: 'Diet · ${_time(at)}',
           status: TimelineStatus.completed,
           destination: 'DIET/MEAL/${meal.id}',
+          source: HomeSource.meal,
+          sourceId: meal.id,
+          rawStatus: 'LOGGED',
         ),
       );
     }
@@ -2191,6 +2708,9 @@ List<TimelineItem> buildTimeline(
               ? TimelineStatus.overdue
               : TimelineStatus.upcoming,
           destination: 'HEALTH',
+          source: HomeSource.appointment,
+          sourceId: appointment.id,
+          rawStatus: appointment.status ?? '',
         ),
       );
     }
@@ -2209,6 +2729,9 @@ List<TimelineItem> buildTimeline(
           status: TimelineStatus.upcoming,
           destination: 'HABITS/${habit.id}',
           anytime: true,
+          source: HomeSource.habit,
+          sourceId: habit.id,
+          rawStatus: 'PENDING',
         ),
       );
     }
@@ -2250,6 +2773,15 @@ IconData _timelineIcon(TimelineStatus status) => switch (status) {
 
 String _time(DateTime value) => DateFormat('h:mm a').format(value);
 
+/// Time-of-day glyph beside the greeting name (reference shows a sun).
+/// Purely presentational; the hour comes from the user's local time.
+IconData _dayPartIcon(int hour) {
+  if (hour >= 5 && hour < 12) return Icons.wb_sunny_rounded;
+  if (hour >= 12 && hour < 17) return Icons.wb_sunny_outlined;
+  if (hour >= 17 && hour < 21) return Icons.wb_twilight_rounded;
+  return Icons.nightlight_round;
+}
+
 String _mealTitle(String? value) {
   if (value == null || value.isEmpty) return 'Meal';
   return '${value[0].toUpperCase()}${value.substring(1)}';
@@ -2267,8 +2799,12 @@ String _timelineStatusLabel(TimelineStatus status) => switch (status) {
   TimelineStatus.cancelled => 'Cancelled',
 };
 
+/// Event display status. A passed scheduled time NEVER means completed:
+/// without an owning-domain completion record, a past event is overdue.
+/// Events carry no completion flag in the dashboard payload, so the only
+/// honest states are due / overdue / upcoming.
 TimelineStatus _eventStatus(DateTime start, DateTime? end, DateTime now) {
-  if ((end ?? start).isBefore(now)) return TimelineStatus.completed;
+  if ((end ?? start).isBefore(now)) return TimelineStatus.overdue;
   if (!start.isAfter(now)) return TimelineStatus.due;
   return TimelineStatus.upcoming;
 }

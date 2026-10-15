@@ -1,7 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/features/dashboard/models/dashboard_response.dart';
 import 'package:frontend/features/dashboard/screens/dashboard_screen.dart'
-    show buildAttentionItems, buildTimeline, computeHomeOverview;
+    show
+        HomeSource,
+        TimelineStatus,
+        buildAttentionItems,
+        buildTimeline,
+        computeHomeOverview;
 
 DashboardResponse _response({
   List<TaskSummary> todayTasks = const [],
@@ -184,6 +189,67 @@ void main() {
     test('empty dashboard yields empty timeline (no fake rows)', () {
       expect(buildTimeline(_response(), now: DateTime(2026, 9, 24, 7)), isEmpty);
       expect(buildTimeline(null, now: DateTime(2026, 9, 24, 7)), isEmpty);
+    });
+
+    test('passed scheduled time never means completed for events', () {
+      final d = _response(
+        todayEvents: [
+          EventSummary(
+              id: 'e-past',
+              title: 'Morning standup',
+              startAt: '2026-09-24T08:00:00+05:30',
+              endAt: '2026-09-24T08:30:00+05:30'),
+        ],
+      );
+      final items =
+          buildTimeline(d, now: DateTime(2026, 9, 24, 11, 30), limit: 5);
+      expect(items, hasLength(1));
+      expect(items.single.status, TimelineStatus.overdue);
+      expect(items.single.done, isFalse);
+    });
+
+    test('timeline preserves source domain and source id', () {
+      final d = _response(
+        todayTasks: [_task('t1', 'PENDING')],
+        todayEvents: [
+          EventSummary(
+              id: 'e1',
+              title: 'Team sync',
+              startAt: '2026-09-24T10:00:00+05:30',
+              endAt: '2026-09-24T11:00:00+05:30'),
+        ],
+        doses: [_dose('Med A', 'PENDING', '2026-09-24T08:00:00+05:30')],
+        todayHabits: [
+          HabitSummary(id: 'h1', name: 'Read', completedToday: false),
+        ],
+      );
+      final items =
+          buildTimeline(d, now: DateTime(2026, 9, 24, 7), limit: 10);
+      final bySource = {for (final i in items) i.sourceId: i.source};
+      expect(bySource['t1'], HomeSource.task);
+      expect(bySource['e1'], HomeSource.event);
+      expect(bySource['m-Med A'], HomeSource.medicine);
+      expect(bySource['h1'], HomeSource.habit);
+      for (final item in items) {
+        expect(item.sourceId, isNotEmpty);
+        expect(item.destination, isNotEmpty);
+      }
+    });
+
+    test('taken and skipped doses are not actionable', () {
+      final d = _response(
+        doses: [
+          _dose('Taken Med', 'TAKEN', '2026-09-24T08:00:00+05:30'),
+          _dose('Skipped Med', 'SKIPPED', '2026-09-24T09:00:00+05:30'),
+          _dose('Pending Med', 'PENDING', '2026-09-24T20:00:00+05:30'),
+        ],
+      );
+      final items =
+          buildTimeline(d, now: DateTime(2026, 9, 24, 7), limit: 10);
+      final actionable = {for (final i in items) i.title: i.actionable};
+      expect(actionable['Taken Med'], isFalse);
+      expect(actionable['Skipped Med'], isFalse);
+      expect(actionable['Pending Med'], isTrue);
     });
   });
 

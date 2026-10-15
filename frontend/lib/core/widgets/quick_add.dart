@@ -20,6 +20,8 @@ import '../../features/planner/models/task_priority.dart';
 import '../../features/planner/planner_controller.dart';
 import '../../features/planner/screens/event_form_screen.dart';
 import '../../features/planner/screens/task_form_screen.dart';
+import '../theme/app_theme.dart';
+import 'glass.dart';
 
 enum QuickAddKind {
   task,
@@ -55,7 +57,7 @@ class QuickAddAction {
   final Color iconColor;
 }
 
-List<QuickAddAction> get quickAddActions => const [
+List<QuickAddAction> get quickAddActions => [
       QuickAddAction(
         kind: QuickAddKind.task,
         label: 'Task',
@@ -138,7 +140,7 @@ List<QuickAddAction> get quickAddActions => const [
       ),
     ];
 
-QuickAddAction get quickAddMinimalAction => const QuickAddAction(
+QuickAddAction get quickAddMinimalAction => QuickAddAction(
       kind: QuickAddKind.quickAdd,
       label: 'Quick add',
       description: 'Add with minimal details',
@@ -311,7 +313,7 @@ Future<QuickAddAction?> showQuickAdd(BuildContext context) {
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Close quick add',
-    barrierColor: const Color(0xFF101828).withValues(alpha: 0.46),
+    barrierColor: BlistraColors.resolve(context).text.withValues(alpha: 0.46),
     transitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (context, _, _) => const _QuickAddDialog(),
     transitionBuilder: (context, animation, _, child) {
@@ -369,7 +371,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Material(
-          color: const Color(0xFFFCFDFB),
+          color: softBg(context, Color(0xFFFCFDFB)),
           elevation: 16,
           shadowColor: Colors.black.withValues(alpha: 0.24),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
@@ -390,7 +392,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
                       width: 44,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD0D5DD),
+                        color: BlistraColors.resolve(context).glassBorder,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -398,10 +400,10 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
                   const SizedBox(height: 18),
                   _staggered(
                     index: 0,
-                    child: const Text(
+                    child: Text(
                       'What would you like to add?',
                       style: TextStyle(
-                        color: Color(0xFF292D33),
+                        color: BlistraColors.resolve(context).text,
                         fontSize: 25,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
@@ -411,10 +413,10 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
                   const SizedBox(height: 3),
                   _staggered(
                     index: 1,
-                    child: const Text(
+                    child: Text(
                       'Choose a category to get started',
                       style: TextStyle(
-                        color: Color(0xFF7C8799),
+                        color: BlistraColors.resolve(context).muted,
                         fontSize: 15,
                       ),
                     ),
@@ -460,13 +462,13 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
                           height: 50,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF0F2F0),
+                            color: softBg(context, Color(0xFFF0F2F0)),
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Cancel',
                             style: TextStyle(
-                              color: Color(0xFF07594F),
+                              color: BlistraColors.resolve(context).accentText,
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
@@ -517,7 +519,7 @@ class _CategoryTile extends StatelessWidget {
       label: action.semanticLabel,
       button: true,
       child: Material(
-        color: action.tint,
+        color: softBg(context, action.tint),
         borderRadius: BorderRadius.circular(17),
         child: InkWell(
           onTap: onTap,
@@ -547,8 +549,8 @@ class _CategoryTile extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFF7C8799),
+                    style: TextStyle(
+                      color: BlistraColors.resolve(context).muted,
                       fontSize: 10.5,
                       height: 1.08,
                     ),
@@ -585,7 +587,7 @@ class _MinimalRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 13),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFEFF1EF)),
+              border: Border.all(color: softBg(context, Color(0xFFEFF1EF))),
             ),
             child: Row(
               children: [
@@ -615,15 +617,15 @@ class _MinimalRow extends StatelessWidget {
                       const SizedBox(height: 1),
                       Text(
                         action.description,
-                        style: const TextStyle(
-                          color: Color(0xFF7C8799),
+                        style: TextStyle(
+                          color: BlistraColors.resolve(context).muted,
                           fontSize: 12.5,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: Color(0xFF657083)),
+                Icon(Icons.chevron_right, color: BlistraColors.resolve(context).muted),
               ],
             ),
           ),
@@ -735,8 +737,8 @@ class _HabitSheetHost extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 520),
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         padding: EdgeInsets.only(bottom: bottom),
-        decoration: const BoxDecoration(
-          color: Color(0xFFFFFBF6),
+        decoration: BoxDecoration(
+          color: softBg(context, Color(0xFFFFFBF6)),
           borderRadius: BorderRadius.all(Radius.circular(28)),
         ),
         child: const SingleChildScrollView(child: HabitFormScreen()),
@@ -815,7 +817,7 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         padding: EdgeInsets.fromLTRB(20, 14, 20, 16 + bottom),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFBF6),
+          color: softBg(context, Color(0xFFFFFBF6)),
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
@@ -834,25 +836,25 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
                 width: 44,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE4E7EC),
+                  color: softBg(context, Color(0xFFE4E7EC)),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Log water',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.3,
-                color: Color(0xFF101828),
+                color: BlistraColors.resolve(context).text,
               ),
             ),
             const SizedBox(height: 2),
-            const Text(
+            Text(
               'Quickly record your water intake.',
-              style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+              style: TextStyle(fontSize: 14, color: BlistraColors.resolve(context).muted),
             ),
             const SizedBox(height: 14),
             Row(
@@ -870,16 +872,16 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
                       decoration: InputDecoration(
                         labelText: 'Amount',
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: BlistraColors.resolve(context).glassFill,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide:
-                              const BorderSide(color: Color(0xFFF0EDE8)),
+                              BorderSide(color: softBg(context, Color(0xFFF0EDE8))),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide:
-                              const BorderSide(color: Color(0xFFF0EDE8)),
+                              BorderSide(color: softBg(context, Color(0xFFF0EDE8))),
                         ),
                       ),
                     ),

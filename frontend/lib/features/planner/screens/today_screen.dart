@@ -23,6 +23,8 @@ import '../today_helpers.dart';
 import '../widgets/status_views.dart';
 import 'event_detail_screen.dart';
 import 'task_detail_screen.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -103,8 +105,8 @@ class _TodayScreenState extends State<TodayScreen> {
                     ? null
                     : _goToToday,
                 style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFFF2EFE9),
-                  foregroundColor: const Color(0xFF294D65),
+                  backgroundColor: softBg(context, Color(0xFFF2EFE9)),
+                  foregroundColor: BlistraColors.resolve(context).text,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
                 child: const Text('Today'),
@@ -113,12 +115,12 @@ class _TodayScreenState extends State<TodayScreen> {
               IconButton(
                 tooltip: _previousTooltip,
                 onPressed: planner.scheduleLoading ? null : _previous,
-                icon: const Icon(Icons.chevron_left, color: Color(0xFF294D65)),
+                icon: Icon(Icons.chevron_left, color: BlistraColors.resolve(context).text),
               ),
               IconButton(
                 tooltip: _nextTooltip,
                 onPressed: planner.scheduleLoading ? null : _next,
-                icon: const Icon(Icons.chevron_right, color: Color(0xFF294D65)),
+                icon: Icon(Icons.chevron_right, color: BlistraColors.resolve(context).text),
               ),
             ],
           ),
@@ -252,9 +254,9 @@ class _TodayScreenState extends State<TodayScreen> {
                         height: 78,
                         margin: const EdgeInsets.symmetric(horizontal: 1),
                         decoration: BoxDecoration(
-                          color: selected ? const Color(0xFF0B6259) : Colors.transparent,
+                          color: selected ? BlistraColors.resolve(context).accent : Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
-                          border: selected ? null : Border.all(color: const Color(0xFFE7E3DC)),
+                          border: selected ? null : Border.all(color: softBg(context, Color(0xFFE7E3DC))),
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -264,7 +266,7 @@ class _TodayScreenState extends State<TodayScreen> {
                               style: TextStyle(
                                 fontFamily: 'serif',
                                 fontSize: 12,
-                                color: selected ? Colors.white : const Color(0xFF294D65),
+                                color: selected ? Colors.white : BlistraColors.resolve(context).text,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -273,7 +275,7 @@ class _TodayScreenState extends State<TodayScreen> {
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
-                                color: selected ? Colors.white : const Color(0xFF102C3D),
+                                color: selected ? Colors.white : BlistraColors.resolve(context).text,
                               ),
                             ),
                             const SizedBox(height: 5),
@@ -283,7 +285,7 @@ class _TodayScreenState extends State<TodayScreen> {
                               decoration: BoxDecoration(
                                 color: count > 0
                                     ? (selected ? Colors.white : _dayDotColor(context, day, rows))
-                                    : (selected ? Colors.white70 : const Color(0xFFB7B4AE)),
+                                    : (selected ? Colors.white70 : BlistraColors.resolve(context).muted),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -335,7 +337,7 @@ class _TodayScreenState extends State<TodayScreen> {
                             duration: const Duration(milliseconds: 180),
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: _viewMode == mode ? const Color(0xFFCFE4DD) : Colors.transparent,
+                              color: _viewMode == mode ? softBg(context, Color(0xFFCFE4DD)) : Colors.transparent,
                               borderRadius: BorderRadius.circular(22),
                             ),
                             child: Text(
@@ -345,7 +347,7 @@ class _TodayScreenState extends State<TodayScreen> {
                                 fontFamily: 'serif',
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: _viewMode == mode ? const Color(0xFF0B544B) : const Color(0xFF102C3D),
+                                color: _viewMode == mode ? BlistraColors.resolve(context).accentText : BlistraColors.resolve(context).text,
                               ),
                             ),
                           ),
@@ -469,7 +471,7 @@ class _TodayScreenState extends State<TodayScreen> {
                       _scheduleSummary(rows),
                       textAlign: TextAlign.right,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF55728A),
+                        color: BlistraColors.resolve(context).muted,
                         fontSize: 10,
                       ),
                     ),
@@ -480,7 +482,7 @@ class _TodayScreenState extends State<TodayScreen> {
             Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.45)),
             CustomPaint(
               painter: _TimelinePainter(
-                 color: const Color(0xFF0B6259),
+                 color: BlistraColors.resolve(context).accentText,
                  currentOffset: currentOffset,
                  rowHeight: _timelineRowHeight,
                  textDirection: Directionality.of(context),
@@ -521,14 +523,14 @@ class _TodayScreenState extends State<TodayScreen> {
                       row.timed ? row.timeLabel.split('–').first : 'Anytime',
                       maxLines: 1,
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: const Color(0xFF55728A),
+                        color: BlistraColors.resolve(context).muted,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     if (showDay)
                       Text(
                         '${_weekday(row.at.weekday)} ${row.at.day}',
-                        style: theme.textTheme.labelSmall?.copyWith(color: const Color(0xFF7A8A98)),
+                        style: theme.textTheme.labelSmall?.copyWith(color: BlistraColors.resolve(context).muted),
                       ),
                   ],
                 ),
@@ -586,7 +588,7 @@ class _TodayScreenState extends State<TodayScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFF55728A),
+                                color: BlistraColors.resolve(context).muted,
                                 fontSize: 11,
                               ),
                             ),
@@ -602,7 +604,7 @@ class _TodayScreenState extends State<TodayScreen> {
                       const SizedBox(width: 7),
                       _completionMark(row.done),
                       const SizedBox(width: 4),
-                      const Icon(Icons.more_vert, size: 19, color: Color(0xFF55728A)),
+                      Icon(Icons.more_vert, size: 19, color: BlistraColors.resolve(context).muted),
                     ],
                   ),
                 ),
@@ -640,7 +642,7 @@ class _TodayScreenState extends State<TodayScreen> {
       decoration: BoxDecoration(
         color: done ? const Color(0xFF079447) : Colors.transparent,
         shape: BoxShape.circle,
-        border: Border.all(color: done ? const Color(0xFF079447) : const Color(0xFF55728A), width: 1.7),
+        border: Border.all(color: done ? const Color(0xFF079447) : BlistraColors.resolve(context).muted, width: 1.7),
       ),
       child: done ? const Icon(Icons.check, size: 15, color: Colors.white) : null,
     );
@@ -677,7 +679,7 @@ class _TodayScreenState extends State<TodayScreen> {
                   style: theme.textTheme.titleLarge?.copyWith(fontFamily: 'serif', fontWeight: FontWeight.w800),
                 ),
               ),
-              Text('${rows.length} loaded items', style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF55728A))),
+              Text('${rows.length} loaded items', style: theme.textTheme.bodySmall?.copyWith(color: BlistraColors.resolve(context).muted)),
             ],
           ),
           const SizedBox(height: 12),
@@ -688,7 +690,7 @@ class _TodayScreenState extends State<TodayScreen> {
                   child: Text(
                     label,
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.labelMedium?.copyWith(color: const Color(0xFF55728A), fontWeight: FontWeight.w800),
+                    style: theme.textTheme.labelMedium?.copyWith(color: BlistraColors.resolve(context).muted, fontWeight: FontWeight.w800),
                   ),
                 ),
             ],
@@ -732,7 +734,7 @@ class _TodayScreenState extends State<TodayScreen> {
         height: 58,
         margin: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF0B6259) : Colors.transparent,
+          color: selected ? BlistraColors.resolve(context).accent : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -795,7 +797,7 @@ class _TodayScreenState extends State<TodayScreen> {
         children: [
           Text('Agenda', style: theme.textTheme.titleLarge?.copyWith(fontFamily: 'serif', fontWeight: FontWeight.w800)),
           const SizedBox(height: 3),
-          Text('${rows.length} loaded schedule items', style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF55728A))),
+          Text('${rows.length} loaded schedule items', style: theme.textTheme.bodySmall?.copyWith(color: BlistraColors.resolve(context).muted)),
           const SizedBox(height: 10),
           for (var index = 0; index < rows.length; index++) ...[
             if (index == 0 || !_sameDay(rows[index - 1].at, rows[index].at))
@@ -845,12 +847,12 @@ class _TodayScreenState extends State<TodayScreen> {
                     showDate ? '${row.timeLabel} · ${row.subtitle}' : row.subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF55728A)),
+                    style: theme.textTheme.bodySmall?.copyWith(color: BlistraColors.resolve(context).muted),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, size: 20, color: Color(0xFF55728A)),
+            Icon(Icons.chevron_right, size: 20, color: BlistraColors.resolve(context).muted),
           ],
         ),
       ),
@@ -865,7 +867,7 @@ class _TodayScreenState extends State<TodayScreen> {
       decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(22)),
       child: Column(
         children: [
-          const Icon(Icons.event_available_outlined, size: 44, color: Color(0xFF0B6259)),
+          Icon(Icons.event_available_outlined, size: 44, color: BlistraColors.resolve(context).accentText),
           const SizedBox(height: 12),
           Text(
             _hasActiveFilters ? 'No schedule items match these filters.' : 'No tasks or events scheduled.',
@@ -876,7 +878,7 @@ class _TodayScreenState extends State<TodayScreen> {
           Text(
             planner.isTodaySelected ? 'Your schedule is clear for this day.' : 'Try another day or adjust your filters.',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFF55728A)),
+            style: theme.textTheme.bodyMedium?.copyWith(color: BlistraColors.resolve(context).muted),
           ),
           if (_hasActiveFilters) ...[
             const SizedBox(height: 12),
@@ -923,7 +925,7 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Color _dayDotColor(BuildContext context, DateTime day, List<_Row> rows) {
     final match = rows.where((row) => _sameDay(row.at, day));
-    return match.isEmpty ? const Color(0xFFB7B4AE) : _sourceColor(match.first.kind);
+    return match.isEmpty ? BlistraColors.resolve(context).muted : _sourceColor(match.first.kind);
   }
 
   String _scheduleSummary(List<_Row> rows) {

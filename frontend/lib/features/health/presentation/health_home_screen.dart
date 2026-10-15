@@ -13,6 +13,8 @@ import 'measurements_screen.dart';
 import 'profile_screen.dart';
 import 'sleep_screen.dart';
 import 'widgets.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 
 class HealthHomeScreen extends StatefulWidget {
   const HealthHomeScreen({
@@ -54,15 +56,15 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
     'Insights',
   ];
 
-  static const Color _green = Color(0xFF07594F);
-  static const Color _ink = Color(0xFF151A38);
-  static const Color _muted = Color(0xFF65758E);
-  static const Color _mint = Color(0xFFE4F5EE);
-  static const Color _blush = Color(0xFFFFE7EC);
-  static const Color _blue = Color(0xFFE5F3FD);
-  static const Color _lavender = Color(0xFFF0E9FF);
-  static const Color _orange = Color(0xFFFFE9D8);
-  static const Color _page = Color(0xFFFFFBF6);
+  static Color get _green => ActiveColors.accentText;
+  static Color get _ink => ActiveColors.text;
+  static Color get _muted => ActiveColors.muted;
+  static Color get _mint => ActiveColors.soft(const Color(0xFFE4F5EE));
+  static Color get _blush => ActiveColors.soft(const Color(0xFFFFE7EC));
+  static Color get _blue => ActiveColors.soft(const Color(0xFFE5F3FD));
+  static Color get _lavender => ActiveColors.soft(const Color(0xFFF0E9FF));
+  static Color get _orange => ActiveColors.soft(const Color(0xFFFFE9D8));
+  static const Color _page = Colors.transparent;
 
   bool _loading = false;
   Object? _measurementsError;
@@ -335,7 +337,7 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
 
   Widget _buildSelectedPage() {
     if (_loading && _repository.measurements.isEmpty) {
-      return const Center(
+      return Center(
         key: ValueKey('loading'),
         child: CircularProgressIndicator(color: _green),
       );
@@ -708,29 +710,14 @@ class _BrandHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Blistra',
-                      style: TextStyle(
-                        color: _HealthHomeScreenState._green,
-                        fontFamily: 'serif',
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -1.2,
-                      ),
-                    ),
-                    const Icon(Icons.eco, color: Color(0xFF4E9B69), size: 29),
-                  ],
-                ),
-                const Text(
+                BlistraWordmark(size: 30),
+                Text(
                   'EVERYTHING YOU NEED. ONE APP.',
                   maxLines: 1,
                   overflow: TextOverflow.fade,
                   softWrap: false,
                   style: TextStyle(
-                    color: Color(0xFF5D6D88),
+                    color: BlistraColors.resolve(context).muted,
                     fontSize: 8.5,
                     letterSpacing: 1.5,
                   ),
@@ -783,7 +770,7 @@ class _ActionCircle extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: const Color(0xFFF1F1F5),
+        color: softBg(context, Color(0xFFF1F1F5)),
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -816,7 +803,7 @@ class _HealthHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   'Health',
                   style: TextStyle(
                     color: _HealthHomeScreenState._ink,
@@ -831,7 +818,7 @@ class _HealthHero extends StatelessWidget {
                 Text(
                   'Track your health. Build a healthier you.',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: const Color(0xFF405B7B),
+                    color: BlistraColors.resolve(context).muted,
                     fontFamily: 'serif',
                     fontSize: 17,
                   ),
@@ -863,7 +850,7 @@ class _HealthTabs extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 2, 16, 8),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ActiveColors.glassFill,
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
@@ -884,7 +871,7 @@ class _HealthTabs extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: selected == index
-                        ? const Color(0xFFDDEBE4)
+                        ? softBg(context, Color(0xFFDDEBE4))
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(22),
                   ),
@@ -1046,7 +1033,7 @@ class _MetricCard extends StatelessWidget {
                     width: 39,
                     height: 39,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.72),
+                      color: BlistraColors.resolve(context).glassFill,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -1056,7 +1043,7 @@ class _MetricCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right,
                     color: _HealthHomeScreenState._ink,
                   ),
@@ -1073,14 +1060,14 @@ class _MetricCard extends StatelessWidget {
                       if (unit.isNotEmpty)
                         TextSpan(
                           text: ' $unit',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             color: _HealthHomeScreenState._muted,
                           ),
                         ),
                     ],
                   ),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _HealthHomeScreenState._ink,
                     fontFamily: 'serif',
                     fontSize: 24,
@@ -1090,7 +1077,7 @@ class _MetricCard extends StatelessWidget {
               ),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: _HealthHomeScreenState._muted,
                   fontSize: 13,
                 ),
@@ -1128,7 +1115,7 @@ class _Panel extends StatelessWidget {
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ActiveColors.glassFill,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
@@ -1159,7 +1146,7 @@ class _SectionTitle extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: _HealthHomeScreenState._ink,
               fontFamily: 'serif',
               fontSize: 20,
@@ -1227,13 +1214,13 @@ class _WeightTrendCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: trendDays == range.key
-                            ? const Color(0xFFDDEBE4)
+                            ? softBg(context, Color(0xFFDDEBE4))
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: Text(
                         range.value,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: _HealthHomeScreenState._muted,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -1282,7 +1269,7 @@ class _WeightTrendCard extends StatelessWidget {
                   Text(
                     'No ${(measurementTypeLabels[selectedType] ?? selectedType.name).toLowerCase()} data in this period',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _HealthHomeScreenState._muted,
                     ),
                   ),
@@ -1309,7 +1296,7 @@ class _WeightTrendCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     change ?? 'Only one record in this period',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _HealthHomeScreenState._muted,
                       fontSize: 12,
                     ),
@@ -1317,7 +1304,7 @@ class _WeightTrendCard extends StatelessWidget {
                 ),
                 Text(
                   formatValue(latest),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _HealthHomeScreenState._ink,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1365,7 +1352,7 @@ class _MeasurementChartPainter extends CustomPainter {
       maximum += padding;
     }
     final Paint grid = Paint()
-      ..color = const Color(0xFFDEE5E6)
+      ..color = ActiveColors.scene(Color(0xFFDEE5E6))
       ..strokeWidth = 1;
     for (int index = 0; index < 4; index++) {
       final double y = top + height * index / 3;
@@ -1375,7 +1362,7 @@ class _MeasurementChartPainter extends CustomPainter {
         canvas,
         formatDouble(value),
         Offset(0, y - 6),
-        const TextStyle(color: Color(0xFF7A88A0), fontSize: 9),
+        TextStyle(color: ActiveColors.scene(Color(0xFF7A88A0)), fontSize: 9),
       );
     }
     for (int index = 0; index < 4; index++) {
@@ -1401,10 +1388,10 @@ class _MeasurementChartPainter extends CustomPainter {
     canvas.drawPath(
       fill,
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF4DBB8A), Color(0x1A4DBB8A)],
+          colors: [ActiveColors.scene(Color(0xFF4DBB8A)), ActiveColors.scene(Color(0x1A4DBB8A))],
         ).createShader(Rect.fromLTWH(0, top, size.width, height)),
     );
     final Path line = Path()..moveTo(points.first.dx, points.first.dy);
@@ -1414,14 +1401,14 @@ class _MeasurementChartPainter extends CustomPainter {
     canvas.drawPath(
       line,
       Paint()
-        ..color = const Color(0xFF2B9D6D)
+        ..color = ActiveColors.scene(Color(0xFF2B9D6D))
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.4
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );
     for (final Offset point in points) {
-      canvas.drawCircle(point, 4.2, Paint()..color = const Color(0xFF087A57));
+      canvas.drawCircle(point, 4.2, Paint()..color = ActiveColors.scene(Color(0xFF087A57)));
       canvas.drawCircle(point, 1.6, Paint()..color = Colors.white);
     }
     final Set<int> indexes = {0, history.length ~/ 2, history.length - 1};
@@ -1430,7 +1417,7 @@ class _MeasurementChartPainter extends CustomPainter {
       final TextPainter painter = TextPainter(
         text: TextSpan(
           text: label,
-          style: const TextStyle(color: Color(0xFF65758E), fontSize: 9),
+          style: TextStyle(color: ActiveColors.scene(Color(0xFF65758E)), fontSize: 9),
         ),
         textDirection: textDirection,
       )..layout();
@@ -1565,11 +1552,12 @@ class _ProgressItem extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.label,
-    this.color = _HealthHomeScreenState._green,
-  });
+    Color? color,
+  }) : _color = color;
 
   final double progress;
-  final Color color;
+  final Color? _color;
+  Color get color => _color ?? _HealthHomeScreenState._green;
   final IconData icon;
   final String value;
   final String label;
@@ -1594,7 +1582,7 @@ class _ProgressItem extends StatelessWidget {
           fit: BoxFit.scaleDown,
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: _HealthHomeScreenState._ink,
               fontFamily: 'serif',
               fontWeight: FontWeight.w800,
@@ -1606,7 +1594,7 @@ class _ProgressItem extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             color: _HealthHomeScreenState._muted,
             fontSize: 11,
           ),
@@ -1626,7 +1614,7 @@ class _ProgressRingPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Rect bounds = Offset.zero & size;
     final Paint background = Paint()
-      ..color = const Color(0xFFECEDEE)
+      ..color = ActiveColors.scene(Color(0xFFECEDEE))
       ..style = PaintingStyle.stroke
       ..strokeWidth = 9
       ..strokeCap = StrokeCap.round;
@@ -1714,7 +1702,7 @@ class _QuickLogCard extends StatelessWidget {
   }
 
   Color _quickColor(int index) {
-    return const [
+    return [
       _HealthHomeScreenState._mint,
       _HealthHomeScreenState._blush,
       _HealthHomeScreenState._blue,
@@ -1759,7 +1747,7 @@ class _QuickTypeButton extends StatelessWidget {
                   measurementTypeLabels[type] ?? type.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _HealthHomeScreenState._ink,
                     fontFamily: 'serif',
                     fontWeight: FontWeight.w700,
@@ -1767,7 +1755,7 @@ class _QuickTypeButton extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Icon(
+                Icon(
                   Icons.chevron_right,
                   size: 17,
                   color: _HealthHomeScreenState._muted,
@@ -1791,12 +1779,12 @@ class _QuickMoreButton extends StatelessWidget {
     return SizedBox(
       width: 96,
       child: Material(
-        color: const Color(0xFFF1F1F5),
+        color: softBg(context, Color(0xFFF1F1F5)),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          child: const Padding(
+          child: Padding(
             padding: EdgeInsets.all(10),
             child: Column(
               children: [
@@ -1867,7 +1855,7 @@ class _RecentMeasurementsCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 24),
               alignment: Alignment.center,
-              child: const Text(
+              child: Text(
                 'No measurements recorded yet',
                 style: TextStyle(color: _HealthHomeScreenState._muted),
               ),
@@ -1880,7 +1868,7 @@ class _RecentMeasurementsCard extends StatelessWidget {
                 onDelete: () => onDelete(measurement),
               ),
               if (measurement != measurements.last)
-                const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                Divider(height: 1, color: softBg(context, Color(0xFFF0F0F0))),
             ],
         ],
       ),
@@ -1902,7 +1890,7 @@ class _MeasurementRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int index = overviewTypes.indexOf(measurement.type);
-    final Color color = const [
+    final Color color = [
       _HealthHomeScreenState._mint,
       _HealthHomeScreenState._blush,
       _HealthHomeScreenState._blue,
@@ -1931,7 +1919,7 @@ class _MeasurementRow extends StatelessWidget {
               child: Text(
                 measurementTypeLabels[measurement.type] ??
                     measurement.type.name,
-                style: const TextStyle(
+                style: TextStyle(
                   color: _HealthHomeScreenState._ink,
                   fontFamily: 'serif',
                   fontWeight: FontWeight.w700,
@@ -1942,7 +1930,7 @@ class _MeasurementRow extends StatelessWidget {
               flex: 4,
               child: Text(
                 formatValue(measurement),
-                style: const TextStyle(
+                style: TextStyle(
                   color: _HealthHomeScreenState._ink,
                   fontSize: 12,
                 ),
@@ -1954,7 +1942,7 @@ class _MeasurementRow extends StatelessWidget {
                 formatDateTime(measurement.measuredAt),
                 textAlign: TextAlign.end,
                 maxLines: 2,
-                style: const TextStyle(
+                style: TextStyle(
                   color: _HealthHomeScreenState._muted,
                   fontSize: 10.5,
                 ),
@@ -2012,7 +2000,7 @@ class _TrendSummaryCard extends StatelessWidget {
                         Container(
                           width: 40,
                           height: 40,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: _HealthHomeScreenState._mint,
                             shape: BoxShape.circle,
                           ),
@@ -2029,14 +2017,14 @@ class _TrendSummaryCard extends StatelessWidget {
                             children: [
                               Text(
                                 measurementTypeLabels[type] ?? type.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: _HealthHomeScreenState._ink,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               Text(
                                 '${history.length} record${history.length == 1 ? '' : 's'}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: _HealthHomeScreenState._muted,
                                   fontSize: 12,
                                 ),
@@ -2048,13 +2036,13 @@ class _TrendSummaryCard extends StatelessWidget {
                           history.isEmpty
                               ? 'Unavailable'
                               : formatValue(history.first),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: _HealthHomeScreenState._muted,
                             fontSize: 12,
                           ),
                         ),
                         if (selected == type)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(left: 8),
                             child: Icon(
                               Icons.check,
@@ -2090,10 +2078,10 @@ class _UnavailableGoalState extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: const Color(0xFFF2F4F3),
+            color: softBg(context, Color(0xFFF2F4F3)),
             borderRadius: BorderRadius.circular(18),
           ),
-          child: const Column(
+          child: Column(
             children: [
               Icon(
                 Icons.track_changes,
@@ -2141,7 +2129,7 @@ class _SummaryLine extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(color: _HealthHomeScreenState._muted),
+              style: TextStyle(color: _HealthHomeScreenState._muted),
             ),
           ),
           const SizedBox(width: 18),
@@ -2149,7 +2137,7 @@ class _SummaryLine extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: const TextStyle(
+              style: TextStyle(
                 color: _HealthHomeScreenState._ink,
                 fontWeight: FontWeight.w700,
               ),
@@ -2194,7 +2182,7 @@ class _ResourceGrid extends StatelessWidget {
       children: [
         for (int index = 0; index < resources.length; index++)
           Material(
-            color: const Color(0xFFF2F4F3),
+            color: softBg(context, Color(0xFFF2F4F3)),
             borderRadius: BorderRadius.circular(16),
             child: InkWell(
               onTap: () => onOpen(index),
@@ -2217,14 +2205,14 @@ class _ResourceGrid extends StatelessWidget {
                             resources[index].label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: _HealthHomeScreenState._ink,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                           Text(
                             summaries[index],
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: _HealthHomeScreenState._muted,
                               fontSize: 11,
                             ),
@@ -2260,7 +2248,7 @@ class _MeasurementError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.cloud_off_outlined,
               size: 44,
               color: _HealthHomeScreenState._muted,
@@ -2286,14 +2274,14 @@ class _HealthLandscapePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Paint sky = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFFE8F3E8), Color(0xFFFFF7DE)],
+        colors: [ActiveColors.scene(Color(0xFFE8F3E8)), ActiveColors.scene(Color(0xFFFFF7DE))],
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, sky);
     final double baseline = size.height * 0.88;
-    final Paint farMountain = Paint()..color = const Color(0xFFCADBD2);
+    final Paint farMountain = Paint()..color = ActiveColors.scene(Color(0xFFCADBD2));
     final Path back = Path()
       ..moveTo(size.width * 0.33, baseline)
       ..quadraticBezierTo(
@@ -2307,7 +2295,7 @@ class _HealthLandscapePainter extends CustomPainter {
       ..lineTo(size.width * 0.3, size.height)
       ..close();
     canvas.drawPath(back, farMountain);
-    final Paint frontMountain = Paint()..color = const Color(0xFF8FB7AC);
+    final Paint frontMountain = Paint()..color = ActiveColors.scene(Color(0xFF8FB7AC));
     final Path front = Path()
       ..moveTo(size.width * 0.45, baseline)
       ..lineTo(size.width * 0.68, size.height * 0.35)
@@ -2320,16 +2308,16 @@ class _HealthLandscapePainter extends CustomPainter {
     canvas.drawCircle(
       Offset(size.width * 0.78, size.height * 0.57),
       22,
-      Paint()..color = const Color(0xFFFFC77E).withValues(alpha: 0.85),
+      Paint()..color = ActiveColors.scene(Color(0xFFFFC77E)).withValues(alpha: 0.85),
     );
-    final Paint forest = Paint()..color = const Color(0xFF3D7867);
+    final Paint forest = Paint()..color = ActiveColors.scene(Color(0xFF3D7867));
     for (int index = 0; index < 9; index++) {
       final double x = size.width * (0.48 + index * 0.055);
       final double height = 15 + (index % 3) * 5;
       _pine(canvas, Offset(x, baseline + 7), height, forest);
     }
     final Paint branch = Paint()
-      ..color = const Color(0xFF315E43)
+      ..color = ActiveColors.scene(Color(0xFF315E43))
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(
@@ -2337,10 +2325,10 @@ class _HealthLandscapePainter extends CustomPainter {
       Offset(size.width * 0.86, size.height * 0.76),
       branch,
     );
-    _leaf(canvas, const Offset(0.96, 0.22), -0.45, const Color(0xFF4E9B69));
-    _leaf(canvas, const Offset(0.93, 0.38), 0.55, const Color(0xFF2F7955));
-    _leaf(canvas, const Offset(0.9, 0.56), -0.42, const Color(0xFF5AA875));
-    _leaf(canvas, const Offset(0.87, 0.7), 0.48, const Color(0xFF327655));
+    _leaf(canvas, const Offset(0.96, 0.22), -0.45, ActiveColors.scene(Color(0xFF4E9B69)));
+    _leaf(canvas, const Offset(0.93, 0.38), 0.55, ActiveColors.scene(Color(0xFF2F7955)));
+    _leaf(canvas, const Offset(0.9, 0.56), -0.42, ActiveColors.scene(Color(0xFF5AA875)));
+    _leaf(canvas, const Offset(0.87, 0.7), 0.48, ActiveColors.scene(Color(0xFF327655)));
   }
 
   void _pine(Canvas canvas, Offset base, double height, Paint paint) {

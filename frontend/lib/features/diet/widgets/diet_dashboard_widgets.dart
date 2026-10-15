@@ -10,6 +10,8 @@ import '../models/diet_profile.dart';
 import '../models/meal.dart';
 import '../models/nutrition_totals.dart';
 import '../models/summary.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 
 class DietBrandHeader extends StatelessWidget {
   const DietBrandHeader({
@@ -94,7 +96,7 @@ class _Brand extends StatelessWidget {
             Text(
               'Blistra',
               style: TextStyle(
-                color: const Color(0xFF075E55),
+                color: BlistraColors.resolve(context).accentText,
                 fontSize: 31,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -1.3,
@@ -131,7 +133,7 @@ class _LeafPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final stem = Paint()
-      ..color = const Color(0xFF0A725E)
+      ..color = ActiveColors.scene(Color(0xFF0A725E))
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
@@ -140,8 +142,8 @@ class _LeafPainter extends CustomPainter {
       Offset(size.width * 0.56, size.height * 0.12),
       stem,
     );
-    final left = Paint()..color = const Color(0xFF41AD72);
-    final right = Paint()..color = const Color(0xFF78C86B);
+    final left = Paint()..color = ActiveColors.scene(Color(0xFF41AD72));
+    final right = Paint()..color = ActiveColors.scene(Color(0xFF78C86B));
     canvas.drawPath(
       Path()
         ..moveTo(size.width * 0.48, size.height * 0.58)
@@ -198,7 +200,7 @@ class _ActionCircle extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: const Color(0xFFF0F1F8),
+        color: softBg(context, Color(0xFFF0F1F8)),
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -207,7 +209,7 @@ class _ActionCircle extends StatelessWidget {
             width: 42,
             height: 42,
             child: Center(
-              child: Icon(icon, size: 23, color: const Color(0xFF172554)),
+              child: Icon(icon, size: 23, color: BlistraColors.resolve(context).text),
             ),
           ),
         ),
@@ -225,7 +227,7 @@ class DietHero extends StatelessWidget {
       height: 154,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
+        color: softBg(context, Color(0xFFFFF7ED)),
         borderRadius: BorderRadius.circular(28),
       ),
       child: Stack(
@@ -240,10 +242,10 @@ class DietHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   'Diet',
                   style: TextStyle(
-                    color: Color(0xFF172554),
+                    color: BlistraColors.resolve(context).text,
                     fontSize: 47,
                     height: 0.98,
                     fontWeight: FontWeight.w800,
@@ -254,7 +256,7 @@ class DietHero extends StatelessWidget {
                 Text(
                   'Good food. A healthier you.',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: const Color(0xFF5573A4),
+                        color: BlistraColors.resolve(context).muted,
                         fontFamily: 'serif',
                         fontSize: 18,
                       ),
@@ -272,7 +274,7 @@ class _FoodHeroPainter extends CustomPainter {
   const _FoodHeroPainter();
   @override
   void paint(Canvas canvas, Size size) {
-    final peach = Paint()..color = const Color(0xFFFFDCC2);
+    final peach = Paint()..color = ActiveColors.scene(Color(0xFFFFDCC2));
     canvas.drawCircle(
       Offset(size.width * 0.80, size.height * 0.47),
       size.height * 0.43,
@@ -281,12 +283,12 @@ class _FoodHeroPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(size.width * 0.64, size.height * 0.80),
       size.height * 0.33,
-      Paint()..color = const Color(0xFFFFE9D6),
+      Paint()..color = ActiveColors.scene(Color(0xFFFFE9D6)),
     );
-    final leafPaint = Paint()..color = const Color(0xFF547E53);
-    final lightLeafPaint = Paint()..color = const Color(0xFF79A96A);
+    final leafPaint = Paint()..color = ActiveColors.scene(Color(0xFF547E53));
+    final lightLeafPaint = Paint()..color = ActiveColors.scene(Color(0xFF79A96A));
     final stemPaint = Paint()
-      ..color = const Color(0xFF4B7650)
+      ..color = ActiveColors.scene(Color(0xFF4B7650))
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
     canvas.drawLine(
@@ -321,14 +323,14 @@ class _FoodHeroPainter extends CustomPainter {
       ),
       Radius.circular(size.width * 0.13),
     );
-    canvas.drawRRect(bowl, Paint()..color = const Color(0xFFF7B67A));
+    canvas.drawRRect(bowl, Paint()..color = ActiveColors.scene(Color(0xFFF7B67A)));
     canvas.drawOval(
       Rect.fromCenter(
         center: Offset(size.width * 0.73, size.height * 0.63),
         width: size.width * 0.43,
         height: size.height * 0.17,
       ),
-      Paint()..color = const Color(0xFFFFF2D9),
+      Paint()..color = ActiveColors.scene(Color(0xFFFFF2D9)),
     );
     final foods = <Offset>[
       Offset(.66, .61),
@@ -342,13 +344,13 @@ class _FoodHeroPainter extends CustomPainter {
       Offset(.81, .65),
     ];
     final foodColors = [
-      const Color(0xFF5B9B51),
-      const Color(0xFF6FAE58),
-      const Color(0xFFEA5B45),
-      const Color(0xFFF1A33E),
-      const Color(0xFFFFD56B),
-      const Color(0xFF7A4A2D),
-      const Color(0xFFF5D8A5),
+      ActiveColors.scene(Color(0xFF6FAE58)),
+      ActiveColors.scene(Color(0xFF6FAE58)),
+      ActiveColors.scene(Color(0xFFEA5B45)),
+      ActiveColors.scene(Color(0xFFF1A33E)),
+      ActiveColors.scene(Color(0xFFFFD56B)),
+      ActiveColors.scene(Color(0xFF7A4A2D)),
+      ActiveColors.scene(Color(0xFFF5D8A5)),
     ];
     for (var i = 0; i < foods.length; i++) {
       final point = foods[i];
@@ -367,7 +369,7 @@ class _FoodHeroPainter extends CustomPainter {
       }
     }
     final noodlePaint = Paint()
-      ..color = const Color(0xFFE6B967)
+      ..color = ActiveColors.scene(Color(0xFFE6B967))
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -401,7 +403,7 @@ class DietSummaryGrid extends StatelessWidget {
     final water = summary.waterTotalMilliliters;
     final metrics = [
       _SummaryData(
-        color: const Color(0xFFFFF0E5),
+        color: softBg(context, Color(0xFFFFF0E5)),
         accent: const Color(0xFFFF6B2C),
         icon: Icons.local_fire_department_rounded,
         value: _formatCalories(nutrition?.caloriesKcal?.total),
@@ -414,7 +416,7 @@ class DietSummaryGrid extends StatelessWidget {
             : _MacroRingData.total(nutrition!.caloriesKcal!.total!),
       ),
       _SummaryData(
-        color: const Color(0xFFEAF8F2),
+        color: softBg(context, Color(0xFFEAF8F2)),
         accent: const Color(0xFF22B573),
         icon: Icons.eco_rounded,
         value: '${summary.mealCount}',
@@ -427,7 +429,7 @@ class DietSummaryGrid extends StatelessWidget {
         ring: _MacroRingData.count(summary.mealCount),
       ),
       _SummaryData(
-        color: const Color(0xFFE9F4FF),
+        color: softBg(context, Color(0xFFE9F4FF)),
         accent: const Color(0xFF168CEB),
         icon: Icons.water_drop_rounded,
         value: water == null ? '—' : _formatWater(water),
@@ -436,7 +438,7 @@ class DietSummaryGrid extends StatelessWidget {
         ring: water == null ? null : _MacroRingData.water(water),
       ),
       _SummaryData(
-        color: const Color(0xFFF4EEFF),
+        color: softBg(context, Color(0xFFF4EEFF)),
         accent: const Color(0xFF7A32E8),
         icon: Icons.donut_large_rounded,
         value: recordedMacros == 0 ? '—' : '$recordedMacros',
@@ -528,7 +530,7 @@ class _SummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: data.color,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+        border: Border.all(color: BlistraColors.resolve(context).glassBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,8 +560,8 @@ class _SummaryCard extends StatelessWidget {
             data.value,
             maxLines: 1,
             overflow: TextOverflow.fade,
-            style: const TextStyle(
-              color: Color(0xFF172554),
+            style: TextStyle(
+              color: BlistraColors.resolve(context).text,
               fontSize: 18,
               fontWeight: FontWeight.w800,
               height: 1,
@@ -568,8 +570,8 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             data.label,
-            style: const TextStyle(
-              color: Color(0xFF46658C),
+            style: TextStyle(
+              color: BlistraColors.resolve(context).muted,
               fontSize: 13,
             ),
           ),
@@ -670,7 +672,7 @@ class _MacroRingPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final track = Paint()
-      ..color = const Color(0xFFE6E9E9)
+      ..color = ActiveColors.scene(Color(0xFFE6E9E9))
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;
@@ -734,7 +736,7 @@ class TodayMealsSection extends StatelessWidget {
                 child: Text(
                   _isToday(date) ? "Today's meals" : 'Meals · ${DateFormat('MMM d').format(date)}',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: const Color(0xFF172554),
+                        color: BlistraColors.resolve(context).text,
                         fontWeight: FontWeight.w800,
                       ),
                 ),
@@ -786,7 +788,7 @@ class _TodayButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isToday = _isToday(date);
     return Material(
-      color: const Color(0xFFEAF0EA),
+      color: softBg(context, Color(0xFFEAF0EA)),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -795,8 +797,8 @@ class _TodayButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           child: Text(
             isToday ? 'Today' : DateFormat('MMM d').format(date),
-            style: const TextStyle(
-              color: Color(0xFF075E55),
+            style: TextStyle(
+              color: BlistraColors.resolve(context).accentText,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -832,8 +834,8 @@ class _MealTimelineRow extends StatelessWidget {
               children: [
                 Text(
                   DateFormat('h:mm a').format(meal.consumedAt),
-                  style: const TextStyle(
-                    color: Color(0xFF5573A4),
+                  style: TextStyle(
+                    color: BlistraColors.resolve(context).muted,
                     fontSize: 11.5,
                   ),
                 ),
@@ -873,12 +875,12 @@ class _MealTimelineRow extends StatelessWidget {
                           width: 50,
                           height: 50,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.78),
+                            color: BlistraColors.resolve(context).glassFill,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
                             _mealIcon(meal.mealType.wireName),
-                            color: const Color(0xFF46658C),
+                            color: BlistraColors.resolve(context).muted,
                           ),
                         ),
                         const SizedBox(width: 11),
@@ -888,8 +890,8 @@ class _MealTimelineRow extends StatelessWidget {
                             children: [
                               Text(
                                 meal.mealType.label,
-                                style: const TextStyle(
-                                  color: Color(0xFF172554),
+                                style: TextStyle(
+                                  color: BlistraColors.resolve(context).text,
                                   fontWeight: FontWeight.w800,
                                   fontSize: 15,
                                 ),
@@ -899,8 +901,8 @@ class _MealTimelineRow extends StatelessWidget {
                                   names.join(', '),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF5573A4),
+                                  style: TextStyle(
+                                    color: BlistraColors.resolve(context).muted,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -909,16 +911,16 @@ class _MealTimelineRow extends StatelessWidget {
                                   nutrition.join('  •  '),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF5573A4),
+                                  style: TextStyle(
+                                    color: BlistraColors.resolve(context).muted,
                                     fontSize: 10.5,
                                   ),
                                 ),
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded,
-                            color: Color(0xFF172554)),
+                        Icon(Icons.chevron_right_rounded,
+                            color: BlistraColors.resolve(context).text),
                       ],
                     ),
                   ),
@@ -1001,15 +1003,15 @@ class DietQuickActions extends StatelessWidget {
         'Log a meal',
         'Record what you eat',
         Icons.add_rounded,
-        const Color(0xFFE8F4EE),
-        const Color(0xFF075E55),
+        softBg(context, Color(0xFFE8F4EE)),
+        BlistraColors.resolve(context).accentText,
         onLogMeal,
       ),
       _QuickActionData(
         'Log water',
         'Add water intake',
         Icons.water_drop_rounded,
-        const Color(0xFFEAF5FF),
+        softBg(context, Color(0xFFEAF5FF)),
         const Color(0xFF168CEB),
         onLogWater,
       ),
@@ -1017,7 +1019,7 @@ class DietQuickActions extends StatelessWidget {
         'Scan food',
         'Coming soon',
         Icons.document_scanner_outlined,
-        const Color(0xFFF2E9FF),
+        softBg(context, Color(0xFFF2E9FF)),
         const Color(0xFF7A32E8),
         onScanFood,
       ),
@@ -1069,7 +1071,7 @@ class _QuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: ActiveColors.glassFill,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: data.onTap,
@@ -1093,8 +1095,8 @@ class _QuickAction extends StatelessWidget {
                       data.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF172554),
+                      style: TextStyle(
+                        color: BlistraColors.resolve(context).text,
                         fontWeight: FontWeight.w800,
                         fontSize: 14,
                       ),
@@ -1104,8 +1106,8 @@ class _QuickAction extends StatelessWidget {
                       data.subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF5573A4),
+                      style: TextStyle(
+                        color: BlistraColors.resolve(context).muted,
                         fontSize: 11,
                       ),
                     ),
@@ -1192,14 +1194,14 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
             builder: (context, constraints) {
               final title = Row(
                 children: [
-                  const Icon(Icons.bar_chart_rounded,
-                      color: Color(0xFF075E55), size: 27),
+                  Icon(Icons.bar_chart_rounded,
+                      color: BlistraColors.resolve(context).accentText, size: 27),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Nutrition overview',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: const Color(0xFF172554),
+                            color: BlistraColors.resolve(context).text,
                             fontWeight: FontWeight.w800,
                           ),
                     ),
@@ -1274,7 +1276,7 @@ class _RangeSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F1F5),
+        color: softBg(context, Color(0xFFF2F1F5)),
         borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
@@ -1288,15 +1290,15 @@ class _RangeSelector extends StatelessWidget {
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                 decoration: BoxDecoration(
-                  color: selected == i ? const Color(0xFFDDEAE3) : Colors.transparent,
+                  color: selected == i ? softBg(context, Color(0xFFDDEAE3)) : Colors.transparent,
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
                   labels[i],
                   style: TextStyle(
                     color: selected == i
-                        ? const Color(0xFF075E55)
-                        : const Color(0xFF5573A4),
+                        ? BlistraColors.resolve(context).accentText
+                        : BlistraColors.resolve(context).muted,
                     fontSize: 10.5,
                     fontWeight: selected == i ? FontWeight.w800 : FontWeight.w600,
                   ),
@@ -1482,14 +1484,14 @@ class _MacroRow extends StatelessWidget {
           decoration: BoxDecoration(color: data.color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 9),
-        Expanded(child: Text(data.label, style: const TextStyle(color: Color(0xFF172554)))),
+        Expanded(child: Text(data.label, style: TextStyle(color: BlistraColors.resolve(context).text))),
         if (data.value == null)
-          const Text('—', style: TextStyle(color: Color(0xFF7891B4)))
+          Text('—', style: TextStyle(color: BlistraColors.resolve(context).muted))
         else
           Text(
             '${_formatNumber(data.value!)} ${data.unit}',
-            style: const TextStyle(
-              color: Color(0xFF172554),
+            style: TextStyle(
+              color: BlistraColors.resolve(context).text,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1525,15 +1527,15 @@ class _NutritionRing extends StatelessWidget {
             children: [
               Text(
                 calories == null ? '—' : _formatNumber(calories),
-                style: const TextStyle(
-                  color: Color(0xFF172554),
+                style: TextStyle(
+                  color: BlistraColors.resolve(context).text,
                   fontWeight: FontWeight.w800,
                   fontSize: 19,
                 ),
               ),
               Text(
                 showRangeLabel ? 'ring: day' : 'kcal',
-                style: const TextStyle(color: Color(0xFF5573A4), fontSize: 11),
+                style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 11),
               ),
             ],
           ),
@@ -1576,14 +1578,14 @@ class RecentFoodLogSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.history_rounded,
-                  color: Color(0xFF075E55), size: 27),
+              Icon(Icons.history_rounded,
+                  color: BlistraColors.resolve(context).accentText, size: 27),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Recent food log',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: const Color(0xFF172554),
+                        color: BlistraColors.resolve(context).text,
                         fontWeight: FontWeight.w800,
                       ),
                 ),
@@ -1643,29 +1645,29 @@ class _FoodLogRow extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 2),
       leading: CircleAvatar(
-        backgroundColor: const Color(0xFFFFEFE8),
+        backgroundColor: softBg(context, Color(0xFFFFEFE8)),
         child: Icon(_foodIcon(item.name), color: const Color(0xFFFF6B2C)),
       ),
       title: Text(
         item.name,
-        style: const TextStyle(
-          color: Color(0xFF172554),
+        style: TextStyle(
+          color: BlistraColors.resolve(context).text,
           fontWeight: FontWeight.w700,
         ),
       ),
       subtitle: Text(
         detail.isEmpty ? 'No nutrition or quantity recorded' : detail,
-        style: const TextStyle(color: Color(0xFF5573A4), fontSize: 12),
+        style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             DateFormat('h:mm a').format(entry.meal.consumedAt),
-            style: const TextStyle(color: Color(0xFF5573A4), fontSize: 11),
+            style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 11),
           ),
           const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFF172554)),
+          Icon(Icons.chevron_right_rounded, size: 20, color: BlistraColors.resolve(context).text),
         ],
       ),
       onTap: onTap,
@@ -1684,11 +1686,11 @@ class _DashboardCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ActiveColors.glassFill,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF24415E).withValues(alpha: 0.035),
+            color: BlistraColors.resolve(context).text.withValues(alpha: 0.035),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
@@ -1720,13 +1722,13 @@ class _InlineEmpty extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 12),
       child: Column(
         children: [
-          Icon(icon, size: 36, color: const Color(0xFF7891B4)),
+          Icon(icon, size: 36, color: BlistraColors.resolve(context).muted),
           const SizedBox(height: 8),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF172554),
+            style: TextStyle(
+              color: BlistraColors.resolve(context).text,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1734,7 +1736,7 @@ class _InlineEmpty extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF5573A4), fontSize: 12),
+            style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
           ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 10),
@@ -1777,14 +1779,14 @@ class DietGoalsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.flag_outlined, color: Color(0xFF075E55), size: 27),
+              Icon(Icons.flag_outlined, color: BlistraColors.resolve(context).accentText, size: 27),
               SizedBox(width: 8),
               Text(
                 'Diet goals',
                 style: TextStyle(
-                  color: Color(0xFF172554),
+                  color: BlistraColors.resolve(context).text,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1814,9 +1816,9 @@ class DietGoalsSection extends StatelessWidget {
             if (value.notes?.trim().isNotEmpty == true)
               _GoalFact(label: 'Notes', value: value.notes!.trim()),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Nutrition, hydration and activity targets are not stored in Diet. Use guidance from a qualified professional to set them.',
-              style: TextStyle(color: Color(0xFF5573A4), fontSize: 12, height: 1.4),
+              style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12, height: 1.4),
             ),
           ],
           const SizedBox(height: 14),
@@ -1872,14 +1874,14 @@ class _GoalFact extends StatelessWidget {
             width: 122,
             child: Text(
               label,
-              style: const TextStyle(color: Color(0xFF5573A4), fontSize: 12),
+              style: TextStyle(color: BlistraColors.resolve(context).muted, fontSize: 12),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                color: Color(0xFF172554),
+              style: TextStyle(
+                color: BlistraColors.resolve(context).text,
                 fontWeight: FontWeight.w600,
               ),
             ),

@@ -7,6 +7,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+import 'glass.dart';
 
 /// Full-page friendly error for a module that failed to open or load.
 class ModuleErrorScreen extends StatelessWidget {
@@ -24,10 +26,10 @@ class ModuleErrorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF6),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(title),
-        backgroundColor: const Color(0xFFFFFBF6),
+        backgroundColor: Colors.transparent,
       ),
       body: Center(
         child: Padding(
@@ -39,7 +41,7 @@ class ModuleErrorScreen extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFDECEC),
+                  color: softBg(context, Color(0xFFFDECEC)),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: const Icon(
@@ -60,7 +62,7 @@ class ModuleErrorScreen extends StatelessWidget {
               Text(
                 message,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF667085),
+                      color: BlistraColors.resolve(context).muted,
                     ),
                 textAlign: TextAlign.center,
               ),
@@ -110,10 +112,10 @@ class ModulePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF6),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(title),
-        backgroundColor: const Color(0xFFFFFBF6),
+        backgroundColor: Colors.transparent,
       ),
       body: Center(
         child: Padding(
@@ -125,13 +127,13 @@ class ModulePlaceholder extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE6F6F3),
+                  color: softBg(context, Color(0xFFE6F6F3)),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Icon(
                   icon,
                   size: 36,
-                  color: const Color(0xFF0C6B6B),
+                  color: BlistraColors.resolve(context).accentText,
                 ),
               ),
               const SizedBox(height: 16),
@@ -146,7 +148,7 @@ class ModulePlaceholder extends StatelessWidget {
               Text(
                 description,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF667085),
+                      color: BlistraColors.resolve(context).muted,
                     ),
                 textAlign: TextAlign.center,
               ),
@@ -157,13 +159,13 @@ class ModulePlaceholder extends StatelessWidget {
                   vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE6F6F3),
+                  color: softBg(context, Color(0xFFE6F6F3)),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Text(
+                child: Text(
                   'Coming soon',
                   style: TextStyle(
-                    color: Color(0xFF0C6B6B),
+                    color: BlistraColors.resolve(context).accentText,
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -194,10 +196,10 @@ Future<void> pushModulePage(
         builder: (_) => ownAppBar
             ? page
             : Scaffold(
-                backgroundColor: const Color(0xFFFFFBF6),
+                backgroundColor: Colors.transparent,
                 appBar: AppBar(
                   title: Text(title),
-                  backgroundColor: const Color(0xFFFFFBF6),
+                  backgroundColor: Colors.transparent,
                 ),
                 body: page,
               ),

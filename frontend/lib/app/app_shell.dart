@@ -13,9 +13,12 @@ import 'package:provider/provider.dart';
 
 import '../core/api/api_client.dart';
 import '../core/routing/routes.dart';
+import '../core/theme/app_theme.dart';
+import 'dart:ui' show ImageFilter;
 import '../core/widgets/module_guard.dart';
 import '../core/widgets/quick_add.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
+import '../features/dashboard/screens/weekly_details_screen.dart';
 import '../features/diet/screens/today_screen.dart' as diet;
 import '../features/documents/documents_page.dart';
 import '../features/documents/document_detail_page.dart';
@@ -214,6 +217,19 @@ class _AppShellState extends State<AppShell> {
     }
     if (id == 'PROFILE') {
       _openProfile();
+      return;
+    }
+    // Mixed Home weekly summary: a dedicated read-only destination. Routing
+    // this to Habits stats would hide task progress, so Home owns a small
+    // details screen fed by the real backend week calculation.
+    if ((id == 'DASHBOARD' || id == 'HOME') &&
+        parts.length > 1 &&
+        parts[1].toUpperCase() == 'WEEK') {
+      pushModulePage(
+        context,
+        WeeklyDetailsScreen(week: _d.dashboard.dashboard?.week),
+        title: 'Weekly details',
+      );
       return;
     }
     if (id == ShellDestinations.planner) {
@@ -592,52 +608,63 @@ class _BlistraBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     return SafeArea(
       top: false,
       child: SizedBox(
         height: 72,
         child: Container(
           margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
           decoration: BoxDecoration(
-            color: Colors.white,
             borderRadius: BorderRadius.circular(34),
-            border: Border.all(color: const Color(0xFFF0F2F0)),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF1B2B28).withValues(alpha: 0.12),
-                blurRadius: 28,
-                spreadRadius: 1,
-                offset: const Offset(0, 9),
+                color: colors.accent.withValues(alpha: 0.22),
+                blurRadius: 30,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: Row(
-              children: [
-                for (int i = 0; i < destinations.length; i++)
-                  if (destinations[i] == ShellDestinations.add)
-                    SizedBox(
-                      width: 72,
-                      child: _AddButton(
-                        open: addOpen,
-                        onTap: () => onSelect(i),
-                      ),
-                    )
-                  else
-                    Expanded(
-                      child: _BarItem(
-                        label: ShellDestinations.label(destinations[i]),
-                        icon: ShellDestinations.icon(destinations[i]),
-                        selectedIcon: ShellDestinations.selectedIcon(
-                          destinations[i],
-                        ),
-                        selected: index == i,
-                        onTap: () => onSelect(i),
-                      ),
-                    ),
-              ],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(34),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: colors.navFill,
+                  borderRadius: BorderRadius.circular(34),
+                  border: Border.all(color: colors.glassBorder),
+                ),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: Row(
+                    children: [
+                      for (int i = 0; i < destinations.length; i++)
+                        if (destinations[i] == ShellDestinations.add)
+                          SizedBox(
+                            width: 72,
+                            child: _AddButton(
+                              open: addOpen,
+                              onTap: () => onSelect(i),
+                            ),
+                          )
+                        else
+                          Expanded(
+                            child: _BarItem(
+                              label: ShellDestinations.label(destinations[i]),
+                              icon: ShellDestinations.icon(destinations[i]),
+                              selectedIcon: ShellDestinations.selectedIcon(
+                                destinations[i],
+                              ),
+                              selected: index == i,
+                              onTap: () => onSelect(i),
+                            ),
+                          ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -654,6 +681,7 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     return Semantics(
       label: 'Add',
       button: true,
@@ -665,17 +693,13 @@ class _AddButton extends StatelessWidget {
           height: 64,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFF087D70), Color(0xFF07584F)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            gradient: colors.gradient,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0A665A).withValues(alpha: 0.24),
-                blurRadius: 14,
-                spreadRadius: 2,
-                offset: const Offset(0, 6),
+                color: colors.accent.withValues(alpha: 0.5),
+                blurRadius: 22,
+                spreadRadius: 1,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -716,8 +740,9 @@ class _BarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color selectedColor = Color(0xFF07594F);
-    const Color unselectedColor = Color(0xFF66758A);
+    final colors = BlistraColors.resolve(context);
+    final Color selectedColor = colors.accentText;
+    final Color unselectedColor = colors.muted;
     final Color color = selected ? selectedColor : unselectedColor;
     return Semantics(
       label: label,
@@ -741,7 +766,7 @@ class _BarItem extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: selected
-                      ? const Color(0xFFE5F2EE)
+                      ? colors.accent.withValues(alpha: 0.16)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(22),
                 ),
@@ -756,7 +781,7 @@ class _BarItem extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: selectedColor,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w800,
@@ -773,7 +798,7 @@ class _BarItem extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: unselectedColor,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w500,
@@ -785,12 +810,12 @@ class _BarItem extends StatelessWidget {
                 child: AnimatedOpacity(
                   opacity: selected ? 1 : 0,
                   duration: const Duration(milliseconds: 160),
-                  child: const DecoratedBox(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: selectedColor,
                       shape: BoxShape.circle,
                     ),
-                    child: SizedBox(width: 5, height: 5),
+                    child: const SizedBox(width: 5, height: 5),
                   ),
                 ),
               ),

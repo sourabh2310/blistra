@@ -553,7 +553,7 @@ class _AuthScreenState extends State<AuthScreen> {
       case _Avail.idle:
         return const SizedBox.shrink();
       case _Avail.checking:
-        return const Padding(
+        return Padding(
           padding: EdgeInsets.only(top: 8),
           child: Row(
             children: [
@@ -570,7 +570,7 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         );
       case _Avail.available:
-        return const Padding(
+        return Padding(
           padding: EdgeInsets.only(top: 8),
           child: Row(
             children: [
@@ -590,12 +590,12 @@ class _AuthScreenState extends State<AuthScreen> {
           padding: const EdgeInsets.only(top: 8),
           child: Row(
             children: [
-              const Icon(Icons.error_outline,
+              Icon(Icons.error_outline,
                   size: 16, color: AuthColors.error),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(takenMessage,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AuthColors.error)),
@@ -1115,14 +1115,14 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 8),
           const AuthBrand(),
           const SizedBox(height: 32),
-          const Text('Welcome back',
+          Text('Welcome back',
               style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.6,
                   color: AuthColors.ink)),
           const SizedBox(height: 6),
-          const Text('Everything you need. One app.',
+          Text('Everything you need. One app.',
               style: TextStyle(fontSize: 15, color: AuthColors.muted)),
           const SizedBox(height: 28),
           AuthTextField(
@@ -1165,7 +1165,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 _mode = _Mode.forgot;
                 _forgot = _Forgot.identifier;
               }),
-              child: const Text('Forgot password?',
+              child: Text('Forgot password?',
                   style: TextStyle(
                       color: AuthColors.teal,
                       fontWeight: FontWeight.w600)),
@@ -1174,15 +1174,15 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                   child: Divider(color: AuthColors.border)),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
                 child: Text('or',
                     style: TextStyle(
                         fontSize: 13, color: AuthColors.muted)),
               ),
-              const Expanded(
+              Expanded(
                   child: Divider(color: AuthColors.border)),
             ],
           ),
@@ -1195,7 +1195,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 _mode = _Mode.register;
                 _reg = _Reg.welcome;
               }),
-              child: const Text(
+              child: Text(
                 "Don't have an account? Create account",
                 style: TextStyle(
                     color: AuthColors.teal,
@@ -1254,7 +1254,7 @@ class _AuthScreenState extends State<AuthScreen> {
               _availRow(_usernameAvail,
                   takenMessage: 'Username already taken.'),
               const SizedBox(height: 8),
-              const Text('3–30 letters, digits, _ or .',
+              Text('3–30 letters, digits, _ or .',
                   style: TextStyle(
                       fontSize: 12.5, color: AuthColors.muted)),
             ],
@@ -1378,7 +1378,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 _screenError = null;
                 _mode = _Mode.signIn;
               }),
-              child: const Text('Already have an account? Sign in',
+              child: Text('Already have an account? Sign in',
                   style: TextStyle(
                       color: AuthColors.teal,
                       fontWeight: FontWeight.w700)),
@@ -1392,7 +1392,7 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 24),
           const AuthBrand(),
           const SizedBox(height: 40),
-          const Text('Everything\nyou need.\nOne app.',
+          Text('Everything\nyou need.\nOne app.',
               style: TextStyle(
                   fontSize: 44,
                   height: 1.05,
@@ -1400,7 +1400,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   letterSpacing: -1.2,
                   color: AuthColors.ink)),
           const SizedBox(height: 14),
-          const Text("Let's set up your account.",
+          Text("Let's set up your account.",
               style:
                   TextStyle(fontSize: 16, color: AuthColors.muted)),
           const SizedBox(height: 24),
@@ -1429,14 +1429,14 @@ class _AuthScreenState extends State<AuthScreen> {
           AuthProgress(step: step, total: 7),
           const SizedBox(height: 28),
           Text(title,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
           Text(subtitle,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15, color: AuthColors.muted)),
           const SizedBox(height: 24),
           field,
@@ -1473,14 +1473,14 @@ class _AuthScreenState extends State<AuthScreen> {
         children: [
           const AuthProgress(step: 4, total: 7),
           const SizedBox(height: 28),
-          const Text("What's your phone number?",
+          Text("What's your phone number?",
               style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
-          const Text(
+          Text(
               "We'll use this to verify your account and help you recover it. Optional — you can skip.",
               style:
                   TextStyle(fontSize: 15, color: AuthColors.muted)),
@@ -1547,7 +1547,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     _phoneAvail = _Avail.idle;
                     _next(_Reg.password);
                   },
-            child: const Text('Skip for now',
+            child: Text('Skip for now',
                 style: TextStyle(
                     color: AuthColors.teal,
                     fontWeight: FontWeight.w600)),
@@ -1570,14 +1570,14 @@ class _AuthScreenState extends State<AuthScreen> {
         children: [
           const AuthProgress(step: 5, total: 7),
           const SizedBox(height: 28),
-          const Text('Create a password',
+          Text('Create a password',
               style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
-          const Text('Keep your account secure.',
+          Text('Keep your account secure.',
               style:
                   TextStyle(fontSize: 15, color: AuthColors.muted)),
           const SizedBox(height: 24),
@@ -1654,14 +1654,14 @@ class _AuthScreenState extends State<AuthScreen> {
         children: [
           const AuthProgress(step: 7, total: 7),
           const SizedBox(height: 28),
-          const Text('Almost there.',
+          Text('Almost there.',
               style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
-          const Text('Review your details before we create your account.',
+          Text('Review your details before we create your account.',
               style:
                   TextStyle(fontSize: 15, color: AuthColors.muted)),
           const SizedBox(height: 20),
@@ -1746,11 +1746,11 @@ class _AuthScreenState extends State<AuthScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12, color: AuthColors.muted)),
                 const SizedBox(height: 2),
                 Text(value,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: AuthColors.ink)),
@@ -1792,7 +1792,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   _cooldown > 0
                       ? 'Resend code in ${_cooldown}s'
                       : "Didn't receive it? Resend code",
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AuthColors.teal,
                       fontWeight: FontWeight.w600)),
             ),
@@ -1804,14 +1804,14 @@ class _AuthScreenState extends State<AuthScreen> {
         children: [
           const SizedBox(height: 20),
           Text(email ? 'Verify your email' : 'Verify your phone',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
           Text('We sent a 6-digit code to\n$destination',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15, color: AuthColors.muted)),
           const SizedBox(height: 28),
           OtpInput(
@@ -1844,14 +1844,14 @@ class _AuthScreenState extends State<AuthScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('A little about you',
+          Text('A little about you',
               style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
-          const Text('Just a couple of details to personalize Blistra.',
+          Text('Just a couple of details to personalize Blistra.',
               style: TextStyle(fontSize: 15, color: AuthColors.muted)),
           const SizedBox(height: 30),
           const Text('When were you born?',
@@ -1892,7 +1892,7 @@ class _AuthScreenState extends State<AuthScreen> {
               Icon(Icons.auto_awesome_outlined,
                   size: 16, color: AuthColors.muted),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text('Your device settings will handle your timezone automatically.',
                     style: TextStyle(fontSize: 13, color: AuthColors.muted)),
               ),
@@ -1949,19 +1949,19 @@ class _AuthScreenState extends State<AuthScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Health setup',
+          Text('Health setup',
               style: TextStyle(fontSize: 14, color: AuthColors.muted,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           Text(title,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
           Text(subtitle,
-              style: const TextStyle(fontSize: 15, color: AuthColors.muted)),
+              style: TextStyle(fontSize: 15, color: AuthColors.muted)),
           const SizedBox(height: 28),
           if (_healthStep == _HealthStep.height)
             AuthTextField(
@@ -1972,7 +1972,7 @@ class _AuthScreenState extends State<AuthScreen> {
               suffix: Padding(
                 padding: const EdgeInsets.only(right: 16),
                 child: Text(imperial ? 'in' : 'cm',
-                    style: const TextStyle(color: AuthColors.muted)),
+                    style: TextStyle(color: AuthColors.muted)),
               ),
             )
           else
@@ -1984,7 +1984,7 @@ class _AuthScreenState extends State<AuthScreen> {
               suffix: Padding(
                 padding: const EdgeInsets.only(right: 16),
                 child: Text(imperial ? 'lb' : 'kg',
-                    style: const TextStyle(color: AuthColors.muted)),
+                    style: TextStyle(color: AuthColors.muted)),
               ),
             ),
           if (_screenError != null) ...[
@@ -2020,17 +2020,17 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 3),
                   )
-                : const Icon(Icons.check,
+                : Icon(Icons.check,
                     size: 40, color: AuthColors.teal),
           ),
           const SizedBox(height: 20),
-          const Text("You're all set!",
+          Text("You're all set!",
               style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
-          const Text('Your Home will load with your fresh profile.',
+          Text('Your Home will load with your fresh profile.',
               textAlign: TextAlign.center,
               style:
                   TextStyle(fontSize: 15, color: AuthColors.muted)),
@@ -2074,14 +2074,14 @@ class _AuthScreenState extends State<AuthScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          const Text('Forgot your password?',
+          Text('Forgot your password?',
               style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
-          const Text('Enter your username, email, or phone.',
+          Text('Enter your username, email, or phone.',
               style:
                   TextStyle(fontSize: 15, color: AuthColors.muted)),
           const SizedBox(height: 24),
@@ -2123,14 +2123,14 @@ class _AuthScreenState extends State<AuthScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          const Text('Where should we send your code?',
+          Text('Where should we send your code?',
               style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
-          const Text(
+          Text(
               'Only verified destinations are shown. We never show full contact details here.',
               style:
                   TextStyle(fontSize: 15, color: AuthColors.muted)),
@@ -2185,12 +2185,12 @@ class _AuthScreenState extends State<AuthScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: AuthColors.ink)),
                   Text(subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 13,
                           color: AuthColors.muted)),
                 ],
@@ -2232,14 +2232,14 @@ class _AuthScreenState extends State<AuthScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          const Text("Verify it's you",
+          Text("Verify it's you",
               style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                   color: AuthColors.ink)),
           const SizedBox(height: 8),
-          const Text(
+          Text(
               'A code was sent to your verified destination. Enter it below.',
               style:
                   TextStyle(fontSize: 15, color: AuthColors.muted)),
@@ -2276,7 +2276,7 @@ class _AuthScreenState extends State<AuthScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          const Text('Create a new password',
+          Text('Create a new password',
               style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
@@ -2331,7 +2331,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 _forgot = _Forgot.identifier;
                 _mode = _Mode.signIn;
               })),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(height: 48),
@@ -2401,7 +2401,7 @@ class _CountryPickerState extends State<_CountryPicker> {
                     leading: Text(country.flag, style: const TextStyle(fontSize: 24)),
                     title: Text(country.name),
                     trailing: Text(country.code,
-                        style: const TextStyle(color: AuthColors.muted)),
+                        style: TextStyle(color: AuthColors.muted)),
                     onTap: () => Navigator.of(context).pop(country),
                   );
                 },
@@ -2420,7 +2420,7 @@ class _TermsText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RichText(
-      text: const TextSpan(
+      text: TextSpan(
         style: TextStyle(fontSize: 14, color: AuthColors.ink),
         children: [
           TextSpan(text: 'By creating your account, you agree to our '),

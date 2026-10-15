@@ -9,18 +9,29 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/theme_controller.dart';
+import '../../core/theme/accent_palette.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/glass.dart';
 
+/// Auth screen colours. Backed by the active [BlistraColors] (kept in sync by
+/// the app's `MaterialApp.builder`), so every auth widget follows the accent
+/// palette and light/dark mode without threading a context through helpers.
 class AuthColors {
   AuthColors._();
 
-  static const cream = Color(0xFFFFFBF6);
-  static const ink = Color(0xFF101828);
-  static const muted = Color(0xFF667085);
-  static const teal = Color(0xFF0C6B6B);
-  static const tealSoft = Color(0xFFE6F6F3);
-  static const border = Color(0xFFEAE6DF);
-  static const error = Color(0xFFB42318);
-  static const errorBg = Color(0xFFFDECEC);
+  static BlistraColors _c =
+      BlistraColors.of(AccentPalette.lagoon, Brightness.light);
+
+  static void sync(BlistraColors colors) => _c = colors;
+
+  static Color get cream => Colors.transparent;
+  static Color get ink => _c.text;
+  static Color get muted => _c.muted;
+  static Color get teal => _c.accent;
+  static Color get tealSoft => _c.accent.withValues(alpha: .14);
+  static Color get border => _c.glassBorder;
+  static Color get error => _c.isDark ? const Color(0xFFFF8A80) : const Color(0xFFB42318);
+  static Color get errorBg => _c.isDark ? const Color(0x33FF5A4F) : const Color(0xFFFDECEC);
 }
 
 /// Minimal auth page chrome: safe area, keyboard-aware scroll, optional back.
@@ -127,7 +138,7 @@ class AuthProgress extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Step $step of $total',
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: AuthColors.muted)),
@@ -137,9 +148,9 @@ class AuthProgress extends StatelessWidget {
           child: LinearProgressIndicator(
             value: total == 0 ? 0 : step / total,
             minHeight: 5,
-            backgroundColor: const Color(0xFFEDE9E2),
+            backgroundColor: softBg(context, Color(0xFFEDE9E2)),
             valueColor:
-                const AlwaysStoppedAnimation(AuthColors.teal),
+                AlwaysStoppedAnimation(AuthColors.teal),
           ),
         ),
       ],
@@ -200,8 +211,8 @@ class AuthTextField extends StatelessWidget {
               color: hasError
                   ? AuthColors.error
                   : success
-                      ? AuthColors.teal
-                      : AuthColors.border,
+                      ? BlistraColors.resolve(context).accent
+                      : BlistraColors.resolve(context).glassBorder,
               width: hasError || success ? 1.4 : 1,
             ),
           ),
@@ -265,9 +276,9 @@ class AuthPrimaryButton extends StatelessWidget {
       height: 54,
       child: FilledButton(
         style: FilledButton.styleFrom(
-          backgroundColor: AuthColors.teal,
+          backgroundColor: BlistraColors.resolve(context).accent,
           disabledBackgroundColor:
-              AuthColors.teal.withValues(alpha: 0.45),
+              BlistraColors.resolve(context).accent.withValues(alpha: 0.45),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           textStyle: const TextStyle(
@@ -303,7 +314,7 @@ class InlineError extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(message,
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 13.5,
               color: AuthColors.error,
               fontWeight: FontWeight.w500)),
@@ -328,7 +339,7 @@ class AuthBrand extends StatelessWidget {
               width: compact ? 40 : 48,
               height: compact ? 40 : 48,
               decoration: BoxDecoration(
-                color: AuthColors.teal,
+                color: BlistraColors.resolve(context).accent,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(Icons.layers_outlined,
@@ -336,7 +347,7 @@ class AuthBrand extends StatelessWidget {
                   semanticLabel: 'Blistra logo'),
             ),
             const SizedBox(width: 12),
-            const Text('Blistra',
+            Text('Blistra',
                 style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
@@ -346,7 +357,7 @@ class AuthBrand extends StatelessWidget {
         ),
         if (!compact) ...[
           const SizedBox(height: 10),
-          const Text('Everything you need. One app.',
+          Text('Everything you need. One app.',
               style: TextStyle(fontSize: 14, color: AuthColors.muted)),
         ],
       ],
@@ -488,17 +499,17 @@ class _OtpInputState extends State<OtpInput> {
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide:
-                            const BorderSide(color: AuthColors.border),
+                            BorderSide(color: AuthColors.border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
+                        borderSide: BorderSide(
                             color: AuthColors.teal, width: 1.6),
                       ),
                       disabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide:
-                            const BorderSide(color: AuthColors.border),
+                            BorderSide(color: AuthColors.border),
                       ),
                     ),
                     onChanged: (v) => _onChanged(i, v),
@@ -532,7 +543,7 @@ class PasswordStrength extends StatelessWidget {
     final color = switch (score) {
       1 => AuthColors.error,
       2 => const Color(0xFFB54708),
-      _ => AuthColors.teal,
+      _ => BlistraColors.resolve(context).accent,
     };
     return Row(
       children: [
@@ -542,7 +553,7 @@ class PasswordStrength extends StatelessWidget {
               height: 5,
               margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
               decoration: BoxDecoration(
-                color: i < score ? color : const Color(0xFFEDE9E2),
+                color: i < score ? color : softBg(context, Color(0xFFEDE9E2)),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
