@@ -276,7 +276,7 @@ void main() {
         ),
       );
       final overview = computeHomeOverview(d);
-      expect(overview.metrics.map((item) => item.value), containsAll(['1', '1 of 2', '12.50']));
+      expect(overview.metrics.map((item) => item.value), containsAll(['1', '1 of 2', r'$12.50']));
     });
 
     test('timeline puts due habits at Anytime', () {

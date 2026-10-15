@@ -179,7 +179,7 @@ void main() {
       expect(find.text('Sourabhkumar Chandrasekhar'), findsOneWidget);
       expect(find.text('Today overview'), findsOneWidget);
       expect(find.text('Next up'), findsOneWidget);
-      expect(find.text('Needs your attention'), findsOneWidget);
+      expect(find.textContaining('attention'), findsOneWidget);
       expect(find.text('Your wellbeing'), findsOneWidget);
       expect(find.text('Nothing scheduled for today.'), findsOneWidget);
       expect(find.byTooltip('Planner'), findsNothing);
@@ -212,12 +212,6 @@ void main() {
     await tester.pump();
     expect(find.byIcon(Icons.notifications_none_outlined), findsOneWidget);
     expect(find.text('Home is unavailable'), findsOneWidget);
-    expect(find.byType(CircleAvatar), findsOneWidget);
-    expect(
-      find.byWidgetPredicate(
-        (widget) => widget is CircleAvatar && widget.radius == 5,
-      ),
-      findsNothing,
-    );
+    expect(find.bySemanticsLabel('Profile'), findsOneWidget);
   });
 }

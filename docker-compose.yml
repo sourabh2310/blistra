@@ -3,13 +3,13 @@ version: '3.9'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: blistra-postgres
+    container_name: ${DB_CONTAINER_NAME:-blistra-postgres}
     environment:
       POSTGRES_DB: ${DB_NAME:-blistra}
       POSTGRES_USER: ${DB_USERNAME:-blistra}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-blistra}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

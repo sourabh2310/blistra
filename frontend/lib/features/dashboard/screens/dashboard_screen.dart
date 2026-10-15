@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:provider/provider.dart';
 
 import '../../../core/auth/auth_state.dart';
+import '../../../core/theme/accent_palette.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
 import '../../app_scope.dart';
@@ -79,13 +82,13 @@ class DashboardScreen extends StatelessWidget {
                                     onNotifications: onNotifications,
                                     onProfile: onProfile,
                                   ),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 16),
                                   _Greeting(
                                     name: name,
                                     now: now,
                                     dashboard: controller.dashboard,
                                   ),
-                                  const SizedBox(height: 18),
+                                  const SizedBox(height: 8),
                                   if (controller.isLoading &&
                                       controller.dashboard == null)
                                     const _DashboardSkeleton()
@@ -147,82 +150,104 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) => Row(
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final colors = BlistraColors.resolve(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const BlistraMark(size: 26),
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      'Blistra',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Fraunces',
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -.5,
+                        color: colors.text,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Everything you need. One app.',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: colors.muted),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        _HeaderAction(
+          tooltip: 'Search',
+          icon: Icons.search_rounded,
+          onPressed: onSearch,
+        ),
+        const SizedBox(width: 8),
+        _NotificationAction(onPressed: onNotifications),
+        const SizedBox(width: 8),
+        Semantics(
+          label: 'Profile',
+          button: true,
+          child: GestureDetector(
+            onTap: onProfile,
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const BlistraMark(size: 30),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Blistra',
-                          maxLines: 1,
-                          style: theme.textTheme.headlineLarge?.copyWith(
-                            fontFamily: 'serif',
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -1.2,
-                            color: BlistraColors.resolve(context).text,
-                          ),
-                        ),
-                      ],
-                    ),
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: colors.gradient,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.accent.withValues(alpha: .4),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                ),
-                if (constraints.maxWidth >= 360)
-                  Text(
-                    'Everything you need. One app.',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: BlistraColors.resolve(context).muted,
-                      letterSpacing: .1,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          _HeaderAction(
-            tooltip: 'Search',
-            icon: Icons.search_rounded,
-            onPressed: onSearch,
-          ),
-          _NotificationAction(onPressed: onNotifications),
-          Semantics(
-            label: 'Profile',
-            button: true,
-            child: InkWell(
-              onTap: onProfile,
-              customBorder: const CircleBorder(),
-              child: Padding(
-                padding: const EdgeInsets.all(2),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundColor: BlistraColors.resolve(context).accent,
                   child: Text(
                     initialsForName(displayName),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
                     ),
                   ),
                 ),
-              ),
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: Container(
+                    width: 11,
+                    height: 11,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2FD06B),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.background, width: 2),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -232,30 +257,64 @@ class _HeaderAction extends StatelessWidget {
     required this.tooltip,
     required this.icon,
     required this.onPressed,
+    this.badge = false,
   });
 
   final String tooltip;
   final IconData icon;
   final VoidCallback? onPressed;
+  final bool badge;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(left: 4),
-    child: IconButton(
-      onPressed: onPressed,
-      tooltip: tooltip,
-      constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-      padding: EdgeInsets.zero,
-      style: IconButton.styleFrom(
-        backgroundColor: BlistraColors.resolve(context).glassFill,
-        side: const BorderSide(color: Color(0xFFE8E0D7)),
-        fixedSize: const Size(44, 44),
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onPressed,
+        child: Semantics(
+          button: true,
+          label: tooltip,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              GlassCard(
+                padding: EdgeInsets.zero,
+                radius: 14,
+                blur: 16,
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(icon, size: 19, color: colors.text),
+                ),
+              ),
+              if (badge)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF4D6D),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.background, width: 2),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
-      icon: Icon(icon, color: BlistraColors.resolve(context).text, size: 22),
-    ),
-  );
+    );
+  }
 }
 
+/// Bell action with an unread dot driven exclusively by real reminder state.
+///
+/// Shows a dot only when a [RemindersController] is available above Home and
+/// it holds at least one active (scheduled) reminder. With no provider or no
+/// active reminders, no badge is rendered — never a fake permanent dot.
 /// Bell action with an unread dot driven exclusively by real reminder state.
 ///
 /// Shows a dot only when a [RemindersController] is available above Home and
@@ -275,43 +334,11 @@ class _NotificationAction extends StatelessWidget {
     } catch (_) {
       hasActive = false;
     }
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          IconButton(
-            onPressed: onPressed,
-            tooltip: 'Notifications',
-            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-            padding: EdgeInsets.zero,
-            style: IconButton.styleFrom(
-              backgroundColor: BlistraColors.resolve(context).glassFill,
-              side: const BorderSide(color: Color(0xFFE8E0D7)),
-              fixedSize: const Size(44, 44),
-            ),
-            icon: Icon(
-              Icons.notifications_none_outlined,
-              color: BlistraColors.resolve(context).text,
-              size: 22,
-            ),
-          ),
-          if (hasActive)
-            Positioned(
-              right: 9,
-              top: 9,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE24545),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-              ),
-            ),
-        ],
-      ),
+    return _HeaderAction(
+      tooltip: 'Notifications',
+      icon: Icons.notifications_none_outlined,
+      onPressed: onPressed,
+      badge: hasActive,
     );
   }
 }
@@ -329,101 +356,97 @@ class _Greeting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = BlistraColors.resolve(context);
     final attention = buildAttentionItems(
       dashboard,
       now: now,
       limit: 1000,
     ).length;
-    final text = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '${greetingForHour(now.hour)},',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontFamily: 'serif',
-            color: BlistraColors.resolve(context).muted,
-          ),
-        ),
-        const SizedBox(height: 1),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Flexible(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.displaySmall?.copyWith(
-                  fontFamily: 'serif',
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.4,
-                  color: BlistraColors.resolve(context).text,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              _dayPartIcon(now.hour),
-              size: 30,
-              color: const Color(0xFFF0A63C),
-              semanticLabel: greetingForHour(now.hour),
-            ),
-          ],
-        ),
-        const SizedBox(height: 3),
-        Text(
-          DateFormat('EEEE, d MMMM').format(now),
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontFamily: 'serif',
-            color: BlistraColors.resolve(context).muted,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          attention == 0
-              ? "You're all caught up for today."
-              : 'You have $attention thing${attention == 1 ? '' : 's'} to take care of today.',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            fontFamily: 'serif',
-            height: 1.28,
-            color: BlistraColors.resolve(context).muted,
-          ),
-        ),
-      ],
-    );
-    final art = ClipRRect(
-      borderRadius: const BorderRadius.all(Radius.circular(28)),
-      child: CustomPaint(
-        painter: _LandscapePainter(BlistraColors.resolve(context)),
-      ),
-    );
+    final focus = attention == 0
+        ? "You're all caught up for today."
+        : 'You have $attention thing${attention == 1 ? '' : 's'} to focus on today.';
     return LayoutBuilder(
       builder: (context, constraints) {
-        final sideBySide = constraints.maxWidth >= 340;
-        if (sideBySide) {
-          return GlassCard(
-            padding: const EdgeInsets.all(18),
-            radius: 28,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: text),
-                const SizedBox(width: 14),
-                SizedBox(width: 132, height: 190, child: art),
-              ],
-            ),
-          );
-        }
-        return GlassCard(
-          padding: const EdgeInsets.all(18),
-          radius: 28,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        final artWidth = constraints.maxWidth * .58;
+        final artHeight = artWidth * 210 / 220;
+        return SizedBox(
+          height: math.max(210, artHeight),
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              text,
-              const SizedBox(height: 14),
-              SizedBox(height: 92, width: double.infinity, child: art),
+              Positioned(
+                right: -16,
+                top: -6,
+                width: artWidth,
+                height: artHeight,
+                child: ExcludeSemantics(
+                  child: CustomPaint(painter: _ArchPainter(colors)),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                top: 0,
+                right: artWidth * .5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${greetingForHour(now.hour)},',
+                      style: TextStyle(
+                        fontFamily: 'Fraunces',
+                        fontSize: 17,
+                        color: colors.muted,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'Fraunces',
+                              fontSize: 40,
+                              height: 1.05,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -.8,
+                              color: colors.text,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          _dayPartIcon(now.hour),
+                          size: 28,
+                          color: const Color(0xFFFFB020),
+                          semanticLabel: greetingForHour(now.hour),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      DateFormat('EEEE, d MMMM').format(now),
+                      style: TextStyle(
+                        fontFamily: 'Fraunces',
+                        fontSize: 15,
+                        color: colors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      focus,
+                      style: TextStyle(
+                        fontFamily: 'Fraunces',
+                        fontSize: 14,
+                        height: 1.4,
+                        color: colors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         );
@@ -449,7 +472,8 @@ class _HomeContent extends StatelessWidget {
   final void Function(String destinationId)? onDestination;
   final Future<void> Function() onRefresh;
 
-  Widget _section(String id) => _SectionContent(
+  Widget _section(String id, {bool compact = false}) => _SectionContent(
+    compact: compact,
     id: id,
     dashboard: dashboard,
     now: now,
@@ -467,7 +491,7 @@ class _HomeContent extends StatelessWidget {
         // Reference places schedule + attention side by side. On wide
         // layouts pair them in a row (in the user's configured order);
         // phones keep the stacked mobile-first flow.
-        final wide = constraints.maxWidth >= 700;
+        final wide = constraints.maxWidth >= 300;
         final pair = wide &&
             sections.contains(HomeWidgets.todaysSchedule) &&
             sections.contains(HomeWidgets.needsAttention);
@@ -490,9 +514,15 @@ class _HomeContent extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _section(first)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _section(second)),
+                  Expanded(
+                    flex: first == HomeWidgets.todaysSchedule ? 112 : 88,
+                    child: _section(first, compact: true),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: second == HomeWidgets.todaysSchedule ? 112 : 88,
+                    child: _section(second, compact: true),
+                  ),
                 ],
               ),
             );
@@ -525,6 +555,7 @@ class _HomeContent extends StatelessWidget {
 
 class _SectionContent extends StatelessWidget {
   const _SectionContent({
+    this.compact = false,
     required this.id,
     required this.dashboard,
     required this.now,
@@ -533,6 +564,7 @@ class _SectionContent extends StatelessWidget {
     required this.homeWidgets,
   });
 
+  final bool compact;
   final String id;
   final DashboardResponse dashboard;
   final DateTime now;
@@ -551,11 +583,13 @@ class _SectionContent extends StatelessWidget {
       dashboard: dashboard,
       now: now,
       onDestination: onDestination,
+      compact: compact,
     ),
     HomeWidgets.needsAttention => _NeedsAttention(
       dashboard: dashboard,
       now: now,
       onDestination: onDestination,
+      compact: compact,
     ),
     HomeWidgets.yourLife => _YourLife(
       dashboard: dashboard,
@@ -615,17 +649,19 @@ class _TodayOverview extends StatelessWidget {
                 // layouts show all four across; phones get a 2 x 2 grid so
                 // every card stays a full touch target with no overflow and
                 // no horizontal scrolling.
-                if (constraints.maxWidth >= 520) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = 0;
-                          i < metrics.availableMetrics.length;
-                          i++) ...[
-                        if (i > 0) const SizedBox(width: spacing),
-                        Expanded(child: card(i)),
+                if (constraints.maxWidth >= 300) {
+                  return IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0;
+                            i < metrics.availableMetrics.length;
+                            i++) ...[
+                          if (i > 0) const SizedBox(width: 8),
+                          Expanded(child: card(i)),
+                        ],
                       ],
-                    ],
+                    ),
                   );
                 }
                 // Wrap sizes every card to its intrinsic content height,
@@ -656,7 +692,10 @@ class _TodaySchedule extends StatefulWidget {
     required this.dashboard,
     required this.now,
     required this.onDestination,
+    this.compact = false,
   });
+
+  final bool compact;
 
   final DashboardResponse dashboard;
   final DateTime now;
@@ -765,6 +804,7 @@ class _TodayScheduleState extends State<_TodaySchedule> {
     return _Panel(
       title: 'Next up',
       icon: Icons.schedule_rounded,
+      compact: widget.compact,
       trailing: _SeeAll(
         onTap: () => widget.onDestination?.call('PLANNER/TODAY'),
       ),
@@ -803,7 +843,10 @@ class _NeedsAttention extends StatelessWidget {
     required this.dashboard,
     required this.now,
     required this.onDestination,
+    this.compact = false,
   });
+
+  final bool compact;
 
   final DashboardResponse dashboard;
   final DateTime now;
@@ -813,12 +856,15 @@ class _NeedsAttention extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = buildAttentionItems(dashboard, now: now, limit: 4);
     return _Panel(
-      title: 'Needs your attention',
-      icon: Icons.notifications_active_outlined,
-      trailing: _SeeAll(
-        label: 'See details',
-        onTap: () => onDestination?.call('HUB'),
-      ),
+      title: compact ? 'Needs attention' : 'Needs your attention',
+      icon: Icons.notifications_none_rounded,
+      compact: compact,
+      trailing: compact
+          ? null
+          : _SeeAll(
+              label: 'See details',
+              onTap: () => onDestination?.call('HUB'),
+            ),
       child: items.isEmpty
           ? const _AttentionEmptyState()
           : Column(
@@ -842,42 +888,44 @@ class _AttentionEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = BlistraColors.resolve(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFE9F7EF),
-        borderRadius: BorderRadius.circular(16),
+        color: colors.accent.withValues(alpha: .14),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: Color(0xFF0B6B4F),
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: colors.accent,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check, color: Colors.white, size: 22),
+            child: const Icon(Icons.check, color: Colors.white, size: 14),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 7),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "You're on track!",
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'serif',
-                    fontWeight: FontWeight.w800,
+                  'You are on track',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: colors.text,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
-                  'No urgent items right now.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  'No other urgent items right now.',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    height: 1.25,
+                    color: colors.muted,
                   ),
                 ),
               ],
@@ -926,14 +974,16 @@ class _YourLife extends StatelessWidget {
             onDestination: onDestination,
             onRefresh: onRefresh,
           );
-          if (constraints.maxWidth >= 520) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: card(selected[0])),
-                const SizedBox(width: spacing),
-                Expanded(child: card(selected[1])),
-              ],
+          if (constraints.maxWidth >= 300) {
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: card(selected[0])),
+                  const SizedBox(width: spacing),
+                  Expanded(child: card(selected[1])),
+                ],
+              ),
             );
           }
           return Column(
@@ -993,29 +1043,40 @@ class _ThisWeek extends StatelessWidget {
         label: 'See details',
         onTap: () => onDestination?.call('DASHBOARD/WEEK'),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Monday → Sunday bars visualise the same real aggregates used
-          // below (task/habit progress + active days). The backend exposes
-          // only week aggregates — never per-day completions — so bars show
-          // aggregate activity per active day, never invented daily values.
-          // Day letters/dates come from the real week [start].
-          _WeekBars(
-            start: value.start,
-            activeDays: value.activeDays,
-            taskProgress: taskProgress,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // The backend exposes only week aggregates (never per-day values),
+          // so bars show aggregate activity per active day.
+          final bars = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _WeekBars(
+                start: value.start,
+                activeDays: value.activeDays,
+                taskProgress: taskProgress,
+                habitProgress: habitProgress,
+              ),
+              const SizedBox(height: 6),
+              _WeekDayStrip(start: value.start),
+            ],
+          );
+          final details = _WeekDetails(
             habitProgress: habitProgress,
-          ),
-          const SizedBox(height: 6),
-          _WeekDayStrip(start: value.start),
-          const SizedBox(height: 10),
-          _WeekDetails(
-            habitProgress: habitProgress,
             taskProgress: taskProgress,
             activeDays: value.activeDays,
-          ),
-        ],
+          );
+          if (constraints.maxWidth < 300) {
+            return Column(children: [bars, const SizedBox(height: 10), details]);
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(flex: 11, child: bars),
+              const SizedBox(width: 10),
+              Expanded(flex: 14, child: details),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1051,21 +1112,21 @@ class _WeekBars extends StatelessWidget {
         ((taskProgress + habitProgress) / 2).clamp(0.15, 1.0).toDouble();
     final filled = activeDays.clamp(0, 7);
     return SizedBox(
-      height: 76,
+      height: 64,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           for (var i = 0; i < 7; i++)
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 3.5),
                 child: _WeekBar(
                   isActive: i < filled,
                   isToday:
                       isThisWeek &&
                       monday.add(Duration(days: i)).day == today.day &&
                       monday.add(Duration(days: i)).month == today.month,
-                  height: (i < filled ? 22 + 46 * overall : 10.0).toDouble(),
+                  height: (i < filled ? 18 + 40 * overall : 8.0).toDouble(),
                 ),
               ),
             ),
@@ -1098,7 +1159,7 @@ class _WeekBar extends StatelessWidget {
           : isActive
           ? BlistraColors.resolve(context).accent.withValues(alpha: .75)
           : BlistraColors.resolve(context).accent.withValues(alpha: .18),
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
+      borderRadius: const BorderRadius.all(Radius.circular(6)),
     ),
   );
 }
@@ -1167,21 +1228,31 @@ class _WeekDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _WeekDetail(
-          value: '${(habitProgress * 100).round()}%',
-          label: 'Habits completed',
-        ),
-        Container(width: 1, height: 46, color: BlistraColors.resolve(context).glassBorder),
-        _WeekDetail(
-          value: '${(taskProgress * 100).round()}%',
-          label: 'Tasks completed',
-        ),
-        Container(width: 1, height: 46, color: BlistraColors.resolve(context).glassBorder),
-        _WeekDetail(value: '$activeDays / 7', label: 'Days active'),
-      ],
+    final colors = BlistraColors.resolve(context);
+    return Container(
+      padding: const EdgeInsets.only(left: 8),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: colors.glassBorder)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _WeekDetail(
+              value: '${(habitProgress * 100).round()}%',
+              label: 'Habits\ncompleted',
+            ),
+          ),
+          Expanded(
+            child: _WeekDetail(
+              value: '${(taskProgress * 100).round()}%',
+              label: 'Tasks\ncompleted',
+            ),
+          ),
+          Expanded(
+            child: _WeekDetail(value: '$activeDays / 7', label: 'Days\nactive'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1194,28 +1265,30 @@ class _WeekDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Flexible(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
+    final colors = BlistraColors.resolve(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
             value,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontFamily: 'serif',
-              fontWeight: FontWeight.w800,
+            style: TextStyle(
+              fontFamily: 'Fraunces',
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: colors.text,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, height: 1.2, color: colors.muted),
+        ),
+      ],
     );
   }
 }
@@ -1275,12 +1348,28 @@ class _ModuleCard extends StatelessWidget {
               DateTime.fromMillisecondsSinceEpoch(0);
           return bDate.compareTo(aDate);
         });
-        final item = measurements.isEmpty ? null : measurements.first;
+        // Weight is the headline health number when recorded; otherwise the
+        // most recent reading of any kind.
+        MeasurementSummary? item;
+        for (final m in measurements) {
+          if (m.type.toUpperCase() == 'WEIGHT') {
+            item = m;
+            break;
+          }
+        }
+        item ??= measurements.isEmpty ? null : measurements.first;
+        if (item == null) {
+          return const _ModuleValue(
+            'No recent measurement',
+            'No recent measurement',
+          );
+        }
+        final unit = item.unit == null || item.unit!.isEmpty ? '' : ' ${item.unit}';
+        final label = _measurementLabel(item.type);
+        final age = _relativeDay(item.measuredAt);
         return _ModuleValue(
-          item?.value ?? 'No recent measurement',
-          item == null
-              ? 'No recent measurement'
-              : '${item.type.replaceAll('_', ' ')}${item.unit == null || item.unit!.isEmpty ? '' : ' · ${item.unit}'}',
+          '${_plainNumber(item.value ?? '')}$unit',
+          age.isEmpty ? label : '$label · $age',
         );
       case HomeWidgets.medicines:
         final section = dashboard.medicines;
@@ -1298,7 +1387,7 @@ class _ModuleCard extends StatelessWidget {
         return _ModuleValue(
           calories == null || calories.isEmpty
               ? '${section.mealCount} meal${section.mealCount == 1 ? '' : 's'}'
-              : '$calories kcal',
+              : '${_plainNumber(calories)} kcal',
           'Logged today',
         );
       case HomeWidgets.habits:
@@ -1321,7 +1410,9 @@ class _ModuleCard extends StatelessWidget {
           final currency = currencies.first;
           final expense = currency.expense;
           return _ModuleValue(
-            expense.isEmpty ? 'No spending' : expense,
+            expense.isEmpty
+                ? 'No spending'
+                : formatSpend(expense, currency.currency),
             '${currency.currency} spent today',
           );
         }
@@ -1366,83 +1457,60 @@ class _ModuleCardShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = _moduleStyle(id, theme.colorScheme);
-    // Reference mini-card: circular icon left, title + live metric +
-    // supporting text stacked in the middle, chevron right.
+    final colors = BlistraColors.resolve(context);
+    final style = _moduleStyle(id, Theme.of(context).colorScheme);
     return Semantics(
       label: '${HomeWidgets.label(id)}: $value $detail',
       button: onTap != null,
-      child: Card(
-        color: _tinted(context, style.foreground),
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: style.foreground.withValues(alpha: .2),
-                    shape: BoxShape.circle,
+      child: _ModuleTile(
+        color: style.foreground,
+        onTap: onTap,
+        radius: 18,
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            _TileIcon(icon: icon, color: style.foreground, size: 40),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    HomeWidgets.label(id),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: colors.muted),
                   ),
-                  child: Icon(icon, color: _iconFg(context, style.foreground), size: 24),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        HomeWidgets.label(id),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: BlistraColors.resolve(context).text,
-                        ),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontFamily: 'Fraunces',
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: colors.text,
                       ),
-                      Text(
-                        value,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontFamily: 'serif',
-                          fontWeight: FontWeight.w800,
-                          color: BlistraColors.resolve(context).text,
-                        ),
-                      ),
-                      Text(
-                        detail,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 11,
-                          color: BlistraColors.resolve(context).muted,
-                        ),
-                      ),
-                      if (action != null) action!,
-                    ],
-                  ),
-                ),
-                if (onTap != null)
-                  Icon(
-                    Icons.chevron_right,
-                    size: 20,
-                    color: theme.colorScheme.onSurfaceVariant.withValues(
-                      alpha: .7,
                     ),
                   ),
-              ],
+                  Text(
+                    detail,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      height: 1.2,
+                      color: colors.muted,
+                    ),
+                  ),
+                  if (action != null) action!,
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -1455,6 +1523,7 @@ class _Panel extends StatelessWidget {
     required this.child,
     this.trailing,
     this.icon,
+    this.compact = false,
   });
 
   final String title;
@@ -1462,40 +1531,49 @@ class _Panel extends StatelessWidget {
   final Widget? trailing;
   final IconData? icon;
 
+  /// Smaller heading and padding for half-width panels.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = BlistraColors.resolve(context);
     return GlassCard(
-      radius: 22,
-      padding: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 21, color: BlistraColors.resolve(context).text),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontFamily: 'serif',
-                      fontWeight: FontWeight.w800,
-                      color: BlistraColors.resolve(context).text,
-                    ),
+      radius: 24,
+      padding: EdgeInsets.fromLTRB(
+        compact ? 10 : 14,
+        compact ? 12 : 14,
+        compact ? 10 : 14,
+        compact ? 8 : 14,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: compact ? 17 : 20, color: colors.accentText),
+                SizedBox(width: compact ? 5 : 8),
+              ],
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: compact ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'Fraunces',
+                    fontSize: compact ? 15 : 18,
+                    fontWeight: FontWeight.w600,
+                    height: 1.15,
+                    color: colors.text,
                   ),
                 ),
-                if (trailing != null) trailing!,
-              ],
-            ),
-            const SizedBox(height: 12),
-            child,
-          ],
-        ),
+              ),
+              if (trailing != null) trailing!,
+            ],
+          ),
+          SizedBox(height: compact ? 8 : 12),
+          child,
+        ],
       ),
     );
   }
@@ -1525,75 +1603,115 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = _metricStyle(label, theme.colorScheme);
+    final colors = BlistraColors.resolve(context);
+    final style = _metricStyle(label, Theme.of(context).colorScheme);
     return Semantics(
       label: '$semanticLabel: $value $detail',
       button: true,
-      child: Card(
-        color: _tinted(context, style.foreground),
-        elevation: 0,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: _ModuleTile(
+        color: style.foreground,
+        onTap: onTap,
+        padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: style.foreground.withValues(alpha: .2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, size: 22, color: _iconFg(context, style.foreground)),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      size: 20,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: .7,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontFamily: 'serif',
-                    fontWeight: FontWeight.w800,
-                    color: BlistraColors.resolve(context).text,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  caption,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    height: 1.2,
-                    color: BlistraColors.resolve(context).muted,
-                  ),
-                ),
+                _TileIcon(icon: icon, color: style.foreground, size: 32),
+                Icon(Icons.chevron_right, size: 14, color: colors.muted),
               ],
             ),
-          ),
+            const SizedBox(height: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: TextStyle(
+                  fontFamily: 'Fraunces',
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: colors.text,
+                ),
+              ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              caption,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, height: 1.2, color: colors.muted),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+/// Tinted glass tile used for module summaries.
+class _ModuleTile extends StatelessWidget {
+  const _ModuleTile({
+    required this.color,
+    required this.child,
+    required this.onTap,
+    this.padding = const EdgeInsets.all(12),
+    this.radius = 16,
+  });
+
+  final Color color;
+  final Widget child;
+  final VoidCallback? onTap;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return Material(
+      type: MaterialType.transparency,
+      child: Ink(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withValues(alpha: colors.isDark ? .26 : .20),
+              color.withValues(alpha: .06),
+            ],
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(radius),
+          child: Padding(padding: padding, child: child),
+        ),
+      ),
+    );
+  }
+}
+
+class _TileIcon extends StatelessWidget {
+  const _TileIcon({required this.icon, required this.color, this.size = 32});
+
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .28),
+      shape: BoxShape.circle,
+    ),
+    child: Icon(icon, size: size * .54, color: onGlass(context, color)),
+  );
 }
 
 class _ScheduleRow extends StatelessWidget {
@@ -1619,47 +1737,42 @@ class _ScheduleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final statusColor = _timelineColor(item.status, theme.colorScheme);
+    final colors = BlistraColors.resolve(context);
+    final statusColor = _timelineColor(item.status, Theme.of(context).colorScheme);
+    final category = _categoryColor(item.meta);
+    final time = item.anytime
+        ? 'Any\ntime'
+        : DateFormat('h:mm\na').format(item.at);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 62),
+        constraints: const BoxConstraints(minHeight: 46),
         child: Row(
           children: [
             SizedBox(
-              width: 48,
+              width: 32,
               child: Text(
-                item.anytime ? 'Anytime' : DateFormat('h:mm a').format(item.at),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontFamily: 'serif',
-                  color: BlistraColors.resolve(context).muted,
-                ),
+                time,
+                style: TextStyle(fontSize: 9, height: 1.15, color: colors.muted),
               ),
             ),
             SizedBox(
-              width: 18,
+              width: 12,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   if (showDivider)
                     Positioned(
-                      left: 8,
-                      top: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: 1,
-                        color: BlistraColors.resolve(context).glassBorder,
-                      ),
+                      top: 22,
+                      bottom: -22,
+                      child: Container(width: 1.5, color: colors.glassBorder),
                     ),
                   Semantics(
                     label: _timelineStatusLabel(item.status),
                     child: Container(
-                      width: 12,
-                      height: 12,
+                      width: 8,
+                      height: 8,
                       decoration: BoxDecoration(
                         color: statusColor,
                         shape: BoxShape.circle,
@@ -1669,47 +1782,45 @@ class _ScheduleRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 5),
+            const SizedBox(width: 3),
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: category.withValues(alpha: .20),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(
+                _categoryIcon(item.meta),
+                size: 14,
+                color: onGlass(context, category),
+              ),
+            ),
+            const SizedBox(width: 6),
             Expanded(
-              child: Row(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: _categoryColor(item.meta).withValues(alpha: .12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _categoryIcon(item.meta),
-                      size: 16,
-                      color: _categoryColor(item.meta),
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      height: 1.15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.text,
                     ),
                   ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontFamily: 'serif',
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          item.meta,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
+                  Text(
+                    item.meta,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      height: 1.2,
+                      color: colors.muted,
                     ),
                   ),
                 ],
@@ -1736,6 +1847,13 @@ class _ScheduleRow extends StatelessWidget {
 /// the owning domain controller/API; Home never invents dosage, completion,
 /// or medical decisions. While a mutation is in flight a spinner replaces
 /// the action to prevent double-submit.
+/// Trailing inline action for a schedule row. Mutations always go through
+/// the owning domain controller/API; Home never invents dosage, completion,
+/// or medical decisions. While a mutation is in flight a spinner replaces
+/// the action to prevent double-submit.
+///
+/// Rendered as a small check circle (as in the design). A due dose is taken
+/// with a tap and skipped with a long press.
 class _ScheduleTrailing extends StatelessWidget {
   const _ScheduleTrailing({
     required this.item,
@@ -1755,12 +1873,48 @@ class _ScheduleTrailing extends StatelessWidget {
   final VoidCallback? onTakeDose;
   final VoidCallback? onSkipDose;
 
+  Widget _circle(
+    BuildContext context, {
+    required bool done,
+    required String tooltip,
+    VoidCallback? onTap,
+    VoidCallback? onLongPress,
+  }) {
+    final colors = BlistraColors.resolve(context);
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: done ? colors.accent : Colors.transparent,
+              border: Border.all(
+                color: done ? colors.accent : colors.muted,
+                width: 1.8,
+              ),
+            ),
+            child: done
+                ? const Icon(Icons.check, size: 11, color: Colors.white)
+                : null,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (busy) {
       return const SizedBox(
-        width: 28,
-        height: 28,
+        width: 26,
+        height: 26,
         child: Padding(
           padding: EdgeInsets.all(5),
           child: CircularProgressIndicator(strokeWidth: 2),
@@ -1769,65 +1923,44 @@ class _ScheduleTrailing extends StatelessWidget {
     }
     final completed = item.status == TimelineStatus.completed;
     if (onCompleteTask != null && item.source == HomeSource.task) {
-      return IconButton(
-        onPressed: onCompleteTask,
+      return _circle(
+        context,
+        done: completed,
         tooltip: completed ? 'Reopen task' : 'Complete task',
-        visualDensity: VisualDensity.compact,
-        icon: Icon(
-          completed ? Icons.undo_rounded : Icons.check_circle_outline,
-          size: 22,
-          color: completed ? statusColor : const Color(0xFF18A768),
-        ),
+        onTap: onCompleteTask,
       );
     }
     if (onCompleteHabit != null && item.source == HomeSource.habit) {
-      return IconButton(
-        onPressed: onCompleteHabit,
+      return _circle(
+        context,
+        done: completed,
         tooltip: 'Mark habit complete',
-        visualDensity: VisualDensity.compact,
-        icon: const Icon(
-          Icons.check_circle_outline,
-          size: 22,
-          color: Color(0xFF18A768),
-        ),
+        onTap: onCompleteHabit,
       );
     }
     if (item.source == HomeSource.medicine && item.actionable) {
       final due = !item.at.isAfter(DateTime.now());
       if (!due) {
-        return Icon(
-          Icons.notifications_none,
-          size: 19,
-          color: statusColor,
+        return Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(Icons.notifications_none, size: 18, color: statusColor),
         );
       }
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            onPressed: onTakeDose,
-            tooltip: 'Take dose',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(
-              Icons.check_circle_outline,
-              size: 22,
-              color: Color(0xFF18A768),
-            ),
-          ),
-          IconButton(
-            onPressed: onSkipDose,
-            tooltip: 'Skip dose',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(
-              Icons.remove_circle_outline,
-              size: 20,
-              color: Color(0xFFE08A22),
-            ),
-          ),
-        ],
+      return _circle(
+        context,
+        done: false,
+        tooltip: 'Take dose (long press to skip)',
+        onTap: onTakeDose,
+        onLongPress: onSkipDose,
       );
     }
-    return Icon(_timelineIcon(item.status), size: 19, color: statusColor);
+    if (completed) {
+      return _circle(context, done: true, tooltip: 'Completed');
+    }
+    return Padding(
+      padding: const EdgeInsets.all(4),
+      child: Icon(_timelineIcon(item.status), size: 17, color: statusColor),
+    );
   }
 }
 
@@ -1844,62 +1977,70 @@ class _AttentionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = BlistraColors.resolve(context);
     final color = _attentionColor(item.detail);
     return Padding(
       padding: EdgeInsets.only(bottom: showDivider ? 7 : 0),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(13),
-        child: Container(
-          padding: const EdgeInsets.all(8),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Ink(
           decoration: BoxDecoration(
-            color: color.withValues(alpha: .1),
-            borderRadius: BorderRadius.circular(13),
+            color: color.withValues(alpha: colors.isDark ? .16 : .12),
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: .16),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _attentionIcon(item.detail),
-                  size: 18,
-                  color: color,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontFamily: 'serif',
-                        fontWeight: FontWeight.w800,
-                      ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: .28),
+                      shape: BoxShape.circle,
                     ),
-                    Text(
-                      item.detail,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 10,
-                        color: color,
-                      ),
+                    child: Icon(
+                      _attentionIcon(item.detail),
+                      size: 14,
+                      color: onGlass(context, color),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.15,
+                            fontWeight: FontWeight.w600,
+                            color: colors.text,
+                          ),
+                        ),
+                        Text(
+                          item.detail,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            height: 1.2,
+                            color: onGlass(context, color),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 13, color: colors.muted),
+                ],
               ),
-              const Icon(Icons.chevron_right, size: 18),
-            ],
+            ),
           ),
         ),
       ),
@@ -1914,22 +2055,20 @@ class _SeeAll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (MediaQuery.sizeOf(context).width < 520) {
-      return IconButton(
-        onPressed: onTap,
-        tooltip: label,
-        visualDensity: VisualDensity.compact,
-        icon: const Icon(Icons.arrow_forward, size: 19),
-      );
-    }
-    return TextButton.icon(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+        child: Text(
+          '$label ›',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: BlistraColors.resolve(context).accentText,
+          ),
+        ),
       ),
-      icon: const Icon(Icons.arrow_forward, size: 16),
-      label: Text(label),
     );
   }
 }
@@ -2033,170 +2172,6 @@ class _SkeletonBlock extends StatelessWidget {
   );
 }
 
-class _LandscapePainter extends CustomPainter {
-  const _LandscapePainter(this.colors);
-
-  /// Scene colours follow the accent palette and light/dark mode.
-  final BlistraColors colors;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = colors.accent;
-    final p2 = colors.accent2;
-    final dark = colors.isDark;
-    final skyTop = dark
-        ? Color.lerp(const Color(0xFF12113A), p, .28)!
-        : Color.lerp(const Color(0xFFFFF0D8), p2, .32)!;
-    final skyBottom = dark
-        ? Color.lerp(const Color(0xFF2A1848), p2, .6)!
-        : Color.lerp(const Color(0xFFEAF6F2), p, .28)!;
-    final farColor = dark
-        ? Color.lerp(const Color(0xFF1D1B4A), p, .4)!
-        : Color.lerp(const Color(0xFFDBE9EC), p, .4)!;
-    final nearColor = dark
-        ? Color.lerp(const Color(0xFF13113A), p, .28)!
-        : Color.lerp(const Color(0xFFBCD6D6), p, .62)!;
-    final waterColor = dark
-        ? Color.lerp(const Color(0xFF0A0A26), p, .2)!
-        : Color.lerp(const Color(0xFFBCD6D6), p, .45)!;
-    final treeColor = dark
-        ? const Color(0xFF0A0A26)
-        : Color.lerp(const Color(0xFF06251F), p, .8)!;
-    final sunColor = dark ? const Color(0xFFFFD9A0) : const Color(0xFFFFF4CC);
-    final rect = Offset.zero & size;
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [skyTop, skyBottom],
-        ).createShader(rect),
-    );
-    canvas.drawCircle(
-      Offset(size.width * .72, size.height * .42),
-      size.width * .2,
-      Paint()..color = sunColor.withValues(alpha: dark ? .95 : .85),
-    );
-    final far = Path()
-      ..moveTo(0, size.height * .58)
-      ..lineTo(size.width * .24, size.height * .28)
-      ..lineTo(size.width * .48, size.height * .56)
-      ..lineTo(size.width * .7, size.height * .32)
-      ..lineTo(size.width, size.height * .58)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(far, Paint()..color = farColor);
-    final near = Path()
-      ..moveTo(0, size.height * .64)
-      ..lineTo(size.width * .28, size.height * .45)
-      ..lineTo(size.width * .5, size.height * .66)
-      ..lineTo(size.width * .74, size.height * .47)
-      ..lineTo(size.width, size.height * .64)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(near, Paint()..color = nearColor);
-    canvas.drawRect(
-      Rect.fromLTWH(0, size.height * .64, size.width, size.height * .36),
-      Paint()..color = waterColor,
-    );
-    for (var index = 0; index < 4; index++) {
-      final y = size.height * (.7 + index * .055);
-      canvas.drawLine(
-        Offset(size.width * .12, y),
-        Offset(size.width * (.45 + index * .1), y),
-        Paint()
-          ..color = Colors.white.withValues(alpha: .28)
-          ..strokeWidth = 1.2,
-      );
-    }
-    final treePaint = Paint()..color = treeColor;
-    for (final point in const [
-      Offset(.08, .75),
-      Offset(.17, .79),
-      Offset(.26, .75),
-      Offset(.34, .82),
-    ]) {
-      final x = point.dx * size.width;
-      final base = point.dy * size.height;
-      final height = size.height * .22;
-      canvas.drawRect(
-        Rect.fromLTWH(x - 1.5, base - height * .65, 3, height * .65),
-        Paint()..color = const Color(0xFF6D5737),
-      );
-      canvas.drawPath(
-        Path()
-          ..moveTo(x, base - height)
-          ..lineTo(x - 7, base - height * .25)
-          ..lineTo(x + 7, base - height * .25)
-          ..close(),
-        treePaint,
-      );
-    }
-    final table = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * .56,
-        size.height * .84,
-        size.width * .6,
-        size.height * .12,
-      ),
-      const Radius.circular(12),
-    );
-    canvas.drawRRect(table, Paint()..color = const Color(0xFF9B6444));
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * .82, size.height * .9, 4, size.height * .1),
-      Paint()..color = const Color(0xFF70462F),
-    );
-    final cup = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * .75,
-        size.height * .72,
-        size.width * .17,
-        size.height * .15,
-      ),
-      const Radius.circular(8),
-    );
-    canvas.drawRRect(cup, Paint()..color = const Color(0xFFD7A778));
-    canvas.drawArc(
-      Rect.fromLTWH(
-        size.width * .86,
-        size.height * .74,
-        size.width * .12,
-        size.height * .1,
-      ),
-      -1.4,
-      2.8,
-      false,
-      Paint()
-        ..color = const Color(0xFF876044)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _LandscapePainter oldDelegate) =>
-      oldDelegate.colors.palette != colors.palette ||
-      oldDelegate.colors.brightness != colors.brightness;
-}
-
-/// Module icon colour: lightened in dark mode so it stays readable on glass.
-Color _iconFg(BuildContext context, Color module) =>
-    BlistraColors.resolve(context).isDark
-        ? Color.lerp(module, Colors.white, .4)!
-        : module;
-
-/// Module tint over the glass surface: pastel in light, deeper in dark.
-Color _tinted(BuildContext context, Color module) {
-  final colors = BlistraColors.resolve(context);
-  return Color.alphaBlend(
-    module.withValues(alpha: colors.isDark ? .18 : .12),
-    colors.glassFill,
-  );
-}
-
 class _FeatureStyle {
   const _FeatureStyle({
     required this.background,
@@ -2214,21 +2189,21 @@ _FeatureStyle _metricStyle(String label, ColorScheme scheme) {
     return const _FeatureStyle(
       background: Color(0xFFE9F7EF),
       iconBackground: Color(0xFFD4F0E3),
-      foreground: Color(0xFF07836A),
+      foreground: ModuleColors.planner,
     );
   }
   if (label.contains('Medicines')) {
     return const _FeatureStyle(
       background: Color(0xFFEFF5FF),
       iconBackground: Color(0xFFDDE9FF),
-      foreground: Color(0xFF2878EA),
+      foreground: ModuleColors.medicines,
     );
   }
   if (label.contains('Habits')) {
     return const _FeatureStyle(
       background: Color(0xFFFFF3E8),
       iconBackground: Color(0xFFFFE3C6),
-      foreground: Color(0xFFE66A2C),
+      foreground: ModuleColors.diet,
     );
   }
   return _FeatureStyle(
@@ -2238,7 +2213,7 @@ _FeatureStyle _metricStyle(String label, ColorScheme scheme) {
     iconBackground: scheme.brightness == Brightness.dark
         ? const Color(0xFF493560)
         : const Color(0xFFE9D7FC),
-    foreground: const Color(0xFF8B35D1),
+    foreground: ModuleColors.habits,
   );
 }
 
@@ -2246,7 +2221,7 @@ _FeatureStyle _moduleStyle(String id, ColorScheme scheme) => switch (id) {
   HomeWidgets.health => const _FeatureStyle(
     background: Color(0xFFFFEEEE),
     iconBackground: Color(0xFFFFD7D7),
-    foreground: Color(0xFFEF3E4D),
+    foreground: ModuleColors.health,
   ),
   HomeWidgets.medicines => const _FeatureStyle(
     background: Color(0xFFEFF5FF),
@@ -2256,7 +2231,7 @@ _FeatureStyle _moduleStyle(String id, ColorScheme scheme) => switch (id) {
   HomeWidgets.diet => const _FeatureStyle(
     background: Color(0xFFFFF3E8),
     iconBackground: Color(0xFFFFE3C6),
-    foreground: Color(0xFFE66A2C),
+    foreground: ModuleColors.diet,
   ),
   HomeWidgets.habits => const _FeatureStyle(
     background: Color(0xFFEAF7EF),
@@ -2490,7 +2465,7 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
               ? currencies.length == 1
                     ? 'No spending'
                     : '${currencies.length} currencies'
-              : expense,
+              : formatSpend(expense, currencies.first.currency),
           detail: currencies.length == 1
               ? '${currencies.first.currency} today'
               : 'Currency summaries',
@@ -2784,7 +2759,7 @@ IconData _dayPartIcon(int hour) {
 
 String _mealTitle(String? value) {
   if (value == null || value.isEmpty) return 'Meal';
-  return '${value[0].toUpperCase()}${value.substring(1)}';
+  return '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';
 }
 
 bool _sameDay(DateTime a, DateTime b) =>
@@ -2807,4 +2782,173 @@ TimelineStatus _eventStatus(DateTime start, DateTime? end, DateTime now) {
   if ((end ?? start).isBefore(now)) return TimelineStatus.overdue;
   if (!start.isAfter(now)) return TimelineStatus.due;
   return TimelineStatus.upcoming;
+}
+
+
+/// Human-friendly money text for Home tiles: currency symbol, thousands
+/// separators and no trailing zeros ("₹420", "₹1,250.50").
+String formatSpend(String amount, String currency) {
+  final parsed = double.tryParse(amount);
+  if (parsed == null) return amount;
+  const symbols = {'INR': '₹', 'USD': '\$', 'EUR': '€', 'GBP': '£', 'JPY': '¥'};
+  final whole = parsed == parsed.roundToDouble();
+  final text = NumberFormat(whole ? '#,##0' : '#,##0.00').format(parsed);
+  final symbol = symbols[currency.toUpperCase()];
+  return symbol != null ? '$symbol$text' : '$currency $text';
+}
+
+/// Window-with-landscape artwork used beside the greeting. Colours follow the
+/// accent palette and light/dark mode.
+class _ArchPainter extends CustomPainter {
+  const _ArchPainter(this.colors);
+
+  final BlistraColors colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 220, size.height / 210);
+    final p = colors.accent;
+    final p2 = colors.accent2;
+    final dark = colors.isDark;
+    Color mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
+    final sky1 = dark ? mix(const Color(0xFF12113A), p, .28) : mix(const Color(0xFFFFF0D8), p2, .32);
+    final sky2 = dark ? mix(const Color(0xFF2A1848), p2, .6) : mix(const Color(0xFFEAF6F2), p, .28);
+    final sun = dark ? const Color(0xFFFFD9A0) : const Color(0xFFFFF4CC);
+    final m1 = dark ? mix(const Color(0xFF1D1B4A), p, .4) : mix(const Color(0xFFDBE9EC), p, .4);
+    final m2 = dark ? mix(const Color(0xFF13113A), p, .28) : mix(const Color(0xFFBCD6D6), p, .62);
+    final m3 = dark ? mix(const Color(0xFF0A0A26), p, .2) : mix(const Color(0xFF16463D), p, .78);
+    final tree = dark ? const Color(0xFF0A0A26) : mix(const Color(0xFF06251F), p, .85);
+
+    final frame = Path()
+      ..moveTo(12, 210)
+      ..lineTo(12, 92)
+      ..cubicTo(12, 30, 58, -6, 112, -6)
+      ..cubicTo(166, -6, 212, 30, 212, 92)
+      ..lineTo(212, 210)
+      ..close();
+    canvas.drawPath(frame, Paint()..color = m1.withValues(alpha: .55));
+
+    final arch = Path()
+      ..moveTo(24, 210)
+      ..lineTo(24, 92)
+      ..cubicTo(24, 38, 62, 8, 112, 8)
+      ..cubicTo(162, 8, 200, 38, 200, 92)
+      ..lineTo(200, 210)
+      ..close();
+    canvas.save();
+    canvas.clipPath(arch);
+    canvas.drawRect(const Rect.fromLTWH(0, 0, 220, 100), Paint()..color = sky1);
+    canvas.drawRect(const Rect.fromLTWH(0, 100, 220, 110), Paint()..color = sky2);
+    if (dark) {
+      final star = Paint()..color = Colors.white.withValues(alpha: .85);
+      canvas.drawCircle(const Offset(60, 40), 1.5, star);
+      canvas.drawCircle(const Offset(150, 30), 1.3, star);
+      canvas.drawCircle(const Offset(180, 62), 1.5, star);
+    }
+    canvas.drawCircle(const Offset(140, 96), 22, Paint()..color = sun);
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, 120)
+        ..lineTo(40, 80)
+        ..lineTo(72, 110)
+        ..lineTo(112, 66)
+        ..lineTo(156, 112)
+        ..lineTo(220, 84)
+        ..lineTo(220, 210)
+        ..lineTo(0, 210)
+        ..close(),
+      Paint()..color = m1,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, 142)
+        ..lineTo(52, 104)
+        ..lineTo(100, 136)
+        ..lineTo(150, 100)
+        ..lineTo(220, 134)
+        ..lineTo(220, 210)
+        ..lineTo(0, 210)
+        ..close(),
+      Paint()..color = m2,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, 168)
+        ..quadraticBezierTo(60, 150, 120, 164)
+        ..quadraticBezierTo(180, 178, 220, 158)
+        ..lineTo(220, 210)
+        ..lineTo(0, 210)
+        ..close(),
+      Paint()..color = m3,
+    );
+    final trees = Paint()..color = tree;
+    void pine(double x, double top, double w, double h) => canvas.drawPath(
+      Path()
+        ..moveTo(x, top)
+        ..lineTo(x - w / 2, top + h)
+        ..lineTo(x + w / 2, top + h)
+        ..close(),
+      trees,
+    );
+    pine(34, 126, 20, 40);
+    pine(58, 140, 16, 30);
+    pine(178, 126, 20, 42);
+    canvas.restore();
+
+    final leaf = Paint()..color = tree.withValues(alpha: .85);
+    canvas.drawPath(
+      Path()
+        ..moveTo(200, 150)
+        ..cubicTo(228, 130, 232, 100, 216, 80)
+        ..cubicTo(206, 108, 196, 124, 200, 150)
+        ..close(),
+      leaf,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(212, 178)
+        ..cubicTo(236, 164, 240, 140, 228, 126)
+        ..cubicTo(222, 146, 210, 158, 212, 178)
+        ..close(),
+      leaf..color = tree.withValues(alpha: .7),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArchPainter old) =>
+      old.colors.palette != colors.palette ||
+      old.colors.brightness != colors.brightness;
+}
+
+
+/// "68.40" -> "68.4", "72.00" -> "72"; non-numeric text is returned as is.
+String _plainNumber(String raw) {
+  final parsed = double.tryParse(raw);
+  if (parsed == null) return raw;
+  if (parsed == parsed.roundToDouble()) return NumberFormat('#,##0').format(parsed);
+  return NumberFormat('#,##0.##').format(parsed);
+}
+
+String _measurementLabel(String type) => switch (type.toUpperCase()) {
+  'WEIGHT' => 'Latest weight',
+  'HEART_RATE' => 'Heart rate',
+  'BLOOD_PRESSURE' => 'Blood pressure',
+  'TEMPERATURE' => 'Temperature',
+  'HEIGHT' => 'Height',
+  final other => other.replaceAll('_', ' ').toLowerCase(),
+};
+
+/// "today", "yesterday" or "N days ago" for an ISO timestamp; empty if unknown.
+String _relativeDay(String? iso) {
+  final at = DateTime.tryParse(iso ?? '')?.toLocal();
+  if (at == null) return '';
+  final now = DateTime.now();
+  final days = DateTime(now.year, now.month, now.day)
+      .difference(DateTime(at.year, at.month, at.day))
+      .inDays;
+  if (days <= 0) return 'today';
+  if (days == 1) return 'yesterday';
+  return '$days days ago';
 }

@@ -74,7 +74,7 @@ class _TransferCard extends StatelessWidget {
             ? 'Moved between your accounts'
             : transfer.note!),
         trailing: Text(
-          transfer.amount.format(currencyCode: transfer.currency),
+          transfer.amount.display(currencyCode: transfer.currency),
           style: theme.textTheme.titleMedium
               ?.copyWith(fontWeight: FontWeight.bold),
         ),
@@ -91,7 +91,7 @@ class _TransferCard extends StatelessWidget {
     final bool? deleted = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: Text('Transfer · ${transfer.amount.format(currencyCode: transfer.currency)}'),
+        title: Text('Transfer · ${transfer.amount.display(currencyCode: transfer.currency)}'),
         content: Text(
           'From ${transfer.sourceAccountName}\n'
           'To ${transfer.destinationAccountName}\n'

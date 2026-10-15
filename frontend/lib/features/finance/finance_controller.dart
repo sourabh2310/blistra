@@ -104,6 +104,10 @@ class FinanceController extends ChangeNotifier {
     } on ApiException catch (error) {
       _errorMessage = error.toString();
       _status = FinanceLoadStatus.error;
+    } catch (error) {
+      // Unexpected payloads must end in the error state, never a spinner.
+      _errorMessage = 'Unexpected response: $error';
+      _status = FinanceLoadStatus.error;
     }
     notifyListeners();
   }
@@ -123,6 +127,10 @@ class FinanceController extends ChangeNotifier {
       _status = FinanceLoadStatus.ready;
     } on ApiException catch (error) {
       _errorMessage = error.toString();
+      _status = FinanceLoadStatus.error;
+    } catch (error) {
+      // Unexpected payloads must end in the error state, never a spinner.
+      _errorMessage = 'Unexpected response: $error';
       _status = FinanceLoadStatus.error;
     }
     notifyListeners();

@@ -150,7 +150,7 @@ class _TransactionRow extends StatelessWidget {
         ),
         trailing: Text(
           '${income ? '+' : '-'}'
-          '${transaction.amount.format(currencyCode: transaction.currency)}',
+          '${transaction.amount.display(currencyCode: transaction.currency)}',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: income ? theme.colorScheme.primary : theme.colorScheme.error,

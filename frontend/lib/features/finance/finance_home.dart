@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/widgets/page_header.dart';
 import 'finance_controller.dart';
 import 'finance_scope.dart';
 
@@ -40,58 +41,41 @@ class _FinanceHomeState extends State<FinanceHome> {
     final FinanceController controller = FinanceScope.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_appBarTitle(controller)),
-        actions: [
-          IconButton(
-            tooltip: 'Previous month',
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () => _shiftMonth(controller, -1),
-          ),
-          IconButton(
-            tooltip: 'Next month',
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () => _shiftMonth(controller, 1),
-          ),
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-            onPressed: controller.isLoading ? null : controller.loadAll,
-          ),
-        ],
-      ),
-      body: _body(controller),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tabIndex,
-        onDestinationSelected: (int index) =>
-            setState(() => _tabIndex = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Overview',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.swap_vert_outlined),
-            selectedIcon: Icon(Icons.swap_vert),
-            label: 'Transactions',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.currency_exchange_outlined),
-            selectedIcon: Icon(Icons.currency_exchange),
-            label: 'Transfers',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Accounts',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.category_outlined),
-            selectedIcon: Icon(Icons.category),
-            label: 'Categories',
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            BlistraPageHeader(
+              title: 'Finance',
+              subtitle: _appBarTitle(controller),
+              actions: [
+                GlassIconButton(
+                  tooltip: 'Previous month',
+                  icon: Icons.chevron_left_rounded,
+                  onTap: () => _shiftMonth(controller, -1),
+                ),
+                GlassIconButton(
+                  tooltip: 'Next month',
+                  icon: Icons.chevron_right_rounded,
+                  onTap: () => _shiftMonth(controller, 1),
+                ),
+              ],
+            ),
+            BlistraSegmentedTabs(
+              labels: const [
+                'Overview',
+                'Transactions',
+                'Transfers',
+                'Accounts',
+                'Categories',
+              ],
+              selected: _tabIndex,
+              onSelected: (index) => setState(() => _tabIndex = index),
+            ),
+            Expanded(child: _body(controller)),
+          ],
+        ),
       ),
     );
   }

@@ -90,7 +90,7 @@ class _SummaryCard extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.bold)),
                 const Spacer(),
                 Text(
-                  'Net ${section.net.format(currencyCode: section.currency)}',
+                  'Net ${section.net.display(currencyCode: section.currency)}',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: section.net < Money.zero()
@@ -103,22 +103,22 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 8),
             _Row(
               label: 'Income',
-              value: section.income.format(currencyCode: section.currency),
+              value: section.income.display(currencyCode: section.currency),
               color: theme.colorScheme.primary,
             ),
             _Row(
               label: 'Expense',
-              value: section.expense.format(currencyCode: section.currency),
+              value: section.expense.display(currencyCode: section.currency),
               color: theme.colorScheme.error,
             ),
             _Row(
               label: 'Transferred in',
-              value: section.transferIn.format(currencyCode: section.currency),
+              value: section.transferIn.display(currencyCode: section.currency),
               color: theme.colorScheme.tertiary,
             ),
             _Row(
               label: 'Transferred out',
-              value: section.transferOut.format(currencyCode: section.currency),
+              value: section.transferOut.display(currencyCode: section.currency),
               color: theme.colorScheme.tertiary,
             ),
           ],
@@ -170,7 +170,7 @@ class _AccountTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              account.balance.format(currencyCode: account.currency),
+              account.balance.display(currencyCode: account.currency),
               style: theme.textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.bold),
             ),
@@ -232,7 +232,7 @@ class _TransactionTile extends StatelessWidget {
         '${transaction.categoryName} · ${transaction.accountName}',
       ),
       trailing: Text(
-        ('${income ? '+' : '-'}${transaction.amount.format(currencyCode: transaction.currency)}'),
+        ('${income ? '+' : '-'}${transaction.amount.display(currencyCode: transaction.currency)}'),
         style: TextStyle(
           fontWeight: FontWeight.bold,
           color: income ? theme.colorScheme.primary : theme.colorScheme.error,
@@ -259,7 +259,7 @@ class _SpendTile extends StatelessWidget {
       dense: true,
       leading: const Icon(Icons.label_outline),
       title: Text(spend.categoryName),
-      trailing: Text(spend.amount.format(currencyCode: currency)),
+      trailing: Text(spend.amount.display(currencyCode: currency)),
     );
   }
 }

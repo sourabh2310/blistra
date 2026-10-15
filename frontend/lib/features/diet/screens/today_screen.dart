@@ -14,6 +14,7 @@ import 'meal_detail_screen.dart';
 import 'profile_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/page_header.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -172,22 +173,36 @@ class _TodayScreenState extends State<TodayScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
             children: [
-              DietBrandHeader(
-                onSearch: () {
-                  if (summary != null) {
-                    _showSearch(summary);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Food search is available after the day loads.')),
-                    );
-                  }
-                },
-                onNotifications: _showNotifications,
-                onHistory: _openHistory,
-                onProfile: _openProfile,
+              BlistraPageHeader(
+                title: 'Diet',
+                subtitle: 'Good food. A healthier you.',
+                padding: EdgeInsets.zero,
+                actions: [
+                  GlassIconButton(
+                    tooltip: 'Search food log',
+                    icon: Icons.search_rounded,
+                    onTap: () {
+                      if (summary != null) {
+                        _showSearch(summary);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Food search is available after the day loads.')),
+                        );
+                      }
+                    },
+                  ),
+                  GlassIconButton(
+                    tooltip: 'Notifications',
+                    icon: Icons.notifications_none_rounded,
+                    onTap: _showNotifications,
+                  ),
+                  GlassIconButton(
+                    tooltip: 'Meal history',
+                    icon: Icons.calendar_today_outlined,
+                    onTap: _openHistory,
+                  ),
+                ],
               ),
-              const SizedBox(height: 18),
-              const DietHero(),
               const SizedBox(height: 14),
               _DietTabs(selected: _selectedTab, onSelected: _selectTab),
               const SizedBox(height: 16),

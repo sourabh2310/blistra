@@ -48,7 +48,7 @@ class TodayScreen extends StatelessWidget {
   Future<void> _toggleCompletion(
     BuildContext context,
     HabitTodayResponse habit,
-    bool completed,
+    bool nowCompleted,
   ) async {
     final HabitsController controller = HabitsScope.of(context);
     // User-local calendar day: the backend compares against the user
@@ -56,11 +56,11 @@ class TodayScreen extends StatelessWidget {
     // on the wrong day around midnight.
     final DateTime today = DateTime.now();
     try {
-      if (completed) {
-        // already completed - remove
+      if (!nowCompleted) {
+        // switched off - remove today's completion
         await controller.removeCompletion(habit.id, today);
       } else {
-        // record new completion
+        // switched on - record a completion
         await controller.recordCompletion(
           habit.id,
           completedOn: today,
@@ -71,7 +71,7 @@ class TodayScreen extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(completed ? 'Completion removed' : 'Marked complete'),
+            content: Text(nowCompleted ? 'Marked complete' : 'Completion removed'),
             duration: const Duration(seconds: 1),
           ),
         );

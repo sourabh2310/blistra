@@ -371,7 +371,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Material(
-          color: softBg(context, Color(0xFFFCFDFB)),
+          color: BlistraColors.resolve(context).sheet,
           elevation: 16,
           shadowColor: Colors.black.withValues(alpha: 0.24),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
@@ -404,9 +404,10 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
                       'What would you like to add?',
                       style: TextStyle(
                         color: BlistraColors.resolve(context).text,
-                        fontSize: 25,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
+                        fontSize: 22,
+                        fontFamily: 'Sora',
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.4,
                       ),
                     ),
                   ),
@@ -462,7 +463,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
                           height: 50,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: softBg(context, Color(0xFFF0F2F0)),
+                            color: BlistraColors.resolve(context).accent.withValues(alpha: .14),
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: Text(
@@ -536,8 +537,8 @@ class _CategoryTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF3D424A),
+                  style: TextStyle(
+                    color: BlistraColors.resolve(context).text,
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
@@ -577,7 +578,7 @@ class _MinimalRow extends StatelessWidget {
       label: action.semanticLabel,
       button: true,
       child: Material(
-        color: Colors.white,
+        color: BlistraColors.resolve(context).glassFill,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           onTap: onTap,
@@ -738,7 +739,7 @@ class _HabitSheetHost extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         padding: EdgeInsets.only(bottom: bottom),
         decoration: BoxDecoration(
-          color: softBg(context, Color(0xFFFFFBF6)),
+          color: BlistraColors.resolve(context).sheet,
           borderRadius: BorderRadius.all(Radius.circular(28)),
         ),
         child: const SingleChildScrollView(child: HabitFormScreen()),
@@ -817,7 +818,7 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         padding: EdgeInsets.fromLTRB(20, 14, 20, 16 + bottom),
         decoration: BoxDecoration(
-          color: softBg(context, Color(0xFFFFFBF6)),
+          color: BlistraColors.resolve(context).sheet,
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
