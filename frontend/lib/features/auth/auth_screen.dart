@@ -32,6 +32,7 @@ import '../health/health_models.dart';
 import 'auth_validators.dart';
 import 'auth_widgets.dart';
 import 'country_data.dart';
+import '../../core/config/app_config.dart';
 
 enum _Mode { signIn, register, forgot }
 
@@ -172,7 +173,8 @@ class _AuthScreenState extends State<AuthScreen> {
     final account = _auth.account;
     if (account == null) return _Reg.emailOtp;
     if (!account.emailVerified) return _Reg.emailOtp;
-    if (account.phone != null &&
+    if (AppConfig.requirePhoneVerification &&
+        account.phone != null &&
         account.phone!.isNotEmpty &&
         !account.phoneVerified) {
       return _Reg.phoneOtp;
@@ -703,7 +705,8 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
     _otp.clear();
-    if (account.phone != null &&
+    if (AppConfig.requirePhoneVerification &&
+        account.phone != null &&
         account.phone!.isNotEmpty &&
         !account.phoneVerified) {
       _startCooldown(60);

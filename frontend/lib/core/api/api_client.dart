@@ -11,6 +11,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../config/app_config.dart';
 import 'api_exception.dart';
 import 'api_interceptor.dart';
 
@@ -79,7 +80,11 @@ class UserAccountDto {
       );
 
   bool get needsVerification =>
-      !emailVerified || (phone != null && phone!.isNotEmpty && !phoneVerified);
+      !emailVerified ||
+      (AppConfig.requirePhoneVerification &&
+          phone != null &&
+          phone!.isNotEmpty &&
+          !phoneVerified);
 }
 
 /// OTP issuance metadata for resend UX (expiry + cooldown seconds).

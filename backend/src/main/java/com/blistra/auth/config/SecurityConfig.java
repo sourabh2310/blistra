@@ -36,7 +36,7 @@ public class SecurityConfig {
      * Mobile and desktop clients are unaffected. Override with
      * BLISTRA_CORS_ORIGIN_PATTERNS (comma separated) in other environments.
      */
-    @Value("${blistra.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}")
+    @Value("${BLISTRA_CORS_ORIGIN_PATTERNS:${blistra.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}}")
     private String corsOriginPatterns;
 
     @Bean

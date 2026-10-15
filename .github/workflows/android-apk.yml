@@ -1,0 +1,76 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop, main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/android-apk.yml"
+
+permissions:
+  contents: write   # publish the APK as a GitHub release
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Restore release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.jks
+            printf 'storeFile=app/release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/key.properties
+          else
+            echo "No keystore secret set: building with the debug key."
+          fi
+
+      - run: flutter pub get
+
+      - name: Test
+        run: flutter test test/money_test.dart test/dashboard_home_test.dart test/home_shell_test.dart test/quick_add_test.dart
+
+      - name: Build APK
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          flutter build apk --release \
+            --target-platform android-arm64 \
+            --build-number "${{ github.run_number }}" \
+            --dart-define=API_BASE_URL="$API_BASE_URL"
+
+      - name: Rename APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk blistra.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blistra-apk
+          path: frontend/blistra.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Blistra APK ${{ github.run_number }}
+          files: frontend/blistra.apk
+          generate_release_notes: true

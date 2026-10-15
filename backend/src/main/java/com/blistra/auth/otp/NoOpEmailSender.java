@@ -1,7 +1,7 @@
 package com.blistra.auth.otp;
 
 import com.blistra.common.exception.VerificationUnavailableException;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 
 /**
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
  * faked; wire a real provider implementation for production.
  */
 @Component
-@ConditionalOnProperty(prefix = "blistra.otp", name = "dev-mode", havingValue = "false", matchIfMissing = true)
+@ConditionalOnExpression("'${blistra.otp.dev-mode:false}' != 'true' and '${blistra.mail.enabled:false}' != 'true'")
 public class NoOpEmailSender implements EmailSender {
 
     @Override

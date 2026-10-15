@@ -1,7 +1,7 @@
 package com.blistra.auth.otp;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 
 /**
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "blistra.otp", name = "dev-mode", havingValue = "true")
+@ConditionalOnExpression("'${blistra.otp.dev-mode:false}' == 'true' and '${blistra.mail.enabled:false}' != 'true'")
 public class DevConsoleEmailSender implements EmailSender {
 
     @Override

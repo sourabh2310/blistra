@@ -1,9 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for release builds to reach the backend (debug builds add it automatically). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Local notification delivery for the Notifications and Reminders platform. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
-        android:label="frontend"
+        android:label="Blistra"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
