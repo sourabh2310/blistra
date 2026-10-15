@@ -22,6 +22,7 @@ public interface HealthActivityRepository extends JpaRepository<HealthActivity, 
             WHERE a.user_id = :userId
               AND (CAST(:from AS timestamptz) IS NULL OR a.performed_at >= :from)
               AND (CAST(:to AS timestamptz) IS NULL OR a.performed_at <= :to)
+            ORDER BY a.performed_at DESC
             """, nativeQuery = true)
     Page<HealthActivity> search(@Param("userId") UUID userId,
                                 @Param("from") OffsetDateTime from,

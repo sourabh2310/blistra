@@ -309,6 +309,17 @@ void main() {
       expect(items.map((item) => item.title), containsAll(['Old task', 'Med A']));
     });
 
+    test('a task listed as both today and overdue is counted once', () {
+      final task = _task('Review', 'TODO');
+      final d = _response(todayTasks: [task], overdueTasks: [task]);
+      final overview = computeHomeOverview(d);
+      expect(overview.metrics.first.value, '1');
+      final items = buildAttentionItems(d, now: DateTime(2026, 9, 24, 15));
+      expect(items.where((item) => item.title == 'Review'), hasLength(1));
+      final timeline = buildTimeline(d, now: DateTime(2026, 9, 24, 15));
+      expect(timeline.where((item) => item.title == 'Review'), hasLength(1));
+    });
+
     test('weekly model accepts new and legacy field names', () {
       final model = DashboardResponse.fromJson({
         'date': '2026-09-24',

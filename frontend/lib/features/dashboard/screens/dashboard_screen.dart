@@ -2393,7 +2393,7 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
   final metrics = <HomeMetric>[];
   final planner = dashboard.planner;
   if (planner != null && !planner.unavailable) {
-    final remaining = [...planner.todayTasks, ...planner.overdueTasks].where((
+    final remaining = _uniqueTasks(planner).where((
       task,
     ) {
       final status = (task.status ?? '').toUpperCase();
@@ -2490,7 +2490,7 @@ List<AttentionItem> buildAttentionItems(
   final result = <AttentionItem>[];
   final planner = dashboard.planner;
   if (planner != null && !planner.unavailable) {
-    for (final task in [...planner.overdueTasks, ...planner.todayTasks]) {
+    for (final task in _uniqueTasks(planner)) {
       final status = (task.status ?? '').toUpperCase();
       final at = DateTime.tryParse(task.dueAt ?? task.startAt ?? '')?.toLocal();
       if (task.id.isEmpty ||
@@ -2592,7 +2592,7 @@ List<TimelineItem> buildTimeline(
         ),
       );
     }
-    for (final task in [...planner.todayTasks, ...planner.overdueTasks]) {
+    for (final task in _uniqueTasks(planner)) {
       final status = (task.status ?? '').toUpperCase();
       if (status == 'CANCELLED') continue;
       final at = DateTime.tryParse(task.dueAt ?? task.startAt ?? '')?.toLocal();
@@ -2951,4 +2951,15 @@ String _relativeDay(String? iso) {
   if (days <= 0) return 'today';
   if (days == 1) return 'yesterday';
   return '$days days ago';
+}
+
+
+/// Today's tasks plus overdue ones, each task once. The backend lists a task
+/// whose time has passed in both `todayTasks` and `overdueTasks`.
+List<TaskSummary> _uniqueTasks(PlannerSection planner) {
+  final seen = <String>{};
+  return [
+    for (final task in [...planner.todayTasks, ...planner.overdueTasks])
+      if (task.id.isEmpty || seen.add(task.id)) task,
+  ];
 }
