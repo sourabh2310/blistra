@@ -8,6 +8,8 @@
 /// are never requested at startup — see [AppShell] / settings.
 library;
 
+import 'dart:async';
+
 import '../core/api/api_client.dart';
 import '../core/auth/auth_state.dart';
 import '../core/auth/auth_storage.dart';
@@ -91,6 +93,8 @@ class AppDependencies {
     final resolvedBase = baseUrl ?? AppConfig.apiBaseUrl;
     final authStorage = storage ?? AuthStorage();
     final apiClient = ApiClient(baseUrl: resolvedBase);
+    // Wake a sleeping free-tier backend while the app starts.
+    unawaited(apiClient.warmUp());
     final theme = ThemeController();
     await theme.load();
     final authState = AuthState(apiClient: apiClient, storage: authStorage);

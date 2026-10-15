@@ -12,6 +12,7 @@ import '../../core/theme/theme_controller.dart';
 import '../../core/theme/accent_palette.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glass.dart';
+import '../../core/api/api_client.dart';
 
 /// Auth screen colours. Backed by the active [BlistraColors] (kept in sync by
 /// the app's `MaterialApp.builder`), so every auth widget follows the accent
@@ -30,6 +31,7 @@ class AuthColors {
   static Color get teal => _c.accent;
   static Color get tealSoft => _c.accent.withValues(alpha: .14);
   static Color get border => _c.glassBorder;
+  static Color get surface => _c.isDark ? const Color(0xFF1B2330) : Colors.white;
   static Color get error => _c.isDark ? const Color(0xFFFF8A80) : const Color(0xFFB42318);
   static Color get errorBg => _c.isDark ? const Color(0x33FF5A4F) : const Color(0xFFFDECEC);
 }
@@ -91,6 +93,7 @@ class AuthScaffold extends StatelessWidget {
                 ],
               ),
             ),
+            const _WakingBanner(),
             Expanded(
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
@@ -99,7 +102,7 @@ class AuthScaffold extends StatelessWidget {
                   24,
                   onBack == null ? 32 : 4,
                   24,
-                  16 + MediaQuery.of(context).viewInsets.bottom * 0.0,
+                  16,
                 ),
                 child: child,
               ),
@@ -112,13 +115,62 @@ class AuthScaffold extends StatelessWidget {
                     24,
                     8,
                     24,
-                    16 + MediaQuery.of(context).viewInsets.bottom,
+                    16,
                   ),
                   child: bottom!,
                 ),
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Explains a slow first request (free hosting wakes up on demand).
+class _WakingBanner extends StatelessWidget {
+  const _WakingBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    ApiClient? api;
+    try {
+      api = context.read<ApiClient>();
+    } catch (_) {
+      api = null;
+    }
+    if (api == null) return const SizedBox.shrink();
+    return ValueListenableBuilder<bool>(
+      valueListenable: api.slowRequest,
+      builder: (context, slow, _) => AnimatedSize(
+        duration: const Duration(milliseconds: 200),
+        child: slow
+            ? Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(24, 4, 24, 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AuthColors.tealSoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Waking up the server. This can take up to a minute the first time.',
+                        style: TextStyle(fontSize: 12.5, color: AuthColors.ink),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }
