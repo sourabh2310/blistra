@@ -1095,6 +1095,9 @@ class _AuthScreenState extends State<AuthScreen> {
       child: ListenableBuilder(
         listenable: _auth,
         builder: (context, _) {
+          // Depend on the theme so the screen repaints when light/dark or the
+          // accent changes (AuthColors reads the active theme).
+          Theme.of(context);
           if (_mode == _Mode.signIn) return _loginScreen();
           if (_mode == _Mode.forgot) return _forgotScreen();
           return _registerScreen();
@@ -1493,7 +1496,7 @@ class _AuthScreenState extends State<AuthScreen> {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AuthColors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border:
                       Border.all(color: AuthColors.border),
@@ -1689,7 +1692,7 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AuthColors.surface,
                 borderRadius: BorderRadius.circular(14),
                 border:
                     Border.all(color: AuthColors.border),
@@ -1738,7 +1741,7 @@ class _AuthScreenState extends State<AuthScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AuthColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AuthColors.border),
       ),
@@ -1863,7 +1866,7 @@ class _AuthScreenState extends State<AuthScreen> {
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               minimumSize: const Size.fromHeight(56),
-              backgroundColor: Colors.white,
+              backgroundColor: AuthColors.surface,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
             ),
@@ -1880,7 +1883,7 @@ class _AuthScreenState extends State<AuthScreen> {
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               minimumSize: const Size.fromHeight(56),
-              backgroundColor: Colors.white,
+              backgroundColor: AuthColors.surface,
               alignment: Alignment.centerLeft,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
@@ -2165,7 +2168,7 @@ class _AuthScreenState extends State<AuthScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AuthColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
               color: selected

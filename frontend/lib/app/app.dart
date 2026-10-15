@@ -100,11 +100,23 @@ class AuthGate extends StatelessWidget {
 
   final AppDependencies deps;
 
+  /// One key for every AuthScreen the gate returns, so Flutter keeps the same
+  /// State (form values, wizard step) across auth status changes.
+  static final GlobalKey _authKey = GlobalKey(debugLabel: 'authScreen');
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: deps.authState,
       builder: (context, _) {
+        // While busy on the sign-in / registration flow keep that screen (and
+        // its typed values) on screen instead of swapping in a spinner, which
+        // would throw the form state away and land back on the login page.
+        final busyOnAuthFlow = deps.authState.status == AuthStatus.busy &&
+            !deps.authState.isAuthenticated;
+        if (busyOnAuthFlow) {
+          return AuthScreen(key: _authKey, deps: deps);
+        }
         if (deps.authState.status == AuthStatus.unknown ||
             deps.authState.status == AuthStatus.busy) {
           return const Scaffold(
@@ -117,11 +129,15 @@ class AuthGate extends StatelessWidget {
           // surfaces any pending verification from there).
           if (deps.authState.justRegistered &&
               deps.authState.needsOnboarding) {
-            return AuthScreen(deps: deps, startWizard: true);
+            return AuthScreen(
+              key: _authKey,
+              deps: deps,
+              startWizard: true,
+            );
           }
           return AppShell(deps: deps);
         }
-        return AuthScreen(deps: deps);
+        return AuthScreen(key: _authKey, deps: deps);
       },
     );
   }

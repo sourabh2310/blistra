@@ -24,6 +24,8 @@ services:
         generateValue: true
       - key: MAIL_ENABLED
         value: "true"
+      - key: MAIL_PORT
+        value: "2525"          # Brevo SMTP; free Render services block 25, 465 and 587
       - key: MAIL_USERNAME
         sync: false            # Brevo SMTP login
       - key: MAIL_PASSWORD

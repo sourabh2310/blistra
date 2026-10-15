@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
@@ -239,7 +240,8 @@ class ApiClient {
   ApiClient({
     required this.baseUrl,
     http.Client? httpClient,
-    this.timeout = const Duration(seconds: 15),
+    // Generous on purpose: a free-tier backend can need ~100 s to wake up.
+    this.timeout = const Duration(seconds: 110),
     this.onUnauthorized,
   }) : _http = httpClient ?? http.Client();
 
@@ -248,6 +250,36 @@ class ApiClient {
 
   /// Per-request timeout applied to every network call.
   final Duration timeout;
+
+  /// True while any JSON request has been pending for more than a few
+  /// seconds. The UI uses it to explain that the server may be waking up.
+  final ValueNotifier<bool> slowRequest = ValueNotifier<bool>(false);
+  int _pending = 0;
+  Timer? _slowTimer;
+
+  void _requestStarted() {
+    _pending++;
+    _slowTimer ??= Timer(const Duration(seconds: 6), () {
+      if (_pending > 0) slowRequest.value = true;
+    });
+  }
+
+  void _requestFinished() {
+    if (_pending > 0) _pending--;
+    if (_pending == 0) {
+      _slowTimer?.cancel();
+      _slowTimer = null;
+      slowRequest.value = false;
+    }
+  }
+
+  /// Fire-and-forget request that wakes a sleeping backend early. Errors are
+  /// ignored: it only exists to shorten the first real request.
+  Future<void> warmUp() async {
+    try {
+      await _http.get(Uri.parse('$baseUrl/health')).timeout(timeout);
+    } catch (_) {}
+  }
 
   /// Invoked once when the backend answers 401 (expired/invalid JWT) so the
   /// session layer can clear credentials and return to login.
@@ -395,6 +427,7 @@ class ApiClient {
     if (body != null) {
       request.body = jsonEncode(body);
     }
+    _requestStarted();
     try {
       final http.StreamedResponse streamed =
           await _http.send(request).timeout(timeout);
@@ -407,6 +440,8 @@ class ApiClient {
       throw NetworkException(error);
     } catch (error) {
       throw NetworkException(error);
+    } finally {
+      _requestFinished();
     }
   }
 

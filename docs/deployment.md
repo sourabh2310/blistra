@@ -30,6 +30,7 @@ The backend creates its tables itself on first start (Flyway).
 | `MAIL_USERNAME` | the Brevo SMTP login |
 | `MAIL_PASSWORD` | the SMTP key |
 | `MAIL_FROM` | the sender address you verified |
+| `MAIL_PORT` | `2525` (Render's free plan blocks the usual SMTP ports 25, 465 and 587; Brevo also accepts 2525) |
 
 ## 3. Render (backend)
 
