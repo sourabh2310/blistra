@@ -59,6 +59,10 @@ public class AuthService {
     @Autowired
     private OtpProperties otpProperties;
 
+    /** SMS codes are only issued when an SMS provider exists (dev console counts). */
+    @Value("${blistra.sms.enabled:${blistra.otp.dev-mode:false}}")
+    private boolean smsEnabled;
+
     @Value("${JWT_EXPIRATION:${jwt.expiration:86400000}}")
     private long jwtExpirationMs;
 
@@ -163,7 +167,7 @@ public class AuthService {
         try {
             verificationService.issue(saved.getId(), OtpPurpose.EMAIL_VERIFY,
                     OtpChannel.EMAIL, email);
-            if (phone != null) {
+            if (phone != null && smsEnabled) {
                 verificationService.issue(saved.getId(), OtpPurpose.PHONE_VERIFY,
                         OtpChannel.SMS, phone);
             }

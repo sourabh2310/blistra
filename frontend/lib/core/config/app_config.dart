@@ -18,6 +18,12 @@ class AppConfig {
   static const String _apiBaseUrlDefine = String.fromEnvironment('API_BASE_URL');
   static const String _legacyDefine = String.fromEnvironment('BACKEND_BASE_URL');
 
+  /// Whether a phone number must be verified with an SMS code. Off by default
+  /// because only email delivery is configured; build with
+  /// `--dart-define=REQUIRE_PHONE_VERIFICATION=true` once SMS is available.
+  static bool requirePhoneVerification =
+      const bool.fromEnvironment('REQUIRE_PHONE_VERIFICATION');
+
   static String get apiBaseUrl {
     if (_apiBaseUrlDefine.isNotEmpty) {
       return _stripTrailingSlash(_apiBaseUrlDefine);

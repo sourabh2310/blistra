@@ -1,4 +1,4 @@
-package com.blistra.frontend
+package com.blistra.app
 
 import io.flutter.embedding.android.FlutterActivity
 
