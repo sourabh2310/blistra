@@ -609,44 +609,69 @@ class _BlistraBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
+    final radius = BorderRadius.circular(30);
     return SafeArea(
       top: false,
       child: SizedBox(
-        height: 72,
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(34),
-            boxShadow: [
-              BoxShadow(
-                color: colors.accent.withValues(alpha: 0.22),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(34),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: colors.navFill,
-                  borderRadius: BorderRadius.circular(34),
-                  border: Border.all(color: colors.glassBorder),
+        height: 92,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 70,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: radius,
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.accent.withValues(alpha: .25),
+                        blurRadius: 34,
+                        offset: const Offset(0, 14),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: radius,
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.navFill,
+                          borderRadius: radius,
+                          border: Border.all(color: colors.glassBorder),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 70,
                 child: Material(
                   type: MaterialType.transparency,
                   child: Row(
                     children: [
                       for (int i = 0; i < destinations.length; i++)
                         if (destinations[i] == ShellDestinations.add)
-                          SizedBox(
-                            width: 72,
-                            child: _AddButton(
-                              open: addOpen,
-                              onTap: () => onSelect(i),
+                          Expanded(
+                            child: OverflowBox(
+                              maxHeight: 100,
+                              alignment: Alignment.center,
+                              child: Transform.translate(
+                                offset: const Offset(0, -18),
+                                child: _AddButton(
+                                  open: addOpen,
+                                  onTap: () => onSelect(i),
+                                ),
+                              ),
                             ),
                           )
                         else
@@ -665,7 +690,7 @@ class _BlistraBottomBar extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -689,17 +714,16 @@ class _AddButton extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
-          width: 64,
-          height: 64,
+          width: 58,
+          height: 58,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: colors.gradient,
             boxShadow: [
               BoxShadow(
-                color: colors.accent.withValues(alpha: 0.5),
-                blurRadius: 22,
-                spreadRadius: 1,
-                offset: const Offset(0, 8),
+                color: colors.accent.withValues(alpha: .55),
+                blurRadius: 26,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
@@ -714,7 +738,7 @@ class _AddButton extends StatelessWidget {
               open ? Icons.close : Icons.add,
               key: ValueKey(open),
               color: Colors.white,
-              size: 36,
+              size: 30,
             ),
           ),
         ),
@@ -741,85 +765,43 @@ class _BarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    final Color selectedColor = colors.accentText;
-    final Color unselectedColor = colors.muted;
-    final Color color = selected ? selectedColor : unselectedColor;
+    final Color color = selected ? colors.accentText : colors.muted;
     return Semantics(
       label: label,
       button: true,
       selected: selected,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 190),
-                curve: Curves.easeOutCubic,
-                constraints: const BoxConstraints(minHeight: 44),
-                padding: EdgeInsets.symmetric(
-                  horizontal: selected ? 10 : 4,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? colors.accent.withValues(alpha: 0.16)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: selected
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(selectedIcon, color: color, size: 22),
-                          const SizedBox(height: 1),
-                          Text(
-                            label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: selectedColor,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Icon(icon, color: color, size: 24),
-              ),
-              if (!selected) ...[
-                const SizedBox(height: 2),
+        borderRadius: BorderRadius.circular(18),
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            width: 62,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: selected
+                  ? colors.accent.withValues(alpha: .16)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(selected ? selectedIcon : icon, color: color, size: 23),
+                const SizedBox(height: 3),
                 Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: unselectedColor,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w500,
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
               ],
-              SizedBox(
-                height: 6,
-                child: AnimatedOpacity(
-                  opacity: selected ? 1 : 0,
-                  duration: const Duration(milliseconds: 160),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: selectedColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const SizedBox(width: 5, height: 5),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

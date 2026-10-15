@@ -15,6 +15,7 @@ import 'sleep_screen.dart';
 import 'widgets.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/page_header.dart';
 
 class HealthHomeScreen extends StatefulWidget {
   const HealthHomeScreen({
@@ -308,13 +309,27 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
             bottom: false,
             child: Column(
               children: [
-                _BrandHeader(
-                  onSearch: _showResourcePicker,
-                  onLogs: () => _openResource(4),
-                  onAppointments: () => _openResource(6),
-                  onProfile: () => _openResource(0),
+                BlistraPageHeader(
+                  title: 'Health',
+                  subtitle: 'Track your health. Build a healthier you.',
+                  actions: [
+                    GlassIconButton(
+                      tooltip: 'Health resources',
+                      icon: Icons.search_rounded,
+                      onTap: _showResourcePicker,
+                    ),
+                    GlassIconButton(
+                      tooltip: 'Health logs',
+                      icon: Icons.notifications_none_rounded,
+                      onTap: () => _openResource(4),
+                    ),
+                    GlassIconButton(
+                      tooltip: 'Appointments',
+                      icon: Icons.calendar_today_outlined,
+                      onTap: () => _openResource(6),
+                    ),
+                  ],
                 ),
-                const _HealthHero(),
                 _HealthTabs(
                   tabs: _tabs,
                   selected: _selectedTab,
@@ -687,151 +702,6 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
   }
 }
 
-class _BrandHeader extends StatelessWidget {
-  const _BrandHeader({
-    required this.onSearch,
-    required this.onLogs,
-    required this.onAppointments,
-    required this.onProfile,
-  });
-
-  final VoidCallback onSearch;
-  final VoidCallback onLogs;
-  final VoidCallback onAppointments;
-  final VoidCallback onProfile;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 12, 14, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                BlistraWordmark(size: 30),
-                Text(
-                  'EVERYTHING YOU NEED. ONE APP.',
-                  maxLines: 1,
-                  overflow: TextOverflow.fade,
-                  softWrap: false,
-                  style: TextStyle(
-                    color: BlistraColors.resolve(context).muted,
-                    fontSize: 8.5,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _ActionCircle(
-            icon: Icons.search,
-            tooltip: 'Health resources',
-            onTap: onSearch,
-          ),
-          const SizedBox(width: 7),
-          _ActionCircle(
-            icon: Icons.notifications_none,
-            tooltip: 'Health logs',
-            onTap: onLogs,
-          ),
-          const SizedBox(width: 7),
-          _ActionCircle(
-            icon: Icons.calendar_today_outlined,
-            tooltip: 'Appointments',
-            onTap: onAppointments,
-          ),
-          const SizedBox(width: 7),
-          _ActionCircle(
-            icon: Icons.person_outline,
-            tooltip: 'Health profile',
-            onTap: onProfile,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionCircle extends StatelessWidget {
-  const _ActionCircle({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: softBg(context, Color(0xFFF1F1F5)),
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: SizedBox(
-            width: 38,
-            height: 38,
-            child: Icon(icon, size: 21, color: _HealthHomeScreenState._ink),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HealthHero extends StatelessWidget {
-  const _HealthHero();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 138,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          const CustomPaint(painter: _HealthLandscapePainter()),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 150, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Health',
-                  style: TextStyle(
-                    color: _HealthHomeScreenState._ink,
-                    fontFamily: 'serif',
-                    fontSize: 48,
-                    height: 0.98,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -1.8,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  'Track your health. Build a healthier you.',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: BlistraColors.resolve(context).muted,
-                    fontFamily: 'serif',
-                    fontSize: 17,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _HealthTabs extends StatelessWidget {
   const _HealthTabs({
     required this.tabs,
@@ -852,13 +722,7 @@ class _HealthTabs extends StatelessWidget {
       decoration: BoxDecoration(
         color: ActiveColors.glassFill,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: _HealthHomeScreenState._ink.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: ActiveColors.glassBorder),
       ),
       child: Row(
         children: [
@@ -871,7 +735,7 @@ class _HealthTabs extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: selected == index
-                        ? softBg(context, Color(0xFFDDEBE4))
+                        ? BlistraColors.resolve(context).accent.withValues(alpha: .2)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(22),
                   ),
@@ -883,11 +747,11 @@ class _HealthTabs extends StatelessWidget {
                         tabs[index],
                         style: TextStyle(
                           color: _HealthHomeScreenState._ink,
-                          fontFamily: 'serif',
-                          fontSize: 14,
+                          fontFamily: 'Sora',
+                          fontSize: 13,
                           fontWeight: selected == index
                               ? FontWeight.w700
-                              : FontWeight.w600,
+                              : FontWeight.w500,
                         ),
                       ),
                     ),
@@ -1069,7 +933,7 @@ class _MetricCard extends StatelessWidget {
                   ),
                   style: TextStyle(
                     color: _HealthHomeScreenState._ink,
-                    fontFamily: 'serif',
+                    fontFamily: 'Sora',
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1148,7 +1012,7 @@ class _SectionTitle extends StatelessWidget {
             title,
             style: TextStyle(
               color: _HealthHomeScreenState._ink,
-              fontFamily: 'serif',
+              fontFamily: 'Sora',
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
@@ -1214,7 +1078,7 @@ class _WeightTrendCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: trendDays == range.key
-                            ? softBg(context, Color(0xFFDDEBE4))
+                            ? BlistraColors.resolve(context).accent.withValues(alpha: .2)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(18),
                       ),
@@ -1584,7 +1448,7 @@ class _ProgressItem extends StatelessWidget {
             value,
             style: TextStyle(
               color: _HealthHomeScreenState._ink,
-              fontFamily: 'serif',
+              fontFamily: 'Sora',
               fontWeight: FontWeight.w800,
               fontSize: 17,
             ),
@@ -1749,7 +1613,7 @@ class _QuickTypeButton extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: _HealthHomeScreenState._ink,
-                    fontFamily: 'serif',
+                    fontFamily: 'Sora',
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
@@ -1921,7 +1785,7 @@ class _MeasurementRow extends StatelessWidget {
                     measurement.type.name,
                 style: TextStyle(
                   color: _HealthHomeScreenState._ink,
-                  fontFamily: 'serif',
+                  fontFamily: 'Sora',
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -2266,95 +2130,6 @@ class _MeasurementError extends StatelessWidget {
       ),
     );
   }
-}
-
-class _HealthLandscapePainter extends CustomPainter {
-  const _HealthLandscapePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint sky = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [ActiveColors.scene(Color(0xFFE8F3E8)), ActiveColors.scene(Color(0xFFFFF7DE))],
-      ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, sky);
-    final double baseline = size.height * 0.88;
-    final Paint farMountain = Paint()..color = ActiveColors.scene(Color(0xFFCADBD2));
-    final Path back = Path()
-      ..moveTo(size.width * 0.33, baseline)
-      ..quadraticBezierTo(
-        size.width * 0.52,
-        size.height * 0.15,
-        size.width * 0.76,
-        baseline,
-      )
-      ..lineTo(size.width, baseline)
-      ..lineTo(size.width, size.height)
-      ..lineTo(size.width * 0.3, size.height)
-      ..close();
-    canvas.drawPath(back, farMountain);
-    final Paint frontMountain = Paint()..color = ActiveColors.scene(Color(0xFF8FB7AC));
-    final Path front = Path()
-      ..moveTo(size.width * 0.45, baseline)
-      ..lineTo(size.width * 0.68, size.height * 0.35)
-      ..lineTo(size.width * 0.86, baseline)
-      ..lineTo(size.width, size.height * 0.66)
-      ..lineTo(size.width, size.height)
-      ..lineTo(size.width * 0.4, size.height)
-      ..close();
-    canvas.drawPath(front, frontMountain);
-    canvas.drawCircle(
-      Offset(size.width * 0.78, size.height * 0.57),
-      22,
-      Paint()..color = ActiveColors.scene(Color(0xFFFFC77E)).withValues(alpha: 0.85),
-    );
-    final Paint forest = Paint()..color = ActiveColors.scene(Color(0xFF3D7867));
-    for (int index = 0; index < 9; index++) {
-      final double x = size.width * (0.48 + index * 0.055);
-      final double height = 15 + (index % 3) * 5;
-      _pine(canvas, Offset(x, baseline + 7), height, forest);
-    }
-    final Paint branch = Paint()
-      ..color = ActiveColors.scene(Color(0xFF315E43))
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(size.width * 0.98, size.height * 0.1),
-      Offset(size.width * 0.86, size.height * 0.76),
-      branch,
-    );
-    _leaf(canvas, const Offset(0.96, 0.22), -0.45, ActiveColors.scene(Color(0xFF4E9B69)));
-    _leaf(canvas, const Offset(0.93, 0.38), 0.55, ActiveColors.scene(Color(0xFF2F7955)));
-    _leaf(canvas, const Offset(0.9, 0.56), -0.42, ActiveColors.scene(Color(0xFF5AA875)));
-    _leaf(canvas, const Offset(0.87, 0.7), 0.48, ActiveColors.scene(Color(0xFF327655)));
-  }
-
-  void _pine(Canvas canvas, Offset base, double height, Paint paint) {
-    final Path path = Path()
-      ..moveTo(base.dx, base.dy - height)
-      ..lineTo(base.dx - height * 0.32, base.dy)
-      ..lineTo(base.dx + height * 0.32, base.dy)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  void _leaf(Canvas canvas, Offset position, double angle, Color color) {
-    canvas.save();
-    canvas.translate(position.dx, position.dy);
-    canvas.rotate(angle);
-    final Path path = Path()
-      ..moveTo(0, 0)
-      ..quadraticBezierTo(22, -15, 45, 0)
-      ..quadraticBezierTo(22, 15, 0, 0)
-      ..close();
-    canvas.drawPath(path, Paint()..color = color);
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _HealthLandscapePainter oldDelegate) => false;
 }
 
 String _activityDurationLabel(List<HealthActivity> activities) {

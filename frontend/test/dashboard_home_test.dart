@@ -276,7 +276,7 @@ void main() {
         ),
       );
       final overview = computeHomeOverview(d);
-      expect(overview.metrics.map((item) => item.value), containsAll(['1', '1 of 2', '12.50']));
+      expect(overview.metrics.map((item) => item.value), containsAll(['1', '1 of 2', r'$12.50']));
     });
 
     test('timeline puts due habits at Anytime', () {
@@ -307,6 +307,17 @@ void main() {
         now: DateTime(2026, 9, 24, 15),
       );
       expect(items.map((item) => item.title), containsAll(['Old task', 'Med A']));
+    });
+
+    test('a task listed as both today and overdue is counted once', () {
+      final task = _task('Review', 'TODO');
+      final d = _response(todayTasks: [task], overdueTasks: [task]);
+      final overview = computeHomeOverview(d);
+      expect(overview.metrics.first.value, '1');
+      final items = buildAttentionItems(d, now: DateTime(2026, 9, 24, 15));
+      expect(items.where((item) => item.title == 'Review'), hasLength(1));
+      final timeline = buildTimeline(d, now: DateTime(2026, 9, 24, 15));
+      expect(timeline.where((item) => item.title == 'Review'), hasLength(1));
     });
 
     test('weekly model accepts new and legacy field names', () {

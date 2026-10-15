@@ -34,7 +34,7 @@ class AccountsScreen extends StatelessWidget {
                 '${account.isArchived ? ' · archived' : ''}',
               ),
               trailing: Text(
-                account.balance.format(currencyCode: account.currency),
+                account.balance.display(currencyCode: account.currency),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               onTap: () async {

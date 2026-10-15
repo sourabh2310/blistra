@@ -335,23 +335,14 @@ class AuthBrand extends StatelessWidget {
       children: [
         Row(
           children: [
-            Container(
-              width: compact ? 40 : 48,
-              height: compact ? 40 : 48,
-              decoration: BoxDecoration(
-                color: BlistraColors.resolve(context).accent,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(Icons.layers_outlined,
-                  color: Colors.white, size: compact ? 22 : 26,
-                  semanticLabel: 'Blistra logo'),
-            ),
+            BlistraMark(size: compact ? 40 : 48),
             const SizedBox(width: 12),
             Text('Blistra',
                 style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
+                    fontFamily: 'Fraunces',
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.6,
                     color: AuthColors.ink)),
           ],
         ),

@@ -233,7 +233,10 @@ class _TodayScreenState extends State<TodayScreen> {
     }
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: Row(
+      child: GlassCard(
+        padding: const EdgeInsets.all(8),
+        radius: 24,
+        child: Row(
         children: [
           for (var index = 0; index < 7; index++)
             Expanded(
@@ -251,12 +254,11 @@ class _TodayScreenState extends State<TodayScreen> {
                       onTap: () => _chooseStripDay(day, planner),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
-                        height: 78,
+                        height: 72,
                         margin: const EdgeInsets.symmetric(horizontal: 1),
                         decoration: BoxDecoration(
-                          color: selected ? BlistraColors.resolve(context).accent : Colors.transparent,
-                          borderRadius: BorderRadius.circular(14),
-                          border: selected ? null : Border.all(color: softBg(context, Color(0xFFE7E3DC))),
+                          gradient: selected ? BlistraColors.resolve(context).gradient : null,
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -264,7 +266,7 @@ class _TodayScreenState extends State<TodayScreen> {
                             Text(
                               names[day.weekday - 1],
                               style: TextStyle(
-                                fontFamily: 'serif',
+                                fontFamily: 'Sora',
                                 fontSize: 12,
                                 color: selected ? Colors.white : BlistraColors.resolve(context).text,
                               ),
@@ -299,6 +301,7 @@ class _TodayScreenState extends State<TodayScreen> {
             ),
         ],
       ),
+      ),
     );
   }
 
@@ -318,9 +321,9 @@ class _TodayScreenState extends State<TodayScreen> {
               height: 48,
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+                color: BlistraColors.resolve(context).glassFill,
                 borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: Theme.of(context).dividerColor),
+                border: Border.all(color: BlistraColors.resolve(context).glassBorder),
               ),
               child: Row(
                 children: [
@@ -337,14 +340,14 @@ class _TodayScreenState extends State<TodayScreen> {
                             duration: const Duration(milliseconds: 180),
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: _viewMode == mode ? softBg(context, Color(0xFFCFE4DD)) : Colors.transparent,
+                              color: _viewMode == mode ? BlistraColors.resolve(context).accent.withValues(alpha: .2) : Colors.transparent,
                               borderRadius: BorderRadius.circular(22),
                             ),
                             child: Text(
                               _modeLabel(mode),
                               maxLines: 1,
                               style: TextStyle(
-                                fontFamily: 'serif',
+                                fontFamily: 'Sora',
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: _viewMode == mode ? BlistraColors.resolve(context).accentText : BlistraColors.resolve(context).text,
@@ -363,8 +366,8 @@ class _TodayScreenState extends State<TodayScreen> {
             onPressed: _showFilters,
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(92, 48),
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              side: BorderSide(color: Theme.of(context).dividerColor),
+              backgroundColor: BlistraColors.resolve(context).glassFill,
+              side: BorderSide(color: BlistraColors.resolve(context).glassBorder),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             ),
             icon: const Icon(Icons.filter_alt_outlined, size: 18),
@@ -432,21 +435,11 @@ class _TodayScreenState extends State<TodayScreen> {
     final now = DateTime.now();
     final showDay = planner.scope == ScheduleScope.week;
     final currentOffset = _currentTimeOffset(rows, now);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GlassCard(
+        padding: EdgeInsets.zero,
+        radius: 24,
         child: Column(
           children: [
             Padding(
@@ -460,7 +453,7 @@ class _TodayScreenState extends State<TodayScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium?.copyWith(
-                        fontFamily: 'serif',
+                        fontFamily: 'Sora',
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -576,7 +569,7 @@ class _TodayScreenState extends State<TodayScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.titleSmall?.copyWith(
-                                fontFamily: 'serif',
+                                fontFamily: 'Sora',
                                 fontWeight: FontWeight.w800,
                                 decoration: row.done ? TextDecoration.lineThrough : null,
                                 color: row.done ? theme.disabledColor : null,
@@ -676,7 +669,7 @@ class _TodayScreenState extends State<TodayScreen> {
               Expanded(
                 child: Text(
                   _monthName(month.year, month.month),
-                  style: theme.textTheme.titleLarge?.copyWith(fontFamily: 'serif', fontWeight: FontWeight.w800),
+                  style: theme.textTheme.titleLarge?.copyWith(fontFamily: 'Sora', fontWeight: FontWeight.w800),
                 ),
               ),
               Text('${rows.length} loaded items', style: theme.textTheme.bodySmall?.copyWith(color: BlistraColors.resolve(context).muted)),
@@ -742,7 +735,7 @@ class _TodayScreenState extends State<TodayScreen> {
           children: [
             Text(
               '$dayNumber',
-              style: TextStyle(fontFamily: 'serif', fontWeight: FontWeight.w700, color: selected ? Colors.white : null),
+              style: TextStyle(fontFamily: 'Sora', fontWeight: FontWeight.w700, color: selected ? Colors.white : null),
             ),
             const SizedBox(height: 4),
             Row(
@@ -795,7 +788,7 @@ class _TodayScreenState extends State<TodayScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Agenda', style: theme.textTheme.titleLarge?.copyWith(fontFamily: 'serif', fontWeight: FontWeight.w800)),
+          Text('Agenda', style: theme.textTheme.titleLarge?.copyWith(fontFamily: 'Sora', fontWeight: FontWeight.w800)),
           const SizedBox(height: 3),
           Text('${rows.length} loaded schedule items', style: theme.textTheme.bodySmall?.copyWith(color: BlistraColors.resolve(context).muted)),
           const SizedBox(height: 10),
@@ -805,7 +798,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 padding: const EdgeInsets.only(top: 10, bottom: 5),
                 child: Text(
                   _longDate(rows[index].at),
-                  style: theme.textTheme.titleSmall?.copyWith(fontFamily: 'serif', fontWeight: FontWeight.w800),
+                  style: theme.textTheme.titleSmall?.copyWith(fontFamily: 'Sora', fontWeight: FontWeight.w800),
                 ),
               ),
             _agendaRow(context, rows[index]),
@@ -838,7 +831,7 @@ class _TodayScreenState extends State<TodayScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall?.copyWith(
-                      fontFamily: 'serif',
+                      fontFamily: 'Sora',
                       fontWeight: FontWeight.w800,
                       decoration: row.done ? TextDecoration.lineThrough : null,
                     ),
@@ -1167,7 +1160,7 @@ class _TimelinePainter extends CustomPainter {
       final painter = TextPainter(
         text: TextSpan(
           text: item.$2,
-          style: const TextStyle(color: Colors.white, fontFamily: 'serif', fontSize: 11, fontWeight: FontWeight.w700),
+          style: const TextStyle(color: Colors.white, fontFamily: 'Sora', fontSize: 11, fontWeight: FontWeight.w700),
         ),
         textDirection: textDirection,
       )..layout();
@@ -1235,7 +1228,7 @@ class _FilterSheetState extends State<_FilterSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Filter your schedule', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontFamily: 'serif', fontWeight: FontWeight.w800)),
+              Text('Filter your schedule', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontFamily: 'Sora', fontWeight: FontWeight.w800)),
               const SizedBox(height: 5),
               Text('Choose what appears in every Planner view.', style: Theme.of(context).textTheme.bodyMedium),
               const SizedBox(height: 20),

@@ -56,7 +56,7 @@ class ExpectedDose {
 
   /// "500 mg", "1 tablet", or "" when the schedule declares no amount.
   String get doseLabel {
-    final String amount = doseAmount ?? '';
+    final String amount = _trim(doseAmount ?? '');
     final String unit = doseUnit ?? '';
     if (amount.isEmpty && unit.isEmpty) {
       return '';
@@ -68,6 +68,17 @@ class ExpectedDose {
       return amount;
     }
     return '$amount $unit';
+  }
+
+  /// "500.0000" -> "500", "0.5000" -> "0.5"; non-numeric text is unchanged.
+  static String _trim(String raw) {
+    final double? value = double.tryParse(raw);
+    if (value == null) {
+      return raw;
+    }
+    return value == value.roundToDouble()
+        ? value.round().toString()
+        : value.toString();
   }
 }
 

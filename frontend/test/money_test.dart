@@ -75,4 +75,22 @@ void main() {
     final Money b = Money.parse('2.5000');
     expect(a.hashCode, b.hashCode);
   });
+
+  group('Money.display', () {
+    test('uses a currency symbol and drops a zero fraction', () {
+      expect(Money.parse('24580.0000').display(currencyCode: 'INR'), '₹24,580');
+    });
+
+    test('keeps two decimals when there is a fraction', () {
+      expect(Money.parse('1250.5').display(currencyCode: 'USD'), r'$1,250.50');
+    });
+
+    test('falls back to the currency code for unknown currencies', () {
+      expect(Money.parse('9').display(currencyCode: 'CHF'), 'CHF 9');
+    });
+
+    test('handles negatives', () {
+      expect((Money.zero() - Money.parse('420')).display(currencyCode: 'INR'), '-₹420');
+    });
+  });
 }

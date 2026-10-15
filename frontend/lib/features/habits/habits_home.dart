@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/page_header.dart';
 import 'habits_controller.dart';
 import 'habits_scope.dart';
 
@@ -39,38 +40,35 @@ class _HabitsHomeState extends State<HabitsHome> {
     final HabitsController controller = HabitsScope.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_appBarTitle(controller)),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-            onPressed: controller.isLoading ? null : controller.loadAll,
-          ),
-        ],
-      ),
-      body: _body(controller),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tabIndex,
-        onDestinationSelected: (int index) =>
-            setState(() => _tabIndex = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.today_outlined),
-            selectedIcon: Icon(Icons.today),
-            label: 'Today',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
-            label: 'Habits',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.show_chart_outlined),
-            selectedIcon: Icon(Icons.show_chart),
-            label: 'Statistics',
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            BlistraPageHeader(
+              title: 'Habits',
+              subtitle: _appBarTitle(controller),
+              actions: [
+                GlassIconButton(
+                  tooltip: 'Refresh',
+                  icon: Icons.refresh_rounded,
+                  onTap: controller.isLoading ? null : controller.loadAll,
+                ),
+              ],
+            ),
+            BlistraSegmentedTabs(
+              labels: const ['Today', 'Habits', 'Statistics'],
+              icons: const [
+                Icons.today_outlined,
+                Icons.list_alt_outlined,
+                Icons.show_chart_outlined,
+              ],
+              selected: _tabIndex,
+              onSelected: (index) => setState(() => _tabIndex = index),
+            ),
+            Expanded(child: _body(controller)),
+          ],
+        ),
       ),
     );
   }

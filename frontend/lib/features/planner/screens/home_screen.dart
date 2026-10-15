@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/page_header.dart';
 import '../../../features/app_scope.dart';
 import '../models/schedule_view.dart';
 import '../planner_controller.dart';
@@ -11,7 +13,6 @@ import 'lists_screen.dart';
 import 'task_detail_screen.dart';
 import 'tasks_screen.dart';
 import 'today_screen.dart';
-import '../../../core/widgets/glass.dart';
 
 enum PlannerSection { today, tasks, lists, events }
 
@@ -83,7 +84,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         await planner.loadEvents();
         return;
     }
-    return;
   }
 
   @override
@@ -124,77 +124,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _header(BuildContext context, PlannerController planner) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 14, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    BlistraWordmark(size: 30),
-                    const SizedBox(height: 1),
-                    Text(
-                      'EVERYTHING YOU NEED. ONE APP.',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: BlistraColors.resolve(context).text,
-                        letterSpacing: 2,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _HeaderButton(
-                tooltip: _searching ? 'Close Planner search' : 'Search Planner',
-                icon: _searching ? Icons.close : Icons.search,
-                onTap: () => _toggleSearch(context, planner),
-              ),
-              const SizedBox(width: 6),
-              _HeaderButton(
-                tooltip: 'Choose date',
-                icon: Icons.calendar_today_outlined,
-                onTap: () => _pickDate(context, planner),
-              ),
-              const SizedBox(width: 2),
-              PopupMenuButton<_MoreAction>(
-                tooltip: 'More Planner actions',
-                icon: const Icon(Icons.more_horiz),
-                onSelected: (action) => _handleMore(planner, action),
-                itemBuilder: (context) => const [
-                  PopupMenuItem(value: _MoreAction.today, child: Text('Jump to today')),
-                  PopupMenuItem(value: _MoreAction.toggleScope, child: Text('Switch day or week')),
-                  PopupMenuItem(value: _MoreAction.clearSearch, child: Text('Clear Planner search')),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 26),
-          Text(
-            'Planner',
-            style: theme.textTheme.displaySmall?.copyWith(
-              fontFamily: 'serif',
-              fontWeight: FontWeight.w900,
-              letterSpacing: -1.5,
-              height: 1,
+    return BlistraPageHeader(
+      title: 'Planner',
+      subtitle: DateFormat('MMMM yyyy').format(planner.selectedDate),
+      actions: [
+        GlassIconButton(
+          tooltip: _searching ? 'Close Planner search' : 'Search Planner',
+          icon: _searching ? Icons.close : Icons.search_rounded,
+          onTap: () => _toggleSearch(context, planner),
+        ),
+        const SizedBox(width: 0),
+        GlassIconButton(
+          tooltip: 'Choose date',
+          icon: Icons.calendar_today_outlined,
+          onTap: () => _pickDate(context, planner),
+        ),
+        PopupMenuButton<_MoreAction>(
+          tooltip: 'More Planner actions',
+          onSelected: (action) => _handleMore(planner, action),
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: _MoreAction.today, child: Text('Jump to today')),
+            PopupMenuItem(value: _MoreAction.toggleScope, child: Text('Switch day or week')),
+            PopupMenuItem(value: _MoreAction.clearSearch, child: Text('Clear Planner search')),
+          ],
+          child: const IgnorePointer(
+            child: GlassIconButton(
+              tooltip: 'More Planner actions',
+              icon: Icons.more_horiz,
+              onTap: null,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Your day, your way.',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontFamily: 'serif',
-              color: BlistraColors.resolve(context).text,
-              fontSize: 18,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -242,9 +203,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: scheme.surface.withValues(alpha: 0.75),
+          color: BlistraColors.resolve(context).glassFill,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.55)),
+          border: Border.all(color: BlistraColors.resolve(context).glassBorder),
         ),
         child: AnimatedBuilder(
           animation: _tabs,
@@ -264,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: _tabs.index == index ? softBg(context, Color(0xFFDDEBE6)) : Colors.transparent,
+                          color: _tabs.index == index ? BlistraColors.resolve(context).accent.withValues(alpha: .2) : Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
@@ -411,26 +372,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 }
 
-class _HeaderButton extends StatelessWidget {
-  const _HeaderButton({required this.tooltip, required this.icon, required this.onTap});
 
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onTap,
-      style: IconButton.styleFrom(
-        minimumSize: const Size(46, 46),
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
-      ),
-      icon: Icon(icon),
-    );
-  }
-}
 
 class _SearchResult extends StatelessWidget {
   const _SearchResult({required this.icon, required this.title, required this.subtitle, required this.onTap});

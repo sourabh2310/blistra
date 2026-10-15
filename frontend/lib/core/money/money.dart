@@ -102,6 +102,31 @@ class Money {
     return currencyCode.isEmpty ? rendered : '$currencyCode $rendered';
   }
 
+  /// Friendly display text: currency symbol, thousands separators and at most
+  /// two decimals, dropping a zero fraction ("₹24,580", "₹1,250.50").
+  String display({String currencyCode = ''}) {
+    final String plain = format();
+    final bool negative = plain.startsWith('-');
+    final String unsigned = negative ? plain.substring(1) : plain;
+    final int dot = unsigned.indexOf('.');
+    final String intPart = unsigned.substring(0, dot);
+    String frac = unsigned.substring(dot + 1);
+    frac = frac.length > 2 ? frac.substring(0, 2) : frac;
+    frac = frac.replaceFirst(RegExp(r'0+$'), '');
+    const Map<String, String> symbols = {
+      'INR': '₹',
+      'USD': '\$',
+      'EUR': '€',
+      'GBP': '£',
+      'JPY': '¥',
+    };
+    final String? symbol = symbols[currencyCode.toUpperCase()];
+    final String amount = frac.isEmpty ? intPart : '$intPart.${frac.padRight(2, '0')}';
+    final String sign = negative ? '-' : '';
+    if (currencyCode.isEmpty) return '$sign$amount';
+    return symbol != null ? '$sign$symbol$amount' : '$sign$currencyCode $amount';
+  }
+
   @override
   String toString() => toPlainString();
 }

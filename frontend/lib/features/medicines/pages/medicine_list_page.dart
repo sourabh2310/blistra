@@ -13,8 +13,6 @@ import '../state/medicine_list_controller.dart';
 import '../state/medicine_today_controller.dart';
 import '../util/home_refresh.dart';
 import '../../notifications/screens/reminders_screen.dart';
-import '../../planner/screens/home_screen.dart';
-import '../../profile/profile_screen.dart';
 import '../../search/screens/search_screen.dart';
 import '../../search/search_api.dart';
 import 'dose_history_page.dart';
@@ -22,6 +20,7 @@ import 'medicine_detail_page.dart';
 import 'medicine_form_page.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/page_header.dart';
 
 class MedicineListPage extends StatefulWidget {
   const MedicineListPage({super.key});
@@ -83,16 +82,28 @@ class _MedicineListPageState extends State<MedicineListPage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 112),
                 children: [
-                  _BrandHeader(
-                    onSearch: _openSearch,
-                    onNotifications: _openReminders,
-                    onCalendar: _openPlanner,
-                    onProfile: _openProfile,
+                  BlistraPageHeader(
+                    title: 'Medicines',
+                    subtitle: 'Stay consistent. Take control.',
+                    padding: EdgeInsets.zero,
+                    actions: [
+                      GlassIconButton(
+                        tooltip: 'Search',
+                        icon: Icons.search_rounded,
+                        onTap: _openSearch,
+                      ),
+                      GlassIconButton(
+                        tooltip: 'Reminders',
+                        icon: Icons.notifications_none_rounded,
+                        onTap: _openReminders,
+                      ),
+                      GlassIconButton(
+                        tooltip: 'Add a medicine',
+                        icon: Icons.add_rounded,
+                        onTap: _pushAdd,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 22),
-                  _PageIntro(onAdd: _pushAdd),
-                  const SizedBox(height: 12),
-                  _HeroBanner(onAdd: _pushAdd),
                   const SizedBox(height: 16),
                   _MedicineTabs(
                     selectedIndex: _selectedTab,
@@ -339,15 +350,6 @@ class _MedicineListPageState extends State<MedicineListPage> {
     await refreshHomeDashboard(context);
   }
 
-  void _openPlanner() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const HomeScreen(),
-      ),
-    );
-  }
-
   void _openReminders() {
     Navigator.push(
       context,
@@ -357,13 +359,6 @@ class _MedicineListPageState extends State<MedicineListPage> {
           body: RemindersScreen(onRefresh: _refreshAll),
         ),
       ),
-    );
-  }
-
-  void _openProfile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ProfileScreen()),
     );
   }
 
@@ -464,190 +459,6 @@ class _MedicineListPageState extends State<MedicineListPage> {
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-}
-
-class _BrandHeader extends StatelessWidget {
-  const _BrandHeader({
-    required this.onSearch,
-    required this.onNotifications,
-    required this.onCalendar,
-    required this.onProfile,
-  });
-
-  final VoidCallback onSearch;
-  final VoidCallback onNotifications;
-  final VoidCallback onCalendar;
-  final VoidCallback onProfile;
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = context.read<AuthState>();
-    final name = auth.account?.username ?? auth.userEmail;
-    final initials = name.isEmpty ? 'B' : _initials(name);
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              BlistraWordmark(size: 28),
-              const SizedBox(height: 1),
-              Text(
-                'EVERYTHING YOU NEED. ONE APP.',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: BlistraColors.resolve(context).muted,
-                      letterSpacing: 1.3,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ],
-          ),
-        ),
-        _ActionCircle(icon: Icons.search, tooltip: 'Search', onTap: onSearch),
-        const SizedBox(width: 5),
-        _ActionCircle(
-          icon: Icons.notifications_none_rounded,
-          tooltip: 'Reminders',
-          onTap: onNotifications,
-        ),
-        const SizedBox(width: 5),
-        _ActionCircle(
-          icon: Icons.calendar_today_outlined,
-          tooltip: 'Planner',
-          onTap: onCalendar,
-        ),
-        const SizedBox(width: 5),
-        Semantics(
-          label: 'Profile',
-          button: true,
-          child: InkWell(
-            onTap: onProfile,
-            customBorder: const CircleBorder(),
-            child: CircleAvatar(
-              radius: 20,
-              backgroundColor: softBg(context, Color(0xFFE2F1EE)),
-              child: Text(
-                initials,
-                style: TextStyle(
-                  color: BlistraColors.resolve(context).accentText,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PageIntro extends StatelessWidget {
-  const _PageIntro({required this.onAdd});
-
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Medicines',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      color: BlistraColors.resolve(context).text,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1.2,
-                      height: 1.05,
-                    ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Stay consistent. Take control.',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: BlistraColors.resolve(context).muted,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Add'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(0, 42),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            side: const BorderSide(color: Color(0xFFB5D9D1)),
-            foregroundColor: BlistraColors.resolve(context).accentText,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HeroBanner extends StatelessWidget {
-  const _HeroBanner({required this.onAdd});
-
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 144,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: softBg(context, Color(0xFFEAF4F0)),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFD5E9E1)),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(painter: _MedicineHeroPainter()),
-          ),
-          Positioned(
-            left: 18,
-            right: 100,
-            top: 18,
-            bottom: 14,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'A healthier rhythm\nstarts here.',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: BlistraColors.resolve(context).accentText,
-                        fontWeight: FontWeight.w800,
-                        height: 1.05,
-                      ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: onAdd,
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                  label: const Text('Start a routine'),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    foregroundColor: BlistraColors.resolve(context).accentText,
-                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -1362,7 +1173,7 @@ class _EntryCard extends StatelessWidget {
                       title,
                       style: TextStyle(
                         color: BlistraColors.resolve(context).text,
-                        fontSize: 15,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -1998,34 +1809,6 @@ class _ErrorRetry extends StatelessWidget {
   }
 }
 
-class _ActionCircle extends StatelessWidget {
-  const _ActionCircle({required this.icon, required this.tooltip, required this.onTap});
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: BlistraColors.resolve(context).glassFill,
-        shape: const CircleBorder(),
-        child: InkWell(
-          onTap: onTap,
-          customBorder: const CircleBorder(),
-          child: SizedBox(
-            width: 40,
-            height: 40,
-            child: Icon(icon, color: BlistraColors.resolve(context).text, size: 22),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _LoadMore extends StatefulWidget {
   const _LoadMore({required this.onVisible});
 
@@ -2084,98 +1867,6 @@ class _TimelinePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _TimelinePainter oldDelegate) =>
       oldDelegate.first != first || oldDelegate.last != last || oldDelegate.color != color;
-}
-
-class _MedicineHeroPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final back = Paint()..color = ActiveColors.scene(Color(0xFFDCEFE8));
-    final mid = Paint()..color = ActiveColors.scene(Color(0xFFB8DCC9));
-    final dark = Paint()..color = ActiveColors.scene(Color(0xFF4A9B64));
-    final blue = Paint()..color = ActiveColors.scene(Color(0xFF2D9FD0));
-    final white = Paint()..color = Colors.white;
-    final shadow = Paint()..color = ActiveColors.scene(Color(0xFF0A6B59)).withValues(alpha: 0.12);
-    final center = Offset(size.width * 0.78, size.height * 0.52);
-    canvas.drawCircle(center, size.height * 0.55, back);
-    canvas.drawCircle(Offset(size.width * 0.92, size.height * 0.24), size.height * 0.22, mid);
-    canvas.save();
-    canvas.translate(size.width * 0.75, size.height * 0.52);
-    canvas.rotate(-0.08);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset.zero, width: 52, height: 65),
-        const Radius.circular(10),
-      ),
-      white,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: const Offset(0, -28), width: 55, height: 18),
-        const Radius.circular(5),
-      ),
-      blue,
-    );
-    canvas.drawRect(const Rect.fromLTWH(-18, -4, 36, 24), shadow);
-    canvas.drawCircle(const Offset(-10, 8), 7, mid);
-    canvas.drawCircle(const Offset(9, 2), 8, blue);
-    canvas.restore();
-    _drawLeaf(canvas, size, const Offset(0.87, 0.16), 0.65, dark, 0.4);
-    _drawLeaf(canvas, size, const Offset(0.94, 0.67), 0.9, mid, -0.65);
-    _drawLeaf(
-      canvas,
-      size,
-      const Offset(0.65, 0.11),
-      0.42,
-      Paint()..color = ActiveColors.scene(Color(0xFF78B58A)),
-      -0.35,
-    );
-    final pill = Paint()..color = ActiveColors.scene(Color(0xFFEA7B8C));
-    canvas.save();
-    canvas.translate(size.width * 0.62, size.height * 0.78);
-    canvas.rotate(-0.7);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset.zero, width: 34, height: 14),
-        const Radius.circular(7),
-      ),
-      pill,
-    );
-    final pillDivider = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2;
-    canvas.drawLine(const Offset(-3, -7), const Offset(-3, 7), pillDivider);
-    canvas.restore();
-    canvas.drawCircle(Offset(size.width * 0.58, size.height * 0.78), 9, white);
-    canvas.drawCircle(
-      Offset(size.width * 0.58, size.height * 0.78),
-      4,
-      Paint()..color = ActiveColors.scene(Color(0xFFEA7B8C)),
-    );
-  }
-
-  void _drawLeaf(
-    Canvas canvas,
-    Size size,
-    Offset position,
-    double scale,
-    Paint color,
-    double rotation,
-  ) {
-    final center = Offset(position.dx * size.width, position.dy * size.height);
-    final leaf = Path()
-      ..moveTo(0, 0)
-      ..cubicTo(-12 * scale, -6 * scale, -12 * scale, -22 * scale, 0, -30 * scale)
-      ..cubicTo(12 * scale, -22 * scale, 12 * scale, -6 * scale, 0, 0)
-      ..close();
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(rotation);
-    canvas.drawPath(leaf, color);
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _MedicineHeroPainter oldDelegate) => false;
 }
 
 IconData _medicineIcon(String name) {

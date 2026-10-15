@@ -262,12 +262,15 @@ class BlistraMark extends StatelessWidget {
   }
 }
 
-/// "b" mark followed by the serif Blistra wordmark, used in page headers.
+/// "b" mark followed by the Blistra wordmark, used in page headers.
 class BlistraWordmark extends StatelessWidget {
-  const BlistraWordmark({super.key, this.size = 30});
+  const BlistraWordmark({super.key, this.size = 30, this.serif = true});
 
   /// Mark size; the wordmark scales with it.
   final double size;
+
+  /// Serif "Blistra" (Home) or sans lowercase "blistra" (module pages).
+  final bool serif;
 
   @override
   Widget build(BuildContext context) {
@@ -278,14 +281,14 @@ class BlistraWordmark extends StatelessWidget {
         BlistraMark(size: size),
         SizedBox(width: size * 0.28),
         Text(
-          'Blistra',
+          serif ? 'Blistra' : 'blistra',
           maxLines: 1,
           style: TextStyle(
             color: colors.text,
-            fontFamily: 'serif',
-            fontSize: size * 0.95,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -1,
+            fontFamily: serif ? 'Fraunces' : 'Sora',
+            fontSize: serif ? size * 0.95 : size * 0.72,
+            fontWeight: serif ? FontWeight.w600 : FontWeight.w700,
+            letterSpacing: serif ? -0.5 : -0.4,
             height: 1.1,
           ),
         ),

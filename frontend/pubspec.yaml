@@ -82,6 +82,19 @@ flutter:
   assets:
     - assets/icon/app_icon.png
 
+  # Variable fonts (SIL OFL, see assets/fonts/OFL-*.txt). Weight is applied
+  # through the wght axis.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+    - family: Fraunces
+      fonts:
+        - asset: assets/fonts/Fraunces.ttf
+    - family: Sora
+      fonts:
+        - asset: assets/fonts/Sora.ttf
+
 flutter_launcher_icons:
   android: true
   ios: true

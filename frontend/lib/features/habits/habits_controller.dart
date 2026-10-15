@@ -127,6 +127,7 @@ class HabitsController extends ChangeNotifier {
     await api.archiveHabit(id);
     await _loadHabits();
     await _loadTodayHabits();
+    notifyListeners();
     await _notifyMutated();
   }
 
@@ -138,6 +139,7 @@ class HabitsController extends ChangeNotifier {
     final Schedule schedule = await api.upsertSchedule(habitId,
         frequency: frequency, daysOfWeek: daysOfWeek);
     await _loadTodayHabits();
+    notifyListeners();
     await _notifyMutated();
     return schedule;
   }
@@ -155,6 +157,7 @@ class HabitsController extends ChangeNotifier {
       durationMinutes: durationMinutes,
     );
     await _loadTodayHabits();
+    notifyListeners();
     await _notifyMutated();
     return completion;
   }
@@ -165,6 +168,7 @@ class HabitsController extends ChangeNotifier {
   ) async {
     await api.removeCompletion(habitId, completedOn);
     await _loadTodayHabits();
+    notifyListeners();
     await _notifyMutated();
   }
 
