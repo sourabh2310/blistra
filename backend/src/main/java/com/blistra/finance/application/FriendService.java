@@ -13,6 +13,8 @@ import com.blistra.finance.dto.UserSummary;
 import com.blistra.finance.repository.FriendshipRepository;
 import com.blistra.users.application.CurrentUserProvider;
 import com.blistra.users.domain.User;
+import com.blistra.users.domain.UserProfile;
+import com.blistra.users.repository.UserProfileRepository;
 import com.blistra.users.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,12 +43,15 @@ public class FriendService {
     private final CurrentUserProvider currentUserProvider;
     private final FinanceUsers financeUsers;
     private final BalanceService balanceService;
+    private final UserProfileRepository profileRepository;
 
     public FriendService(FriendshipRepository friendshipRepository,
                          UserRepository userRepository,
                          CurrentUserProvider currentUserProvider,
                          FinanceUsers financeUsers,
-                         BalanceService balanceService) {
+                         BalanceService balanceService,
+                         UserProfileRepository profileRepository) {
+        this.profileRepository = profileRepository;
         this.friendshipRepository = friendshipRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
@@ -101,6 +106,7 @@ public class FriendService {
             throw new BadRequestException("Enter a username");
         }
         User other = userRepository.findByUsernameIgnoreCase(username)
+                .filter(u -> !u.isBlocked())
                 .orElseThrow(() -> new ResourceNotFoundException("No user with username @" + username));
         if (other.getId().equals(me.getId())) {
             throw new BadRequestException("You can't add yourself");
@@ -118,6 +124,11 @@ public class FriendService {
             // They already asked: adding them back accepts it.
             link.accept();
             return new FriendAddResult("ACCEPTED", summary);
+        }
+        boolean acceptsRequests = profileRepository.findByUserId(other.getId())
+                .map(UserProfile::isAllowFriendRequests).orElse(true);
+        if (!acceptsRequests) {
+            throw new BadRequestException("@" + other.getUsername() + " isn't accepting friend requests");
         }
         friendshipRepository.save(new Friendship(me.getId(), other.getId()));
         return new FriendAddResult("PENDING", summary);

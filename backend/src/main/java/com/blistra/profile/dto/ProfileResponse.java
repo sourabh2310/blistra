@@ -33,6 +33,20 @@ public class ProfileResponse {
     private String timezone;
     private String language;
     private String unitSystem;
+    private String bio;
+    private String gender;
+    private String emergencyContactName;
+    private String emergencyContactPhone;
+    private String emergencyContactRelation;
+    private boolean allowFriendRequests;
+    private boolean hasAvatar;
+    /** Changes whenever the photo changes; clients use it as a cache key. */
+    private Long avatarVersion;
+    /** Staged email/phone waiting for OTP confirmation. */
+    private String pendingEmail;
+    private String pendingPhone;
+    /** When the account was created. */
+    private LocalDateTime memberSince;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

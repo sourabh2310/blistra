@@ -16,6 +16,7 @@ import 'package:frontend/app/app.dart';
 import 'package:frontend/app/app_dependencies.dart';
 import 'package:frontend/app/app_shell.dart';
 import 'package:frontend/features/finance/screens/expense_form_screen.dart';
+import 'package:frontend/features/profile/profile_screen.dart';
 
 Map<String, dynamic> _user(String id, String name) =>
     {'id': id, 'username': name.toLowerCase(), 'displayName': name};
@@ -92,6 +93,28 @@ http.Response _respond(http.Request request) {
       'outgoing': [
         {'id': 'r2', 'user': _user('eve', 'Eve')}
       ],
+    };
+  } else if (path == '/api/v1/profile') {
+    body = {
+      'userId': 'me',
+      'username': 'meuser',
+      'email': 'me@example.test',
+      'emailVerified': true,
+      'phoneVerified': false,
+      'onboardingCompleted': true,
+      'status': 'ACTIVE',
+      'displayName': 'Maya Rao',
+      'bio': 'Morning runner',
+      'dateOfBirth': '1994-03-02',
+      'age': 32,
+      'country': 'IN',
+      'timezone': 'Asia/Kolkata',
+      'language': 'en',
+      'unitSystem': 'METRIC',
+      'allowFriendRequests': true,
+      'hasAvatar': false,
+      'pendingEmail': 'new@example.test',
+      'memberSince': '2026-03-01T10:00:00',
     };
   } else {
     // Everything else: unavailable, so screens render their error states.
@@ -172,5 +195,49 @@ void main() {
     await _settle(tester);
     expect(find.text('Choose friends'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Profile hub and every sub-screen render with data', (tester) async {
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final deps = await _signedIn(tester);
+    await tester.pumpWidget(BlistraApp(deps: deps));
+    await _settle(tester);
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator).first);
+    navigator.push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    await _settle(tester);
+
+    expect(find.text('Maya Rao'), findsWidgets);
+    expect(find.text('@meuser'), findsOneWidget);
+    expect(find.text('Morning runner'), findsOneWidget);
+    expect(find.text('Finish your profile'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    final scrollable = find
+        .descendant(of: find.byType(ProfileScreen), matching: find.byType(Scrollable))
+        .first;
+    for (final (row, title) in [
+      ('Personal info', 'Personal info'),
+      ('Emergency contact', 'Emergency contact'),
+      ('Sign-in & security', 'Sign-in & security'),
+      ('Language & region', 'Language & region'),
+      ('Privacy & data', 'Privacy & data'),
+      ('Help & support', 'Help & support'),
+    ]) {
+      await tester.scrollUntilVisible(find.text(row), 200, scrollable: scrollable);
+      await tester.tap(find.text(row));
+      await _settle(tester);
+      expect(find.widgetWithText(AppBar, title), findsOneWidget, reason: row);
+      if (row == 'Sign-in & security') {
+        // A staged email change surfaces with a way to enter its code.
+        expect(find.textContaining('new@example.test'), findsOneWidget);
+        expect(find.text('Enter code'), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull, reason: '$row threw while rendering');
+      navigator.pop();
+      await _settle(tester);
+    }
   });
 }

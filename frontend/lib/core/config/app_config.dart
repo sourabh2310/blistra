@@ -24,6 +24,15 @@ class AppConfig {
   static bool requirePhoneVerification =
       const bool.fromEnvironment('REQUIRE_PHONE_VERIFICATION');
 
+  /// Shown in Profile > Help. Keep in step with `version:` in pubspec.yaml,
+  /// or override with `--dart-define=APP_VERSION=...` in release builds.
+  static const String appVersion =
+      String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
+
+  /// Support inbox shown in Profile > Help. Empty hides the email row; set
+  /// with `--dart-define=SUPPORT_EMAIL=...`.
+  static const String supportEmail = String.fromEnvironment('SUPPORT_EMAIL');
+
   static String get apiBaseUrl {
     if (_apiBaseUrlDefine.isNotEmpty) {
       return _stripTrailingSlash(_apiBaseUrlDefine);

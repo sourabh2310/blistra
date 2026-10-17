@@ -3,10 +3,14 @@
 /// Home design.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../app/app_scope.dart';
 import '../../features/dashboard/models/dashboard_response.dart';
+import '../../features/profile/profile_controller.dart';
 import '../../features/profile/profile_screen.dart';
 import '../theme/app_theme.dart';
 import 'glass.dart';
@@ -92,6 +96,15 @@ class ProfileAvatarButton extends StatelessWidget {
     } catch (_) {
       name = '';
     }
+    Uint8List? photo;
+    try {
+      final profile = context.watch<ProfileController>();
+      photo = profile.avatarBytes;
+      final display = profile.profile?.displayName ?? '';
+      if (display.trim().isNotEmpty) name = display;
+    } catch (_) {
+      // No ProfileController above this header (e.g. in isolated tests).
+    }
     return Semantics(
       label: 'Profile',
       button: true,
@@ -113,14 +126,18 @@ class ProfileAvatarButton extends StatelessWidget {
               ),
             ],
           ),
-          child: Text(
-            name.trim().isEmpty ? 'B' : initialsForName(name),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
+          clipBehavior: Clip.antiAlias,
+          child: photo != null
+              ? Image.memory(photo,
+                  width: 40, height: 40, fit: BoxFit.cover, gaplessPlayback: true)
+              : Text(
+                  name.trim().isEmpty ? 'B' : initialsForName(name),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
         ),
       ),
     );

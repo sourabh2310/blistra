@@ -36,4 +36,26 @@ public class ProfileRequest {
 
     @Pattern(regexp = "^(METRIC|IMPERIAL)$", message = "Unit system must be METRIC or IMPERIAL")
     private String unitSystem;
+
+    /** Short "about me" line. Empty string clears it. */
+    @Size(max = 280, message = "Bio must be at most 280 characters")
+    private String bio;
+
+    /** Empty string clears it. */
+    @Pattern(regexp = "^(|FEMALE|MALE|NON_BINARY|PREFER_NOT_TO_SAY)$",
+            message = "Gender must be FEMALE, MALE, NON_BINARY or PREFER_NOT_TO_SAY")
+    private String gender;
+
+    @Size(max = 120, message = "Emergency contact name must be at most 120 characters")
+    private String emergencyContactName;
+
+    /** International format, e.g. +919876543210. Empty string clears it. */
+    @Size(max = 32, message = "Emergency contact phone must be at most 32 characters")
+    private String emergencyContactPhone;
+
+    @Size(max = 40, message = "Relationship must be at most 40 characters")
+    private String emergencyContactRelation;
+
+    /** Privacy: let other users send you friend requests. */
+    private Boolean allowFriendRequests;
 }

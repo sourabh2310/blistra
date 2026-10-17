@@ -88,6 +88,32 @@ public class ProfileService {
         if (request.getUnitSystem() != null) {
             profile.setUnitSystem(request.getUnitSystem());
         }
+        if (request.getBio() != null) {
+            profile.setBio(blankToNull(request.getBio()));
+        }
+        if (request.getGender() != null) {
+            profile.setGender(blankToNull(request.getGender()));
+        }
+        if (request.getEmergencyContactName() != null) {
+            profile.setEmergencyContactName(blankToNull(request.getEmergencyContactName()));
+        }
+        if (request.getEmergencyContactRelation() != null) {
+            profile.setEmergencyContactRelation(blankToNull(request.getEmergencyContactRelation()));
+        }
+        if (request.getEmergencyContactPhone() != null) {
+            String phone = blankToNull(request.getEmergencyContactPhone());
+            if (phone != null) {
+                if (!IdentityNormalizer.isValidPhone(phone)) {
+                    throw new BadRequestException(
+                            "Emergency contact phone must be in international format, e.g. +919876543210.");
+                }
+                phone = IdentityNormalizer.normalizePhone(phone);
+            }
+            profile.setEmergencyContactPhone(phone);
+        }
+        if (request.getAllowFriendRequests() != null) {
+            profile.setAllowFriendRequests(request.getAllowFriendRequests());
+        }
         profileRepository.save(profile);
         return toResponse(user, profile);
     }
@@ -242,6 +268,11 @@ public class ProfileService {
                 .orElseGet(() -> profileRepository.save(new UserProfile(userId)));
     }
 
+    private static String blankToNull(String value) {
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
     private static boolean isIsoCountryCode(String country) {
         for (String isoCountry : java.util.Locale.getISOCountries()) {
             if (isoCountry.equals(country)) return true;
@@ -274,6 +305,18 @@ public class ProfileService {
                 .timezone(profile.getTimezone())
                 .language(profile.getLanguage())
                 .unitSystem(profile.getUnitSystem())
+                .bio(profile.getBio())
+                .gender(profile.getGender())
+                .emergencyContactName(profile.getEmergencyContactName())
+                .emergencyContactPhone(profile.getEmergencyContactPhone())
+                .emergencyContactRelation(profile.getEmergencyContactRelation())
+                .allowFriendRequests(profile.isAllowFriendRequests())
+                .hasAvatar(profile.getAvatarObjectKey() != null)
+                .avatarVersion(profile.getAvatarUpdatedAt() == null ? null
+                        : profile.getAvatarUpdatedAt().toInstant(java.time.ZoneOffset.UTC).toEpochMilli())
+                .pendingEmail(user.getPendingEmail())
+                .pendingPhone(user.getPendingPhone())
+                .memberSince(user.getCreatedAt())
                 .createdAt(profile.getCreatedAt())
                 .updatedAt(profile.getUpdatedAt())
                 .build();
