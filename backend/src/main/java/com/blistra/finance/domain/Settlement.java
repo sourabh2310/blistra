@@ -43,6 +43,19 @@ public class Settlement {
 
     @Column(length = 255)
     private String note;
+    @Column(nullable = false, length = 16)
+    private String status = "PENDING";
+    @Column(name = "group_id", columnDefinition = "UUID")
+    private UUID groupId;
+    public UUID getGroupId() { return groupId; }
+    public void setGroupId(UUID value) { groupId=value; }
+    @Column(name = "decided_at")
+    private java.time.OffsetDateTime decidedAt;
+    public String getStatus() { return status; }
+    public void decide(boolean confirmed) {
+        status = confirmed ? "CONFIRMED" : "REJECTED";
+        decidedAt = java.time.OffsetDateTime.now();
+    }
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

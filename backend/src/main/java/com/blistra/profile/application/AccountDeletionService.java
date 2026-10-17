@@ -11,8 +11,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -74,6 +72,21 @@ public class AccountDeletionService {
         }
         UUID id = user.getId();
 
+        // Retain shared trip groups while removing personal membership.
+        // Transfer ownership to an accepted member; delete unshared groups.
+        jdbc.update("""
+                DELETE FROM finance_groups g WHERE owner_id=? AND NOT EXISTS (
+                    SELECT 1 FROM finance_group_members m WHERE m.group_id=g.id
+                    AND m.user_id<>? AND m.status='ACCEPTED')
+                """,id,id);
+        jdbc.update("""
+                UPDATE finance_groups g SET owner_id=(SELECT m.user_id FROM finance_group_members m
+                    WHERE m.group_id=g.id AND m.user_id<>? AND m.status='ACCEPTED'
+                    ORDER BY m.joined_at,m.user_id LIMIT 1) WHERE g.owner_id=?
+                """,id,id);
+        jdbc.update("DELETE FROM finance_group_members WHERE user_id=?",id);
+        jdbc.update("DELETE FROM finance_change_history WHERE audience=ARRAY[?]::uuid[]",id);
+
         List<String> storedFiles = new ArrayList<>(jdbc.queryForList(
                 "SELECT stored_object_key FROM documents WHERE user_id = ?", String.class, id));
         storedFiles.addAll(jdbc.queryForList(
@@ -111,7 +124,8 @@ public class AccountDeletionService {
             userRepository.delete(user);
         }
 
-        deleteFilesAfterCommit(storedFiles);
+        // Storage queues deletion in this DB transaction and retries after commit.
+        storedFiles.forEach(storage::delete);
         log.info("Account {} deleted ({})", id, Boolean.TRUE.equals(shared)
                 ? "anonymised: shared finance history kept" : "removed");
     }
@@ -130,24 +144,4 @@ public class AccountDeletionService {
         user.setStatus(UserStatus.INACTIVE);
     }
 
-    private void deleteFilesAfterCommit(List<String> keys) {
-        if (keys.isEmpty()) return;
-        Runnable purge = () -> keys.forEach(key -> {
-            try {
-                storage.delete(key);
-            } catch (RuntimeException e) {
-                log.warn("Could not delete stored file {} for a deleted account", key, e);
-            }
-        });
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    purge.run();
-                }
-            });
-        } else {
-            purge.run();
-        }
-    }
 }

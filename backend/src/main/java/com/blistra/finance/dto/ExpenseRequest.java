@@ -23,6 +23,7 @@ public record ExpenseRequest(
         @Schema(description = "Who paid; defaults to you") UUID paidBy,
         @Schema(description = "Defaults to NONE without participants, EQUAL with them") SplitType splitType,
         @Schema(description = "People sharing the cost (include yourself if you share it)")
-        List<@Valid ParticipantInput> participants
+        List<@Valid ParticipantInput> participants,
+        UUID groupId
 ) {
 }

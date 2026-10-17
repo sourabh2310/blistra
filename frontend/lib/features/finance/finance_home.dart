@@ -15,6 +15,7 @@ import 'screens/expenses_tab.dart';
 import 'screens/friend_detail_screen.dart';
 import 'screens/friends_tab.dart';
 import 'screens/overview_tab.dart';
+import 'screens/groups_tab.dart';
 
 class FinanceHome extends StatefulWidget {
   const FinanceHome({super.key, this.initialTab = 0});
@@ -43,11 +44,15 @@ class _FinanceHomeState extends State<FinanceHome> {
 
   Future<void> _push(Widget screen) async {
     final controller = context.read<FinanceController>();
-    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => ChangeNotifierProvider.value(value: controller, child: screen),
-    ));
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            ChangeNotifierProvider.value(value: controller, child: screen),
+      ),
+    );
     if (saved == true && mounted && screen is ExpenseFormScreen) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense saved')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Expense saved')));
     }
   }
 
@@ -67,7 +72,9 @@ class _FinanceHomeState extends State<FinanceHome> {
           children: [
             BlistraPageHeader(
               title: 'Finance',
-              subtitle: _tab == 2 ? 'Split costs with friends' : 'Track spending and split costs',
+              subtitle: _tab == 2
+                  ? 'Split costs with friends'
+                  : 'Track spending and split costs',
               actions: [
                 GlassIconButton(
                   key: const Key('finance-add-expense'),
@@ -78,11 +85,16 @@ class _FinanceHomeState extends State<FinanceHome> {
               ],
             ),
             BlistraSegmentedTabs(
-              labels: ['Overview', 'Expenses', pending > 0 ? 'Friends ($pending)' : 'Friends'],
+              labels: [
+                'Overview',
+                'Expenses',
+                pending > 0 ? 'Friends ($pending)' : 'Friends',
+                'Groups',
+              ],
               selected: _tab,
               onSelected: (i) => setState(() => _tab = i),
             ),
-            if (_tab != 2) _MonthBar(controller: controller, label: monthLabel),
+            if (_tab < 2) _MonthBar(controller: controller, label: monthLabel),
             Expanded(child: _body(controller)),
           ],
         ),
@@ -91,7 +103,8 @@ class _FinanceHomeState extends State<FinanceHome> {
   }
 
   Widget _body(FinanceController controller) {
-    if (controller.status == FinanceLoadStatus.error && controller.overview == null) {
+    if (controller.status == FinanceLoadStatus.error &&
+        controller.overview == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -100,7 +113,10 @@ class _FinanceHomeState extends State<FinanceHome> {
             children: [
               const Icon(Icons.cloud_off_outlined, size: 44),
               const SizedBox(height: 10),
-              Text(controller.errorMessage ?? 'Could not load Finance', textAlign: TextAlign.center),
+              Text(
+                controller.errorMessage ?? 'Could not load Finance',
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 14),
               FilledButton.icon(
                 onPressed: controller.loadAll,
@@ -112,7 +128,8 @@ class _FinanceHomeState extends State<FinanceHome> {
         ),
       );
     }
-    if (controller.overview == null && controller.status != FinanceLoadStatus.error) {
+    if (controller.overview == null &&
+        controller.status != FinanceLoadStatus.error) {
       return const Center(child: CircularProgressIndicator());
     }
     return RefreshIndicator(
@@ -120,9 +137,18 @@ class _FinanceHomeState extends State<FinanceHome> {
       child: IndexedStack(
         index: _tab,
         children: [
-          OverviewTab(onOpenFriends: () => setState(() => _tab = 2), onAddExpense: _addExpense),
-          ExpensesTab(onOpen: (Expense e) => _push(ExpenseDetailScreen(expense: e))),
-          FriendsTab(onOpen: (UserSummary u) => _push(FriendDetailScreen(userId: u.id, initial: u))),
+          OverviewTab(
+            onOpenFriends: () => setState(() => _tab = 2),
+            onAddExpense: _addExpense,
+          ),
+          ExpensesTab(
+            onOpen: (Expense e) => _push(ExpenseDetailScreen(expense: e)),
+          ),
+          FriendsTab(
+            onOpen: (UserSummary u) =>
+                _push(FriendDetailScreen(userId: u.id, initial: u)),
+          ),
+          const GroupsTab(),
         ],
       ),
     );
@@ -151,7 +177,9 @@ class _MonthBar extends StatelessWidget {
           IconButton(
             tooltip: 'Next month',
             icon: const Icon(Icons.chevron_right_rounded),
-            onPressed: controller.isCurrentMonth ? null : () => controller.shiftMonth(1),
+            onPressed: controller.isCurrentMonth
+                ? null
+                : () => controller.shiftMonth(1),
           ),
           const Spacer(),
           PopupMenuButton<String>(
@@ -159,7 +187,11 @@ class _MonthBar extends StatelessWidget {
             onSelected: controller.setCurrency,
             itemBuilder: (_) => [
               for (final c in FinanceController.commonCurrencies)
-                CheckedPopupMenuItem(value: c, checked: c == controller.currency, child: Text(c)),
+                CheckedPopupMenuItem(
+                  value: c,
+                  checked: c == controller.currency,
+                  child: Text(c),
+                ),
             ],
             child: Chip(
               avatar: const Icon(Icons.currency_exchange_rounded, size: 16),

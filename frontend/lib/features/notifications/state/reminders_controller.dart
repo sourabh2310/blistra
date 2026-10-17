@@ -23,6 +23,11 @@ class RemindersController extends ChangeNotifier {
   String? get error => _error;
   String? get message => _message;
 
+  Future<void> refreshNotifications() async {
+    await load();
+    await onChanged?.call();
+  }
+
   Future<void> load() async {
     _loading = true;
     _error = null;
@@ -43,12 +48,14 @@ class RemindersController extends ChangeNotifier {
     required DateTime scheduledAtUtc,
     required String timezone,
   }) async {
-    await _mutate(() => _api.createReminder(
-          title: title,
-          body: body,
-          scheduledAtUtc: scheduledAtUtc,
-          timezone: timezone,
-        ));
+    await _mutate(
+      () => _api.createReminder(
+        title: title,
+        body: body,
+        scheduledAtUtc: scheduledAtUtc,
+        timezone: timezone,
+      ),
+    );
   }
 
   Future<void> update(
@@ -58,13 +65,15 @@ class RemindersController extends ChangeNotifier {
     DateTime? scheduledAtUtc,
     String? timezone,
   }) async {
-    await _mutate(() => _api.updateReminder(
-          id,
-          title: title,
-          body: body,
-          scheduledAtUtc: scheduledAtUtc,
-          timezone: timezone,
-        ));
+    await _mutate(
+      () => _api.updateReminder(
+        id,
+        title: title,
+        body: body,
+        scheduledAtUtc: scheduledAtUtc,
+        timezone: timezone,
+      ),
+    );
   }
 
   Future<void> cancel(String id) async {
@@ -82,12 +91,12 @@ class RemindersController extends ChangeNotifier {
   }
 
   String labelFor(ReminderType type) => switch (type) {
-        ReminderType.medicine => 'Medicine',
-        ReminderType.habit => 'Habit',
-        ReminderType.planner => 'Planner',
-        ReminderType.health => 'Health',
-        ReminderType.general => 'General',
-      };
+    ReminderType.medicine => 'Medicine',
+    ReminderType.habit => 'Habit',
+    ReminderType.planner => 'Planner',
+    ReminderType.health => 'Health',
+    ReminderType.general => 'General',
+  };
 
   Future<void> _mutate(Future<Reminder?> Function() action) async {
     _message = null;

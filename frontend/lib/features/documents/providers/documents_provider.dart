@@ -9,6 +9,8 @@ class DocumentsProvider extends ChangeNotifier {
 
   DocumentsProvider(this._repository);
 
+  Future<Uint8List> download(String id) => _repository.download(id);
+
   // State
   List<AppDocument> _documents = [];
   DocumentPage? _page;
@@ -133,9 +135,17 @@ class DocumentsProvider extends ChangeNotifier {
   }
 
   /// Update document metadata
-  Future<void> update(String id, {DocumentCategory? category, String? description}) async {
+  Future<void> update(
+    String id, {
+    DocumentCategory? category,
+    String? description,
+  }) async {
     try {
-      final updated = await _repository.update(id, category: category, description: description);
+      final updated = await _repository.update(
+        id,
+        category: category,
+        description: description,
+      );
       final index = _documents.indexWhere((d) => d.id == id);
       if (index != -1) {
         _documents[index] = updated;

@@ -22,6 +22,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Autowired
     private UserDetailsService userDetailsService;
+    @org.springframework.beans.factory.annotation.Value("${blistra.security.verified-sharing-required:true}")
+    private boolean verifiedSharingRequired;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -37,6 +39,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     } else {
                         userDetails = userDetailsService.loadUserByUsername(subject);
                     }
+                    if (userDetails instanceof BlistraUserPrincipal principal
+                            && !jwtProvider.matchesSessionVersion(jwt, principal.getSessionVersion())) {
+                        throw new org.springframework.security.authentication.BadCredentialsException("Session revoked");
+                    }
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -50,6 +56,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (Exception ex) {
             // Do not log stack traces for invalid tokens - they are expected
             logger.debug("JWT authentication failed: " + ex.getMessage());
+        }
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        String path = request.getRequestURI();
+        if (verifiedSharingRequired && authentication != null
+                && authentication.getPrincipal() instanceof BlistraUserPrincipal principal
+                && !principal.isEmailVerified() && !java.util.Set.of("GET", "HEAD", "OPTIONS").contains(request.getMethod())
+                && (path.startsWith("/api/v1/documents") || path.startsWith("/api/v1/profile/avatar")
+                    || path.startsWith("/api/v1/finance/"))) {
+            response.setStatus(403);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"status\":403,\"code\":\"VERIFICATION_REQUIRED\",\"message\":\"Verify your email in Profile before uploading files or using shared finances.\"}");
+            return;
         }
         filterChain.doFilter(request, response);
     }

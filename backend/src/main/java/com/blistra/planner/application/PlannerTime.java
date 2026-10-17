@@ -18,26 +18,26 @@ import java.time.temporal.ChronoUnit;
 @Component
 public class PlannerTime {
 
-    private final ZoneId userZone;
+    private final UserTime userTime;
 
     public PlannerTime(UserTime userTime) {
-        this.userZone = userTime.zone();
+        this.userTime = userTime;
     }
 
     public ZoneId userZone() {
-        return userZone;
+        return userTime.zone();
     }
 
     public OffsetDateTime now() {
-        return OffsetDateTime.now(userZone);
+        return OffsetDateTime.now(userZone());
     }
 
     public OffsetDateTime todayStart() {
-        return ZonedDateTime.now(userZone).truncatedTo(ChronoUnit.DAYS).toOffsetDateTime();
+        return ZonedDateTime.now(userZone()).truncatedTo(ChronoUnit.DAYS).toOffsetDateTime();
     }
 
     public OffsetDateTime tomorrowStart() {
-        return ZonedDateTime.now(userZone).toLocalDate().plusDays(1).atStartOfDay(userZone).toOffsetDateTime();
+        return ZonedDateTime.now(userZone()).toLocalDate().plusDays(1).atStartOfDay(userZone()).toOffsetDateTime();
     }
 
     /**
@@ -45,16 +45,16 @@ public class PlannerTime {
      * Used for date navigation so "previous/next day" reloads exactly one day.
      */
     public OffsetDateTime dayStart(LocalDate date) {
-        return date.atStartOfDay(userZone).toOffsetDateTime();
+        return date.atStartOfDay(userZone()).toOffsetDateTime();
     }
 
     public OffsetDateTime dayEndExclusive(LocalDate date) {
-        return date.plusDays(1).atStartOfDay(userZone).toOffsetDateTime();
+        return date.plusDays(1).atStartOfDay(userZone()).toOffsetDateTime();
     }
 
     public OffsetDateTime rangeEndExclusive(LocalDate date, int days) {
         int safeDays = Math.min(Math.max(days, 1), 31);
-        return date.plusDays(safeDays).atStartOfDay(userZone).toOffsetDateTime();
+        return date.plusDays(safeDays).atStartOfDay(userZone()).toOffsetDateTime();
     }
 
     /**
@@ -66,6 +66,6 @@ public class PlannerTime {
             return null;
         }
         LocalTime time = dueTime != null ? dueTime : LocalTime.MIDNIGHT;
-        return LocalDateTime.of(dueDate, time).atZone(userZone).toOffsetDateTime();
+        return LocalDateTime.of(dueDate, time).atZone(userZone()).toOffsetDateTime();
     }
 }

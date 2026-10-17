@@ -14,6 +14,9 @@ import java.util.UUID;
 
 @Repository
 public interface MedicineRepository extends JpaRepository<Medicine, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from Medicine m where m.id = :id and m.user.id = :userId")
+    Optional<Medicine> lockOwned(UUID id, UUID userId);
 
     Optional<Medicine> findByIdAndUserId(UUID id, UUID userId);
 

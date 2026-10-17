@@ -5,10 +5,7 @@ import '../state/settings_controller.dart';
 
 /// Notification delivery settings backed by the backend preferences endpoint.
 class NotificationSettingsScreen extends StatefulWidget {
-  const NotificationSettingsScreen({
-    super.key,
-    required this.onRefresh,
-  });
+  const NotificationSettingsScreen({super.key, required this.onRefresh});
 
   final Future<void> Function() onRefresh;
 
@@ -41,13 +38,24 @@ class _NotificationSettingsScreenState
           : ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Reminders use this device and may be delayed by battery settings. '
+                    'The next 60 alerts are scheduled; medicine alerts cover the next 7 days. '
+                    'Open Blistra regularly to refresh them.',
+                  ),
+                ),
                 SwitchListTile(
                   title: const Text('Enable notifications'),
                   subtitle: const Text(
-                      'Master switch for all reminder delivery'),
+                    'Master switch for all reminder delivery',
+                  ),
                   value: preferences.enabled,
                   onChanged: (value) {
-                    controller.update(enabled: value).then((_) => widget.onRefresh());
+                    controller
+                        .update(enabled: value)
+                        .then((_) => widget.onRefresh());
                   },
                 ),
                 const Divider(),
@@ -107,8 +115,9 @@ class _NotificationSettingsScreenState
                 SwitchListTile(
                   title: const Text('Hide sensitive content'),
                   subtitle: const Text(
-                      'Show generic titles for medicine, health, habit and '
-                      'planner reminders on the lock screen'),
+                    'Show generic titles for medicine, health, habit and '
+                    'planner reminders on the lock screen',
+                  ),
                   value: preferences.hideSensitiveContent,
                   onChanged: (value) {
                     controller

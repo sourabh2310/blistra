@@ -18,7 +18,8 @@ const Color oweColor = Color(0xFFE5484D);
 
 /// Digits with at most two decimals.
 final List<TextInputFormatter> amountFormatters = [
-  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+  TextInputFormatter.withFunction((oldValue, newValue) =>
+      RegExp(r'^\d*\.?\d{0,4}$').hasMatch(newValue.text) ? newValue : oldValue),
 ];
 
 /// Normalizes user input ("12.", ".5") to a backend decimal string, or null.
@@ -27,8 +28,8 @@ String? normalizeAmount(String raw) {
   if (text.isEmpty || text == '.') return null;
   if (text.startsWith('.')) text = '0$text';
   if (text.endsWith('.')) text = text.substring(0, text.length - 1);
-  final value = double.tryParse(text);
-  if (value == null || value <= 0) return null;
+  try { if (Money.parse(text).isZero) return null; }
+  on FormatException { return null; }
   return text;
 }
 
@@ -52,10 +53,17 @@ String dayLabel(DateTime date) {
 String balanceSentence(List<CurrencyAmount> balances, {String name = ''}) {
   final open = balances.where((b) => !b.amount.isZero).toList();
   if (open.isEmpty) return 'Settled up';
-  final owed = open.where((b) => !b.amount.isNegative).map((b) => b.display).toList();
-  final owe = open.where((b) => b.amount.isNegative).map((b) => b.amount.abs().display(currencyCode: b.currency)).toList();
+  final owed = open
+      .where((b) => !b.amount.isNegative)
+      .map((b) => b.display)
+      .toList();
+  final owe = open
+      .where((b) => b.amount.isNegative)
+      .map((b) => b.amount.abs().display(currencyCode: b.currency))
+      .toList();
   final parts = <String>[
-    if (owed.isNotEmpty) '${name.isEmpty ? 'Owes you' : '$name owes you'} ${owed.join(' + ')}',
+    if (owed.isNotEmpty)
+      '${name.isEmpty ? 'Owes you' : '$name owes you'} ${owed.join(' + ')}',
     if (owe.isNotEmpty) 'You owe ${owe.join(' + ')}',
   ];
   return parts.join(' · ');
@@ -97,13 +105,22 @@ class UserAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
     final hue = (user.id.hashCode % 360).abs().toDouble();
-    final tint = HSLColor.fromAHSL(1, hue, .55, colors.isDark ? .6 : .45).toColor();
+    final tint = HSLColor.fromAHSL(
+      1,
+      hue,
+      .55,
+      colors.isDark ? .6 : .45,
+    ).toColor();
     return CircleAvatar(
       radius: size / 2,
       backgroundColor: tint.withValues(alpha: .18),
       child: Text(
         user.initials,
-        style: TextStyle(color: tint, fontWeight: FontWeight.w700, fontSize: size * .36),
+        style: TextStyle(
+          color: tint,
+          fontWeight: FontWeight.w700,
+          fontSize: size * .36,
+        ),
       ),
     );
   }
@@ -142,7 +159,12 @@ class SectionLabel extends StatelessWidget {
 
 /// One line in an expense list: category, description, who paid, your effect.
 class ExpenseTile extends StatelessWidget {
-  const ExpenseTile({super.key, required this.expense, required this.meId, this.onTap});
+  const ExpenseTile({
+    super.key,
+    required this.expense,
+    required this.meId,
+    this.onTap,
+  });
 
   final Expense expense;
   final String? meId;
@@ -156,15 +178,21 @@ class ExpenseTile extends StatelessWidget {
     if (!expense.isShared) {
       subtitle = expense.category.label;
     } else if (paidByMe) {
-      subtitle = 'You paid ${expense.amount.display(currencyCode: expense.currency)}';
+      subtitle =
+          'You paid ${expense.amount.display(currencyCode: expense.currency)}';
     } else {
-      subtitle = '${expense.paidBy.displayName} paid ${expense.amount.display(currencyCode: expense.currency)}';
+      subtitle =
+          '${expense.paidBy.displayName} paid ${expense.amount.display(currencyCode: expense.currency)}';
     }
     Widget trailing;
     if (!expense.isShared) {
       trailing = Text(
         expense.amount.display(currencyCode: expense.currency),
-        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: colors.text),
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 15,
+          color: colors.text,
+        ),
       );
     } else {
       final lent = !expense.myBalance.isNegative;
@@ -175,7 +203,10 @@ class ExpenseTile extends StatelessWidget {
         children: [
           Text(
             none ? 'not involved' : (lent ? 'you lent' : 'you borrowed'),
-            style: TextStyle(fontSize: 11, color: none ? colors.muted : (lent ? owedColor : oweColor)),
+            style: TextStyle(
+              fontSize: 11,
+              color: none ? colors.muted : (lent ? owedColor : oweColor),
+            ),
           ),
           if (!none)
             Text(
@@ -209,12 +240,20 @@ class ExpenseTile extends StatelessWidget {
                           expense.description,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: colors.text),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: colors.text,
+                          ),
                         ),
                       ),
                       if (expense.isShared) ...[
                         const SizedBox(width: 6),
-                        Icon(Icons.people_alt_rounded, size: 14, color: colors.muted),
+                        Icon(
+                          Icons.people_alt_rounded,
+                          size: 14,
+                          color: colors.muted,
+                        ),
                       ],
                     ],
                   ),
@@ -238,22 +277,33 @@ class ExpenseTile extends StatelessWidget {
 }
 
 /// Bottom sheet to record a repayment with one person.
-Future<bool?> showSettleUpSheet(BuildContext context, {required Friend friend}) {
+Future<bool?> showSettleUpSheet(
+  BuildContext context, {
+  required Friend friend,
+  String? groupId,
+  String? currency,
+}) {
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (_) => ChangeNotifierProvider.value(
       value: context.read<FinanceController>(),
-      child: _SettleUpSheet(friend: friend),
+      child: _SettleUpSheet(
+        friend: friend,
+        groupId: groupId,
+        currency: currency,
+      ),
     ),
   );
 }
 
 class _SettleUpSheet extends StatefulWidget {
-  const _SettleUpSheet({required this.friend});
+  const _SettleUpSheet({required this.friend, this.groupId, this.currency});
 
   final Friend friend;
+  final String? groupId;
+  final String? currency;
 
   @override
   State<_SettleUpSheet> createState() => _SettleUpSheetState();
@@ -272,11 +322,16 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
     super.initState();
     final open = widget.friend.balances.where((b) => !b.amount.isZero).toList();
     final first = open.isEmpty ? null : open.first;
-    _currency = first?.currency ?? context.read<FinanceController>().currency;
+    _currency =
+        widget.currency ??
+        first?.currency ??
+        context.read<FinanceController>().currency;
     // Default to the direction that clears the balance.
     _iPaid = first?.amount.isNegative ?? true;
     _amount = TextEditingController(
-      text: first == null ? '' : first.amount.abs().display().replaceAll(',', ''),
+      text: first == null
+          ? ''
+          : first.amount.abs().display().replaceAll(',', ''),
     );
   }
 
@@ -311,12 +366,13 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
     });
     try {
       await context.read<FinanceController>().settleUp(
-            friendId: widget.friend.user.id,
-            iPaid: _iPaid,
-            amount: amount,
-            currency: _currency,
-            note: _note.text,
-          );
+        friendId: widget.friend.user.id,
+        iPaid: _iPaid,
+        amount: amount,
+        currency: _currency,
+        note: _note.text,
+        groupId: widget.groupId,
+      );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       setState(() {
@@ -331,26 +387,54 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
     final colors = BlistraColors.resolve(context);
     final name = widget.friend.user.displayName;
     final currencies = {
-      ...widget.friend.balances.where((b) => !b.amount.isZero).map((b) => b.currency),
+      ...FinanceController.commonCurrencies,
+      ...widget.friend.balances
+          .where((b) => !b.amount.isZero)
+          .map((b) => b.currency),
       _currency,
     }.toList();
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 20,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Settle up with $name',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: colors.text)),
+          Text(
+            'Settle up with $name',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: colors.text,
+            ),
+          ),
+          const Text(
+            'The other participant must confirm. Your balance changes only after confirmation.',
+          ),
           const SizedBox(height: 6),
-          Text(balanceSentence(widget.friend.balances, name: name),
-              style: TextStyle(color: balanceColor(widget.friend.balances, colors))),
+          Text(
+            balanceSentence(widget.friend.balances, name: name),
+            style: TextStyle(
+              color: balanceColor(widget.friend.balances, colors),
+            ),
+          ),
           const SizedBox(height: 16),
           SegmentedButton<bool>(
             segments: [
-              const ButtonSegment(value: true, label: Text('I paid them'), icon: Icon(Icons.north_east_rounded)),
-              ButtonSegment(value: false, label: Text('$name paid me', overflow: TextOverflow.ellipsis),
-                  icon: const Icon(Icons.south_west_rounded)),
+              const ButtonSegment(
+                value: true,
+                label: Text('I paid them'),
+                icon: Icon(Icons.north_east_rounded),
+              ),
+              ButtonSegment(
+                value: false,
+                label: Text('$name paid me', overflow: TextOverflow.ellipsis),
+                icon: const Icon(Icons.south_west_rounded),
+              ),
             ],
             selected: {_iPaid},
             onSelectionChanged: (s) => setState(() => _iPaid = s.first),
@@ -363,7 +447,10 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
                   padding: const EdgeInsets.only(right: 10),
                   child: DropdownButton<String>(
                     value: _currency,
-                    items: [for (final c in currencies) DropdownMenuItem(value: c, child: Text(c))],
+                    items: [
+                      for (final c in currencies)
+                        DropdownMenuItem(value: c, child: Text(c)),
+                    ],
                     onChanged: (c) => c == null ? null : _pickCurrency(c),
                   ),
                 ),
@@ -371,9 +458,14 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
                 child: TextField(
                   controller: _amount,
                   autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: amountFormatters,
-                  decoration: InputDecoration(labelText: 'Amount', prefixText: '$_currency '),
+                  decoration: InputDecoration(
+                    labelText: 'Amount',
+                    prefixText: '$_currency ',
+                  ),
                 ),
               ),
             ],
@@ -382,7 +474,10 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
           TextField(
             controller: _note,
             maxLength: 255,
-            decoration: const InputDecoration(labelText: 'Note (optional)', counterText: ''),
+            decoration: const InputDecoration(
+              labelText: 'Note (optional)',
+              counterText: '',
+            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
@@ -392,7 +487,11 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
           FilledButton.icon(
             onPressed: _saving ? null : _save,
             icon: _saving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.check_rounded),
             label: const Text('Record payment'),
           ),
@@ -403,14 +502,21 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
 }
 
 /// Bottom sheet to set (or remove) a monthly budget.
-Future<void> showBudgetSheet(BuildContext context, {Budget? existing, ExpenseCategory? category}) {
+Future<void> showBudgetSheet(
+  BuildContext context, {
+  Budget? existing,
+  ExpenseCategory? category,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (_) => ChangeNotifierProvider.value(
       value: context.read<FinanceController>(),
-      child: _BudgetSheet(existing: existing, category: existing?.category ?? category),
+      child: _BudgetSheet(
+        existing: existing,
+        category: existing?.category ?? category,
+      ),
     ),
   );
 }
@@ -436,9 +542,12 @@ class _BudgetSheetState extends State<_BudgetSheet> {
   void initState() {
     super.initState();
     _category = widget.category;
-    _currency = widget.existing?.currency ?? context.read<FinanceController>().currency;
+    _currency =
+        widget.existing?.currency ?? context.read<FinanceController>().currency;
     _limit = TextEditingController(
-      text: widget.existing == null ? '' : widget.existing!.limit.display().replaceAll(',', ''),
+      text: widget.existing == null
+          ? ''
+          : widget.existing!.limit.display().replaceAll(',', ''),
     );
   }
 
@@ -469,22 +578,36 @@ class _BudgetSheetState extends State<_BudgetSheet> {
     final colors = BlistraColors.resolve(context);
     final controller = context.read<FinanceController>();
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 20,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(widget.existing == null ? 'Set a monthly budget' : 'Edit budget',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: colors.text)),
+          Text(
+            widget.existing == null ? 'Set a monthly budget' : 'Edit budget',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: colors.text,
+            ),
+          ),
           const SizedBox(height: 14),
           DropdownButtonFormField<ExpenseCategory?>(
             initialValue: _category,
             decoration: const InputDecoration(labelText: 'Applies to'),
             items: [
               const DropdownMenuItem(value: null, child: Text('All spending')),
-              for (final c in ExpenseCategory.values) DropdownMenuItem(value: c, child: Text(c.label)),
+              for (final c in ExpenseCategory.values)
+                DropdownMenuItem(value: c, child: Text(c.label)),
             ],
-            onChanged: widget.existing != null ? null : (c) => setState(() => _category = c),
+            onChanged: widget.existing != null
+                ? null
+                : (c) => setState(() => _category = c),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -492,7 +615,10 @@ class _BudgetSheetState extends State<_BudgetSheet> {
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: amountFormatters,
-            decoration: InputDecoration(labelText: 'Monthly limit', prefixText: '$_currency '),
+            decoration: InputDecoration(
+              labelText: 'Monthly limit',
+              prefixText: '$_currency ',
+            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
@@ -508,14 +634,25 @@ class _BudgetSheetState extends State<_BudgetSheet> {
                       setState(() => _error = 'Enter a limit above zero');
                       return;
                     }
-                    _run(() => controller.saveBudget(category: _category, currency: _currency, limit: limit));
+                    _run(
+                      () => controller.saveBudget(
+                        category: _category,
+                        currency: _currency,
+                        limit: limit,
+                      ),
+                    );
                   },
             child: const Text('Save budget'),
           ),
           if (widget.existing != null)
             TextButton(
-              onPressed: _saving ? null : () => _run(() => controller.deleteBudget(widget.existing!)),
-              child: const Text('Remove budget', style: TextStyle(color: oweColor)),
+              onPressed: _saving
+                  ? null
+                  : () => _run(() => controller.deleteBudget(widget.existing!)),
+              child: const Text(
+                'Remove budget',
+                style: TextStyle(color: oweColor),
+              ),
             ),
         ],
       ),
@@ -544,4 +681,5 @@ class ProgressLine extends StatelessWidget {
   }
 }
 
-Money sumMoney(Iterable<Money> values) => values.fold(Money.zero(), (a, b) => a + b);
+Money sumMoney(Iterable<Money> values) =>
+    values.fold(Money.zero(), (a, b) => a + b);

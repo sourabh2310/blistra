@@ -2,6 +2,9 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:provider/provider.dart';
+
+import '../../notifications/state/reminders_controller.dart';
 
 import '../../app_scope.dart';
 
@@ -13,10 +16,13 @@ import '../../app_scope.dart';
 /// Medicines itself stays correct.
 Future<void> refreshHomeDashboard(BuildContext context) async {
   try {
-    await AppScope.of(context).dashboard.refresh(
-          date: DateTime.now(),
-          offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
-        );
+    final reminders = context.read<RemindersController>();
+    final dashboard = AppScope.of(context).dashboard;
+    await reminders.refreshNotifications();
+    await dashboard.refresh(
+      date: DateTime.now(),
+      offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
+    );
   } catch (_) {
     // No scope or transient network: Medicines stays correct.
   }

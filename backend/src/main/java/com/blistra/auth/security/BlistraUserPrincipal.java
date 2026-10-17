@@ -19,6 +19,19 @@ public class BlistraUserPrincipal implements UserDetails {
     private final String passwordHash;
     private final Collection<? extends GrantedAuthority> authorities;
     private final boolean enabled;
+    private long sessionVersion;
+    private String timezone;
+    private boolean emailVerified;
+    public boolean isEmailVerified() { return emailVerified; }
+    public BlistraUserPrincipal withEmailVerified(boolean value) { emailVerified = value; return this; }
+    public String getTimezone() { return timezone; }
+    public BlistraUserPrincipal withTimezone(String value) { timezone = value; return this; }
+
+    public long getSessionVersion() { return sessionVersion; }
+    public BlistraUserPrincipal withSessionVersion(long version) {
+        this.sessionVersion = version;
+        return this;
+    }
 
     public BlistraUserPrincipal(UUID id, String email, String passwordHash,
                                 Collection<? extends GrantedAuthority> authorities) {

@@ -1,10 +1,8 @@
 /// Secure persistence for authentication credentials.
 ///
-/// Uses platform secure storage (Keychain/Keystore) on Android/iOS/macOS via
-/// `flutter_secure_storage`. On web and desktop platforms where secure
-/// enclave storage is unavailable, falls back to `SharedPreferences` with an
-/// explicit documented trade-off: browser/desktop storage is NOT equivalent
-/// to native secure storage.
+/// Uses platform secure storage on native platforms. If it is unavailable,
+/// or on web, the session lives in memory and requires login after restart.
+/// Credentials are never written to plaintext preferences.
 ///
 /// Never stores passwords — only the JWT and the user email (non-secret).
 library;
@@ -18,9 +16,12 @@ class AuthStorage {
 
   static const String tokenKey = 'auth_token';
   static const String emailKey = 'auth_email';
+  static const String _restoreAllowedKey = 'auth_secure_session_enabled';
 
   final FlutterSecureStorage? _secure;
   SharedPreferences? _prefs;
+  String? _memoryToken;
+  String? _memoryEmail;
 
   FlutterSecureStorage get _secureStore =>
       _secure ?? const FlutterSecureStorage();
@@ -28,57 +29,72 @@ class AuthStorage {
   /// Secure storage is available on mobile/desktop native platforms only.
   static bool get supportsSecureStorage => !kIsWeb;
 
-  Future<SharedPreferences> _fallbackPrefs() async =>
-      _prefs ??= await SharedPreferences.getInstance();
+  Future<SharedPreferences> _fallbackPrefs() async {
+    final prefs = _prefs ??= await SharedPreferences.getInstance();
+    // Older fallback credentials are intentionally not restored.
+    await prefs.remove(tokenKey);
+    await prefs.remove(emailKey);
+    return prefs;
+  }
 
   Future<String?> readToken() async {
+    if (_memoryToken != null) return _memoryToken;
+    if ((await _fallbackPrefs()).getBool(_restoreAllowedKey) == false) {
+      return null;
+    }
     if (supportsSecureStorage) {
       try {
-        return await _secureStore.read(key: tokenKey);
+        return await _secureStore.read(key: tokenKey) ?? _memoryToken;
       } catch (_) {
-        // Fall through to insecure fallback only if secure store fails
-        // (e.g. unit tests without platform channels).
-        final prefs = await _fallbackPrefs();
-        return prefs.getString(tokenKey);
+        return _memoryToken;
       }
     }
-    final prefs = await _fallbackPrefs();
-    return prefs.getString(tokenKey);
+    return _memoryToken;
   }
 
   Future<String?> readEmail() async {
+    if (_memoryEmail != null) return _memoryEmail;
+    if ((await _fallbackPrefs()).getBool(_restoreAllowedKey) == false) {
+      return null;
+    }
     if (supportsSecureStorage) {
       try {
-        return await _secureStore.read(key: emailKey);
+        return await _secureStore.read(key: emailKey) ?? _memoryEmail;
       } catch (_) {
-        final prefs = await _fallbackPrefs();
-        return prefs.getString(emailKey);
+        return _memoryEmail;
       }
     }
-    final prefs = await _fallbackPrefs();
-    return prefs.getString(emailKey);
+    return _memoryEmail;
   }
 
   Future<void> saveSession({
     required String token,
     required String email,
   }) async {
+    _memoryToken = token;
+    _memoryEmail = email;
+    // Remove credentials left by older builds that used plaintext fallback.
+    final prefs = await _fallbackPrefs();
+    await prefs.setBool(_restoreAllowedKey, false);
+    await prefs.remove(tokenKey);
+    await prefs.remove(emailKey);
     if (supportsSecureStorage) {
       try {
         await _secureStore.write(key: tokenKey, value: token);
         await _secureStore.write(key: emailKey, value: email);
+        await prefs.setBool(_restoreAllowedKey, true);
         return;
       } catch (_) {
-        // Fall through to prefs when platform channels are unavailable
-        // (tests) — never crash login because of storage.
+        // Keep the current session in memory when secure storage fails.
       }
     }
-    final prefs = await _fallbackPrefs();
-    await prefs.setString(tokenKey, token);
-    await prefs.setString(emailKey, email);
   }
 
   Future<void> clear() async {
+    _memoryToken = null;
+    _memoryEmail = null;
+    final prefs = await _fallbackPrefs();
+    await prefs.setBool(_restoreAllowedKey, false);
     if (supportsSecureStorage) {
       try {
         await _secureStore.delete(key: tokenKey);
@@ -87,7 +103,6 @@ class AuthStorage {
         // Best effort.
       }
     }
-    final prefs = await _fallbackPrefs();
     await prefs.remove(tokenKey);
     await prefs.remove(emailKey);
   }

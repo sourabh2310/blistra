@@ -13,6 +13,8 @@ import '../models.dart';
 import '../widgets/finance_widgets.dart';
 import 'expense_detail_screen.dart';
 import 'expense_form_screen.dart';
+import 'groups_tab.dart';
+import 'payment_tile.dart';
 
 class FriendDetailScreen extends StatefulWidget {
   const FriendDetailScreen({super.key, required this.userId, this.initial});
@@ -27,6 +29,8 @@ class FriendDetailScreen extends StatefulWidget {
 class _FriendDetailScreenState extends State<FriendDetailScreen> {
   FriendDetail? _detail;
   String? _error;
+  bool _busy = false;
+  List<Map<String, dynamic>> _history = [];
 
   @override
   void initState() {
@@ -39,9 +43,11 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
       final controller = context.read<FinanceController>();
       if (controller.status == FinanceLoadStatus.idle) controller.loadAll();
       final detail = await controller.api.friendDetail(widget.userId);
+      final history = await controller.api.history(friendId: widget.userId);
       if (mounted) {
         setState(() {
           _detail = detail;
+          _history = history;
           _error = null;
         });
       }
@@ -51,9 +57,14 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
   }
 
   Future<void> _push(Widget screen) async {
-    final changed = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => ChangeNotifierProvider.value(value: context.read<FinanceController>(), child: screen),
-    ));
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: context.read<FinanceController>(),
+          child: screen,
+        ),
+      ),
+    );
     if (changed == true) await _load();
   }
 
@@ -69,10 +80,17 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
       builder: (context) => AlertDialog(
         title: Text('Remove $name?'),
         content: const Text(
-            'You won\'t be able to add new shared expenses together. Past expenses and any open balance stay.'),
+          'You won\'t be able to add new shared expenses together. Past expenses and any open balance stay.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Remove')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
         ],
       ),
     );
@@ -81,7 +99,10 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
       await context.read<FinanceController>().removeFriend(widget.userId);
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
     }
   }
 
@@ -90,7 +111,29 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
       await context.read<FinanceController>().deleteSettlement(s);
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
+    }
+  }
+
+  Future<void> _decide(Settlement s, bool confirmed) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await context.read<FinanceController>().decideSettlement(
+        s.id,
+        confirmed: confirmed,
+      );
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -102,8 +145,10 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
     final user = detail?.friend.user ?? widget.initial;
 
     final items = <(DateTime, Object)>[
-      if (detail != null) ...detail.expenses.map((e) => (e.spentOn, e as Object)),
-      if (detail != null) ...detail.settlements.map((s) => (s.settledOn, s as Object)),
+      if (detail != null)
+        ...detail.expenses.map((e) => (e.spentOn, e as Object)),
+      if (detail != null)
+        ...detail.settlements.map((s) => (s.settledOn, s as Object)),
     ]..sort((a, b) => b.$1.compareTo(a.$1));
 
     return Scaffold(
@@ -120,9 +165,18 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                   PopupMenuButton<String>(
                     tooltip: 'More',
                     onSelected: (_) => _remove(),
-                    itemBuilder: (_) => const [PopupMenuItem(value: 'remove', child: Text('Remove friend'))],
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'remove',
+                        child: Text('Remove friend'),
+                      ),
+                    ],
                     child: const IgnorePointer(
-                      child: GlassIconButton(tooltip: null, icon: Icons.more_horiz, onTap: null),
+                      child: GlassIconButton(
+                        tooltip: null,
+                        icon: Icons.more_horiz,
+                        onTap: null,
+                      ),
                     ),
                   ),
               ],
@@ -132,7 +186,10 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                   ? Center(
                       child: _error == null
                           ? const CircularProgressIndicator()
-                          : Text(_error!, style: TextStyle(color: colors.muted)),
+                          : Text(
+                              _error!,
+                              style: TextStyle(color: colors.muted),
+                            ),
                     )
                   : RefreshIndicator(
                       onRefresh: _load,
@@ -153,7 +210,10 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w700,
-                                          color: balanceColor(detail.friend.balances, colors),
+                                          color: balanceColor(
+                                            detail.friend.balances,
+                                            colors,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -161,16 +221,25 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                                 ),
                                 if (!detail.friend.isFriend) ...[
                                   const SizedBox(height: 10),
-                                  Text('Not friends any more — you can still settle up.',
-                                      style: TextStyle(color: colors.muted, fontSize: 12.5)),
+                                  Text(
+                                    'Not friends any more — you can still settle up.',
+                                    style: TextStyle(
+                                      color: colors.muted,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
                                 ],
                                 const SizedBox(height: 16),
                                 Row(
                                   children: [
                                     Expanded(
                                       child: FilledButton.icon(
-                                        onPressed: detail.friend.settled ? null : _settle,
-                                        icon: const Icon(Icons.handshake_rounded),
+                                        onPressed: detail.friend.settled
+                                            ? null
+                                            : _settle,
+                                        icon: const Icon(
+                                          Icons.handshake_rounded,
+                                        ),
                                         label: const Text('Settle up'),
                                       ),
                                     ),
@@ -178,7 +247,11 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: OutlinedButton.icon(
-                                          onPressed: () => _push(ExpenseFormScreen(withFriend: detail.friend.user)),
+                                          onPressed: () => _push(
+                                            ExpenseFormScreen(
+                                              withFriend: detail.friend.user,
+                                            ),
+                                          ),
                                           icon: const Icon(Icons.add_rounded),
                                           label: const Text('Add expense'),
                                         ),
@@ -193,8 +266,11 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                           if (items.isEmpty)
                             Padding(
                               padding: const EdgeInsets.all(24),
-                              child: Text('No shared expenses yet.',
-                                  textAlign: TextAlign.center, style: TextStyle(color: colors.muted)),
+                              child: Text(
+                                'No shared expenses yet.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: colors.muted),
+                              ),
                             )
                           else
                             GlassCard(
@@ -206,17 +282,26 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                                       ExpenseTile(
                                         expense: item,
                                         meId: meId,
-                                        onTap: () => _push(ExpenseDetailScreen(expense: item)),
+                                        onTap: () => _push(
+                                          ExpenseDetailScreen(expense: item),
+                                        ),
                                       )
                                     else if (item is Settlement)
-                                      _SettlementTile(
+                                      PaymentTile(
                                         settlement: item,
-                                        meId: meId,
-                                        onDelete: item.editable ? () => _deleteSettlement(item) : null,
+                                        busy: _busy,
+                                        onDecision: item.confirmable
+                                            ? (yes) => _decide(item, yes)
+                                            : null,
+                                        onDelete: item.editable
+                                            ? () => _deleteSettlement(item)
+                                            : null,
                                       ),
                                 ],
                               ),
                             ),
+                          const SectionLabel('Change history (latest 100)'),
+                          FinanceHistoryList(entries: _history, meId: meId),
                         ],
                       ),
                     ),
@@ -224,54 +309,6 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SettlementTile extends StatelessWidget {
-  const _SettlementTile({required this.settlement, required this.meId, this.onDelete});
-
-  final Settlement settlement;
-  final String? meId;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    final iPaid = settlement.payer.id == meId;
-    final who = iPaid ? 'You paid ${settlement.payee.displayName}' : '${settlement.payer.displayName} paid you';
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-      leading: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: owedColor.withValues(alpha: .14),
-          borderRadius: BorderRadius.circular(13),
-        ),
-        child: const Icon(Icons.handshake_rounded, color: owedColor),
-      ),
-      title: Text(who, style: TextStyle(fontWeight: FontWeight.w600, color: colors.text)),
-      subtitle: Text([dayLabel(settlement.settledOn), if (settlement.note != null) settlement.note!].join(' · ')),
-      trailing: Text(
-        settlement.amount.display(currencyCode: settlement.currency),
-        style: TextStyle(fontWeight: FontWeight.w700, color: colors.text),
-      ),
-      onLongPress: onDelete == null
-          ? null
-          : () async {
-              final ok = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Delete this payment?'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                    FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
-                  ],
-                ),
-              );
-              if (ok == true) onDelete!();
-            },
     );
   }
 }

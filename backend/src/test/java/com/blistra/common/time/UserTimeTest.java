@@ -14,6 +14,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class UserTimeTest {
 
     @Test
+    void authenticatedProfileZoneOverridesServerAndChangesBetweenUsers() {
+        var context=org.springframework.security.core.context.SecurityContextHolder.getContext();
+        try {
+            var principal=new com.blistra.auth.security.BlistraUserPrincipal(java.util.UUID.randomUUID(),
+                    "user@example.com","hash",java.util.List.of()).withTimezone("America/New_York");
+            context.setAuthentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(principal,null,principal.getAuthorities()));
+            var time=new UserTime("Asia/Kolkata");
+            assertThat(time.zone()).isEqualTo(ZoneId.of("America/New_York"));
+            var spring=LocalDate.of(2026,3,8);
+            assertThat(java.time.Duration.between(spring.atStartOfDay(time.zone()),spring.plusDays(1).atStartOfDay(time.zone())).toHours()).isEqualTo(23);
+            principal.withTimezone("Pacific/Auckland");
+            assertThat(time.zone()).isEqualTo(ZoneId.of("Pacific/Auckland"));
+        } finally { org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
+    }
+
+    @Test
     void defaultsToKolkata() {
         UserTime userTime = new UserTime("Asia/Kolkata");
 

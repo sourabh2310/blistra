@@ -30,6 +30,8 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    @Autowired
+    private com.blistra.auth.security.AuthRateLimiter authRateLimiter;
 
     /**
      * Origin patterns allowed to call the API from a browser (Flutter web).
@@ -88,12 +90,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/app/latest").permitAll()
                         .requestMatchers(HttpMethod.GET, "/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/health/readiness", "/actuator/health/liveness").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         // All other requests require authentication
                         .anyRequest().authenticated()
                 );
 
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(new com.blistra.auth.security.AuthRateLimitFilter(authRateLimiter), JwtAuthenticationFilter.class);
 
         return http.build();
     }

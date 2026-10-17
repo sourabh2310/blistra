@@ -15,7 +15,11 @@ import '../models.dart';
 import '../widgets/finance_widgets.dart';
 
 class OverviewTab extends StatelessWidget {
-  const OverviewTab({super.key, required this.onOpenFriends, required this.onAddExpense});
+  const OverviewTab({
+    super.key,
+    required this.onOpenFriends,
+    required this.onAddExpense,
+  });
 
   final VoidCallback onOpenFriends;
   final VoidCallback onAddExpense;
@@ -31,18 +35,43 @@ class OverviewTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
       children: [
-        _SpentCard(section: section, currency: currency, isCurrentMonth: controller.isCurrentMonth),
-        if (overview != null && (overview.owedToYou.isNotEmpty || overview.youOwe.isNotEmpty || overview.pendingRequests > 0))
+        _SpentCard(
+          section: section,
+          currency: currency,
+          isCurrentMonth: controller.isCurrentMonth,
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            'Spending includes your trip shares. Friend balances below are separate from Groups.',
+          ),
+        ),
+        if (overview != null &&
+            (overview.owedToYou.isNotEmpty ||
+                overview.youOwe.isNotEmpty ||
+                overview.pendingRequests > 0))
           Padding(
             padding: const EdgeInsets.only(top: 12),
             child: GlassCard(
               onTap: onOpenFriends,
               child: Row(
                 children: [
-                  Expanded(child: _BalanceColumn(label: 'Owed to you', amounts: overview.owedToYou, color: owedColor)),
+                  Expanded(
+                    child: _BalanceColumn(
+                      label: 'Owed to you',
+                      amounts: overview.owedToYou,
+                      color: owedColor,
+                    ),
+                  ),
                   Container(width: 1, height: 44, color: colors.glassBorder),
                   const SizedBox(width: 14),
-                  Expanded(child: _BalanceColumn(label: 'You owe', amounts: overview.youOwe, color: oweColor)),
+                  Expanded(
+                    child: _BalanceColumn(
+                      label: 'You owe',
+                      amounts: overview.youOwe,
+                      color: oweColor,
+                    ),
+                  ),
                   if (overview.pendingRequests > 0)
                     Badge(
                       label: Text('${overview.pendingRequests}'),
@@ -61,11 +90,19 @@ class OverviewTab extends StatelessWidget {
               children: [
                 Icon(Icons.receipt_long_rounded, size: 44, color: colors.muted),
                 const SizedBox(height: 10),
-                Text('No expenses this month yet',
-                    style: TextStyle(fontWeight: FontWeight.w600, color: colors.text)),
+                Text(
+                  'No expenses this month yet',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: colors.text,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text('Log what you spend, or split a bill with a friend.',
-                    textAlign: TextAlign.center, style: TextStyle(color: colors.muted)),
+                Text(
+                  'Log what you spend, or split a bill with a friend.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.muted),
+                ),
                 const SizedBox(height: 14),
                 FilledButton.icon(
                   onPressed: onAddExpense,
@@ -77,7 +114,9 @@ class OverviewTab extends StatelessWidget {
           )
         else ...[
           const SectionLabel('Daily spending'),
-          GlassCard(child: _DailyBars(section: section, month: controller.month)),
+          GlassCard(
+            child: _DailyBars(section: section, month: controller.month),
+          ),
           const SectionLabel('Where it went'),
           GlassCard(
             child: Column(
@@ -87,7 +126,9 @@ class OverviewTab extends StatelessWidget {
                     item: c,
                     total: section.spent,
                     currency: currency,
-                    budget: section.budgets.where((b) => b.category == c.category).firstOrNull,
+                    budget: section.budgets
+                        .where((b) => b.category == c.category)
+                        .firstOrNull,
                   ),
               ],
             ),
@@ -102,7 +143,10 @@ class OverviewTab extends StatelessWidget {
           ),
         ),
         if (section == null || section.budgets.isEmpty)
-          Text('Set a monthly limit to see how you\'re tracking.', style: TextStyle(color: colors.muted))
+          Text(
+            'Set a monthly limit to see how you\'re tracking.',
+            style: TextStyle(color: colors.muted),
+          )
         else
           GlassCard(
             child: Column(
@@ -113,12 +157,19 @@ class OverviewTab extends StatelessWidget {
           ),
         if ((overview?.currencies.length ?? 0) > 1) ...[
           const SectionLabel('Other currencies'),
-          for (final c in overview!.currencies.where((c) => c.currency != currency))
+          for (final c in overview!.currencies.where(
+            (c) => c.currency != currency,
+          ))
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(c.currency),
-              trailing: Text(c.spent.display(currencyCode: c.currency),
-                  style: TextStyle(fontWeight: FontWeight.w700, color: colors.text)),
+              trailing: Text(
+                c.spent.display(currencyCode: c.currency),
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: colors.text,
+                ),
+              ),
               onTap: () => controller.setCurrency(c.currency),
             ),
         ],
@@ -128,7 +179,11 @@ class OverviewTab extends StatelessWidget {
 }
 
 class _SpentCard extends StatelessWidget {
-  const _SpentCard({required this.section, required this.currency, required this.isCurrentMonth});
+  const _SpentCard({
+    required this.section,
+    required this.currency,
+    required this.isCurrentMonth,
+  });
 
   final CurrencyOverview? section;
   final String currency;
@@ -143,8 +198,10 @@ class _SpentCard extends StatelessWidget {
     String? trend;
     Color? trendColor;
     if (!previous.isZero) {
-      final change = (spent.toDouble() - previous.toDouble()) / previous.toDouble() * 100;
-      trend = '${change >= 0 ? '▲' : '▼'} ${change.abs().toStringAsFixed(0)}% vs last month';
+      final change =
+          (spent.toDouble() - previous.toDouble()) / previous.toDouble() * 100;
+      trend =
+          '${change >= 0 ? '▲' : '▼'} ${change.abs().toStringAsFixed(0)}% vs last month';
       trendColor = change > 0 ? oweColor : owedColor;
     }
     return GlassCard(
@@ -152,32 +209,62 @@ class _SpentCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(isCurrentMonth ? 'Spent this month' : 'Spent', style: TextStyle(color: colors.muted)),
+          Text(
+            isCurrentMonth ? 'Spent this month' : 'Spent',
+            style: TextStyle(color: colors.muted),
+          ),
           const SizedBox(height: 4),
-          Text(spent.display(currencyCode: currency),
-              style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -.8, color: colors.text)),
+          Text(
+            spent.display(currencyCode: currency),
+            style: TextStyle(
+              fontSize: 36,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -.8,
+              color: colors.text,
+            ),
+          ),
           const SizedBox(height: 6),
           Wrap(
             spacing: 14,
             runSpacing: 4,
             children: [
-              if (trend != null) Text(trend, style: TextStyle(color: trendColor, fontWeight: FontWeight.w600)),
-              if (isCurrentMonth && section != null && !section!.todaySpent.isZero)
-                Text('${section!.todaySpent.display(currencyCode: currency)} today', style: TextStyle(color: colors.muted)),
+              if (trend != null)
+                Text(
+                  trend,
+                  style: TextStyle(
+                    color: trendColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              if (isCurrentMonth &&
+                  section != null &&
+                  !section!.todaySpent.isZero)
+                Text(
+                  '${section!.todaySpent.display(currencyCode: currency)} today',
+                  style: TextStyle(color: colors.muted),
+                ),
               if (section != null && section!.paid > section!.spent)
-                Text('You paid ${section!.paid.display(currencyCode: currency)} in total',
-                    style: TextStyle(color: colors.muted)),
+                Text(
+                  'You paid ${section!.paid.display(currencyCode: currency)} in total',
+                  style: TextStyle(color: colors.muted),
+                ),
             ],
           ),
           if (budget != null) ...[
             const SizedBox(height: 14),
-            ProgressLine(value: budget.usage, color: budget.over ? oweColor : colors.accent),
+            ProgressLine(
+              value: budget.usage,
+              color: budget.over ? oweColor : colors.accent,
+            ),
             const SizedBox(height: 6),
             Text(
               budget.over
                   ? '${(budget.spent - budget.limit).display(currencyCode: currency)} over your ${budget.limit.display(currencyCode: currency)} budget'
                   : '${(budget.limit - budget.spent).display(currencyCode: currency)} left of ${budget.limit.display(currencyCode: currency)}',
-              style: TextStyle(color: budget.over ? oweColor : colors.muted, fontSize: 12.5),
+              style: TextStyle(
+                color: budget.over ? oweColor : colors.muted,
+                fontSize: 12.5,
+              ),
             ),
           ],
         ],
@@ -187,7 +274,11 @@ class _SpentCard extends StatelessWidget {
 }
 
 class _BalanceColumn extends StatelessWidget {
-  const _BalanceColumn({required this.label, required this.amounts, required this.color});
+  const _BalanceColumn({
+    required this.label,
+    required this.amounts,
+    required this.color,
+  });
 
   final String label;
   final List<CurrencyAmount> amounts;
@@ -203,7 +294,11 @@ class _BalanceColumn extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           amounts.isEmpty ? '—' : amounts.map((a) => a.display).join(' + '),
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: amounts.isEmpty ? colors.muted : color),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: amounts.isEmpty ? colors.muted : color,
+          ),
         ),
       ],
     );
@@ -211,7 +306,12 @@ class _BalanceColumn extends StatelessWidget {
 }
 
 class _CategoryRow extends StatelessWidget {
-  const _CategoryRow({required this.item, required this.total, required this.currency, this.budget});
+  const _CategoryRow({
+    required this.item,
+    required this.total,
+    required this.currency,
+    this.budget,
+  });
 
   final CategoryAmount item;
   final Money total;
@@ -221,7 +321,9 @@ class _CategoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    final share = total.isZero ? 0.0 : item.amount.toDouble() / total.toDouble();
+    final share = total.isZero
+        ? 0.0
+        : item.amount.toDouble() / total.toDouble();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
@@ -235,17 +337,29 @@ class _CategoryRow extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(item.category.label,
-                          style: TextStyle(fontWeight: FontWeight.w600, color: colors.text)),
+                      child: Text(
+                        item.category.label,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: colors.text,
+                        ),
+                      ),
                     ),
-                    Text(item.amount.display(currencyCode: currency),
-                        style: TextStyle(fontWeight: FontWeight.w700, color: colors.text)),
+                    Text(
+                      item.amount.display(currencyCode: currency),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: colors.text,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 ProgressLine(
                   value: budget != null ? budget!.usage : share,
-                  color: budget != null && budget!.over ? oweColor : item.category.color,
+                  color: budget != null && budget!.over
+                      ? oweColor
+                      : item.category.color,
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -280,18 +394,37 @@ class _BudgetRow extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(budget.category?.icon ?? Icons.savings_rounded,
-                    size: 18, color: budget.category?.color ?? colors.accent),
+                Icon(
+                  budget.category?.icon ?? Icons.savings_rounded,
+                  size: 18,
+                  color: budget.category?.color ?? colors.accent,
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: Text(budget.label, style: TextStyle(fontWeight: FontWeight.w600, color: colors.text))),
+                Expanded(
+                  child: Text(
+                    budget.label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: colors.text,
+                    ),
+                  ),
+                ),
                 Text(
                   '${budget.spent.display(currencyCode: budget.currency)} / ${budget.limit.display(currencyCode: budget.currency)}',
-                  style: TextStyle(color: budget.over ? oweColor : colors.muted, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: budget.over ? oweColor : colors.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            ProgressLine(value: budget.usage, color: budget.over ? oweColor : (budget.category?.color ?? colors.accent)),
+            ProgressLine(
+              value: budget.usage,
+              color: budget.over
+                  ? oweColor
+                  : (budget.category?.color ?? colors.accent),
+            ),
           ],
         ),
       ),
@@ -320,7 +453,9 @@ class _DailyBars extends StatelessWidget {
     final peak = values.indexOf(maxValue);
     final now = DateTime.now();
     final activeDays = values.where((v) => v > 0).length;
-    final average = activeDays == 0 ? 0.0 : values.reduce((a, b) => a + b) / activeDays;
+    final average = activeDays == 0
+        ? 0.0
+        : values.reduce((a, b) => a + b) / activeDays;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -336,11 +471,15 @@ class _DailyBars extends StatelessWidget {
                     child: Tooltip(
                       message: '${i + 1}: ${values[i].toStringAsFixed(2)}',
                       child: Container(
-                        height: maxValue == 0 ? 2 : math.max(2, 86 * values[i] / maxValue),
+                        height: maxValue == 0
+                            ? 2
+                            : math.max(2, 86 * values[i] / maxValue),
                         decoration: BoxDecoration(
                           color: values[i] == 0
                               ? colors.glassBorder
-                              : (i == peak ? colors.accent : colors.accent.withValues(alpha: .45)),
+                              : (i == peak
+                                    ? colors.accent
+                                    : colors.accent.withValues(alpha: .45)),
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
@@ -356,7 +495,10 @@ class _DailyBars extends StatelessWidget {
             Text('1', style: TextStyle(fontSize: 11, color: colors.muted)),
             const Spacer(),
             if (month.year == now.year && month.month == now.month)
-              Text('today ${now.day}', style: TextStyle(fontSize: 11, color: colors.muted)),
+              Text(
+                'today ${now.day}',
+                style: TextStyle(fontSize: 11, color: colors.muted),
+              ),
             const Spacer(),
             Text('$days', style: TextStyle(fontSize: 11, color: colors.muted)),
           ],

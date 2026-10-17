@@ -89,8 +89,7 @@ class Money {
   bool get isZero => _units == BigInt.zero;
 
   @override
-  bool operator ==(Object other) =>
-      other is Money && other._units == _units;
+  bool operator ==(Object other) => other is Money && other._units == _units;
 
   @override
   int get hashCode => _units.hashCode;
@@ -137,7 +136,11 @@ class Money {
     final int dot = unsigned.indexOf('.');
     final String intPart = unsigned.substring(0, dot);
     String frac = unsigned.substring(dot + 1);
-    frac = frac.length > 2 ? frac.substring(0, 2) : frac;
+    // Preserve sub-cent balances. Hiding these makes a nonzero debt appear
+    // settled and prevents users from reconciling the exact ledger.
+    if (frac.substring(2).replaceAll('0', '').isEmpty) {
+      frac = frac.substring(0, 2);
+    }
     frac = frac.replaceFirst(RegExp(r'0+$'), '');
     const Map<String, String> symbols = {
       'INR': '₹',
@@ -147,10 +150,14 @@ class Money {
       'JPY': '¥',
     };
     final String? symbol = symbols[currencyCode.toUpperCase()];
-    final String amount = frac.isEmpty ? intPart : '$intPart.${frac.padRight(2, '0')}';
+    final String amount = frac.isEmpty
+        ? intPart
+        : '$intPart.${frac.padRight(2, '0')}';
     final String sign = negative ? '-' : '';
     if (currencyCode.isEmpty) return '$sign$amount';
-    return symbol != null ? '$sign$symbol$amount' : '$sign$currencyCode $amount';
+    return symbol != null
+        ? '$sign$symbol$amount'
+        : '$sign$currencyCode $amount';
   }
 
   @override

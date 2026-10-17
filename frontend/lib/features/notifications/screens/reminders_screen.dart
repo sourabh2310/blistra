@@ -11,10 +11,7 @@ import 'reminder_form_screen.dart';
 /// reminders and cancelling/editing existing ones. Pull-to-refresh also
 /// re-synchronizes local notifications.
 class RemindersScreen extends StatefulWidget {
-  const RemindersScreen({
-    super.key,
-    required this.onRefresh,
-  });
+  const RemindersScreen({super.key, required this.onRefresh});
 
   /// Invoked after local mutation refreshes to re-sync scheduled notifications.
   final Future<void> Function() onRefresh;
@@ -39,9 +36,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
   Future<void> _createOrEdit([Reminder? existing]) async {
     final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => ReminderFormScreen(existing: existing),
-      ),
+      MaterialPageRoute(builder: (_) => ReminderFormScreen(existing: existing)),
     );
     if (created == true) {
       await _load();
@@ -52,9 +47,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
     await context.read<RemindersController>().cancel(reminder.id);
     await widget.onRefresh();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reminder cancelled')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Reminder cancelled')));
     }
   }
 
@@ -67,40 +61,61 @@ class _RemindersScreenState extends State<RemindersScreen> {
       child: controller.loading && controller.reminders.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : controller.reminders.isEmpty
-              ? _emptyState(context)
-              : ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: controller.reminders.length,
-                  itemBuilder: (context, index) {
-                    final reminder = controller.reminders[index];
-                    return Dismissible(
-                      key: ValueKey(reminder.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        color: Theme.of(context).colorScheme.errorContainer,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 24),
-                        child: Icon(Icons.delete_outline,
-                            color:
-                                Theme.of(context).colorScheme.onErrorContainer),
-                      ),
-                      confirmDismiss: (_) async => true,
-                      onDismissed: (_) => _cancel(reminder),
-                      child: ListTile(
-                        leading:
-                            Icon(_iconFor(reminder.type), size: 28),
-                        title: Text(reminder.title,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(
-                          '${_dateFormatter.format(reminder.scheduledAt.toLocal())}'
-                          ' · ${controller.labelFor(reminder.type)}',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => _createOrEdit(reminder),
-                      ),
-                    );
-                  },
-                ),
+          ? _emptyState(context)
+          : ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: controller.reminders.length,
+              itemBuilder: (context, index) {
+                final reminder = controller.reminders[index];
+                return Dismissible(
+                  key: ValueKey(reminder.id),
+                  direction: reminder.type == ReminderType.general
+                      ? DismissDirection.endToStart
+                      : DismissDirection.none,
+                  background: Container(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 24),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  confirmDismiss: (_) async => true,
+                  onDismissed: (_) => _cancel(reminder),
+                  child: ListTile(
+                    leading: Icon(_iconFor(reminder.type), size: 28),
+                    title: Text(
+                      reminder.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      '${_dateFormatter.format(reminder.scheduledAt.toLocal())}'
+                      ' · ${controller.labelFor(reminder.type)}',
+                    ),
+                    trailing: Icon(
+                      reminder.type == ReminderType.general
+                          ? Icons.chevron_right
+                          : Icons.lock_outline,
+                    ),
+                    onTap: () {
+                      if (reminder.type == ReminderType.general) {
+                        _createOrEdit(reminder);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Edit this reminder in its medicine or task schedule.',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                );
+              },
+            ),
     );
   }
 
@@ -117,18 +132,16 @@ class _RemindersScreenState extends State<RemindersScreen> {
         const SizedBox(height: 16),
         const Center(child: Text('No upcoming reminders')),
         const SizedBox(height: 8),
-        const Center(
-          child: Text('Tap + to add a reminder'),
-        ),
+        const Center(child: Text('Tap + to add a reminder')),
       ],
     );
   }
 
   IconData _iconFor(ReminderType type) => switch (type) {
-        ReminderType.medicine => Icons.medication_outlined,
-        ReminderType.habit => Icons.repeat_outlined,
-        ReminderType.planner => Icons.event_note_outlined,
-        ReminderType.health => Icons.favorite_outline,
-        ReminderType.general => Icons.alarm,
-      };
+    ReminderType.medicine => Icons.medication_outlined,
+    ReminderType.habit => Icons.repeat_outlined,
+    ReminderType.planner => Icons.event_note_outlined,
+    ReminderType.health => Icons.favorite_outline,
+    ReminderType.general => Icons.alarm,
+  };
 }

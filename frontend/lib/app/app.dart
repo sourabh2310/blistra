@@ -15,7 +15,6 @@ import '../core/api/api_client.dart';
 import '../core/auth/auth_state.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/theme_controller.dart';
-import '../core/theme/app_theme.dart' show BlistraColors;
 import '../core/widgets/glass.dart';
 import '../features/auth/auth_widgets.dart' show AuthColors;
 import '../features/app_update/app_update_controller.dart';
@@ -41,7 +40,12 @@ class BlistraApp extends StatelessWidget {
   final AppDependencies deps;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: deps.authState,
+    builder: (context, _) => _buildSession(context),
+  );
+
+  Widget _buildSession(BuildContext context) {
     // Root scope: session + every feature controller, once, above the
     // Navigator so pushed module routes inherit them.
     return AppScope(
@@ -54,27 +58,34 @@ class BlistraApp extends StatelessWidget {
           ChangeNotifierProvider<AuthState>.value(value: deps.authState),
           ChangeNotifierProvider<ThemeController>.value(value: deps.theme),
           ChangeNotifierProvider<DashboardController>.value(
-              value: deps.dashboard),
+            value: deps.dashboard,
+          ),
           ChangeNotifierProvider<PlannerController>.value(value: deps.planner),
           ChangeNotifierProvider<PreferencesController>.value(
-              value: deps.preferences),
+            value: deps.preferences,
+          ),
           ChangeNotifierProvider<ProfileController>.value(value: deps.profile),
           ChangeNotifierProvider<DietController>.value(value: deps.diet),
           ChangeNotifierProvider<HabitsController>.value(value: deps.habits),
           ChangeNotifierProvider<FinanceController>.value(value: deps.finance),
           ChangeNotifierProvider<HealthRepository>.value(value: deps.health),
           ChangeNotifierProvider<DocumentsProvider>.value(
-              value: deps.documents),
+            value: deps.documents,
+          ),
           ChangeNotifierProvider<RemindersController>.value(
-              value: deps.reminders),
+            value: deps.reminders,
+          ),
           ChangeNotifierProvider<SettingsController>.value(
-              value: deps.settings),
+            value: deps.settings,
+          ),
           ChangeNotifierProvider<AppUpdateController>.value(
-              value: deps.appUpdate),
+            value: deps.appUpdate,
+          ),
         ],
         child: ListenableBuilder(
           listenable: deps.theme,
           builder: (context, _) => MaterialApp(
+            key: ValueKey(deps.authState.sessionGeneration),
             title: 'Blistra',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light(deps.theme.accent),
@@ -119,7 +130,8 @@ class AuthGate extends StatelessWidget {
         // While busy on the sign-in / registration flow keep that screen (and
         // its typed values) on screen instead of swapping in a spinner, which
         // would throw the form state away and land back on the login page.
-        final busyOnAuthFlow = deps.authState.status == AuthStatus.busy &&
+        final busyOnAuthFlow =
+            deps.authState.status == AuthStatus.busy &&
             !deps.authState.isAuthenticated;
         if (busyOnAuthFlow) {
           return AuthScreen(key: _authKey, deps: deps);
@@ -134,13 +146,8 @@ class AuthGate extends StatelessWidget {
           // Fresh registrations stay in the onboarding wizard until profile
           // setup completes; everyone else lands on the shell (Profile
           // surfaces any pending verification from there).
-          if (deps.authState.justRegistered &&
-              deps.authState.needsOnboarding) {
-            return AuthScreen(
-              key: _authKey,
-              deps: deps,
-              startWizard: true,
-            );
+          if (deps.authState.justRegistered && deps.authState.needsOnboarding) {
+            return AuthScreen(key: _authKey, deps: deps, startWizard: true);
           }
           return AppShell(deps: deps);
         }

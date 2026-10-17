@@ -180,17 +180,37 @@ class FinanceSplitIntegrationTest extends FinanceTestSupport {
         json(call(delete(EXPENSES + "/" + expenseId), bob, null), 400);
 
         // Partial then full repayment.
-        json(call(post(SETTLEMENTS), bob, "{\"friendId\":\"" + aliceId
+        JsonNode firstPayment = json(call(post(SETTLEMENTS), bob, "{\"friendId\":\"" + aliceId
                 + "\",\"direction\":\"I_PAID\",\"amount\":\"100\",\"currency\":\"INR\"}"), 201);
+        assertThat(firstPayment.get("status").asText()).isEqualTo("PENDING");
+        assertThat(balanceWith(alice, bobId)).isEqualTo("150.0000");
+        json(call(post(SETTLEMENTS + "/" + firstPayment.get("id").asText() + "/confirm"), alice, null), 200);
         assertThat(balanceWith(alice, bobId)).isEqualTo("50.0000");
-        json(call(post(SETTLEMENTS), alice, "{\"friendId\":\"" + bobId
+        JsonNode secondPayment = json(call(post(SETTLEMENTS), alice, "{\"friendId\":\"" + bobId
                 + "\",\"direction\":\"THEY_PAID\",\"amount\":\"50\",\"currency\":\"INR\"}"), 201);
+        json(call(post(SETTLEMENTS + "/" + secondPayment.get("id").asText() + "/confirm"), bob, null), 200);
         assertThat(balanceWith(alice, bobId)).isEqualTo("0");
 
         JsonNode detail = json(call(get(FRIENDS + "/" + bobId), alice, null), 200);
         assertThat(detail.get("expenses")).hasSize(1);
         assertThat(detail.get("settlements")).hasSize(2);
         assertThat(detail.get("friend").get("balances")).isEmpty();
+    }
+
+    @Test
+    void historicalRecordedPaymentKeepsEffectWithoutClaimingConfirmation() throws Exception {
+        befriendAliceAndBob();splitEqually(alice,"300",aliceId,bobId);
+        var id=java.util.UUID.randomUUID();
+        jdbcTemplate.update("""
+            INSERT INTO finance_settlements(id,created_by,payer_id,payee_id,amount,currency,settled_on,status)
+            VALUES (?,?,?,?,100,'INR',CURRENT_DATE,'LEGACY_RECORDED')
+            """,id,java.util.UUID.fromString(bobId),java.util.UUID.fromString(bobId),java.util.UUID.fromString(aliceId));
+        assertThat(balanceWith(alice,bobId)).isEqualTo("50.0000");
+        var records=json(call(get(SETTLEMENTS),alice,null),200);
+        assertThat(records.get(0).get("status").asText()).isEqualTo("LEGACY_RECORDED");
+        assertThat(records.get(0).get("editable").asBoolean()).isFalse();
+        json(call(delete(SETTLEMENTS+"/"+id),bob,null),400);
+        json(call(post(SETTLEMENTS+"/"+id+"/confirm"),alice,null),409);
     }
 
     @Test

@@ -41,6 +41,8 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private DocumentRepository documentRepository;
+    @Autowired
+    private com.blistra.documents.storage.LocalFileSystemDocumentStorage storage;
 
     private static Path storageRoot;
     @TempDir
@@ -538,7 +540,8 @@ class DocumentControllerIntegrationTest extends AbstractIntegrationTest {
 
         // Metadata gone
         assertThat(documentRepository.findById(UUID.fromString(docId))).isEmpty();
-        // Physical file gone
+        // Physical deletion is durable and performed by the post-commit worker.
+        storage.purgeQueued();
         assertThat(Files.exists(storageRoot.resolve(objectKey))).isFalse();
     }
 

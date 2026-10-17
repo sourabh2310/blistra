@@ -16,7 +16,7 @@ import 'expense_form_screen.dart';
 
 class ExpenseDetailScreen extends StatefulWidget {
   const ExpenseDetailScreen({super.key, this.expense, this.expenseId})
-      : assert(expense != null || expenseId != null);
+    : assert(expense != null || expenseId != null);
 
   final Expense? expense;
 
@@ -42,7 +42,9 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
   Future<void> _load() async {
     try {
       final controller = context.read<FinanceController>();
-      final loaded = await controller.api.expense(widget.expenseId ?? _expense!.id);
+      final loaded = await controller.api.expense(
+        widget.expenseId ?? _expense!.id,
+      );
       if (controller.status == FinanceLoadStatus.idle) controller.loadAll();
       if (mounted) setState(() => _expense = loaded);
     } catch (e) {
@@ -51,12 +53,33 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
   }
 
   Future<void> _edit() async {
-    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => ChangeNotifierProvider.value(
-        value: context.read<FinanceController>(),
-        child: ExpenseFormScreen(existing: _expense),
+    final controller = context.read<FinanceController>();
+    TripGroupDetail? group;
+    if (_expense!.groupId != null) {
+      try {
+        group = await controller.api.group(_expense!.groupId!);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(friendlyError(e))));
+        }
+        return;
+      }
+      if (!mounted) return;
+    }
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: controller,
+          child: ExpenseFormScreen(
+            existing: _expense,
+            groupId: group?.group.id,
+            groupMembers: group?.accepted,
+            groupCurrency: group?.group.currency,
+          ),
+        ),
       ),
-    ));
+    );
     if (saved == true) await _load();
   }
 
@@ -65,11 +88,16 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete expense?'),
-        content: Text(_expense!.isShared
-            ? 'It will be removed for everyone in the split and balances will update.'
-            : 'This can\'t be undone.'),
+        content: Text(
+          _expense!.isShared
+              ? 'It will be removed for everyone in the split and balances will update.'
+              : 'This can\'t be undone.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: oweColor),
             onPressed: () => Navigator.pop(context, true),
@@ -86,7 +114,8 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(friendlyError(e))));
     }
   }
 
@@ -105,9 +134,16 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
               showAvatar: false,
               actions: [
                 if (e != null && e.editable) ...[
-                  GlassIconButton(tooltip: 'Edit expense', icon: Icons.edit_rounded, onTap: _busy ? null : _edit),
                   GlassIconButton(
-                      tooltip: 'Delete expense', icon: Icons.delete_outline_rounded, onTap: _busy ? null : _delete),
+                    tooltip: 'Edit expense',
+                    icon: Icons.edit_rounded,
+                    onTap: _busy ? null : _edit,
+                  ),
+                  GlassIconButton(
+                    tooltip: 'Delete expense',
+                    icon: Icons.delete_outline_rounded,
+                    onTap: _busy ? null : _delete,
+                  ),
                 ],
               ],
             ),
@@ -116,7 +152,10 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
                   ? Center(
                       child: _error == null
                           ? const CircularProgressIndicator()
-                          : Text(_error!, style: TextStyle(color: colors.muted)),
+                          : Text(
+                              _error!,
+                              style: TextStyle(color: colors.muted),
+                            ),
                     )
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
@@ -131,21 +170,35 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
                                   const SizedBox(width: 14),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(e.description,
-                                            style: TextStyle(
-                                                fontSize: 19, fontWeight: FontWeight.w700, color: colors.text)),
-                                        Text('${e.category.label} · ${DateFormat('d MMM yyyy').format(e.spentOn)}',
-                                            style: TextStyle(color: colors.muted)),
+                                        Text(
+                                          e.description,
+                                          style: TextStyle(
+                                            fontSize: 19,
+                                            fontWeight: FontWeight.w700,
+                                            color: colors.text,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${e.category.label} · ${DateFormat('d MMM yyyy').format(e.spentOn)}',
+                                          style: TextStyle(color: colors.muted),
+                                        ),
                                       ],
                                     ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 18),
-                              Text(e.amount.display(currencyCode: e.currency),
-                                  style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: colors.text)),
+                              Text(
+                                e.amount.display(currencyCode: e.currency),
+                                style: TextStyle(
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w800,
+                                  color: colors.text,
+                                ),
+                              ),
                               const SizedBox(height: 4),
                               Text(
                                 e.isShared
@@ -161,7 +214,9 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
                                       : 'You lent ${e.myBalance.display(currencyCode: e.currency)}',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    color: e.myBalance.isNegative ? oweColor : owedColor,
+                                    color: e.myBalance.isNegative
+                                        ? oweColor
+                                        : owedColor,
                                   ),
                                 ),
                               ],
@@ -177,23 +232,50 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
                                 for (final s in e.shares)
                                   ListTile(
                                     leading: UserAvatar(s.user),
-                                    title: Text(s.user.id == meId ? 'You' : s.user.displayName),
+                                    title: Text(
+                                      s.user.id == meId
+                                          ? 'You'
+                                          : s.user.displayName,
+                                    ),
                                     subtitle: Text(
                                       [
-                                        if (s.user.id == e.paidBy.id) 'paid ${e.amount.display(currencyCode: e.currency)}',
-                                        if (e.splitType == SplitType.percent && s.value != null) '${s.value}%',
-                                        if (e.splitType == SplitType.shares && s.value != null) '${s.value} share(s)',
+                                        if (s.user.id == e.paidBy.id)
+                                          'paid ${e.amount.display(currencyCode: e.currency)}',
+                                        if (e.splitType == SplitType.percent &&
+                                            s.value != null)
+                                          '${s.value}%',
+                                        if (e.splitType == SplitType.shares &&
+                                            s.value != null)
+                                          '${s.value} share(s)',
                                       ].join(' · '),
                                     ),
-                                    trailing: Text(s.amount.display(currencyCode: e.currency),
-                                        style: TextStyle(fontWeight: FontWeight.w700, color: colors.text)),
+                                    trailing: Text(
+                                      s.amount.display(
+                                        currencyCode: e.currency,
+                                      ),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: colors.text,
+                                      ),
+                                    ),
                                   ),
-                                if (!e.shares.any((s) => s.user.id == e.paidBy.id))
+                                if (!e.shares.any(
+                                  (s) => s.user.id == e.paidBy.id,
+                                ))
                                   ListTile(
                                     leading: UserAvatar(e.paidBy),
-                                    title: Text(e.paidBy.id == meId ? 'You' : e.paidBy.displayName),
-                                    subtitle: Text('paid ${e.amount.display(currencyCode: e.currency)}'),
-                                    trailing: Text('—', style: TextStyle(color: colors.muted)),
+                                    title: Text(
+                                      e.paidBy.id == meId
+                                          ? 'You'
+                                          : e.paidBy.displayName,
+                                    ),
+                                    subtitle: Text(
+                                      'paid ${e.amount.display(currencyCode: e.currency)}',
+                                    ),
+                                    trailing: Text(
+                                      '—',
+                                      style: TextStyle(color: colors.muted),
+                                    ),
                                   ),
                               ],
                             ),
@@ -201,11 +283,18 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
                         ],
                         if (e.notes != null && e.notes!.isNotEmpty) ...[
                           const SectionLabel('Notes'),
-                          GlassCard(child: Text(e.notes!, style: TextStyle(color: colors.text))),
+                          GlassCard(
+                            child: Text(
+                              e.notes!,
+                              style: TextStyle(color: colors.text),
+                            ),
+                          ),
                         ],
                         const SizedBox(height: 14),
                         Text(
-                          e.createdBy.id == meId ? 'Added by you' : 'Added by ${e.createdBy.displayName}',
+                          e.createdBy.id == meId
+                              ? 'Added by you'
+                              : 'Added by ${e.createdBy.displayName}',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: colors.muted, fontSize: 12),
                         ),

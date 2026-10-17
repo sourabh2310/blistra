@@ -37,9 +37,9 @@ class DeviceContext {
 
   /// Live device timezone using current clock signals.
   static String currentTimezone() => resolveTimezone(
-        abbreviation: DateTime.now().timeZoneName,
-        offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
-      );
+    abbreviation: DateTime.now().timeZoneName,
+    offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
+  );
 
   /// Derives a 2-letter ISO country from a locale (language/region).
   ///
@@ -78,8 +78,9 @@ class DeviceContext {
   }
 
   static const _offsetFallback = <int, String>{
-    -720: 'Pacific/Kiritimati',
-    -660: 'Pacific/Honolulu',
+    -720: 'Etc/GMT+12',
+    -660: 'Pacific/Pago_Pago',
+    -600: 'Pacific/Honolulu',
     -480: 'America/Los_Angeles',
     -420: 'America/Denver',
     -360: 'America/Chicago',
@@ -89,7 +90,7 @@ class DeviceContext {
     -60: 'Atlantic/Azores',
     60: 'Europe/Berlin',
     120: 'Europe/Athens',
-    180: 'Asia/Dubai',
+    180: 'Asia/Riyadh',
     240: 'Asia/Dubai',
     270: 'Asia/Kabul',
     300: 'Asia/Karachi',

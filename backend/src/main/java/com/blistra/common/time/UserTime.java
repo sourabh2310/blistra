@@ -50,20 +50,32 @@ public class UserTime {
      * The authoritative zone for user calendar semantics.
      */
     public ZoneId zone() {
-        return userZone;
+        ZoneId profile = profileZone();
+        return profile == null ? userZone : profile;
+    }
+
+    public static ZoneId profileZone() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.blistra.auth.security.BlistraUserPrincipal principal
+                && principal.getTimezone() != null) {
+            try { return ZoneId.of(principal.getTimezone()); }
+            catch (java.time.DateTimeException ignored) { /* Legacy invalid profile: configured fallback. */ }
+        }
+        return null;
     }
 
     /**
      * Today's calendar date in the user zone.
      */
     public LocalDate today() {
-        return LocalDate.now(userZone);
+        return LocalDate.now(zone());
     }
 
     /**
      * The current moment expressed in the user zone (same instant as UTC).
      */
     public OffsetDateTime now() {
-        return OffsetDateTime.now(userZone);
+        return OffsetDateTime.now(zone());
     }
 }

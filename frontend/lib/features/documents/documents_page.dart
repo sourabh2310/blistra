@@ -192,19 +192,21 @@ class _DocumentsPageState extends State<DocumentsPage> {
                   },
                 ),
                 const Divider(height: 1),
-                ...DocumentCategory.values.map((cat) => ListTile(
-                      leading: Icon(
-                        provider.selectedCategory == cat
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      title: Text(cat.label),
-                      onTap: () {
-                        provider.setCategoryFilter(cat);
-                        Navigator.pop(context);
-                      },
-                    )),
+                ...DocumentCategory.values.map(
+                  (cat) => ListTile(
+                    leading: Icon(
+                      provider.selectedCategory == cat
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: Text(cat.label),
+                    onTap: () {
+                      provider.setCategoryFilter(cat);
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
               ],
             ),
           );
@@ -214,9 +216,8 @@ class _DocumentsPageState extends State<DocumentsPage> {
   }
 
   void _openUpload() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const UploadDocumentPage()),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const UploadDocumentPage()));
   }
 
   void _openDetail(AppDocument doc) {
@@ -230,7 +231,9 @@ class _DocumentsPageState extends State<DocumentsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Document'),
-        content: Text('Are you sure you want to delete "${doc.originalFilename}"? This action cannot be undone.'),
+        content: Text(
+          'Are you sure you want to delete "${doc.originalFilename}"? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -265,8 +268,9 @@ class _DocumentsPageState extends State<DocumentsPage> {
   }
 
   Future<void> _logout() async {
-    // AuthGate listens to AuthState and returns to the login screen.
-    context.read<AuthState>().logout();
+    final auth = context.read<AuthState>();
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    await auth.logout();
   }
 }
 

@@ -49,7 +49,9 @@ class _UploadDocumentPageState extends State<UploadDocumentPage> {
 
         final ext = file.extension?.toLowerCase() ?? '';
         if (!_allowedExtensions.contains(ext)) {
-          setState(() => _error = 'Unsupported file type. Allowed: PDF, JPG, PNG');
+          setState(
+            () => _error = 'Unsupported file type. Allowed: PDF, JPG, PNG',
+          );
           return;
         }
 
@@ -78,13 +80,23 @@ class _UploadDocumentPageState extends State<UploadDocumentPage> {
 
     try {
       final provider = context.read<DocumentsProvider>();
-      await provider.upload(
+      final uploaded = await provider.upload(
         file: _selectedFile!,
         category: _selectedCategory,
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
       );
+
+      if (uploaded == null) {
+        if (mounted) {
+          setState(() {
+            _error = provider.error ?? 'Upload failed. Please try again.';
+            _isUploading = false;
+          });
+        }
+        return;
+      }
 
       if (mounted) {
         Navigator.pop(context, true);
@@ -107,10 +119,12 @@ class _UploadDocumentPageState extends State<UploadDocumentPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Document'),
-        leading: _isUploading ? null : IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: _isUploading
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
       ),
       body: Form(
         key: _formKey,
@@ -135,10 +149,12 @@ class _UploadDocumentPageState extends State<UploadDocumentPage> {
                   prefixIcon: Icon(Icons.category_outlined),
                   border: OutlineInputBorder(),
                 ),
-                items: DocumentCategory.values.map((cat) => DropdownMenuItem(
-                      value: cat,
-                      child: Text(cat.label),
-                    )).toList(),
+                items: DocumentCategory.values
+                    .map(
+                      (cat) =>
+                          DropdownMenuItem(value: cat, child: Text(cat.label)),
+                    )
+                    .toList(),
                 onChanged: (val) => setState(() => _selectedCategory = val!),
               ),
               const SizedBox(height: 16),
@@ -346,7 +362,7 @@ class _FileSelectionCard extends StatelessWidget {
         ),
       ),
     );
-    }
+  }
 
   Widget _fileIcon(PlatformFile file) {
     final ext = file.extension?.toLowerCase() ?? '';

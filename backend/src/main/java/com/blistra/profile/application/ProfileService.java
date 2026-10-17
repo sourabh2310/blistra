@@ -18,6 +18,7 @@ import com.blistra.users.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -34,6 +35,9 @@ import java.util.UUID;
 @Slf4j
 @Service
 public class ProfileService {
+
+    @Value("${blistra.sms.enabled:${blistra.otp.dev-mode:false}}")
+    private boolean phoneVerificationRequired;
 
     private final CurrentUserProvider currentUserProvider;
     private final UserRepository userRepository;
@@ -227,7 +231,7 @@ public class ProfileService {
         if (!user.isEmailVerified()) {
             missing.add("email verification");
         }
-        if (user.getPhone() != null && !user.isPhoneVerified()) {
+        if (phoneVerificationRequired && user.getPhone() != null && !user.isPhoneVerified()) {
             missing.add("phone verification");
         }
         UserProfile profile = profileFor(user.getId());
@@ -258,7 +262,7 @@ public class ProfileService {
 
     private void maybeActivate(User user) {
         if (user.isEmailVerified()
-                && (user.getPhone() == null || user.isPhoneVerified())) {
+                && (!phoneVerificationRequired || user.getPhone() == null || user.isPhoneVerified())) {
             user.setStatus(com.blistra.users.domain.UserStatus.ACTIVE);
         }
     }

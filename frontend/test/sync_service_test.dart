@@ -11,9 +11,17 @@ import 'package:frontend/features/notifications/services/notification_scheduler.
 import 'package:frontend/features/notifications/services/reminder_sync_service.dart';
 
 class _FakeScheduler implements NotificationScheduler {
+  @override
+  Future<void> cancelAll() async {
+    cancelAllCalled = true;
+    cancelled.addAll(scheduled);
+    scheduled.clear();
+  }
+
   _FakeScheduler();
 
   final Set<int> scheduled = {};
+  bool cancelAllCalled = false;
   final Set<int> cancelled = {};
 
   @override
@@ -39,10 +47,7 @@ class _FakeScheduler implements NotificationScheduler {
 }
 
 class _FakeApi implements NotificationsApi {
-  _FakeApi({
-    required this.preferences,
-    required this.reminders,
-  });
+  _FakeApi({required this.preferences, required this.reminders});
 
   NotificationPreferences preferences;
   List<Reminder> reminders;
@@ -180,90 +185,95 @@ void main() {
       expect(scheduler.cancelled, isEmpty);
     });
 
-    test('cancels all known reminder ids then schedules active future ones', () async {
-      final now = DateTime.now().toUtc();
-      final future1 = now.add(const Duration(hours: 1));
-      final future2 = now.add(const Duration(hours: 2));
-      final past = now.subtract(const Duration(hours: 1));
+    test(
+      'cancels all known reminder ids then schedules active future ones',
+      () async {
+        final now = DateTime.now().toUtc();
+        final future1 = now.add(const Duration(hours: 1));
+        final future2 = now.add(const Duration(hours: 2));
+        final past = now.subtract(const Duration(hours: 1));
 
-      api.reminders = [
-        Reminder(
-          id: 'r1',
-          type: ReminderType.general,
-          title: 'Future 1',
-          body: null,
-          scheduledAt: future1,
-          timezone: 'UTC',
-          status: ReminderStatus.scheduled,
-        ),
-        Reminder(
-          id: 'r2',
-          type: ReminderType.general,
-          title: 'Future 2',
-          body: null,
-          scheduledAt: future2,
-          timezone: 'UTC',
-          status: ReminderStatus.scheduled,
-        ),
-        Reminder(
-          id: 'r3',
-          type: ReminderType.general,
-          title: 'Past',
-          body: null,
-          scheduledAt: past,
-          timezone: 'UTC',
-          status: ReminderStatus.scheduled,
-        ),
-        Reminder(
-          id: 'r4',
-          type: ReminderType.general,
-          title: 'Cancelled',
-          body: null,
-          scheduledAt: future1,
-          timezone: 'UTC',
-          status: ReminderStatus.cancelled,
-        ),
-      ];
+        api.reminders = [
+          Reminder(
+            id: 'r1',
+            type: ReminderType.general,
+            title: 'Future 1',
+            body: null,
+            scheduledAt: future1,
+            timezone: 'UTC',
+            status: ReminderStatus.scheduled,
+          ),
+          Reminder(
+            id: 'r2',
+            type: ReminderType.general,
+            title: 'Future 2',
+            body: null,
+            scheduledAt: future2,
+            timezone: 'UTC',
+            status: ReminderStatus.scheduled,
+          ),
+          Reminder(
+            id: 'r3',
+            type: ReminderType.general,
+            title: 'Past',
+            body: null,
+            scheduledAt: past,
+            timezone: 'UTC',
+            status: ReminderStatus.scheduled,
+          ),
+          Reminder(
+            id: 'r4',
+            type: ReminderType.general,
+            title: 'Cancelled',
+            body: null,
+            scheduledAt: future1,
+            timezone: 'UTC',
+            status: ReminderStatus.cancelled,
+          ),
+        ];
 
-      await service.refresh();
+        await service.refresh();
 
-      // All four known ids should have been cancelled first
-      expect(
-        scheduler.cancelled,
-        {
+        // All four known ids should have been cancelled first
+        expect(scheduler.cancelled, {
           notificationIdFor('r1'),
           notificationIdFor('r2'),
           notificationIdFor('r3'),
           notificationIdFor('r4'),
-        },
-      );
+        });
 
-      // Only r1 and r2 (active + future) should be scheduled
-      expect(
-        scheduler.scheduled,
-        {notificationIdFor('r1'), notificationIdFor('r2')},
-      );
-    });
+        // Only r1 and r2 (active + future) should be scheduled
+        expect(scheduler.scheduled, {
+          notificationIdFor('r1'),
+          notificationIdFor('r2'),
+        });
+      },
+    );
 
-    test('respects preferences: disabled master switch suppresses all', () async {
-      final now = DateTime.now().toUtc();
-      api.preferences = NotificationPreferences.defaults().copyWith(enabled: false);
-      api.reminders = [
-        Reminder(
-          id: 'r1',
-          type: ReminderType.general,
-          title: 'Future',
-          body: null,
-          scheduledAt: now.add(const Duration(hours: 1)),
-          timezone: 'UTC',
-          status: ReminderStatus.scheduled,
-        ),
-      ];
+    test(
+      'respects preferences: disabled master switch suppresses all',
+      () async {
+        final now = DateTime.now().toUtc();
+        api.preferences = NotificationPreferences.defaults().copyWith(
+          enabled: false,
+        );
+        api.reminders = [
+          Reminder(
+            id: 'r1',
+            type: ReminderType.general,
+            title: 'Future',
+            body: null,
+            scheduledAt: now.add(const Duration(hours: 1)),
+            timezone: 'UTC',
+            status: ReminderStatus.scheduled,
+          ),
+        ];
 
-      await service.refresh();
+        await service.refresh();
 
-      expect(scheduler.scheduled, isEmpty);
-    });
+        expect(scheduler.scheduled, isEmpty);
+      },
+    );
 
     test('respects category toggles', () async {
       final now = DateTime.now().toUtc();
@@ -297,71 +307,75 @@ void main() {
       expect(scheduler.scheduled, {notificationIdFor('r2')});
     });
 
-    test('hides content for domain types when hideSensitiveContent=true', () async {
-      final now = DateTime.now().toUtc();
-      api.preferences = NotificationPreferences.defaults()
-          .copyWith(hideSensitiveContent: true);
-      api.reminders = [
-        Reminder(
-          id: 'r1',
-          type: ReminderType.medicine,
-          title: 'Aspirin 100mg',
-          body: 'Take with water',
-          scheduledAt: now.add(const Duration(hours: 1)),
-          timezone: 'UTC',
-          status: ReminderStatus.scheduled,
-        ),
-        Reminder(
-          id: 'r2',
-          type: ReminderType.general,
-          title: 'Meeting',
-          body: 'Team sync',
-          scheduledAt: now.add(const Duration(hours: 1)),
-          timezone: 'UTC',
-          status: ReminderStatus.scheduled,
-        ),
-      ];
+    test(
+      'hides content for domain types when hideSensitiveContent=true',
+      () async {
+        final now = DateTime.now().toUtc();
+        api.preferences = NotificationPreferences.defaults().copyWith(
+          hideSensitiveContent: true,
+        );
+        api.reminders = [
+          Reminder(
+            id: 'r1',
+            type: ReminderType.medicine,
+            title: 'Aspirin 100mg',
+            body: 'Take with water',
+            scheduledAt: now.add(const Duration(hours: 1)),
+            timezone: 'UTC',
+            status: ReminderStatus.scheduled,
+          ),
+          Reminder(
+            id: 'r2',
+            type: ReminderType.general,
+            title: 'Meeting',
+            body: 'Team sync',
+            scheduledAt: now.add(const Duration(hours: 1)),
+            timezone: 'UTC',
+            status: ReminderStatus.scheduled,
+          ),
+        ];
 
-      await service.refresh();
+        await service.refresh();
 
-      // Both scheduled, but medicine should have generic title/body
-      expect(scheduler.scheduled.length, 2);
+        // Both scheduled, but medicine should have generic title/body
+        expect(scheduler.scheduled.length, 2);
 
-      // Verify by re-running with capture — the service doesn't expose
-      // scheduled notifications directly, but the logic is tested above.
-    });
+        // Verify by re-running with capture — the service doesn't expose
+        // scheduled notifications directly, but the logic is tested above.
+      },
+    );
 
-    test('clearAll cancels all known reminder ids while authenticated', () async {
-      api.reminders = [
-        Reminder(
-          id: 'r1',
-          type: ReminderType.general,
-          title: 'Future',
-          body: null,
-          scheduledAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
-          timezone: 'UTC',
-          status: ReminderStatus.scheduled,
-        ),
-        Reminder(
-          id: 'r2',
-          type: ReminderType.general,
-          title: 'Cancelled',
-          body: null,
-          scheduledAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
-          timezone: 'UTC',
-          status: ReminderStatus.cancelled,
-        ),
-      ];
+    test(
+      'clearAll cancels all known reminder ids while authenticated',
+      () async {
+        api.reminders = [
+          Reminder(
+            id: 'r1',
+            type: ReminderType.general,
+            title: 'Future',
+            body: null,
+            scheduledAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
+            timezone: 'UTC',
+            status: ReminderStatus.scheduled,
+          ),
+          Reminder(
+            id: 'r2',
+            type: ReminderType.general,
+            title: 'Cancelled',
+            body: null,
+            scheduledAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
+            timezone: 'UTC',
+            status: ReminderStatus.cancelled,
+          ),
+        ];
 
-      await service.clearAll();
+        await service.clearAll();
 
-      expect(
-        scheduler.cancelled,
-        {notificationIdFor('r1'), notificationIdFor('r2')},
-      );
-    });
+        expect(scheduler.cancelAllCalled, isTrue);
+      },
+    );
 
-    test('clearAll no-ops when not authenticated', () async {
+    test('clearAll clears OS state even without authentication', () async {
       tokens = _FakeTokenStore(false);
       service = ReminderSyncService(
         api: api,
@@ -372,6 +386,7 @@ void main() {
       await service.clearAll();
 
       expect(scheduler.cancelled, isEmpty);
+      expect(scheduler.cancelAllCalled, isTrue);
     });
   });
 }

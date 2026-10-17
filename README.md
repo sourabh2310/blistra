@@ -14,8 +14,8 @@ It brings together:
 - Finance
 - Documents
 - Notifications
-- Goals
-- AI-assisted workflows
+
+Goals and AI-assisted workflows remain planned capabilities.
 
 The goal is to provide one coherent personal system rather than a collection of disconnected utilities.
 
@@ -23,22 +23,13 @@ The goal is to provide one coherent personal system rather than a collection of 
 
 ## Project Status
 
-**Current stage: Foundation / Architecture**
+**Current stage: Implemented modules / pre-release remediation**
 
-The initial development foundation is established:
+The repository contains Flutter screens and a Spring Boot/PostgreSQL API for dashboard, planner, health, medicines, diet, habits, finance, documents, notifications and profile. Finance includes opt-in trip groups and settlements that require the other participant's confirmation.
 
-- Repository created
-- Backend initialized
-- Flutter frontend initialized
-- PostgreSQL development database running
-- Spring Boot connected to PostgreSQL
-- Android emulator verified
-- Backend health endpoint verified
-- Flutter analysis passing
-- Flutter tests passing
-- Core architecture and security documentation established
+Android is the current release target. Other platform folders do not imply verified release support. The interface and measurement inputs currently use English and metric units. Local reminders use a rolling scheduling window and require periodic app refresh.
 
-The product is **not yet feature complete**.
+The product is **not yet release-ready**. See [remediation progress](REMEDIATION_PROGRESS.md) for exact changes, validation and remaining work, and [deployment guidance](docs/deployment.md) before applying any infrastructure changes. The [original application review](APPLICATION_REVIEW_2026-10-17.md) is a historical snapshot.
 
 ---
 
@@ -54,7 +45,7 @@ The initial V1 focuses on:
 6. Habits
 7. Finance
 
-Additional capabilities such as Documents, Notifications, Goals, and richer AI functionality can be introduced incrementally.
+Documents, Notifications and Profile are also implemented. Goals and richer AI functionality are future scope.
 
 ---
 
@@ -84,7 +75,7 @@ Blistra starts as a **modular monolith**.
                     │ Habits                  │
                     │ Finance                 │
                     │ Dashboard               │
-                    │ Future: AI / Documents  │
+                    │ Documents / Notifications│
                     └────────────┬────────────┘
                                  │
                                  ▼

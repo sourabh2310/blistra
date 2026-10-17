@@ -40,6 +40,8 @@ public class JwtProvider {
     }
 
     public String generateToken(UserDetails userDetails) {
+        if (userDetails instanceof BlistraUserPrincipal principal)
+            return generateToken(principal.getId(),principal.getUsername(),principal.getSessionVersion());
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", userDetails.getUsername());
         return createToken(claims, userDetails.getUsername());
@@ -51,15 +53,26 @@ public class JwtProvider {
      * back to email lookup (see CustomUserDetailsService.loadBySubject).
      */
     public String generateToken(java.util.UUID userId, String email) {
+        return generateToken(userId, email, 0);
+    }
+
+    public String generateToken(java.util.UUID userId, String email, long sessionVersion) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", email);
+        claims.put("sv", sessionVersion);
         return createToken(claims, userId.toString());
+    }
+
+    public boolean matchesSessionVersion(String token, long version) {
+        Number issued = extractAllClaims(token).get("sv", Number.class);
+        return (issued == null ? 0 : issued.longValue()) == version;
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
+                .id(java.util.UUID.randomUUID().toString())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
                 .signWith(getSigningKey())

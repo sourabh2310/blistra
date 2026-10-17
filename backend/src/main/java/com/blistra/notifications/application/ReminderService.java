@@ -29,6 +29,9 @@ import java.util.UUID;
 @Transactional
 public class ReminderService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.blistra.medicines.application.MedicineReminderProvider medicineReminders;
+
     private final ReminderRepository reminderRepository;
     private final CurrentUserProvider currentUserProvider;
 
@@ -82,7 +85,10 @@ public class ReminderService {
         } else {
             throw new BadRequestException("Invalid reminder status filter");
         }
-        return reminders.stream().map(this::toResponse).toList();
+        var responses = new java.util.ArrayList<>(reminders.stream().map(this::toResponse).toList());
+        if (!"CANCELLED".equalsIgnoreCase(status)) responses.addAll(medicineReminders.upcoming());
+        responses.sort(java.util.Comparator.comparing(ReminderResponse::getScheduledAt));
+        return responses;
     }
 
     @Transactional(readOnly = true)

@@ -45,6 +45,10 @@ public class DocumentService {
     private final DocumentValidator validator;
     private final DocumentsProperties properties;
     private final UserRepository userRepository;
+    @org.springframework.beans.factory.annotation.Value("${blistra.documents.max-files-per-user:100}")
+    private int maxFilesPerUser = 100;
+    @org.springframework.beans.factory.annotation.Value("${blistra.documents.max-bytes-per-user:104857600}")
+    private long maxBytesPerUser = 104857600L;
 
     public DocumentService(DocumentRepository documentRepository,
                            DocumentStorageService storage,
@@ -91,6 +95,13 @@ public class DocumentService {
 
         User user = getCurrentUser();
 
+        // Serialize aggregate quota checks for concurrent uploads by one user.
+        userRepository.lockById(user.getId());
+        if (documentRepository.countByUserId(user.getId()) >= maxFilesPerUser
+                || file != null && documentRepository.totalBytesByUserId(user.getId()) + file.getSize() > maxBytesPerUser) {
+            throw new InvalidRequestException("Document storage limit reached. Remove unused files before uploading.");
+        }
+
         // Validate file content and detect MIME type
         String contentType = validator.validateAndDetect(file);
 
@@ -124,6 +135,10 @@ public class DocumentService {
         }
 
         // Persist metadata
+        if (documentRepository.totalBytesByUserId(user.getId()) + size > maxBytesPerUser) {
+            storage.delete(objectKey);
+            throw new InvalidRequestException("Document storage limit reached. Remove unused files before uploading.");
+        }
         Document doc = new Document(user, originalFilename, objectKey,
                 contentType, size, contentHash, category, description);
         try {

@@ -19,8 +19,8 @@ class BlistraApiClient {
     TokenStore? tokenStore,
     this._tokenProvider,
     this._onUnauthorized,
-  })  : _http = httpClient ?? http.Client(),
-        _tokens = tokenStore;
+  }) : _http = httpClient ?? http.Client(),
+       _tokens = tokenStore;
 
   final String baseUrl;
   final http.Client _http;
@@ -32,12 +32,12 @@ class BlistraApiClient {
 
   Future<List<dynamic>> getList(String path) => _sendList('GET', path);
 
-  Future<Map<String, dynamic>> post(String path,
-          {Map<String, dynamic>? body}) =>
-      _send('POST', path, body: body);
+  Future<Map<String, dynamic>> post(
+    String path, {
+    Map<String, dynamic>? body,
+  }) => _send('POST', path, body: body);
 
-  Future<Map<String, dynamic>> put(String path,
-          {Map<String, dynamic>? body}) =>
+  Future<Map<String, dynamic>> put(String path, {Map<String, dynamic>? body}) =>
       _send('PUT', path, body: body);
 
   Future<void> delete(String path) => _send('DELETE', path);
@@ -76,28 +76,43 @@ class BlistraApiClient {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    final token = _tokenProvider?.call() ?? _tokens?.token;
+    final token = _tokenProvider != null ? _tokenProvider() : _tokens?.token;
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
 
     try {
       final encodedBody = body == null ? null : jsonEncode(body);
-      return switch (method) {
-        'GET' => await _http
-            .get(uri, headers: headers)
-            .timeout(const Duration(seconds: 15)),
-        'POST' => await _http
-            .post(uri, headers: headers, body: encodedBody)
-            .timeout(const Duration(seconds: 15)),
-        'PUT' => await _http
-            .put(uri, headers: headers, body: encodedBody)
-            .timeout(const Duration(seconds: 15)),
-        'DELETE' => await _http
-            .delete(uri, headers: headers)
-            .timeout(const Duration(seconds: 15)),
+      final response = switch (method) {
+        'GET' =>
+          await _http
+              .get(uri, headers: headers)
+              .timeout(const Duration(seconds: 15)),
+        'POST' =>
+          await _http
+              .post(uri, headers: headers, body: encodedBody)
+              .timeout(const Duration(seconds: 15)),
+        'PUT' =>
+          await _http
+              .put(uri, headers: headers, body: encodedBody)
+              .timeout(const Duration(seconds: 15)),
+        'DELETE' =>
+          await _http
+              .delete(uri, headers: headers)
+              .timeout(const Duration(seconds: 15)),
         _ => throw ArgumentError.value(method, 'method'),
       };
+      final current = _tokenProvider != null
+          ? _tokenProvider()
+          : _tokens?.token;
+      if (token != current) {
+        throw ApiException(
+          409,
+          'SESSION_CHANGED',
+          'The account session changed.',
+        );
+      }
+      return response;
     } on http.ClientException catch (error) {
       throw NetworkException(error);
     } on TimeoutException catch (error) {
@@ -134,11 +149,18 @@ class BlistraApiClient {
           if (field.isNotEmpty) fieldErrors[field] = fieldMessage;
         }
       }
-      return ApiException(response.statusCode, code, message,
-          fieldErrors: fieldErrors);
+      return ApiException(
+        response.statusCode,
+        code,
+        message,
+        fieldErrors: fieldErrors,
+      );
     } on FormatException {
       return ApiException(
-          response.statusCode, 'UNKNOWN_ERROR', 'Request failed');
+        response.statusCode,
+        'UNKNOWN_ERROR',
+        'Request failed',
+      );
     }
   }
 }

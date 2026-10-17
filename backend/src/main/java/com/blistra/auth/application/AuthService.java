@@ -40,6 +40,8 @@ import java.util.UUID;
 @Slf4j
 @Service
 public class AuthService {
+    private static final String DUMMY_PASSWORD_HASH =
+            new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(java.util.UUID.randomUUID().toString());
 
     @Autowired
     private UserRepository userRepository;
@@ -58,10 +60,16 @@ public class AuthService {
 
     @Autowired
     private OtpProperties otpProperties;
+    @Autowired
+    private com.blistra.auth.security.AuthRateLimiter rateLimiter;
 
     /** SMS codes are only issued when an SMS provider exists (dev console counts). */
     @Value("${blistra.sms.enabled:${blistra.otp.dev-mode:false}}")
     private boolean smsEnabled;
+    @Value("${blistra.security.private-discovery:true}")
+    private boolean privateDiscovery;
+    @Value("${blistra.security.require-terms:true}")
+    private boolean requireTerms;
 
     @Value("${JWT_EXPIRATION:${jwt.expiration:86400000}}")
     private long jwtExpirationMs;
@@ -80,14 +88,14 @@ public class AuthService {
             String normalized = IdentityNormalizer.normalizeEmail(email);
             emailAvailable = normalized != null
                     && IdentityNormalizer.isValidEmail(email)
-                    && !userRepository.existsByEmailIgnoreCase(normalized);
+                    && (privateDiscovery || !userRepository.existsByEmailIgnoreCase(normalized));
         }
         Boolean phoneAvailable = null;
         if (phone != null && !phone.isBlank()) {
             String normalized = IdentityNormalizer.normalizePhone(phone);
             phoneAvailable = normalized != null
                     && IdentityNormalizer.isValidPhone(phone)
-                    && !userRepository.existsByPhone(normalized);
+                    && (privateDiscovery || !userRepository.existsByPhone(normalized));
         }
         return AvailabilityResponse.builder()
                 .usernameAvailable(usernameAvailable)
@@ -98,6 +106,9 @@ public class AuthService {
 
     @Transactional
     public UserResponse register(RegisterRequest request) {
+        if (requireTerms && !Boolean.TRUE.equals(request.getTermsAccepted())) {
+            throw new BadRequestException("Accept the Terms and Privacy Policy to create an account.");
+        }
         log.debug("Attempting to register user");
 
         String email = IdentityNormalizer.normalizeEmail(request.getEmail());
@@ -150,6 +161,7 @@ public class AuthService {
         user.setStatus(UserStatus.PENDING_VERIFICATION);
         if (Boolean.TRUE.equals(request.getTermsAccepted())) {
             user.setTermsAcceptedAt(LocalDateTime.now());
+            user.setTermsVersion("2026-10-17");
         }
         User saved = userRepository.save(user);
 
@@ -175,18 +187,20 @@ public class AuthService {
             log.error("Verification sender unavailable after registration for {}", saved.getId());
         }
 
-        String token = jwtProvider.generateToken(saved.getId(), saved.getEmail());
+        String token = jwtProvider.generateToken(saved.getId(), saved.getEmail(), saved.getSessionVersion());
         return mapToUserResponse(saved, token);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public AuthResponse login(LoginRequest request) {
         log.debug("Attempting login");
 
         String identifier = request.effectiveIdentifier();
+        rateLimiter.attempt("login-account", identifier == null ? "" : identifier, 20);
         User user = resolveUser(identifier)
                 .orElseThrow(() -> {
                     log.warn("Login attempt for unknown account");
+                    passwordEncoder.matches(request.getPassword(), DUMMY_PASSWORD_HASH);
                     return new InvalidCredentialsException("Invalid email or password");
                 });
 
@@ -203,7 +217,7 @@ public class AuthService {
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
-        String token = jwtProvider.generateToken(user.getId(), user.getEmail());
+        String token = jwtProvider.generateToken(user.getId(), user.getEmail(), user.getSessionVersion());
         log.info("User logged in successfully: {}", user.getId());
 
         return AuthResponse.builder()
@@ -272,6 +286,12 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public RecoveryChannelsResponse recoveryChannels(String identifier) {
+        if (privateDiscovery) {
+            return RecoveryChannelsResponse.builder()
+                    .channels(smsEnabled ? List.of("EMAIL", "SMS") : List.of("EMAIL"))
+                    .emailMasked("The verified email on your account")
+                    .phoneMasked(smsEnabled ? "The verified phone on your account" : null).build();
+        }
         User user = resolveUser(identifier)
                 .filter(u -> !u.isBlocked())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -342,6 +362,7 @@ public class AuthService {
         }
         verificationService.verify(user.getId(), OtpPurpose.PASSWORD_RESET, code);
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.revokeSessions();
         maybeActivate(user);
         userRepository.save(user);
         log.info("Password reset for user {}", user.getId());
@@ -354,6 +375,7 @@ public class AuthService {
             throw new InvalidCredentialsException("Invalid email or password");
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.revokeSessions();
         userRepository.save(user);
         return mapToUserResponse(user, null);
     }
@@ -449,7 +471,7 @@ public class AuthService {
 
     private void maybeActivate(User user) {
         if (user.isEmailVerified()
-                && (user.getPhone() == null || user.isPhoneVerified())
+                && (!smsEnabled || user.getPhone() == null || user.isPhoneVerified())
                 && user.getStatus() == UserStatus.PENDING_VERIFICATION) {
             user.setStatus(UserStatus.ACTIVE);
         }

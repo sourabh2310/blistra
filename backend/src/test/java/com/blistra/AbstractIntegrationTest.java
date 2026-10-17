@@ -30,6 +30,10 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+        // Cached test contexts share one database but use different file roots.
+        // Exercise workers explicitly in lifecycle tests, never across contexts.
+        registry.add("blistra.documents.cleanup-initial-delay-ms", () -> "86400000");
+        registry.add("blistra.documents.reconcile-initial-delay-ms", () -> "86400000");
         // Test-only JWT secret (>= 32 bytes). Production must supply JWT_SECRET
         // via the environment; the application fails startup without it.
         // Never call GitHub from tests; the update check answers 204.
@@ -43,6 +47,8 @@ public abstract class AbstractIntegrationTest {
      * to be cleared explicitly before the users they reference.
      */
     protected void deleteAllUsers() {
+        jdbcTemplate.execute("DELETE FROM finance_change_history");
+        jdbcTemplate.execute("DELETE FROM finance_groups");
         jdbcTemplate.execute("DELETE FROM finance_expense_shares");
         jdbcTemplate.execute("DELETE FROM finance_expenses");
         jdbcTemplate.execute("DELETE FROM finance_settlements");

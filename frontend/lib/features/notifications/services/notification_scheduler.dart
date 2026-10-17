@@ -17,4 +17,7 @@ abstract interface class NotificationScheduler {
 
   /// Removes several previously scheduled notifications.
   Future<void> cancelMany(Iterable<int> ids);
+
+  /// Cancels this application's notifications without contacting the server.
+  Future<void> cancelAll();
 }

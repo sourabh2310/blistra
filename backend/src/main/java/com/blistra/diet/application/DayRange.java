@@ -19,6 +19,11 @@ import java.time.ZoneOffset;
 public record DayRange(OffsetDateTime start, OffsetDateTime end) {
 
     public static DayRange of(LocalDate date, int offsetMinutes) {
+        var profileZone = com.blistra.common.time.UserTime.profileZone();
+        if (profileZone != null) {
+            return new DayRange(date.atStartOfDay(profileZone).toOffsetDateTime(),
+                    date.plusDays(1).atStartOfDay(profileZone).toOffsetDateTime());
+        }
         ZoneOffset offset = ZoneOffset.ofTotalSeconds(offsetMinutes * 60);
         return new DayRange(
                 date.atStartOfDay().atOffset(offset),

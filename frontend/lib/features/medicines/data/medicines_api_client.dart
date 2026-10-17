@@ -25,8 +25,8 @@ class MedicinesApiClient {
     String? baseUrl,
     this._tokenProvider,
     this._onUnauthorized,
-  })  : _http = httpClient ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
+  }) : _http = httpClient ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   final http.Client _http;
   final String _baseUrl;
@@ -36,11 +36,11 @@ class MedicinesApiClient {
   static const Duration _timeout = Duration(seconds: 20);
 
   Map<String, String> _headers() => {
-        HttpHeaders.contentTypeHeader: 'application/json',
-        HttpHeaders.acceptHeader: 'application/json',
-        if (_tokenProvider != null && _tokenProvider().isNotEmpty)
-          HttpHeaders.authorizationHeader: 'Bearer ${_tokenProvider()}',
-      };
+    HttpHeaders.contentTypeHeader: 'application/json',
+    HttpHeaders.acceptHeader: 'application/json',
+    if (_tokenProvider != null && _tokenProvider().isNotEmpty)
+      HttpHeaders.authorizationHeader: 'Bearer ${_tokenProvider()}',
+  };
 
   Uri _uri(String path, {Map<String, String>? query}) {
     final base = Uri.parse(_baseUrl);
@@ -48,7 +48,9 @@ class MedicinesApiClient {
     if (query == null || query.isEmpty) {
       return resolved;
     }
-    return resolved.replace(queryParameters: {...resolved.queryParameters, ...query});
+    return resolved.replace(
+      queryParameters: {...resolved.queryParameters, ...query},
+    );
   }
 
   Future<Map<String, dynamic>> _sendObject(
@@ -138,9 +140,20 @@ class MedicinesApiClient {
       request.body = jsonEncode(body);
     }
     try {
-      final http.StreamedResponse streamed =
-          await _http.send(request).timeout(_timeout);
-      return await http.Response.fromStream(streamed);
+      final session = _tokenProvider?.call();
+      final http.StreamedResponse streamed = await _http
+          .send(request)
+          .timeout(_timeout);
+      final response = await http.Response.fromStream(streamed)
+          .timeout(_timeout);
+      if (session != _tokenProvider?.call()) {
+        throw ApiException(
+          409,
+          'SESSION_CHANGED',
+          'The account session changed.',
+        );
+      }
+      return response;
     } on ApiException {
       rethrow;
     } catch (error) {
@@ -213,7 +226,10 @@ class MedicinesApiClient {
 
   /// Expected doses for the user's current local date, expanded server-side
   /// from active medicines and schedules and matched against recorded doses.
-  Future<MedicineToday> getTodayDoses({DateTime? date, int? offsetMinutes}) async {
+  Future<MedicineToday> getTodayDoses({
+    DateTime? date,
+    int? offsetMinutes,
+  }) async {
     final data = await _sendObject(
       'GET',
       '/api/v1/medicines/today',
@@ -247,7 +263,10 @@ class MedicinesApiClient {
     return Medicine.fromJson(data);
   }
 
-  Future<Medicine> updateMedicine(String id, Map<String, dynamic> request) async {
+  Future<Medicine> updateMedicine(
+    String id,
+    Map<String, dynamic> request,
+  ) async {
     final data = await _sendObject(
       'PUT',
       '/api/v1/medicines/$id',
@@ -258,11 +277,7 @@ class MedicinesApiClient {
   }
 
   Future<void> archiveMedicine(String id) async {
-    await _sendVoid(
-      'DELETE',
-      '/api/v1/medicines/$id',
-      expectStatus: 204,
-    );
+    await _sendVoid('DELETE', '/api/v1/medicines/$id', expectStatus: 204);
   }
 
   // ============ Schedules ============
@@ -273,7 +288,9 @@ class MedicinesApiClient {
       '/api/v1/medicines/$medicineId/schedules',
       expectStatus: 200,
     );
-    return data.map((e) => Schedule.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => Schedule.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Schedule> createSchedule(
@@ -321,10 +338,7 @@ class MedicinesApiClient {
     final data = await _sendObject(
       'GET',
       '/api/v1/medicines/$medicineId/doses',
-      query: {
-        'page': '$page',
-        'size': '$size',
-      },
+      query: {'page': '$page', 'size': '$size'},
       expectStatus: 200,
     );
     return Page.fromJson(data, DoseRecord.fromJson);

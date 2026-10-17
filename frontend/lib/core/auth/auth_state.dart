@@ -22,7 +22,7 @@ enum AuthStatus { unknown, authenticated, unauthenticated, busy }
 
 class AuthState extends ChangeNotifier {
   AuthState({required this.apiClient, AuthStorage? storage})
-      : _storage = storage ?? AuthStorage();
+    : _storage = storage ?? AuthStorage();
 
   final ApiClient apiClient;
   final AuthStorage _storage;
@@ -32,6 +32,10 @@ class AuthState extends ChangeNotifier {
   UserAccountDto? _account;
   ApiException? _lastError;
   bool _justRegistered = false;
+  int _sessionGeneration = 0;
+  int get sessionGeneration => _sessionGeneration;
+  Future<void> Function()? onSessionEnded;
+  Future<void> _endingSession = Future.value();
 
   /// True only for the session created by [register] until onboarding
   /// completes, logout, or restart. Lets [AuthGate] keep the fresh account in
@@ -99,12 +103,8 @@ class AuthState extends ChangeNotifier {
 
   /// Called by [ApiClient.onUnauthorized] on HTTP 401.
   Future<void> handleUnauthorized() async {
-    apiClient.token = null;
-    await _storage.clear();
-    _userEmail = '';
-    _account = null;
+    await logout();
     _lastError = ApiException(401, 'UNAUTHORIZED', 'Session expired.');
-    _status = AuthStatus.unauthenticated;
     notifyListeners();
   }
 
@@ -118,6 +118,7 @@ class AuthState extends ChangeNotifier {
     String? displayName,
     bool termsAccepted = true,
   }) async {
+    await _endingSession;
     _setBusy();
     try {
       final account = await apiClient.register(
@@ -153,6 +154,7 @@ class AuthState extends ChangeNotifier {
     required String identifier,
     required String password,
   }) async {
+    await _endingSession;
     _setBusy();
     try {
       final AuthResponseDto response = await apiClient.login(
@@ -170,10 +172,7 @@ class AuthState extends ChangeNotifier {
         status: '',
       );
       _userEmail = _account!.email;
-      await _storage.saveSession(
-        token: response.token,
-        email: _userEmail,
-      );
+      await _storage.saveSession(token: response.token, email: _userEmail);
       // Hydrate real flags immediately (drives verification/onboarding routing).
       try {
         final profile = await apiClient.fetchProfile();
@@ -206,14 +205,14 @@ class AuthState extends ChangeNotifier {
   }
 
   Future<UserAccountDto?> verifyEmail(String code) => _verify(
-        () => apiClient.verifyEmail(code.trim()),
-        isVerified: (account) => account.emailVerified,
-      );
+    () => apiClient.verifyEmail(code.trim()),
+    isVerified: (account) => account.emailVerified,
+  );
 
   Future<UserAccountDto?> verifyPhone(String code) => _verify(
-        () => apiClient.verifyPhone(code.trim()),
-        isVerified: (account) => account.phoneVerified,
-      );
+    () => apiClient.verifyPhone(code.trim()),
+    isVerified: (account) => account.phoneVerified,
+  );
 
   Future<UserAccountDto?> _verify(
     Future<UserAccountDto> Function() call, {
@@ -306,7 +305,10 @@ class AuthState extends ChangeNotifier {
   }
 
   /// Always resolves (generic server message prevents enumeration).
-  Future<String?> forgotPassword({required String identifier, String? channel}) async {
+  Future<String?> forgotPassword({
+    required String identifier,
+    String? channel,
+  }) async {
     try {
       final message = await apiClient.forgotPassword(
         identifier: identifier.trim(),
@@ -379,19 +381,32 @@ class AuthState extends ChangeNotifier {
     }
   }
 
-  Future<void> logout() async {
+  Future<void> logout() {
+    final ending = _endSession();
+    _endingSession = ending;
+    return ending;
+  }
+
+  Future<void> _endSession() async {
     apiClient.token = null;
-    try {
-      await _storage.clear();
-    } catch (_) {
-      // Best effort: sign-out must never fail because of storage.
-    }
     _userEmail = '';
     _account = null;
     _lastError = null;
     _justRegistered = false;
     _status = AuthStatus.unauthenticated;
+    _sessionGeneration++;
+    final cleanup = onSessionEnded?.call();
     notifyListeners();
+    try {
+      await _storage.clear();
+    } catch (_) {
+      /* Session is already ended. */
+    }
+    try {
+      await cleanup;
+    } catch (_) {
+      /* Do not restore a failed session. */
+    }
   }
 
   /// Marks onboarding complete on the backend and leaves wizard routing.

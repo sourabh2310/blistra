@@ -33,6 +33,7 @@ import 'auth_validators.dart';
 import 'auth_widgets.dart';
 import 'country_data.dart';
 import '../../core/config/app_config.dart';
+import '../profile/screens/policy_screen.dart';
 
 enum _Mode { signIn, register, forgot }
 
@@ -159,7 +160,9 @@ class _AuthScreenState extends State<AuthScreen> {
     }
     _timezone = _guessTimezone();
     final locale = WidgetsBinding.instance.platformDispatcher.locale;
-    final defaultCountry = DeviceContext.countryFromLocale(locale.toLanguageTag());
+    final defaultCountry = DeviceContext.countryFromLocale(
+      locale.toLanguageTag(),
+    );
     _selectedCountryCode = defaultCountry;
     _units = DeviceContext.defaultUnitSystemForCountry(defaultCountry);
     _heightUnit = _units == 'IMPERIAL' ? 'IN' : 'CM';
@@ -243,8 +246,7 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() => _loginError = idError);
       return;
     }
-    final pwError =
-        validatePassword(_signInPassword.text, registering: false);
+    final pwError = validatePassword(_signInPassword.text, registering: false);
     if (pwError != null) {
       setState(() => _loginError = pwError);
       return;
@@ -260,8 +262,7 @@ class _AuthScreenState extends State<AuthScreen> {
       // Enumeration-safe: never reveal which part failed.
       final raw = _friendly(_auth.lastError);
       final lower = raw.toLowerCase();
-      final generic = lower.contains('network') ||
-              lower.contains('connect')
+      final generic = lower.contains('network') || lower.contains('connect')
           ? raw
           : "Your sign-in details don't match. Check them and try again.";
       setState(() => _loginError = generic);
@@ -295,8 +296,7 @@ class _AuthScreenState extends State<AuthScreen> {
       return false;
     }
     if (v.length < 2) {
-      setState(
-          () => _screenError = 'Please enter a little more.');
+      setState(() => _screenError = 'Please enter a little more.');
       return false;
     }
     final err = validateDisplayName(_displayName.text);
@@ -336,8 +336,7 @@ class _AuthScreenState extends State<AuthScreen> {
       return false;
     }
     if (_emailAvail == _Avail.taken) {
-      setState(() =>
-          _screenError = 'That email is already registered.');
+      setState(() => _screenError = 'That email is already registered.');
       return false;
     }
     // A check in flight is resolved authoritatively by _submitEmail.
@@ -351,8 +350,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _phone.text = '';
         return true;
       }
-      setState(
-          () => _screenError = 'Enter your phone number to continue.');
+      setState(() => _screenError = 'Enter your phone number to continue.');
       return false;
     }
     final full = '$_countryCode${local.replaceAll(RegExp(r'[\s\-().]'), '')}';
@@ -362,8 +360,7 @@ class _AuthScreenState extends State<AuthScreen> {
       return false;
     }
     if (_phoneAvail == _Avail.taken) {
-      setState(() =>
-          _screenError = 'That phone number is already registered.');
+      setState(() => _screenError = 'That phone number is already registered.');
       return false;
     }
     // A check in flight is resolved authoritatively by _submitPhone.
@@ -392,11 +389,13 @@ class _AuthScreenState extends State<AuthScreen> {
         available = null; // Offline: stay silent, server decides at submit.
       }
       if (!mounted || gen != _usernameGen) return;
-      setState(() => _usernameAvail = available == null
-          ? _Avail.idle
-          : available
-              ? _Avail.available
-              : _Avail.taken);
+      setState(
+        () => _usernameAvail = available == null
+            ? _Avail.idle
+            : available
+            ? _Avail.available
+            : _Avail.taken,
+      );
     });
   }
 
@@ -419,11 +418,13 @@ class _AuthScreenState extends State<AuthScreen> {
         available = null;
       }
       if (!mounted || gen != _emailGen) return;
-      setState(() => _emailAvail = available == null
-          ? _Avail.idle
-          : available
-              ? _Avail.available
-              : _Avail.taken);
+      setState(
+        () => _emailAvail = available == null
+            ? _Avail.idle
+            : available
+            ? _Avail.available
+            : _Avail.taken,
+      );
     });
   }
 
@@ -435,8 +436,7 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() => _phoneAvail = _Avail.idle);
       return;
     }
-    final full =
-        '$_countryCode${local.replaceAll(RegExp(r'[\s\-().]'), '')}';
+    final full = '$_countryCode${local.replaceAll(RegExp(r'[\s\-().]'), '')}';
     if (validatePhone(full) != null) {
       setState(() => _phoneAvail = _Avail.idle);
       return;
@@ -453,11 +453,13 @@ class _AuthScreenState extends State<AuthScreen> {
         available = null;
       }
       if (!mounted || gen != _phoneGen) return;
-      setState(() => _phoneAvail = available == null
-          ? _Avail.idle
-          : available
-              ? _Avail.available
-              : _Avail.taken);
+      setState(
+        () => _phoneAvail = available == null
+            ? _Avail.idle
+            : available
+            ? _Avail.available
+            : _Avail.taken,
+      );
     });
   }
 
@@ -473,8 +475,7 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       available = (await widget.deps.apiClient.checkAvailability(
         username: _username.text.trim(),
-      ))
-          .usernameAvailable;
+      )).usernameAvailable;
     } catch (_) {
       available = null;
     }
@@ -484,8 +485,9 @@ class _AuthScreenState extends State<AuthScreen> {
       return true;
     }
     final bool usernameFree = available;
-    setState(() => _usernameAvail =
-        usernameFree ? _Avail.available : _Avail.taken);
+    setState(
+      () => _usernameAvail = usernameFree ? _Avail.available : _Avail.taken,
+    );
     if (!usernameFree) {
       setState(() => _screenError = 'Username already taken.');
     }
@@ -500,8 +502,7 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       available = (await widget.deps.apiClient.checkAvailability(
         email: _email.text.trim(),
-      ))
-          .emailAvailable;
+      )).emailAvailable;
     } catch (_) {
       available = null;
     }
@@ -511,11 +512,9 @@ class _AuthScreenState extends State<AuthScreen> {
       return true;
     }
     final bool emailFree = available;
-    setState(() =>
-        _emailAvail = emailFree ? _Avail.available : _Avail.taken);
+    setState(() => _emailAvail = emailFree ? _Avail.available : _Avail.taken);
     if (!emailFree) {
-      setState(
-          () => _screenError = 'That email is already registered.');
+      setState(() => _screenError = 'That email is already registered.');
     }
     return emailFree;
   }
@@ -526,9 +525,7 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _phoneAvail = _Avail.checking);
     bool? available;
     try {
-      available = (await widget.deps.apiClient.checkAvailability(
-        phone: full,
-      ))
+      available = (await widget.deps.apiClient.checkAvailability(phone: full))
           .phoneAvailable;
     } catch (_) {
       available = null;
@@ -539,14 +536,13 @@ class _AuthScreenState extends State<AuthScreen> {
       return true;
     }
     final bool phoneFree = available;
-    setState(() =>
-        _phoneAvail = phoneFree ? _Avail.available : _Avail.taken);
+    setState(() => _phoneAvail = phoneFree ? _Avail.available : _Avail.taken);
     if (!phoneFree) {
-      setState(() => _screenError =
-          'That phone number is already registered.');
+      setState(() => _screenError = 'That phone number is already registered.');
     }
     return phoneFree;
   }
+
   /// Inline availability row: spinner while checking, green confirmation
   /// with icon when free, red message when taken. Idle renders nothing.
   /// Never color-only: icon + text always accompany the state.
@@ -565,9 +561,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
               SizedBox(width: 8),
-              Text('Checking…',
-                  style: TextStyle(
-                      fontSize: 13, color: AuthColors.muted)),
+              Text(
+                'Checking…',
+                style: TextStyle(fontSize: 13, color: AuthColors.muted),
+              ),
             ],
           ),
         );
@@ -576,14 +573,16 @@ class _AuthScreenState extends State<AuthScreen> {
           padding: EdgeInsets.only(top: 8),
           child: Row(
             children: [
-              Icon(Icons.check_circle,
-                  size: 16, color: AuthColors.teal),
+              Icon(Icons.check_circle, size: 16, color: AuthColors.teal),
               SizedBox(width: 6),
-              Text('Available',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AuthColors.teal)),
+              Text(
+                'Available',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AuthColors.teal,
+                ),
+              ),
             ],
           ),
         );
@@ -592,15 +591,17 @@ class _AuthScreenState extends State<AuthScreen> {
           padding: const EdgeInsets.only(top: 8),
           child: Row(
             children: [
-              Icon(Icons.error_outline,
-                  size: 16, color: AuthColors.error),
+              Icon(Icons.error_outline, size: 16, color: AuthColors.error),
               const SizedBox(width: 6),
               Flexible(
-                child: Text(takenMessage,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AuthColors.error)),
+                child: Text(
+                  takenMessage,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AuthColors.error,
+                  ),
+                ),
               ),
             ],
           ),
@@ -609,8 +610,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   bool _checkPassword() {
-    final err =
-        validatePassword(_password.text, registering: true);
+    final err = validatePassword(_password.text, registering: true);
     if (err != null) {
       setState(() => _screenError = err);
       return false;
@@ -619,12 +619,13 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   bool _checkConfirm() {
-    final err = validatePasswordConfirmation(
-        _confirm.text, _password.text);
+    final err = validatePasswordConfirmation(_confirm.text, _password.text);
     if (err != null) {
-      setState(() => _screenError = err == 'Passwords do not match'
-          ? "Passwords don't match."
-          : err);
+      setState(
+        () => _screenError = err == 'Passwords do not match'
+            ? "Passwords don't match."
+            : err,
+      );
       return false;
     }
     return true;
@@ -632,8 +633,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _submitAccount() async {
     if (!_terms) {
-      setState(() => _screenError =
-          'Please agree to the Terms and Privacy Policy to continue.');
+      setState(
+        () => _screenError =
+            'Please agree to the Terms and Privacy Policy to continue.',
+      );
       return;
     }
     FocusScope.of(context).unfocus();
@@ -740,15 +743,18 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _resend(bool email) async {
     setState(() => _screenError = null);
-    final seconds =
-        email ? await _auth.resendEmailOtp() : await _auth.resendPhoneOtp();
+    final seconds = email
+        ? await _auth.resendEmailOtp()
+        : await _auth.resendPhoneOtp();
     if (!mounted) return;
     if (seconds == null) {
       final err = _auth.lastError;
       if (err != null && err.isRateLimited) {
         _startCooldown(err.retryAfterSeconds ?? 60);
-        setState(() => _screenError =
-            'Too many attempts. Try again in ${err.retryAfterSeconds ?? 60} seconds.');
+        setState(
+          () => _screenError =
+              'Too many attempts. Try again in ${err.retryAfterSeconds ?? 60} seconds.',
+        );
       } else {
         setState(() => _screenError = _friendly(err));
       }
@@ -763,7 +769,9 @@ class _AuthScreenState extends State<AuthScreen> {
     if (code.contains('EXPIRED')) {
       return 'That code has expired. Request a new code.';
     }
-    if (code.contains('RATE') || code.contains('LIMIT') || error.isRateLimited) {
+    if (code.contains('RATE') ||
+        code.contains('LIMIT') ||
+        error.isRateLimited) {
       final s = error.retryAfterSeconds;
       return s != null
           ? 'Too many attempts. Try again in $s seconds.'
@@ -790,8 +798,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _saveProfile() async {
     if (_dob == null) {
-      setState(
-          () => _screenError = 'Please pick your date of birth.');
+      setState(() => _screenError = 'Please pick your date of birth.');
       return;
     }
     final dobError = validateDateOfBirth(_dob);
@@ -801,12 +808,15 @@ class _AuthScreenState extends State<AuthScreen> {
     }
     final countryError = validateCountry(_selectedCountryCode);
     if (countryError != null || countryForCode(_selectedCountryCode) == null) {
-      setState(() => _screenError = countryError ??
-          'Please select your country.');
+      setState(
+        () => _screenError = countryError ?? 'Please select your country.',
+      );
       return;
     }
     if (_timezone == null || _timezone!.isEmpty) {
-      setState(() => _screenError = "Your device timezone couldn't be detected.");
+      setState(
+        () => _screenError = "Your device timezone couldn't be detected.",
+      );
       return;
     }
     setState(() {
@@ -821,13 +831,16 @@ class _AuthScreenState extends State<AuthScreen> {
           '${_dob!.year.toString().padLeft(4, '0')}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}',
       'country': _selectedCountryCode,
       'timezone': _timezone,
-      'unitSystem': DeviceContext.defaultUnitSystemForCountry(_selectedCountryCode),
+      'unitSystem': DeviceContext.defaultUnitSystemForCountry(
+        _selectedCountryCode,
+      ),
     });
     if (!mounted) return;
     setState(() => _saving = false);
     if (!ok) {
-      setState(() =>
-          _screenError = widget.deps.profile.error ?? 'Could not save.');
+      setState(
+        () => _screenError = widget.deps.profile.error ?? 'Could not save.',
+      );
       return;
     }
     setState(() => _reg = _Reg.health);
@@ -845,11 +858,13 @@ class _AuthScreenState extends State<AuthScreen> {
           setState(() => _screenError = 'Enter a valid height.');
           return;
         }
-        await widget.deps.health.saveProfile(HealthProfileInput(
-          heightCm: _heightUnit == 'IN' ? value * 2.54 : value,
-          bloodType: null,
-          dateOfBirth: _dob,
-        ));
+        await widget.deps.health.saveProfile(
+          HealthProfileInput(
+            heightCm: _heightUnit == 'IN' ? value * 2.54 : value,
+            bloodType: null,
+            dateOfBirth: _dob,
+          ),
+        );
         if (mounted) setState(() => _healthStep = _HealthStep.weight);
         return;
       }
@@ -858,13 +873,15 @@ class _AuthScreenState extends State<AuthScreen> {
         setState(() => _screenError = 'Enter a valid weight.');
         return;
       }
-      await widget.deps.health.createMeasurement(MeasurementInput(
-        type: MeasurementType.weight,
-        measuredAt: DateTime.now(),
-        value: value,
-        unit: _weightUnit,
-        source: 'onboarding',
-      ));
+      await widget.deps.health.createMeasurement(
+        MeasurementInput(
+          type: MeasurementType.weight,
+          measuredAt: DateTime.now(),
+          value: value,
+          unit: _weightUnit,
+          source: 'onboarding',
+        ),
+      );
       if (_dietPreference != null) {
         await widget.deps.diet.saveProfile(
           dietaryPreference: _dietPreference!.wireName,
@@ -876,8 +893,10 @@ class _AuthScreenState extends State<AuthScreen> {
       if (mounted) setState(() => _reg = _Reg.done);
     } catch (_) {
       if (mounted) {
-        setState(() => _screenError =
-            'We couldn\'t save your health details. Please try again.');
+        setState(
+          () => _screenError =
+              'We couldn\'t save your health details. Please try again.',
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -924,8 +943,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
       if (result.channels.isEmpty) {
         setState(() {
-          _screenError =
-              'No verified recovery option on this account. Check your inbox for the verification code first.';
+          _screenError = 'No verified recovery option on this account. Check your inbox for the verification code first.';
           _resolvingChannels = false;
         });
         return;
@@ -934,8 +952,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _recoveryChannels = result.channels;
         _recoveryEmailMasked = result.emailMasked;
         _recoveryPhoneMasked = result.phoneMasked;
-        _forgotChannel =
-            result.offersEmail ? 'EMAIL' : 'SMS';
+        _forgotChannel = result.offersEmail ? 'EMAIL' : 'SMS';
         _resolvingChannels = false;
         _forgot = _Forgot.channel;
       });
@@ -944,16 +961,15 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() {
         _screenError = e.statusCode == 404
             ? (e.message.isNotEmpty
-                ? e.message
-                : "Couldn't find an account with those details.")
+                  ? e.message
+                  : "Couldn't find an account with those details.")
             : _friendly(e);
         _resolvingChannels = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _screenError =
-            "Couldn't connect. Check your connection and try again.";
+        _screenError = "Couldn't connect. Check your connection and try again.";
         _resolvingChannels = false;
       });
     }
@@ -981,14 +997,15 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() => _screenError = codeError);
       return;
     }
-    final pwError =
-        validatePassword(_forgotNew.text, registering: true);
+    final pwError = validatePassword(_forgotNew.text, registering: true);
     if (pwError != null) {
       setState(() => _screenError = pwError);
       return;
     }
     final confirmError = validatePasswordConfirmation(
-        _forgotConfirm.text, _forgotNew.text);
+      _forgotConfirm.text,
+      _forgotNew.text,
+    );
     if (confirmError != null) {
       setState(() => _screenError = confirmError);
       return;
@@ -1041,7 +1058,8 @@ class _AuthScreenState extends State<AuthScreen> {
     if (error.statusCode == 401) {
       return 'Invalid credentials. Please try again.';
     }
-    final field = error.fieldErrors['email'] ??
+    final field =
+        error.fieldErrors['email'] ??
         error.fieldErrors['username'] ??
         error.fieldErrors['phone'] ??
         error.fieldErrors['identifier'] ??
@@ -1069,8 +1087,9 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!email.contains('@')) return email;
     final parts = email.split('@');
     final local = parts[0];
-    final shown =
-        local.length <= 2 ? '$local•••' : '${local.substring(0, 2)}•••';
+    final shown = local.length <= 2
+        ? '$local•••'
+        : '${local.substring(0, 2)}•••';
     return '$shown@${parts[1]}';
   }
 
@@ -1121,15 +1140,20 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 8),
           const AuthBrand(),
           const SizedBox(height: 32),
-          Text('Welcome back',
-              style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
-                  color: AuthColors.ink)),
+          Text(
+            'Welcome back',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 6),
-          Text('Everything you need. One app.',
-              style: TextStyle(fontSize: 15, color: AuthColors.muted)),
+          Text(
+            'Everything you need. One app.',
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 28),
           AuthTextField(
             controller: _identifier,
@@ -1148,13 +1172,13 @@ class _AuthScreenState extends State<AuthScreen> {
             semanticLabel: 'Password',
             suffix: IconButton(
               tooltip: _showSignInPw ? 'Hide password' : 'Show password',
-              onPressed: () =>
-                  setState(() => _showSignInPw = !_showSignInPw),
+              onPressed: () => setState(() => _showSignInPw = !_showSignInPw),
               icon: Icon(
-                  _showSignInPw
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: AuthColors.muted),
+                _showSignInPw
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: AuthColors.muted,
+              ),
             ),
             onSubmitted: (_) => _signIn(),
           ),
@@ -1171,25 +1195,27 @@ class _AuthScreenState extends State<AuthScreen> {
                 _mode = _Mode.forgot;
                 _forgot = _Forgot.identifier;
               }),
-              child: Text('Forgot password?',
-                  style: TextStyle(
-                      color: AuthColors.teal,
-                      fontWeight: FontWeight.w600)),
+              child: Text(
+                'Forgot password?',
+                style: TextStyle(
+                  color: AuthColors.teal,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                  child: Divider(color: AuthColors.border)),
+              Expanded(child: Divider(color: AuthColors.border)),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text('or',
-                    style: TextStyle(
-                        fontSize: 13, color: AuthColors.muted)),
+                child: Text(
+                  'or',
+                  style: TextStyle(fontSize: 13, color: AuthColors.muted),
+                ),
               ),
-              Expanded(
-                  child: Divider(color: AuthColors.border)),
+              Expanded(child: Divider(color: AuthColors.border)),
             ],
           ),
           const SizedBox(height: 8),
@@ -1204,8 +1230,9 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Text(
                 "Don't have an account? Create account",
                 style: TextStyle(
-                    color: AuthColors.teal,
-                    fontWeight: FontWeight.w700),
+                  color: AuthColors.teal,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -1221,115 +1248,118 @@ class _AuthScreenState extends State<AuthScreen> {
     return switch (_reg) {
       _Reg.welcome => _welcomeScreen(),
       _Reg.name => _questionScreen(
-          step: 1,
-          title: "What's your name?",
-          subtitle: "Let's personalize Blistra for you.",
-          backTo: _Reg.welcome,
-          field: AuthTextField(
-            controller: _displayName,
-            hint: 'Your name',
-            keyboardType: TextInputType.name,
-            textCapitalization: TextCapitalization.words,
-            autofillHints: const ['name'],
-            autofocus: true,
-            semanticLabel: 'Full name',
-            error: null,
-            onSubmitted: (_) => _submitName(),
-          ),
-          cta: 'Continue',
-          onCta: _submitName,
+        step: 1,
+        title: "What's your name?",
+        subtitle: "Let's personalize Blistra for you.",
+        backTo: _Reg.welcome,
+        field: AuthTextField(
+          controller: _displayName,
+          hint: 'Your name',
+          keyboardType: TextInputType.name,
+          textCapitalization: TextCapitalization.words,
+          autofillHints: const ['name'],
+          autofocus: true,
+          semanticLabel: 'Full name',
+          error: null,
+          onSubmitted: (_) => _submitName(),
         ),
+        cta: 'Continue',
+        onCta: _submitName,
+      ),
       _Reg.username => _questionScreen(
-          step: 2,
-          title: 'Choose your username',
-          subtitle: "This is how you'll be recognized on Blistra.",
-          backTo: _Reg.name,
-          field: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AuthTextField(
-                controller: _username,
-                hint: 'username',
-                keyboardType: TextInputType.text,
-                autofillHints: const ['newUsername'],
-                autofocus: true,
-                semanticLabel: 'Username',
-                onChanged: _scheduleUsernameCheck,
-                onSubmitted: (_) => _submitUsername(),
-              ),
-              _availRow(_usernameAvail,
-                  takenMessage: 'Username already taken.'),
-              const SizedBox(height: 8),
-              Text('3–30 letters, digits, _ or .',
-                  style: TextStyle(
-                      fontSize: 12.5, color: AuthColors.muted)),
-            ],
-          ),
-          cta: 'Continue',
-          onCta: _submitUsername,
+        step: 2,
+        title: 'Choose your username',
+        subtitle: "This is how you'll be recognized on Blistra.",
+        backTo: _Reg.name,
+        field: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AuthTextField(
+              controller: _username,
+              hint: 'username',
+              keyboardType: TextInputType.text,
+              autofillHints: const ['newUsername'],
+              autofocus: true,
+              semanticLabel: 'Username',
+              onChanged: _scheduleUsernameCheck,
+              onSubmitted: (_) => _submitUsername(),
+            ),
+            _availRow(_usernameAvail, takenMessage: 'Username already taken.'),
+            const SizedBox(height: 8),
+            Text(
+              '3–30 letters, digits, _ or .',
+              style: TextStyle(fontSize: 12.5, color: AuthColors.muted),
+            ),
+          ],
         ),
+        cta: 'Continue',
+        onCta: _submitUsername,
+      ),
       _Reg.email => _questionScreen(
-          step: 3,
-          title: "What's your email?",
-          subtitle:
-              "We'll use this for verification and account recovery.",
-          backTo: _Reg.username,
-          field: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AuthTextField(
-                controller: _email,
-                hint: 'email@example.com',
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const ['email'],
-                autofocus: true,
-                semanticLabel: 'Email address',
-                onChanged: _scheduleEmailCheck,
-                onSubmitted: (_) => _submitEmail(),
-              ),
-              _availRow(_emailAvail,
-                  takenMessage:
-                      'That email is already registered.'),
-            ],
-          ),
-          cta: 'Continue',
-          onCta: _submitEmail,
+        step: 3,
+        title: "What's your email?",
+        subtitle: "We'll use this for verification and account recovery.",
+        backTo: _Reg.username,
+        field: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AuthTextField(
+              controller: _email,
+              hint: 'email@example.com',
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const ['email'],
+              autofocus: true,
+              semanticLabel: 'Email address',
+              onChanged: _scheduleEmailCheck,
+              onSubmitted: (_) => _submitEmail(),
+            ),
+            _availRow(
+              _emailAvail,
+              takenMessage: 'That email is already registered.',
+            ),
+          ],
         ),
+        cta: 'Continue',
+        onCta: _submitEmail,
+      ),
       _Reg.phone => _phoneScreen(),
       _Reg.password => _passwordScreen(),
       _Reg.confirm => _questionScreen(
-          step: 6,
-          title: 'Confirm your password',
-          subtitle: 'Just to make sure there are no typos.',
-          backTo: _Reg.password,
-          field: AuthTextField(
-            controller: _confirm,
-            hint: 'Confirm password',
-            obscure: !_showConfirm,
-            autofillHints: const ['newPassword'],
-            autofocus: true,
-            semanticLabel: 'Confirm password',
-            suffix: IconButton(
-              tooltip:
-                  _showConfirm ? 'Hide password' : 'Show password',
-              onPressed: () =>
-                  setState(() => _showConfirm = !_showConfirm),
-              icon: Icon(
-                  _showConfirm
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: AuthColors.muted),
+        step: 6,
+        title: 'Confirm your password',
+        subtitle: 'Just to make sure there are no typos.',
+        backTo: _Reg.password,
+        field: AuthTextField(
+          controller: _confirm,
+          hint: 'Confirm password',
+          obscure: !_showConfirm,
+          autofillHints: const ['newPassword'],
+          autofocus: true,
+          semanticLabel: 'Confirm password',
+          suffix: IconButton(
+            tooltip: _showConfirm ? 'Hide password' : 'Show password',
+            onPressed: () => setState(() => _showConfirm = !_showConfirm),
+            icon: Icon(
+              _showConfirm
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              color: AuthColors.muted,
             ),
-            onSubmitted: (_) => _submitConfirm(),
           ),
-          cta: 'Continue',
-          onCta: _submitConfirm,
+          onSubmitted: (_) => _submitConfirm(),
         ),
+        cta: 'Continue',
+        onCta: _submitConfirm,
+      ),
       _Reg.review => _reviewScreen(),
       _Reg.emailOtp => _otpScreen(
-          email: true, onBack: () => _backTo(_Reg.review)),
+        email: true,
+        onBack: () => _backTo(_Reg.review),
+      ),
       _Reg.phoneOtp => _otpScreen(
-          email: false, onBack: () => _backTo(_Reg.emailOtp)),
+        email: false,
+        onBack: () => _backTo(_Reg.emailOtp),
+      ),
       _Reg.profile => _profileScreen(),
       _Reg.health => _healthScreen(),
       _Reg.done => _doneScreen(),
@@ -1375,8 +1405,9 @@ class _AuthScreenState extends State<AuthScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AuthPrimaryButton(
-              label: 'Get started',
-              onPressed: () => _next(_Reg.name)),
+            label: 'Get started',
+            onPressed: () => _next(_Reg.name),
+          ),
           const SizedBox(height: 4),
           Center(
             child: TextButton(
@@ -1384,10 +1415,13 @@ class _AuthScreenState extends State<AuthScreen> {
                 _screenError = null;
                 _mode = _Mode.signIn;
               }),
-              child: Text('Already have an account? Sign in',
-                  style: TextStyle(
-                      color: AuthColors.teal,
-                      fontWeight: FontWeight.w700)),
+              child: Text(
+                'Already have an account? Sign in',
+                style: TextStyle(
+                  color: AuthColors.teal,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ],
@@ -1398,17 +1432,21 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 24),
           const AuthBrand(),
           const SizedBox(height: 40),
-          Text('Everything\nyou need.\nOne app.',
-              style: TextStyle(
-                  fontSize: 44,
-                  height: 1.05,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.2,
-                  color: AuthColors.ink)),
+          Text(
+            'Everything\nyou need.\nOne app.',
+            style: TextStyle(
+              fontSize: 44,
+              height: 1.05,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1.2,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 14),
-          Text("Let's set up your account.",
-              style:
-                  TextStyle(fontSize: 16, color: AuthColors.muted)),
+          Text(
+            "Let's set up your account.",
+            style: TextStyle(fontSize: 16, color: AuthColors.muted),
+          ),
           const SizedBox(height: 24),
         ],
       ),
@@ -1427,23 +1465,26 @@ class _AuthScreenState extends State<AuthScreen> {
   }) {
     return AuthScaffold(
       onBack: _busy ? null : () => _backTo(backTo),
-      bottom: AuthPrimaryButton(
-          label: cta, busy: _busy, onPressed: onCta),
+      bottom: AuthPrimaryButton(label: cta, busy: _busy, onPressed: onCta),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AuthProgress(step: step, total: 7),
           const SizedBox(height: 28),
-          Text(title,
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(subtitle,
-              style: TextStyle(
-                  fontSize: 15, color: AuthColors.muted)),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 24),
           field,
           if (_screenError != null) ...[
@@ -1473,23 +1514,29 @@ class _AuthScreenState extends State<AuthScreen> {
     return AuthScaffold(
       onBack: _busy ? null : () => _backTo(_Reg.email),
       bottom: AuthPrimaryButton(
-          label: 'Continue', busy: _busy, onPressed: _submitPhone),
+        label: 'Continue',
+        busy: _busy,
+        onPressed: _submitPhone,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const AuthProgress(step: 4, total: 7),
           const SizedBox(height: 28),
-          Text("What's your phone number?",
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            "What's your phone number?",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
-              "We'll use this to verify your account and help you recover it. Optional — you can skip.",
-              style:
-                  TextStyle(fontSize: 15, color: AuthColors.muted)),
+            "We'll use this to verify your account and help you recover it. Optional — you can skip.",
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 24),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1498,11 +1545,9 @@ class _AuthScreenState extends State<AuthScreen> {
                 decoration: BoxDecoration(
                   color: AuthColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border:
-                      Border.all(color: AuthColors.border),
+                  border: Border.all(color: AuthColors.border),
                 ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _dialCodes.contains(_countryCode)
@@ -1510,12 +1555,10 @@ class _AuthScreenState extends State<AuthScreen> {
                         : _dialCodes.first,
                     items: [
                       for (final c in _dialCodes)
-                        DropdownMenuItem(
-                            value: c, child: Text(c)),
+                        DropdownMenuItem(value: c, child: Text(c)),
                     ],
                     onChanged: (c) {
-                      setState(
-                          () => _countryCode = c ?? '+91');
+                      setState(() => _countryCode = c ?? '+91');
                       _schedulePhoneCheck();
                     },
                   ),
@@ -1537,9 +1580,10 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ],
           ),
-          _availRow(_phoneAvail,
-              takenMessage:
-                  'That phone number is already registered.'),
+          _availRow(
+            _phoneAvail,
+            takenMessage: 'That phone number is already registered.',
+          ),
           if (_screenError != null) ...[
             const SizedBox(height: 12),
             InlineError(message: _screenError!),
@@ -1553,10 +1597,13 @@ class _AuthScreenState extends State<AuthScreen> {
                     _phoneAvail = _Avail.idle;
                     _next(_Reg.password);
                   },
-            child: Text('Skip for now',
-                style: TextStyle(
-                    color: AuthColors.teal,
-                    fontWeight: FontWeight.w600)),
+            child: Text(
+              'Skip for now',
+              style: TextStyle(
+                color: AuthColors.teal,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           const SizedBox(height: 120),
         ],
@@ -1568,24 +1615,29 @@ class _AuthScreenState extends State<AuthScreen> {
     return AuthScaffold(
       onBack: _busy ? null : () => _backTo(_Reg.phone),
       bottom: AuthPrimaryButton(
-          label: 'Continue',
-          busy: _busy,
-          onPressed: _submitPassword),
+        label: 'Continue',
+        busy: _busy,
+        onPressed: _submitPassword,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const AuthProgress(step: 5, total: 7),
           const SizedBox(height: 28),
-          Text('Create a password',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            'Create a password',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('Keep your account secure.',
-              style:
-                  TextStyle(fontSize: 15, color: AuthColors.muted)),
+          Text(
+            'Keep your account secure.',
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 24),
           AuthTextField(
             controller: _password,
@@ -1595,27 +1647,29 @@ class _AuthScreenState extends State<AuthScreen> {
             autofocus: true,
             semanticLabel: 'Password',
             suffix: IconButton(
-              tooltip:
-                  _showPw ? 'Hide password' : 'Show password',
-              onPressed: () =>
-                  setState(() => _showPw = !_showPw),
+              tooltip: _showPw ? 'Hide password' : 'Show password',
+              onPressed: () => setState(() => _showPw = !_showPw),
               icon: Icon(
-                  _showPw
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: AuthColors.muted),
+                _showPw
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: AuthColors.muted,
+              ),
             ),
             onSubmitted: (_) => _submitPassword(),
           ),
           const SizedBox(height: 12),
           PasswordStrength(password: _password.text),
           const SizedBox(height: 12),
+          _requirement('8+ characters', _password.text.length >= 8),
           _requirement(
-              '8+ characters', _password.text.length >= 8),
-          _requirement('At least one letter',
-              RegExp(r'[A-Za-z]').hasMatch(_password.text)),
-          _requirement('At least one digit',
-              RegExp(r'[0-9]').hasMatch(_password.text)),
+            'At least one letter',
+            RegExp(r'[A-Za-z]').hasMatch(_password.text),
+          ),
+          _requirement(
+            'At least one digit',
+            RegExp(r'[0-9]').hasMatch(_password.text),
+          ),
           if (_screenError != null) ...[
             const SizedBox(height: 12),
             InlineError(message: _screenError!),
@@ -1631,71 +1685,79 @@ class _AuthScreenState extends State<AuthScreen> {
       padding: const EdgeInsets.only(top: 4),
       child: Row(
         children: [
-          Icon(met ? Icons.check_circle : Icons.circle_outlined,
-              size: 16,
-              color: met ? AuthColors.teal : AuthColors.muted),
+          Icon(
+            met ? Icons.check_circle : Icons.circle_outlined,
+            size: 16,
+            color: met ? AuthColors.teal : AuthColors.muted,
+          ),
           const SizedBox(width: 8),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 13,
-                  color: met
-                      ? AuthColors.muted
-                      : AuthColors.ink)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: met ? AuthColors.muted : AuthColors.ink,
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _reviewScreen() {
-    final busy =
-        _auth.status == AuthStatus.busy || _finishing;
+    final busy = _auth.status == AuthStatus.busy || _finishing;
     return AuthScaffold(
       onBack: busy ? null : () => _backTo(_Reg.confirm),
       bottom: AuthPrimaryButton(
-          label: 'Create account',
-          busy: busy,
-          onPressed: _submitAccount),
+        label: 'Create account',
+        busy: busy,
+        onPressed: _submitAccount,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const AuthProgress(step: 7, total: 7),
           const SizedBox(height: 28),
-          Text('Almost there.',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            'Almost there.',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('Review your details before we create your account.',
-              style:
-                  TextStyle(fontSize: 15, color: AuthColors.muted)),
+          Text(
+            'Review your details before we create your account.',
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 20),
-          _reviewRow('Name', _displayName.text.trim(),
-              () => _backTo(_Reg.name)),
-          _reviewRow('Username', '@${_username.text.trim()}',
-              () => _backTo(_Reg.username)),
-          _reviewRow('Email', _email.text.trim(),
-              () => _backTo(_Reg.email)),
           _reviewRow(
-              'Phone',
-              _phone.text.trim().isEmpty
-                  ? '—'
-                  : _phone.text.trim(),
-              () => _backTo(_Reg.phone)),
+            'Name',
+            _displayName.text.trim(),
+            () => _backTo(_Reg.name),
+          ),
+          _reviewRow(
+            'Username',
+            '@${_username.text.trim()}',
+            () => _backTo(_Reg.username),
+          ),
+          _reviewRow('Email', _email.text.trim(), () => _backTo(_Reg.email)),
+          _reviewRow(
+            'Phone',
+            _phone.text.trim().isEmpty ? '—' : _phone.text.trim(),
+            () => _backTo(_Reg.phone),
+          ),
           const SizedBox(height: 16),
           InkWell(
-            onTap: busy
-                ? null
-                : () => setState(() => _terms = !_terms),
+            onTap: busy ? null : () => setState(() => _terms = !_terms),
             borderRadius: BorderRadius.circular(14),
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: AuthColors.surface,
                 borderRadius: BorderRadius.circular(14),
-                border:
-                    Border.all(color: AuthColors.border),
+                border: Border.all(color: AuthColors.border),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1705,8 +1767,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     activeColor: AuthColors.teal,
                     onChanged: busy
                         ? null
-                        : (v) =>
-                            setState(() => _terms = v ?? false),
+                        : (v) => setState(() => _terms = v ?? false),
                   ),
                   const Expanded(
                     child: Padding(
@@ -1724,11 +1785,13 @@ class _AuthScreenState extends State<AuthScreen> {
               _phoneTakenError != null) ...[
             const SizedBox(height: 12),
             InlineError(
-                message: _screenError ??
-                    _emailTakenError ??
-                    _usernameTakenError ??
-                    _phoneTakenError ??
-                    'Something went wrong.'),
+              message:
+                  _screenError ??
+                  _emailTakenError ??
+                  _usernameTakenError ??
+                  _phoneTakenError ??
+                  'Something went wrong.',
+            ),
           ],
           const SizedBox(height: 120),
         ],
@@ -1751,20 +1814,23 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 12, color: AuthColors.muted)),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 12, color: AuthColors.muted),
+                ),
                 const SizedBox(height: 2),
-                Text(value,
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AuthColors.ink)),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AuthColors.ink,
+                  ),
+                ),
               ],
             ),
           ),
-          TextButton(
-              onPressed: onEdit, child: const Text('Edit')),
+          TextButton(onPressed: onEdit, child: const Text('Edit')),
         ],
       ),
     );
@@ -1772,10 +1838,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // ── OTP screens ──────────────────────────────────────────────
 
-  Widget _otpScreen(
-      {required bool email, required VoidCallback onBack}) {
-    final busy =
-        _auth.status == AuthStatus.busy || _otpSubmitting;
+  Widget _otpScreen({required bool email, required VoidCallback onBack}) {
+    final busy = _auth.status == AuthStatus.busy || _otpSubmitting;
     final destination = email ? _maskedEmail : _maskedPhone;
     return AuthScaffold(
       onBack: busy ? null : onBack,
@@ -1785,22 +1849,21 @@ class _AuthScreenState extends State<AuthScreen> {
           AuthPrimaryButton(
             label: 'Verify',
             busy: busy,
-            onPressed:
-                email ? _verifyEmailOtp : _verifyPhoneOtp,
+            onPressed: email ? _verifyEmailOtp : _verifyPhoneOtp,
           ),
           const SizedBox(height: 4),
           Center(
             child: TextButton(
-              onPressed: (busy || _cooldown > 0)
-                  ? null
-                  : () => _resend(email),
+              onPressed: (busy || _cooldown > 0) ? null : () => _resend(email),
               child: Text(
-                  _cooldown > 0
-                      ? 'Resend code in ${_cooldown}s'
-                      : "Didn't receive it? Resend code",
-                  style: TextStyle(
-                      color: AuthColors.teal,
-                      fontWeight: FontWeight.w600)),
+                _cooldown > 0
+                    ? 'Resend code in ${_cooldown}s'
+                    : "Didn't receive it? Resend code",
+                style: TextStyle(
+                  color: AuthColors.teal,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ],
@@ -1809,22 +1872,25 @@ class _AuthScreenState extends State<AuthScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text(email ? 'Verify your email' : 'Verify your phone',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            email ? 'Verify your email' : 'Verify your phone',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('We sent a 6-digit code to\n$destination',
-              style: TextStyle(
-                  fontSize: 15, color: AuthColors.muted)),
+          Text(
+            'We sent a 6-digit code to\n$destination',
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 28),
           OtpInput(
             controller: _otp,
             enabled: !busy,
-            onCompleted:
-                email ? _verifyEmailOtp : _verifyPhoneOtp,
+            onCompleted: email ? _verifyEmailOtp : _verifyPhoneOtp,
           ),
           if (_screenError != null) ...[
             const SizedBox(height: 14),
@@ -1840,45 +1906,61 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _profileScreen() {
     final locale = WidgetsBinding.instance.platformDispatcher.locale;
-    final countryCode = _selectedCountryCode ??
+    final countryCode =
+        _selectedCountryCode ??
         DeviceContext.countryFromLocale(locale.toLanguageTag());
     final selected = countryForCode(countryCode);
     return AuthScaffold(
       onBack: _busy ? null : () => _backTo(_Reg.phoneOtp),
       bottom: AuthPrimaryButton(
-          label: 'Continue', busy: _saving, onPressed: _saveProfile),
+        label: 'Continue',
+        busy: _saving,
+        onPressed: _saveProfile,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('A little about you',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            'A little about you',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('Just a couple of details to personalize Blistra.',
-              style: TextStyle(fontSize: 15, color: AuthColors.muted)),
+          Text(
+            'Just a couple of details to personalize Blistra.',
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 30),
-          const Text('When were you born?',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const Text(
+            'When were you born?',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               minimumSize: const Size.fromHeight(56),
               backgroundColor: AuthColors.surface,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             onPressed: _pickDob,
             icon: const Icon(Icons.cake_outlined),
-            label: Text(_dob == null
-                ? 'Select date of birth'
-                : '${_dob!.day} ${_months[_dob!.month - 1]} ${_dob!.year}'),
+            label: Text(
+              _dob == null
+                  ? 'Select date of birth'
+                  : '${_dob!.day} ${_months[_dob!.month - 1]} ${_dob!.year}',
+            ),
           ),
           const SizedBox(height: 24),
-          const Text('Where are you based?',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const Text(
+            'Where are you based?',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
@@ -1886,7 +1968,8 @@ class _AuthScreenState extends State<AuthScreen> {
               backgroundColor: AuthColors.surface,
               alignment: Alignment.centerLeft,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             onPressed: _pickCountry,
             icon: Text(selected?.flag ?? '🌐'),
@@ -1895,14 +1978,27 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 18),
           Row(
             children: [
-              Icon(Icons.auto_awesome_outlined,
-                  size: 16, color: AuthColors.muted),
+              Icon(
+                Icons.auto_awesome_outlined,
+                size: 16,
+                color: AuthColors.muted,
+              ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('Your device settings will handle your timezone automatically.',
-                    style: TextStyle(fontSize: 13, color: AuthColors.muted)),
+                child: Text(
+                  'Check this suggested timezone. Update it in Profile when you travel.',
+                  style: TextStyle(fontSize: 13, color: AuthColors.muted),
+                ),
               ),
             ],
+          ),
+          TextFormField(
+            initialValue: _timezone,
+            decoration: const InputDecoration(
+              labelText: 'Timezone',
+              hintText: 'e.g. Asia/Kolkata',
+            ),
+            onChanged: (value) => _timezone = value.trim(),
           ),
           if (_screenError != null) ...[
             const SizedBox(height: 12),
@@ -1915,8 +2011,18 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   static const _months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   Future<void> _pickCountry() async {
@@ -1948,49 +2054,73 @@ class _AuthScreenState extends State<AuthScreen> {
     return AuthScaffold(
       onBack: _busy
           ? null
-          : () => setState(() => _healthStep =
-              _healthStep == _HealthStep.weight ? _HealthStep.height : _HealthStep.weight),
+          : () => setState(
+              () => _healthStep = _healthStep == _HealthStep.weight
+                  ? _HealthStep.height
+                  : _HealthStep.weight,
+            ),
       bottom: AuthPrimaryButton(
-          label: 'Continue', busy: _saving, onPressed: _saveHealth),
+        label: 'Continue',
+        busy: _saving,
+        onPressed: _saveHealth,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Health setup',
-              style: TextStyle(fontSize: 14, color: AuthColors.muted,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            'Health setup',
+            style: TextStyle(
+              fontSize: 14,
+              color: AuthColors.muted,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 10),
-          Text(title,
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(subtitle,
-              style: TextStyle(fontSize: 15, color: AuthColors.muted)),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 28),
           if (_healthStep == _HealthStep.height)
             AuthTextField(
               controller: _height,
               hint: imperial ? 'Height in inches' : 'Height in cm',
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               semanticLabel: 'Height',
               suffix: Padding(
                 padding: const EdgeInsets.only(right: 16),
-                child: Text(imperial ? 'in' : 'cm',
-                    style: TextStyle(color: AuthColors.muted)),
+                child: Text(
+                  imperial ? 'in' : 'cm',
+                  style: TextStyle(color: AuthColors.muted),
+                ),
               ),
             )
           else
             AuthTextField(
               controller: _weight,
               hint: imperial ? 'Weight in pounds' : 'Weight in kg',
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               semanticLabel: 'Weight',
               suffix: Padding(
                 padding: const EdgeInsets.only(right: 16),
-                child: Text(imperial ? 'lb' : 'kg',
-                    style: TextStyle(color: AuthColors.muted)),
+                child: Text(
+                  imperial ? 'lb' : 'kg',
+                  style: TextStyle(color: AuthColors.muted),
+                ),
               ),
             ),
           if (_screenError != null) ...[
@@ -2006,9 +2136,10 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _doneScreen() {
     return AuthScaffold(
       bottom: AuthPrimaryButton(
-          label: 'Go to Home',
-          busy: _finishing,
-          onPressed: _completeOnboarding),
+        label: 'Go to Home',
+        busy: _finishing,
+        onPressed: _completeOnboarding,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -2023,23 +2154,25 @@ class _AuthScreenState extends State<AuthScreen> {
             child: _finishing
                 ? const Padding(
                     padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(
-                        strokeWidth: 3),
+                    child: CircularProgressIndicator(strokeWidth: 3),
                   )
-                : Icon(Icons.check,
-                    size: 40, color: AuthColors.teal),
+                : Icon(Icons.check, size: 40, color: AuthColors.teal),
           ),
           const SizedBox(height: 20),
-          Text("You're all set!",
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: AuthColors.ink)),
+          Text(
+            "You're all set!",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('Your Home will load with your fresh profile.',
-              textAlign: TextAlign.center,
-              style:
-                  TextStyle(fontSize: 15, color: AuthColors.muted)),
+          Text(
+            'Your Home will load with your fresh profile.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           if (_screenError != null) ...[
             const SizedBox(height: 14),
             InlineError(message: _screenError!),
@@ -2063,33 +2196,37 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Widget _forgotIdentifierScreen() {
-    final busy =
-        _auth.status == AuthStatus.busy || _resolvingChannels;
+    final busy = _auth.status == AuthStatus.busy || _resolvingChannels;
     return AuthScaffold(
       onBack: busy
           ? null
           : () => setState(() {
-                _screenError = null;
-                _mode = _Mode.signIn;
-              }),
+              _screenError = null;
+              _mode = _Mode.signIn;
+            }),
       bottom: AuthPrimaryButton(
-          label: 'Continue',
-          busy: busy,
-          onPressed: _forgotResolveIdentifier),
+        label: 'Continue',
+        busy: busy,
+        onPressed: _forgotResolveIdentifier,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text('Forgot your password?',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            'Forgot your password?',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('Enter your username, email, or phone.',
-              style:
-                  TextStyle(fontSize: 15, color: AuthColors.muted)),
+          Text(
+            'Enter your username, email, or phone.',
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 24),
           AuthTextField(
             controller: _forgotIdentifier,
@@ -2112,44 +2249,53 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _forgotChannelScreen() {
     final busy = _auth.status == AuthStatus.busy;
     final offersEmail = _recoveryChannels.contains('EMAIL');
-    final offersSms = _recoveryChannels.contains('SMS') ||
+    final offersSms =
+        _recoveryChannels.contains('SMS') ||
         _recoveryChannels.contains('PHONE');
     return AuthScaffold(
       onBack: busy
           ? null
           : () => setState(() {
-                _screenError = null;
-                _forgot = _Forgot.identifier;
-              }),
+              _screenError = null;
+              _forgot = _Forgot.identifier;
+            }),
       bottom: AuthPrimaryButton(
-          label: 'Send code',
-          busy: busy,
-          onPressed: _forgotSendCode),
+        label: 'Send code',
+        busy: busy,
+        onPressed: _forgotSendCode,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text('Where should we send your code?',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            'Where should we send your code?',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
-              'Only verified destinations are shown. We never show full contact details here.',
-              style:
-                  TextStyle(fontSize: 15, color: AuthColors.muted)),
+            'Only verified destinations are shown. We never show full contact details here.',
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 20),
           if (offersEmail)
-            _channelCard('Email',
-                _recoveryEmailMasked ?? 'Send to your email address', 'EMAIL'),
+            _channelCard(
+              'Email',
+              _recoveryEmailMasked ?? 'Send to your email address',
+              'EMAIL',
+            ),
           if (offersEmail && offersSms) const SizedBox(height: 10),
           if (offersSms)
             _channelCard(
-                'Phone (SMS)',
-                _recoveryPhoneMasked ?? 'Send to your phone number',
-                'SMS'),
+              'Phone (SMS)',
+              _recoveryPhoneMasked ?? 'Send to your phone number',
+              'SMS',
+            ),
           if (_screenError != null) ...[
             const SizedBox(height: 12),
             InlineError(message: _screenError!),
@@ -2171,44 +2317,42 @@ class _AuthScreenState extends State<AuthScreen> {
           color: AuthColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: selected
-                  ? AuthColors.teal
-                  : AuthColors.border,
-              width: selected ? 1.6 : 1),
+            color: selected ? AuthColors.teal : AuthColors.border,
+            width: selected ? 1.6 : 1,
+          ),
         ),
         child: Row(
           children: [
             Icon(
-                value == 'EMAIL'
-                    ? Icons.mail_outline
-                    : Icons.sms_outlined,
-                color: selected
-                    ? AuthColors.teal
-                    : AuthColors.muted),
+              value == 'EMAIL' ? Icons.mail_outline : Icons.sms_outlined,
+              color: selected ? AuthColors.teal : AuthColors.muted,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AuthColors.ink)),
-                  Text(subtitle,
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: AuthColors.muted)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AuthColors.ink,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 13, color: AuthColors.muted),
+                  ),
                 ],
               ),
             ),
             Icon(
-                selected
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                color: selected
-                    ? AuthColors.teal
-                    : AuthColors.muted),
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: selected ? AuthColors.teal : AuthColors.muted,
+            ),
           ],
         ),
       ),
@@ -2221,39 +2365,42 @@ class _AuthScreenState extends State<AuthScreen> {
       onBack: busy
           ? null
           : () => setState(() {
-                _screenError = null;
-                _forgot = _Forgot.channel;
-              }),
+              _screenError = null;
+              _forgot = _Forgot.channel;
+            }),
       bottom: AuthPrimaryButton(
-          label: 'Continue',
-          onPressed: () {
-            final err = validateOtpCode(_forgotCode.text);
-            if (err != null) {
-              setState(() => _screenError = err);
-              return;
-            }
-            setState(() => _forgot = _Forgot.reset);
-          }),
+        label: 'Continue',
+        onPressed: () {
+          final err = validateOtpCode(_forgotCode.text);
+          if (err != null) {
+            setState(() => _screenError = err);
+            return;
+          }
+          setState(() => _forgot = _Forgot.reset);
+        },
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text("Verify it's you",
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            "Verify it's you",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
-              'A code was sent to your verified destination. Enter it below.',
-              style:
-                  TextStyle(fontSize: 15, color: AuthColors.muted)),
+            'A code was sent to your verified destination. Enter it below.',
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           const SizedBox(height: 28),
           OtpInput(
             controller: _forgotCode,
-            onCompleted: () =>
-                setState(() => _forgot = _Forgot.reset),
+            onCompleted: () => setState(() => _forgot = _Forgot.reset),
           ),
           if (_screenError != null) ...[
             const SizedBox(height: 14),
@@ -2271,23 +2418,27 @@ class _AuthScreenState extends State<AuthScreen> {
       onBack: busy
           ? null
           : () => setState(() {
-                _screenError = null;
-                _forgot = _Forgot.code;
-              }),
+              _screenError = null;
+              _forgot = _Forgot.code;
+            }),
       bottom: AuthPrimaryButton(
-          label: 'Reset password',
-          busy: busy,
-          onPressed: _forgotSubmitNewPassword),
+        label: 'Reset password',
+        busy: busy,
+        onPressed: _forgotSubmitNewPassword,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text('Create a new password',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: AuthColors.ink)),
+          Text(
+            'Create a new password',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AuthColors.ink,
+            ),
+          ),
           const SizedBox(height: 24),
           AuthTextField(
             controller: _forgotNew,
@@ -2297,16 +2448,14 @@ class _AuthScreenState extends State<AuthScreen> {
             autofocus: true,
             semanticLabel: 'New password',
             suffix: IconButton(
-              tooltip: _showForgotNew
-                  ? 'Hide password'
-                  : 'Show password',
-              onPressed: () => setState(
-                  () => _showForgotNew = !_showForgotNew),
+              tooltip: _showForgotNew ? 'Hide password' : 'Show password',
+              onPressed: () => setState(() => _showForgotNew = !_showForgotNew),
               icon: Icon(
-                  _showForgotNew
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: AuthColors.muted),
+                _showForgotNew
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: AuthColors.muted,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -2331,29 +2480,33 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _forgotSuccessScreen() {
     return AuthScaffold(
       bottom: AuthPrimaryButton(
-          label: 'Sign in',
-          onPressed: () => setState(() {
-                _screenError = null;
-                _forgot = _Forgot.identifier;
-                _mode = _Mode.signIn;
-              })),
+        label: 'Sign in',
+        onPressed: () => setState(() {
+          _screenError = null;
+          _forgot = _Forgot.identifier;
+          _mode = _Mode.signIn;
+        }),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(height: 48),
-          Icon(Icons.check_circle,
-              size: 72, color: AuthColors.teal),
+          Icon(Icons.check_circle, size: 72, color: AuthColors.teal),
           SizedBox(height: 20),
-          Text('Password updated',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: AuthColors.ink)),
+          Text(
+            'Password updated',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: AuthColors.ink,
+            ),
+          ),
           SizedBox(height: 8),
-          Text('You can now sign in with your new password.',
-              textAlign: TextAlign.center,
-              style:
-                  TextStyle(fontSize: 15, color: AuthColors.muted)),
+          Text(
+            'You can now sign in with your new password.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+          ),
           SizedBox(height: 120),
         ],
       ),
@@ -2404,10 +2557,15 @@ class _CountryPickerState extends State<_CountryPicker> {
                 itemBuilder: (context, index) {
                   final country = results[index];
                   return ListTile(
-                    leading: Text(country.flag, style: const TextStyle(fontSize: 24)),
+                    leading: Text(
+                      country.flag,
+                      style: const TextStyle(fontSize: 24),
+                    ),
                     title: Text(country.name),
-                    trailing: Text(country.code,
-                        style: TextStyle(color: AuthColors.muted)),
+                    trailing: Text(
+                      country.code,
+                      style: TextStyle(color: AuthColors.muted),
+                    ),
                     onTap: () => Navigator.of(context).pop(country),
                   );
                 },
@@ -2425,25 +2583,28 @@ class _TermsText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RichText(
-      text: TextSpan(
-        style: TextStyle(fontSize: 14, color: AuthColors.ink),
-        children: [
-          TextSpan(text: 'By creating your account, you agree to our '),
-          TextSpan(
-              text: 'Terms',
-              style: TextStyle(
-                  color: AuthColors.teal,
-                  fontWeight: FontWeight.w700)),
-          TextSpan(text: ' and '),
-          TextSpan(
-              text: 'Privacy Policy',
-              style: TextStyle(
-                  color: AuthColors.teal,
-                  fontWeight: FontWeight.w700)),
-          TextSpan(text: '.'),
-        ],
-      ),
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        const Text('By creating your account, you agree to our'),
+        TextButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const PolicyScreen(privacy: false),
+            ),
+          ),
+          child: const Text('Terms'),
+        ),
+        const Text('and'),
+        TextButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const PolicyScreen(privacy: true),
+            ),
+          ),
+          child: const Text('Privacy Policy'),
+        ),
+      ],
     );
   }
 }

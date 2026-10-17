@@ -40,6 +40,10 @@ public class Expense {
 
     @Column(name = "paid_by", nullable = false, columnDefinition = "UUID")
     private UUID paidBy;
+    @Column(name = "group_id", columnDefinition = "UUID")
+    private UUID groupId;
+    public UUID getGroupId() { return groupId; }
+    public void setGroupId(UUID value) { groupId = value; }
 
     @Column(nullable = false, length = 255)
     private String description;

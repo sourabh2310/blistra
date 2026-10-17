@@ -15,6 +15,9 @@ import java.util.UUID;
 
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
+    long countByUserId(UUID userId);
+    @Query("select coalesce(sum(d.fileSize), 0) from Document d where d.user.id = :userId")
+    long totalBytesByUserId(UUID userId);
 
     Optional<Document> findByIdAndUserId(UUID id, UUID userId);
 
