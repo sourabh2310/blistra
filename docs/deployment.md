@@ -79,7 +79,18 @@ Then open **Actions → Build Android APK → Run workflow**. After a few minute
 2. Open the file. Android asks to allow installing from your browser; allow it once.
 3. Open Blistra, create an account, and enter the code from the email.
 
-To ship an update, push to `develop` (or run the workflow again) and install the new APK over the old one. Your data stays on the server.
+## 7. Shipping updates
+
+Push to `develop` or `main` (or run the workflow again). The workflow builds APK number N, stamps N into the app, and publishes it as release `apk-N`.
+
+Installed apps ask the backend (`GET /api/v1/app/latest`) for the newest `apk-N` release when Home opens. When it is newer than their own build they show **Update available**: **Update** downloads the APK and opens Android's installer (the user taps **Install**), **Later** hides it for a day. Users can also check in Profile > Help & support > Check for updates. Data stays on the server.
+
+- Android never installs a sideloaded update silently; the user always confirms.
+- The first time, Android asks to allow Blistra to install apps; allow it once.
+- Every build must be signed with the same keystore, or Android refuses to install it over the old one.
+- To force old installs to update (e.g. after a breaking API change), set `APP_MIN_SUPPORTED_BUILD=<N>` on Render. Builds below N get a prompt they can't dismiss.
+- The backend reads releases from `APP_UPDATE_GITHUB_REPO` (default `sourabh2310/blistra`, which must be public). If GitHub rate limits ever bite, set `APP_UPDATE_GITHUB_TOKEN`.
+- APKs built before this feature (builds 1–4) have no update check; install the next build by hand once.
 
 ## Limits to know about
 

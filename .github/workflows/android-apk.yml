@@ -57,7 +57,8 @@ jobs:
           flutter build apk --release \
             --target-platform android-arm64 \
             --build-number "${{ github.run_number }}" \
-            --dart-define=API_BASE_URL="$API_BASE_URL"
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=APP_BUILD="${{ github.run_number }}"
 
       - name: Rename APK
         run: cp build/app/outputs/flutter-apk/app-release.apk blistra.apk

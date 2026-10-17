@@ -338,6 +338,15 @@ class ApiClient {
 
   Map<String, String> _headers() => buildHeaders(token: token);
 
+  /// GET that may legitimately answer 204 No Content (returned as null).
+  Future<Map<String, dynamic>?> getOptional(String path,
+      {Map<String, String>? query}) async {
+    final Object? decoded = await _send('GET', path, query: query);
+    if (decoded == null) return null;
+    if (decoded is Map<String, dynamic>) return decoded;
+    throw ApiException(200, 'UNEXPECTED_RESPONSE', 'Expected a JSON object');
+  }
+
   Future<Map<String, dynamic>> get(String path,
       {Map<String, String>? query}) async {
     final Object? decoded = await _send('GET', path, query: query);

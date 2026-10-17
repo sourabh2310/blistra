@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../app_update/update_dialog.dart';
 import '../profile_controller.dart';
 import '../widgets/profile_widgets.dart';
 
@@ -135,8 +136,14 @@ class HelpScreen extends StatelessWidget {
             ProfileTile(
               icon: Icons.info_outline,
               title: 'Blistra',
-              subtitle: 'Version ${AppConfig.appVersion}',
+              subtitle: 'Version ${AppConfig.appVersion}'
+                  '${AppConfig.appBuild > 0 ? ' · build ${AppConfig.appBuild}' : ''}',
               trailing: const SizedBox.shrink(),
+            ),
+            ProfileTile(
+              icon: Icons.system_update_outlined,
+              title: 'Check for updates',
+              onTap: () => checkForUpdateAndPrompt(context, userInitiated: true),
             ),
             ProfileTile(
               icon: Icons.article_outlined,

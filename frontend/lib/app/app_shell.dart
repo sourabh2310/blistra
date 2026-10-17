@@ -17,6 +17,7 @@ import '../core/theme/app_theme.dart';
 import 'dart:ui' show ImageFilter;
 import '../core/widgets/module_guard.dart';
 import '../core/widgets/quick_add.dart';
+import '../features/app_update/update_dialog.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/dashboard/screens/weekly_details_screen.dart';
 import '../features/diet/screens/today_screen.dart' as diet;
@@ -119,6 +120,9 @@ class _AppShellState extends State<AppShell> {
       _d.planner.loadToday(),
       _d.syncService.refresh().catchError((Object _) {}),
     ]);
+    if (!mounted) return;
+    // Sideloaded builds: offer the newest APK once Home is up.
+    await checkForUpdateAndPrompt(context);
   }
 
   Future<void> _refreshNotifications() async {

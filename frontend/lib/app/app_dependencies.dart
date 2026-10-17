@@ -41,6 +41,7 @@ import '../features/planner/planner_api.dart';
 import '../features/planner/planner_controller.dart';
 import '../features/preferences/preferences_api.dart';
 import '../features/preferences/preferences_controller.dart';
+import '../features/app_update/app_update_controller.dart';
 import '../features/profile/profile_controller.dart';
 
 class AppDependencies {
@@ -63,6 +64,7 @@ class AppDependencies {
     required this.syncService,
     required this.scheduler,
     required this.theme,
+    required this.appUpdate,
   });
 
   final ApiClient apiClient;
@@ -85,6 +87,7 @@ class AppDependencies {
   final ReminderSyncService syncService;
   final NotificationScheduler scheduler;
   final ThemeController theme;
+  final AppUpdateController appUpdate;
 
   /// Builds the production graph. Tests construct controllers directly.
   static Future<AppDependencies> create({
@@ -194,6 +197,7 @@ class AppDependencies {
       syncService: syncService,
       scheduler: effectiveScheduler,
       theme: theme,
+      appUpdate: AppUpdateController(apiClient),
     );
   }
 }
