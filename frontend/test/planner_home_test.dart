@@ -39,7 +39,7 @@ void main() {
     });
     final apiClient = ApiClient(baseUrl: 'http://localhost:8080', httpClient: client);
     final planner = PlannerController(PlannerApi(apiClient));
-    final dashboard = DashboardController(DashboardApi(apiClient));
+    final dashboard = DashboardController(api: DashboardApi(apiClient: apiClient));
     final auth = AuthState(apiClient: apiClient);
 
     await tester.pumpWidget(

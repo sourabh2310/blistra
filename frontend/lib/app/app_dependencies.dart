@@ -10,6 +10,8 @@ library;
 
 import 'dart:async';
 
+import 'package:http/http.dart' as http;
+
 import '../core/api/api_client.dart';
 import '../core/auth/auth_state.dart';
 import '../core/auth/auth_storage.dart';
@@ -89,10 +91,11 @@ class AppDependencies {
     String? baseUrl,
     AuthStorage? storage,
     NotificationScheduler? scheduler,
+    http.Client? httpClient,
   }) async {
     final resolvedBase = baseUrl ?? AppConfig.apiBaseUrl;
     final authStorage = storage ?? AuthStorage();
-    final apiClient = ApiClient(baseUrl: resolvedBase);
+    final apiClient = ApiClient(baseUrl: resolvedBase, httpClient: httpClient);
     // Wake a sleeping free-tier backend while the app starts.
     unawaited(apiClient.warmUp());
     final theme = ThemeController();

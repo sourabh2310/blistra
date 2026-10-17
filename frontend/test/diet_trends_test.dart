@@ -224,14 +224,14 @@ void main() {
       expect(item.hasNutrition, isFalse);
     });
 
-    test('WaterRecord glasses do not convert to millilitres', () {
+    test('WaterRecord glasses count as 250 ml', () {
       final glass = WaterRecord(
         id: 'w',
         amount: 2,
         unit: WaterUnit.glass,
         consumedAt: DateTime(2026, 9, 24),
       );
-      expect(glass.milliliters, 0);
+      expect(glass.milliliters, 250 * glass.amount);
       final ml = WaterRecord(
         id: 'w2',
         amount: 250,

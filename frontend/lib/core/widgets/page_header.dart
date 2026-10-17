@@ -23,19 +23,17 @@ class GlassIconButton extends StatelessWidget {
   });
 
   final IconData icon;
-  final String tooltip;
+
+  /// Null when a parent (e.g. a [PopupMenuButton]) already owns the tooltip
+  /// and semantics, so they are not announced twice.
+  final String? tooltip;
   final VoidCallback? onTap;
   final bool badge;
 
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    return Tooltip(
-      message: tooltip,
-      child: Semantics(
-        button: true,
-        label: tooltip,
-        child: GestureDetector(
+    final button = GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
           child: Stack(
@@ -67,8 +65,12 @@ class GlassIconButton extends StatelessWidget {
                 ),
             ],
           ),
-        ),
-      ),
+        );
+    final label = tooltip;
+    if (label == null) return button;
+    return Tooltip(
+      message: label,
+      child: Semantics(button: true, label: label, child: button),
     );
   }
 }
@@ -159,8 +161,11 @@ class BlistraPageHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
               ],
+              // Scales down instead of overflowing when a screen has several
+              // header actions on a narrow phone.
               const Expanded(
-                child: Align(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: BlistraWordmark(size: 30, serif: false),
                 ),

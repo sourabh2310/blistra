@@ -1,287 +1,141 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:frontend/core/api/api_client.dart';
-import 'package:frontend/core/api/api_exception.dart';
-import 'package:frontend/core/money/money.dart';
 import 'package:frontend/features/finance/finance_api.dart';
 import 'package:frontend/features/finance/finance_controller.dart';
 import 'package:frontend/features/finance/models.dart';
 
-Account _account(String id, String name) => Account(
-      id: id,
-      name: name,
-      type: AccountType.cash,
-      currency: 'INR',
-      openingBalance: Money.parse('1000'),
-      balance: Money.parse('1000'),
-      status: AccountStatus.active,
-    );
+http.Response _json(Object body, {int status = 200}) =>
+    http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json'});
 
-Category _category(String id, String name) => Category(
-      id: id,
-      name: name,
-      type: CategoryType.expense,
-      status: CategoryStatus.active,
-    );
+/// Minimal fake backend: one month of data, records which paths were hit.
+class _FakeBackend {
+  final List<String> calls = [];
+  int expensesCreated = 0;
+  bool failOverview = false;
 
-FinanceTransaction _transaction(String id, String amount) =>
-    FinanceTransaction(
-      id: id,
-      accountId: 'a1',
-      accountName: 'Cash',
-      accountCurrency: 'INR',
-      categoryId: 'c1',
-      categoryName: 'Food',
-      type: TransactionType.expense,
-      amount: Money.parse(amount),
-      currency: 'INR',
-      occurredAt: DateTime(2026, 9, 10),
-      createdAt: DateTime(2026, 9, 10),
-    );
-
-Summary _summary() => Summary(
-      from: DateTime(2026, 9, 1),
-      to: DateTime(2026, 9, 30),
-      currencies: [
-        SummaryCurrencySection(
-          currency: 'INR',
-          income: Money.parse('5000'),
-          expense: Money.parse('1200'),
-          net: Money.parse('3800'),
-          transferIn: Money.zero(),
-          transferOut: Money.zero(),
-          spendingByCategory: const [],
-        ),
-      ],
-    );
-
-class _FakeFinanceApi extends FinanceApi {
-  _FakeFinanceApi()
-      : super(
-          apiClient: ApiClient(
-            baseUrl: 'http://test',
-            httpClient: MockClient((_) async => http.Response('{}', 200)),
-          ),
-        );
-
-  List<Account> accounts = [_account('a1', 'Cash')];
-  List<Category> categories = [_category('c1', 'Food')];
-  List<FinanceTransaction> transactions = [_transaction('t1', '100')];
-  int summaryCalls = 0;
-  bool failNext = false;
-
-  @override
-  Future<List<Account>> fetchAccounts() async => List.of(accounts);
-
-  @override
-  Future<List<Category>> fetchCategories() async =>
-      List.of(categories);
-
-  @override
-  Future<PageResult<FinanceTransaction>> fetchTransactions({
-    String? accountId,
-    String? categoryId,
-    TransactionType? type,
-    DateTime? from,
-    DateTime? to,
-    int page = 0,
-    int size = 50,
-  }) async {
-    return PageResult<FinanceTransaction>(
-      items: List.of(transactions),
-      page: 0,
-      size: 50,
-      totalElements: transactions.length,
-      totalPages: 1,
-      last: true,
-    );
-  }
-
-  @override
-  Future<PageResult<FinanceTransfer>> fetchTransfers({
-    String? sourceAccountId,
-    String? destinationAccountId,
-    DateTime? from,
-    DateTime? to,
-    int page = 0,
-    int size = 50,
-  }) async {
-    return PageResult<FinanceTransfer>(
-      items: [],
-      page: 0,
-      size: 50,
-      totalElements: 0,
-      totalPages: 0,
-      last: true,
-    );
-  }
-
-  @override
-  Future<Summary> fetchSummary({DateTime? from, DateTime? to}) async {
-    summaryCalls++;
-    return _summary();
-  }
-
-  @override
-  Future<FinanceTransaction> createTransaction({
-    required String accountId,
-    required String categoryId,
-    required TransactionType type,
-    required String amount,
-    DateTime? occurredAt,
-    String? description,
-    String? notes,
-  }) async {
-    if (failNext) {
-      throw ApiException(400, 'BAD_REQUEST', 'Invalid amount');
-    }
-    final created = _transaction('t-new', amount);
-    transactions = [created, ...transactions];
-    return created;
-  }
-
-  @override
-  Future<void> deleteTransaction(String id) async {
-    if (failNext) {
-      throw ApiException(404, 'RESOURCE_NOT_FOUND', 'Not found');
-    }
-    transactions = transactions.where((t) => t.id != id).toList();
-  }
-
-  @override
-  Future<Account> updateAccount(
-    String id, {
-    required String name,
-    required AccountType type,
-    required String currency,
-    required String openingBalance,
-    String? notes,
-  }) async {
-    final updated = _account(id, name);
-    accounts = [for (final a in accounts) a.id == id ? updated : a];
-    return updated;
-  }
+  MockClient get client => MockClient((request) async {
+        calls.add('${request.method} ${request.url.path}');
+        final path = request.url.path;
+        if (path == '/api/v1/finance/overview') {
+          if (failOverview) return _json({'code': 'X', 'message': 'Overview down'}, status: 500);
+          return _json({
+            'from': '2026-10-01',
+            'currencies': [
+              {
+                'currency': 'INR',
+                'spent': '${100 * expensesCreated}.0000',
+                'paid': '0.0000',
+                'previousMonthSpent': '0.0000',
+                'todaySpent': '0.0000',
+                'byCategory': [],
+                'daily': [],
+                'budgets': [],
+              }
+            ],
+            'owedToYou': [],
+            'youOwe': [],
+            'friendCount': 0,
+            'pendingRequests': 0,
+          });
+        }
+        if (path == '/api/v1/finance/expenses' && request.method == 'GET') {
+          return _json({'content': [], 'page': 0, 'size': 50, 'totalElements': 0, 'totalPages': 0, 'last': true});
+        }
+        if (path == '/api/v1/finance/expenses' && request.method == 'POST') {
+          expensesCreated++;
+          return _json({
+            'id': 'e$expensesCreated',
+            'description': 'Coffee',
+            'category': 'FOOD',
+            'amount': '100.0000',
+            'currency': 'USD',
+            'spentOn': '2026-10-12',
+            'splitType': 'NONE',
+            'paidBy': {'id': 'me', 'username': 'me', 'displayName': 'Me'},
+            'createdBy': {'id': 'me', 'username': 'me', 'displayName': 'Me'},
+            'shares': [],
+            'myShare': '100.0000',
+            'myBalance': '0.0000',
+            'editable': true,
+          }, status: 201);
+        }
+        if (path == '/api/v1/finance/friends') {
+          return _json({
+            'me': {'id': 'me', 'username': 'me', 'displayName': 'Me'},
+            'friends': [],
+            'incoming': [],
+            'outgoing': [],
+          });
+        }
+        return _json({'message': 'not found'}, status: 404);
+      });
 }
 
 void main() {
-  group('FinanceController mutations', () {
-    test('addTransaction reloads summary and notifies dashboard',
-        () async {
-      int notified = 0;
-      final api = _FakeFinanceApi();
-      final controller = FinanceController(
-        api: api,
-        onMutated: () async {
-          notified++;
-        },
-      );
-      await controller.loadAll();
-      final before = api.summaryCalls;
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
-      final created = await controller.addTransaction(
-        accountId: 'a1',
-        categoryId: 'c1',
-        type: TransactionType.expense,
-        amount: '250',
-      );
+  test('loadAll fetches overview, expenses and friends in parallel', () async {
+    final backend = _FakeBackend();
+    final controller = FinanceController(
+      api: FinanceApi(apiClient: ApiClient(baseUrl: 'http://x', httpClient: backend.client)),
+    );
+    await controller.loadAll();
 
-      expect(created.id, 't-new');
-      expect(
-          controller.transactions.any((t) => t.id == 't-new'), isTrue);
-      // Month slices (incl. summary) reloaded after the money movement.
-      expect(api.summaryCalls, greaterThan(before));
-      expect(controller.summary, isNotNull);
-      expect(controller.summary!.currencies.single.expense,
-          Money.parse('1200'));
-      expect(notified, 1);
-      controller.dispose();
-    });
+    expect(controller.status, FinanceLoadStatus.ready);
+    expect(controller.me!.id, 'me');
+    expect(controller.primaryOverview!.currency, 'INR');
+    expect(backend.calls, containsAll(['GET /api/v1/finance/overview', 'GET /api/v1/finance/friends']));
+  });
 
-    test('failed create skips reload and notify', () async {
-      int notified = 0;
-      final api = _FakeFinanceApi()..failNext = true;
-      final controller = FinanceController(
-        api: api,
-        onMutated: () async {
-          notified++;
-        },
-      );
-      await controller.loadAll();
-      final before = api.summaryCalls;
+  test('saving an expense refreshes data, remembers currency and notifies Home', () async {
+    final backend = _FakeBackend();
+    var homeRefreshed = 0;
+    final controller = FinanceController(
+      api: FinanceApi(apiClient: ApiClient(baseUrl: 'http://x', httpClient: backend.client)),
+      onMutated: () async => homeRefreshed++,
+    );
+    await controller.loadAll();
+    await controller.saveExpense(ExpenseDraft(
+      description: 'Coffee',
+      category: ExpenseCategory.food,
+      amount: '100',
+      currency: 'USD',
+      spentOn: DateTime(2026, 10, 12),
+    ));
 
-      await expectLater(
-        controller.addTransaction(
-          accountId: 'a1',
-          categoryId: 'c1',
-          type: TransactionType.expense,
-          amount: 'bogus',
-        ),
-        throwsA(isA<ApiException>()),
-      );
-      expect(api.summaryCalls, before);
-      expect(notified, 0);
-      controller.dispose();
-    });
+    expect(homeRefreshed, 1);
+    expect(controller.currency, 'USD');
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('finance.defaultCurrency'), 'USD');
+    expect(controller.overview!.currencies.single.spent.toPlainString(), '100.0000');
+  });
 
-    test('deleteTransaction removes locally and notifies', () async {
-      int notified = 0;
-      final api = _FakeFinanceApi();
-      final controller = FinanceController(
-        api: api,
-        onMutated: () async {
-          notified++;
-        },
-      );
-      await controller.loadAll();
-      expect(
-          controller.transactions.any((t) => t.id == 't1'), isTrue);
+  test('a failed load ends in the error state, never a spinner', () async {
+    final backend = _FakeBackend()..failOverview = true;
+    final controller = FinanceController(
+      api: FinanceApi(apiClient: ApiClient(baseUrl: 'http://x', httpClient: backend.client)),
+    );
+    await controller.loadAll();
+    expect(controller.status, FinanceLoadStatus.error);
+    expect(controller.errorMessage, isNotNull);
+  });
 
-      await controller.deleteTransaction('t1');
-
-      expect(
-          controller.transactions.any((t) => t.id == 't1'), isFalse);
-      expect(notified, 1);
-      controller.dispose();
-    });
-
-    test('updateAccount recomputes slices and notifies', () async {
-      int notified = 0;
-      final api = _FakeFinanceApi();
-      final controller = FinanceController(
-        api: api,
-        onMutated: () async {
-          notified++;
-        },
-      );
-      await controller.loadAll();
-      final before = api.summaryCalls;
-
-      await controller.updateAccount(
-        'a1',
-        name: 'Cash renamed',
-        type: AccountType.cash,
-        currency: 'INR',
-        openingBalance: '2000',
-      );
-
-      expect(controller.accountById('a1')!.name, 'Cash renamed');
-      expect(api.summaryCalls, greaterThan(before));
-      expect(notified, 1);
-      controller.dispose();
-    });
-
-    test('summary keeps transfers out of income/expense', () async {
-      final api = _FakeFinanceApi();
-      final controller = FinanceController(api: api);
-      await controller.loadAll();
-      final section = controller.summary!.currencies.single;
-      // Transfers are reported separately, never as income/expense.
-      expect(section.transferIn, Money.zero());
-      expect(section.transferOut, Money.zero());
-      expect(section.net, Money.parse('3800'));
-      controller.dispose();
-    });
+  test('cannot move past the current month', () async {
+    final backend = _FakeBackend();
+    final controller = FinanceController(
+      api: FinanceApi(apiClient: ApiClient(baseUrl: 'http://x', httpClient: backend.client)),
+    );
+    final start = controller.month;
+    await controller.shiftMonth(1);
+    expect(controller.month, start);
+    await controller.shiftMonth(-1);
+    expect(controller.month, DateTime(start.year, start.month - 1));
+    expect(controller.isCurrentMonth, isFalse);
   });
 }

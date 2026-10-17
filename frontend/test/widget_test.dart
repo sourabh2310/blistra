@@ -11,12 +11,16 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  Future<AppDependencies> buildDeps() =>
-      AppDependencies.create(baseUrl: 'http://localhost:8080');
+  // create() does real async I/O (storage, plugin channels), which never
+  // completes inside the widget tester's fake-async zone.
+  Future<AppDependencies> buildDeps(WidgetTester tester) async =>
+      (await tester.runAsync(
+        () => AppDependencies.create(baseUrl: 'http://localhost:8080'),
+      ))!;
 
   group('BlistraApp auth gate', () {
     testWidgets('Shows login when unauthenticated', (tester) async {
-      final deps = await buildDeps();
+      final deps = await buildDeps(tester);
       await tester.pumpWidget(BlistraApp(deps: deps));
       await tester.pumpAndSettle();
 
@@ -25,7 +29,7 @@ void main() {
     });
 
     testWidgets('Login form validates empty fields', (tester) async {
-      final deps = await buildDeps();
+      final deps = await buildDeps(tester);
       await tester.pumpWidget(
         MaterialApp(home: AuthScreen(deps: deps)),
       );
@@ -33,20 +37,22 @@ void main() {
       await tester.tap(find.text('Sign in'));
       await tester.pump();
 
-      expect(find.text('Email is required'), findsOneWidget);
-      expect(find.text('Password is required'), findsOneWidget);
+      expect(find.text('Enter your username, email or phone'), findsOneWidget);
     });
 
     testWidgets('Toggle switches to register mode', (tester) async {
-      final deps = await buildDeps();
+      final deps = await buildDeps(tester);
       await tester.pumpWidget(
         MaterialApp(home: AuthScreen(deps: deps)),
       );
 
-      await tester.tap(find.text('New here? Create an account'));
+      final toggle = find.text("Don't have an account? Create account");
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
       await tester.pump();
 
-      expect(find.text('Create account'), findsOneWidget);
+      expect(toggle, findsNothing);
+      expect(find.text('Sign in'), findsNothing);
     });
   });
 }

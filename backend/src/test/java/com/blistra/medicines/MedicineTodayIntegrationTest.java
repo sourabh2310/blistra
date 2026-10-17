@@ -157,23 +157,25 @@ class MedicineTodayIntegrationTest extends AbstractIntegrationTest {
         createSchedule(token, med, ScheduleType.DAILY, List.of("08:00", "20:00"),
                 null, true, null, null);
 
-        JsonNode today = getToday(token, NEXT_DAY);
+        // A day that is always ahead of the run time, so both slots are upcoming.
+        LocalDate future = LocalDate.now(ZONE).plusDays(2);
+        JsonNode today = getToday(token, future);
 
-        assertThat(today.path("date").asText()).isEqualTo(NEXT_DAY.toString());
+        assertThat(today.path("date").asText()).isEqualTo(future.toString());
         assertThat(today.path("totalDoses").asInt()).isEqualTo(2);
         assertThat(today.path("takenDoses").asInt()).isZero();
         assertThat(today.path("remainingDoses").asInt()).isEqualTo(2);
         assertThat(today.path("doses").size()).isEqualTo(2);
         assertThat(today.path("doses").get(0).path("status").asText()).isEqualTo("PENDING");
         assertThat(today.path("doses").get(0).path("scheduledAt").asText())
-                .isEqualTo(slot(NEXT_DAY, "08:00").toString());
+                .isEqualTo(slot(future, "08:00").toString());
         assertThat(today.path("doses").get(1).path("scheduledAt").asText())
-                .isEqualTo(slot(NEXT_DAY, "20:00").toString());
+                .isEqualTo(slot(future, "20:00").toString());
         assertThat(today.path("doses").get(0).path("medicineName").asText()).isEqualTo("Vitamin D");
         assertThat(today.path("doses").get(0).path("doseUnit").asText()).isEqualTo("tablet");
-        // Both slots are in the future relative to any run time before NEXT_DAY.
+        // Both slots are in the future relative to any run time before that day.
         assertThat(today.path("nextDose").path("scheduledAt").asText())
-                .isEqualTo(slot(NEXT_DAY, "08:00").toString());
+                .isEqualTo(slot(future, "08:00").toString());
     }
 
     @Test

@@ -8,8 +8,7 @@ import '../../features/diet/diet_controller.dart';
 import '../../features/diet/models/water.dart';
 import '../../features/diet/screens/add_edit_meal_screen.dart';
 import '../../features/finance/finance_controller.dart';
-import '../../features/finance/finance_scope.dart';
-import '../../features/finance/screens/transactions_screen.dart';
+import '../../features/finance/screens/expense_form_screen.dart';
 import '../../features/habits/habits_controller.dart';
 import '../../features/habits/habits_scope.dart';
 import '../../features/habits/screens/habit_form_screen.dart';
@@ -246,9 +245,9 @@ Future<void> openQuickAddCreation(
       }
       final bool? saved = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
-          builder: (_) => FinanceScope(
-            controller: finance,
-            child: const TransactionFormScreen(),
+          builder: (_) => ChangeNotifierProvider.value(
+            value: finance,
+            child: const ExpenseFormScreen(),
           ),
         ),
       );

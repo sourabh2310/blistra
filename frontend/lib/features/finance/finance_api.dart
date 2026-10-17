@@ -1,242 +1,146 @@
-/// Typed client for the finance REST API.
+/// Typed client for the finance REST API: expenses, friends, settlements,
+/// monthly overview and budgets.
 library;
 
 import '../../core/api/api_client.dart';
 import 'models.dart';
+
+/// Everything needed to create or update an expense.
+class ExpenseDraft {
+  const ExpenseDraft({
+    required this.description,
+    required this.category,
+    required this.amount,
+    required this.currency,
+    required this.spentOn,
+    this.notes,
+    this.paidBy,
+    this.splitType = SplitType.none,
+    this.participants = const [],
+  });
+
+  final String description;
+  final ExpenseCategory category;
+  final String amount;
+  final String currency;
+  final DateTime spentOn;
+  final String? notes;
+
+  /// Null means "me".
+  final String? paidBy;
+  final SplitType splitType;
+
+  /// (userId, value) pairs; value is ignored for equal splits.
+  final List<(String, String?)> participants;
+
+  Map<String, dynamic> toJson() => {
+        'description': description.trim(),
+        'category': category.wire,
+        'amount': amount,
+        'currency': currency,
+        'spentOn': isoDate(spentOn),
+        if (notes != null && notes!.trim().isNotEmpty) 'notes': notes!.trim(),
+        if (paidBy != null) 'paidBy': paidBy,
+        'splitType': splitType.wire,
+        if (splitType != SplitType.none)
+          'participants': [
+            for (final (id, value) in participants)
+              {'userId': id, if (value != null && value.isNotEmpty) 'value': value},
+          ],
+      };
+}
 
 class FinanceApi {
   FinanceApi({required this.apiClient});
 
   final ApiClient apiClient;
 
-  Future<List<Account>> fetchAccounts() async {
-    final List<dynamic> body = await apiClient.getList(
-        '/api/v1/finance/accounts');
-    return body
-        .map((Object? item) => Account.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
+  static const String _base = '/api/v1/finance';
 
-  Future<Account> createAccount({
-    required String name,
-    required AccountType type,
-    required String currency,
-    required String openingBalance,
-    String? notes,
-  }) async {
-    final Map<String, dynamic> body = await apiClient.post(
-      '/api/v1/finance/accounts',
-      body: {
-        'name': name,
-        'type': enumToJson(type),
-        'currency': currency.toUpperCase(),
-        'openingBalance': openingBalance,
-        if (notes != null && notes.isNotEmpty) 'notes': notes,
-      },
-    );
-    return Account.fromJson(body);
-  }
+  Future<FinanceOverview> overview(DateTime month) async => FinanceOverview.fromJson(
+        await apiClient.get('$_base/overview', query: {
+          'month': '${month.year.toString().padLeft(4, '0')}-${month.month.toString().padLeft(2, '0')}',
+        }),
+      );
 
-  Future<Account> updateAccount(
-    String id, {
-    required String name,
-    required AccountType type,
-    required String currency,
-    required String openingBalance,
-    String? notes,
-  }) async {
-    final Map<String, dynamic> body = await apiClient.put(
-      '/api/v1/finance/accounts/$id',
-      body: {
-        'name': name,
-        'type': enumToJson(type),
-        'currency': currency.toUpperCase(),
-        'openingBalance': openingBalance,
-        if (notes != null && notes.isNotEmpty) 'notes': notes,
-      },
-    );
-    return Account.fromJson(body);
-  }
-
-  Future<void> archiveAccount(String id) async {
-    await apiClient.delete('/api/v1/finance/accounts/$id');
-  }
-
-  Future<List<Category>> fetchCategories() async {
-    final List<dynamic> body = await apiClient.getList(
-        '/api/v1/finance/categories');
-    return body
-        .map((Object? item) => Category.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<Category> createCategory({
-    required String name,
-    required CategoryType type,
-  }) async {
-    final Map<String, dynamic> body = await apiClient.post(
-      '/api/v1/finance/categories',
-      body: {'name': name, 'type': enumToJson(type)},
-    );
-    return Category.fromJson(body);
-  }
-
-  Future<Category> updateCategory(
-    String id, {
-    required String name,
-    required CategoryType type,
-  }) async {
-    final Map<String, dynamic> body = await apiClient.put(
-      '/api/v1/finance/categories/$id',
-      body: {'name': name, 'type': enumToJson(type)},
-    );
-    return Category.fromJson(body);
-  }
-
-  Future<void> archiveCategory(String id) async {
-    await apiClient.delete('/api/v1/finance/categories/$id');
-  }
-
-  Future<PageResult<FinanceTransaction>> fetchTransactions({
-    String? accountId,
-    String? categoryId,
-    TransactionType? type,
+  Future<ExpensePage> expenses({
     DateTime? from,
     DateTime? to,
+    ExpenseCategory? category,
+    String? friendId,
+    String? query,
     int page = 0,
     int size = 50,
-  }) async {
-    final Map<String, dynamic> body = await apiClient.get(
-      '/api/v1/finance/transactions',
-      query: {
-        'accountId': ?accountId,
-        'categoryId': ?categoryId,
-        if (type != null) 'type': enumToJson(type),
-        if (from != null) 'from': _dateOnly(from),
-        if (to != null) 'to': _dateOnly(to),
+  }) async =>
+      ExpensePage.fromJson(await apiClient.get('$_base/expenses', query: {
+        if (from != null) 'from': isoDate(from),
+        if (to != null) 'to': isoDate(to),
+        if (category != null) 'category': category.wire,
+        'friendId': ?friendId,
+        if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
         'page': '$page',
         'size': '$size',
-      },
-    );
-    return PageResult.fromJson(body, FinanceTransaction.fromJson);
+      }));
+
+  Future<Expense> expense(String id) async =>
+      Expense.fromJson(await apiClient.get('$_base/expenses/$id'));
+
+  Future<Expense> createExpense(ExpenseDraft draft) async =>
+      Expense.fromJson(await apiClient.post('$_base/expenses', body: draft.toJson()));
+
+  Future<Expense> updateExpense(String id, ExpenseDraft draft) async =>
+      Expense.fromJson(await apiClient.put('$_base/expenses/$id', body: draft.toJson()));
+
+  Future<void> deleteExpense(String id) => apiClient.delete('$_base/expenses/$id');
+
+  Future<FriendsData> friends() async => FriendsData.fromJson(await apiClient.get('$_base/friends'));
+
+  /// Returns "PENDING" or "ACCEPTED" (when they had already asked you).
+  Future<String> addFriend(String username) async {
+    final body = await apiClient.post('$_base/friends', body: {'username': username.trim()});
+    return body['status'] as String? ?? 'PENDING';
   }
 
-  Future<FinanceTransaction> createTransaction({
-    required String accountId,
-    required String categoryId,
-    required TransactionType type,
+  Future<void> acceptRequest(String requestId) =>
+      apiClient.postNoContent('$_base/friends/requests/$requestId/accept');
+
+  Future<void> dismissRequest(String requestId) =>
+      apiClient.delete('$_base/friends/requests/$requestId');
+
+  Future<void> removeFriend(String userId) => apiClient.delete('$_base/friends/$userId');
+
+  Future<FriendDetail> friendDetail(String userId) async =>
+      FriendDetail.fromJson(await apiClient.get('$_base/friends/$userId'));
+
+  Future<Settlement> settleUp({
+    required String friendId,
+    required bool iPaid,
     required String amount,
-    DateTime? occurredAt,
-    String? description,
-    String? notes,
-  }) async {
-    final Map<String, dynamic> body = await apiClient.post(
-      '/api/v1/finance/transactions',
-      body: {
-        'accountId': accountId,
-        'categoryId': categoryId,
-        'type': enumToJson(type),
-        'amount': amount,
-        if (occurredAt != null) 'occurredAt': _dateOnly(occurredAt),
-        if (description != null && description.isNotEmpty)
-          'description': description,
-        if (notes != null && notes.isNotEmpty) 'notes': notes,
-      },
-    );
-    return FinanceTransaction.fromJson(body);
-  }
-
-  Future<FinanceTransaction> updateTransaction(
-    String id, {
-    required String accountId,
-    required String categoryId,
-    required TransactionType type,
-    required String amount,
-    required DateTime occurredAt,
-    String? description,
-    String? notes,
-  }) async {
-    final Map<String, dynamic> body = await apiClient.put(
-      '/api/v1/finance/transactions/$id',
-      body: {
-        'accountId': accountId,
-        'categoryId': categoryId,
-        'type': enumToJson(type),
-        'amount': amount,
-        'occurredAt': _dateOnly(occurredAt),
-        if (description != null && description.isNotEmpty)
-          'description': description,
-        if (notes != null && notes.isNotEmpty) 'notes': notes,
-      },
-    );
-    return FinanceTransaction.fromJson(body);
-  }
-
-  Future<void> deleteTransaction(String id) async {
-    await apiClient.delete('/api/v1/finance/transactions/$id');
-  }
-
-  Future<PageResult<FinanceTransfer>> fetchTransfers({
-    String? sourceAccountId,
-    String? destinationAccountId,
-    DateTime? from,
-    DateTime? to,
-    int page = 0,
-    int size = 50,
-  }) async {
-    final Map<String, dynamic> body = await apiClient.get(
-      '/api/v1/finance/transfers',
-      query: {
-        'sourceAccountId': ?sourceAccountId,
-        'destinationAccountId': ?destinationAccountId,
-        if (from != null) 'from': _dateOnly(from),
-        if (to != null) 'to': _dateOnly(to),
-        'page': '$page',
-        'size': '$size',
-      },
-    );
-    return PageResult.fromJson(body, FinanceTransfer.fromJson);
-  }
-
-  Future<FinanceTransfer> createTransfer({
-    required String sourceAccountId,
-    required String destinationAccountId,
-    required String amount,
-    DateTime? transferredAt,
+    required String currency,
+    DateTime? on,
     String? note,
-  }) async {
-    final Map<String, dynamic> body = await apiClient.post(
-      '/api/v1/finance/transfers',
-      body: {
-        'sourceAccountId': sourceAccountId,
-        'destinationAccountId': destinationAccountId,
+  }) async =>
+      Settlement.fromJson(await apiClient.post('$_base/settlements', body: {
+        'friendId': friendId,
+        'direction': iPaid ? 'I_PAID' : 'THEY_PAID',
         'amount': amount,
-        if (transferredAt != null) 'transferredAt': _dateOnly(transferredAt),
-        if (note != null && note.isNotEmpty) 'note': note,
-      },
-    );
-    return FinanceTransfer.fromJson(body);
-  }
+        'currency': currency,
+        if (on != null) 'settledOn': isoDate(on),
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      }));
 
-  Future<void> deleteTransfer(String id) async {
-    await apiClient.delete('/api/v1/finance/transfers/$id');
-  }
+  Future<void> deleteSettlement(String id) => apiClient.delete('$_base/settlements/$id');
 
-  Future<Summary> fetchSummary({DateTime? from, DateTime? to}) async {
-    final Map<String, dynamic> body = await apiClient.get(
-      '/api/v1/finance/summary',
-      query: {
-        if (from != null) 'from': _dateOnly(from),
-        if (to != null) 'to': _dateOnly(to),
-      },
-    );
-    return Summary.fromJson(body);
-  }
+  Future<Budget> saveBudget({
+    ExpenseCategory? category,
+    required String currency,
+    required String monthlyLimit,
+  }) async =>
+      Budget.fromJson(await apiClient.put('$_base/budgets', body: {
+        if (category != null) 'category': category.wire,
+        'currency': currency,
+        'monthlyLimit': monthlyLimit,
+      }));
 
-  static String _dateOnly(DateTime value) {
-    final String y = value.year.toString().padLeft(4, '0');
-    final String m = value.month.toString().padLeft(2, '0');
-    final String d = value.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
-  }
+  Future<void> deleteBudget(String id) => apiClient.delete('$_base/budgets/$id');
 }

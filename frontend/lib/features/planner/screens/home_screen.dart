@@ -149,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ],
           child: const IgnorePointer(
             child: GlassIconButton(
-              tooltip: 'More Planner actions',
+              tooltip: null,
               icon: Icons.more_horiz,
               onTap: null,
             ),

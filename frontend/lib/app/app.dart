@@ -83,7 +83,11 @@ class BlistraApp extends StatelessWidget {
               builder: (context) {
                 AuthColors.sync(BlistraColors.resolve(context));
                 ActiveColors.sync(BlistraColors.resolve(context));
-                return BlistraBackdrop(child: child ?? const SizedBox.shrink());
+                // Glass cards share one backdrop read per frame instead of
+                // one blur pass each, which keeps scrolling smooth on phones.
+                return BlistraBackdrop(
+                  child: BackdropGroup(child: child ?? const SizedBox.shrink()),
+                );
               },
             ),
             home: AuthGate(deps: deps),

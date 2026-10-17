@@ -15,9 +15,8 @@ import java.util.List;
  *
  * <p>{@code offsetMinutes} echoes the client-reported UTC offset used to define
  * the day boundary for this response only; it is never stored. {@code
- * waterTotalMilliliters} is derived only from entries whose unit is a
- * millilitre/litre value; other descriptors are excluded from the total but
- * still listed in {@code water}.</p>
+ * waterTotalMilliliters} sums every entry, counting glasses as 250 ml and cups
+ * as 240 ml.</p>
  */
 @Data
 @NoArgsConstructor

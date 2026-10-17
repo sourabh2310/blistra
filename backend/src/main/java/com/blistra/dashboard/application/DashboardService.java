@@ -4,8 +4,6 @@ import com.blistra.common.time.UserTime;
 import com.blistra.dashboard.dto.DashboardResponse;
 import com.blistra.diet.application.DietSummaryService;
 import com.blistra.diet.dto.DietSummaryResponse;
-import com.blistra.finance.application.SummaryService;
-import com.blistra.finance.dto.SummaryResponse;
 import com.blistra.habits.application.HabitService;
 import com.blistra.habits.dto.HabitTodayResponse;
 import com.blistra.planner.application.PlannerTodayService;
@@ -30,7 +28,7 @@ public class DashboardService {
 
     private final CurrentUserProvider currentUserProvider;
     private final PlannerTodayService plannerTodayService;
-    private final SummaryService financeSummaryService;
+    private final FinanceSummaryProvider financeSummaryProvider;
     private final DietSummaryService dietSummaryService;
     private final HabitService habitService;
     private final HealthSummaryProvider healthSummaryProvider;
@@ -41,7 +39,7 @@ public class DashboardService {
 
     public DashboardService(CurrentUserProvider currentUserProvider,
                             PlannerTodayService plannerTodayService,
-                            SummaryService financeSummaryService,
+                            FinanceSummaryProvider financeSummaryProvider,
                             DietSummaryService dietSummaryService,
                             HabitService habitService,
                              HealthSummaryProvider healthSummaryProvider,
@@ -52,7 +50,7 @@ public class DashboardService {
                             UserProfileRepository userProfileRepository) {
         this.currentUserProvider = currentUserProvider;
         this.plannerTodayService = plannerTodayService;
-        this.financeSummaryService = financeSummaryService;
+        this.financeSummaryProvider = financeSummaryProvider;
         this.dietSummaryService = dietSummaryService;
         this.habitService = habitService;
         this.healthSummaryProvider = healthSummaryProvider;
@@ -69,7 +67,7 @@ public class DashboardService {
         DashboardResponse.PlannerSection planner = getPlannerSection();
 
         // Finance - use current month by default, or the date's month
-        DashboardResponse.FinanceSection finance = getFinanceSection(date);
+        DashboardResponse.FinanceSection finance = financeSummaryProvider.getFinanceSummary(date);
 
         // Diet
         DashboardResponse.DietSection diet = getDietSection(date, offsetMinutes);
@@ -170,34 +168,6 @@ public class DashboardService {
         }
     }
 
-    private DashboardResponse.FinanceSection getFinanceSection(LocalDate date) {
-        try {
-            // Default to current month (first day to last day of the month)
-            LocalDate from = date.withDayOfMonth(1);
-            LocalDate to = date.withDayOfMonth(date.lengthOfMonth());
-
-            SummaryResponse summary = financeSummaryService.summary(from, to);
-            SummaryResponse today = financeSummaryService.summary(date, date);
-
-            return DashboardResponse.FinanceSection.builder()
-                    .from(summary.from())
-                    .to(summary.to())
-                    .currencies(mapCurrencySections(summary.currencies()))
-                    .today(DashboardResponse.FinancePeriodSummary.builder()
-                            .from(today.from())
-                            .to(today.to())
-                            .currencies(mapCurrencySections(today.currencies()))
-                            .build())
-                    .unavailable(false)
-                    .build();
-        } catch (Exception e) {
-            return DashboardResponse.FinanceSection.builder()
-                    .unavailable(true)
-                    .error("Finance summary unavailable")
-                    .build();
-        }
-    }
-
     private DashboardResponse.DietSection getDietSection(LocalDate date, int offsetMinutes) {
         try {
             DietSummaryResponse summary = dietSummaryService.dailySummary(
@@ -266,26 +236,6 @@ public class DashboardService {
                 .title(e.getTitle())
                 .startAt(e.getStartAt().toString())
                 .endAt(e.getEndAt() != null ? e.getEndAt().toString() : null)
-                .build()).toList();
-    }
-
-    private List<DashboardResponse.CurrencySection> mapCurrencySections(List<com.blistra.finance.dto.SummaryCurrencySection> sections) {
-        return sections.stream().map(s -> DashboardResponse.CurrencySection.builder()
-                .currency(s.currency())
-                .income(s.income())
-                .expense(s.expense())
-                .net(s.net())
-                .transferIn(s.transferIn())
-                .transferOut(s.transferOut())
-                .topCategories(mapCategorySpends(s.spendingByCategory()))
-                .build()).toList();
-    }
-
-    private List<DashboardResponse.CategorySpend> mapCategorySpends(List<com.blistra.finance.dto.SummaryCategorySpend> spends) {
-        return spends.stream().map(s -> DashboardResponse.CategorySpend.builder()
-                .categoryId(s.categoryId().toString())
-                .categoryName(s.categoryName())
-                .amount(s.amount())
                 .build()).toList();
     }
 

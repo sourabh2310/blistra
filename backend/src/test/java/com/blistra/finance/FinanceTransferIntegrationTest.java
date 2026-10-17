@@ -51,7 +51,9 @@ class FinanceTransferIntegrationTest extends FinanceTestSupport {
                 .andExpect(jsonPath("$[?(@.name == 'Savings')].balance").value("600.0000"));
         // NOTE: transfer does NOT create any expense/income so net worth is 1500 - 30 = 1470.
         mockMvc.perform(get(SUMMARY_URL)
-                .header("Authorization", "Bearer " + token))
+                .header("Authorization", "Bearer " + token)
+                .param("from", "2026-09-01")
+                .param("to", "2026-09-30"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currencies[0].income").value("0.0000"))
                 .andExpect(jsonPath("$.currencies[0].expense").value("30.0000"));

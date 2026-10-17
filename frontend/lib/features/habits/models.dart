@@ -251,13 +251,13 @@ class PageResult<T> {
     T Function(Map<String, dynamic>) itemParser,
   ) =>
       PageResult(
-        items: (json['content'] as List<dynamic>)
+        items: ((json['content'] as List<dynamic>?) ?? const [])
             .map((Object? item) => itemParser(item as Map<String, dynamic>))
             .toList(),
-        page: json['page'] as int,
-        size: json['size'] as int,
-        totalElements: json['totalElements'] as int,
-        totalPages: json['totalPages'] as int,
-        last: json['last'] as bool,
+        page: json['page'] as int? ?? 0,
+        size: json['size'] as int? ?? 0,
+        totalElements: json['totalElements'] as int? ?? 0,
+        totalPages: json['totalPages'] as int? ?? 0,
+        last: json['last'] as bool? ?? true,
       );
 }

@@ -46,6 +46,32 @@ class Money {
     return Money._(intUnits + fracUnits);
   }
 
+  /// Like [Money.parse] but accepts a leading minus sign (signed balances).
+  factory Money.parseSigned(String raw) {
+    final String text = raw.trim();
+    if (text.startsWith('-')) {
+      return Money._(-Money.parse(text.substring(1))._units);
+    }
+    return Money.parse(text);
+  }
+
+  /// Signed parse that falls back to zero for empty or malformed input.
+  static Money tryParse(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return Money.zero();
+    try {
+      return Money.parseSigned(raw);
+    } on FormatException {
+      return Money.zero();
+    }
+  }
+
+  Money abs() => Money._(_units.abs());
+
+  Money operator -() => Money._(-_units);
+
+  /// Value as a double, for chart proportions only (never for arithmetic).
+  double toDouble() => _units.toDouble() / _perUnit.toDouble();
+
   Money operator +(Money other) => Money._(_units + other._units);
 
   Money operator -(Money other) => Money._(_units - other._units);

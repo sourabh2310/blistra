@@ -186,33 +186,25 @@ class SearchIntegrationTest extends AbstractIntegrationTest {
                 UUID.randomUUID(), userId, marker + " meditation", marker + " habit", "BOOLEAN",
                 ts("2026-09-12T10:00:00"));
 
-        // FINANCE
-        UUID accountId = UUID.randomUUID();
-        UUID account2Id = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO finance_accounts (id, user_id, name, type, currency, opening_balance, created_at)"
-                        + " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                accountId, userId, marker + " vault", "CASH", "USD", new java.math.BigDecimal("0.0000"),
-                ts("2026-09-13T10:00:00"));
-        jdbcTemplate.update(
-                "INSERT INTO finance_accounts (id, user_id, name, type, currency, opening_balance, created_at)"
-                        + " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                account2Id, userId, marker + " reserve", "BANK", "USD", new java.math.BigDecimal("0.0000"),
-                ts("2026-09-13T11:00:00"));
-        UUID categoryId = UUID.randomUUID();
-        jdbcTemplate.update(
-                "INSERT INTO finance_categories (id, user_id, name, type, created_at) VALUES (?, ?, ?, ?, ?)",
-                categoryId, userId, marker + " snacks", "EXPENSE", ts("2026-09-13T12:00:00"));
-        jdbcTemplate.update(
-                "INSERT INTO finance_transactions (id, user_id, account_id, category_id, type, amount, currency,"
-                        + " occurred_at, description, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                UUID.randomUUID(), userId, accountId, categoryId, "EXPENSE", new java.math.BigDecimal("5.0000"),
-                "USD", LocalDate.parse("2026-09-14"), marker + " groceries", marker + " txn");
-        jdbcTemplate.update(
-                "INSERT INTO finance_transfers (id, user_id, source_account_id, destination_account_id, amount,"
-                        + " currency, transferred_at, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                UUID.randomUUID(), userId, accountId, account2Id, new java.math.BigDecimal("10.0000"), "USD",
-                LocalDate.parse("2026-09-15"), marker + " rent move");
+        // FINANCE: five expenses matched by description, notes or category text.
+        String[][] expenses = {
+                {marker + " groceries", null, "GROCERIES", "2026-09-13"},
+                {marker + " dinner", null, "FOOD", "2026-09-13"},
+                {"Cab home", marker + " airport", "TRANSPORT", "2026-09-14"},
+                {marker + " rent", null, "RENT", "2026-09-15"},
+                {marker + " gift", "birthday", "GIFTS", "2026-09-16"},
+        };
+        for (String[] e : expenses) {
+            UUID expenseId = UUID.randomUUID();
+            jdbcTemplate.update(
+                    "INSERT INTO finance_expenses (id, created_by, paid_by, description, category, amount, currency,"
+                            + " spent_on, split_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    expenseId, userId, userId, e[0], e[2], new java.math.BigDecimal("5.0000"), "USD",
+                    LocalDate.parse(e[3]), "NONE", e[1]);
+            jdbcTemplate.update(
+                    "INSERT INTO finance_expense_shares (id, expense_id, user_id, amount) VALUES (?, ?, ?, ?)",
+                    UUID.randomUUID(), expenseId, userId, new java.math.BigDecimal("5.0000"));
+        }
 
         // DOCUMENTS
         jdbcTemplate.update(
@@ -325,10 +317,7 @@ class SearchIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(body.get("totalElements").asLong()).isEqualTo(5);
         Set<String> routes = routesOf(body);
-        assertThat(routes).anyMatch(r -> r.startsWith("finance/accounts/"));
-        assertThat(routes).anyMatch(r -> r.startsWith("finance/categories/"));
-        assertThat(routes).anyMatch(r -> r.startsWith("finance/transactions/"));
-        assertThat(routes).anyMatch(r -> r.startsWith("finance/transfers/"));
+        assertThat(routes).hasSize(5).allMatch(r -> r.startsWith("finance/expenses/"));
     }
 
     @Test

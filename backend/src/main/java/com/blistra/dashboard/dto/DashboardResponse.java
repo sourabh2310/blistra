@@ -312,8 +312,22 @@ public class DashboardResponse {
         private LocalDate to;
         private List<CurrencySection> currencies;
         private FinancePeriodSummary today;
+        /** What friends owe the user, per currency. */
+        private List<MoneyAmount> owedToYou;
+        /** What the user owes friends, per currency. */
+        private List<MoneyAmount> youOwe;
         private boolean unavailable;
         private String error;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class MoneyAmount {
+        private String currency;
+        private String amount;
     }
 
     @Data

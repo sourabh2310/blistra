@@ -61,23 +61,10 @@ class AuthState extends ChangeNotifier {
         apiClient.token = token;
         _userEmail = email ?? '';
         _status = AuthStatus.authenticated;
-        // Best-effort: hydrate flags so routing is correct without a restart.
-        try {
-          final profile = await apiClient.fetchProfile();
-          _account = UserAccountDto(
-            id: profile.userId,
-            username: profile.username,
-            email: profile.email,
-            phone: profile.phone,
-            emailVerified: profile.emailVerified,
-            phoneVerified: profile.phoneVerified,
-            onboardingCompleted: profile.onboardingCompleted,
-            status: profile.status,
-          );
-          _userEmail = profile.email;
-        } catch (_) {
-          // Offline: keep the persisted session; flags load on next action.
-        }
+        // Hydrate flags in the background: awaiting here blocked runApp for
+        // up to the full request timeout while a free-tier backend woke up.
+        // ignore: discarded_futures
+        _hydrateProfile(token);
       } else {
         _status = AuthStatus.unauthenticated;
       }
@@ -85,6 +72,29 @@ class AuthState extends ChangeNotifier {
       _status = AuthStatus.unauthenticated;
     }
     notifyListeners();
+  }
+
+  /// Best-effort: loads verification/onboarding flags so routing is correct
+  /// without a restart. Ignored if the session changed while in flight.
+  Future<void> _hydrateProfile(String token) async {
+    try {
+      final profile = await apiClient.fetchProfile();
+      if (apiClient.token != token || !isAuthenticated) return;
+      _account = UserAccountDto(
+        id: profile.userId,
+        username: profile.username,
+        email: profile.email,
+        phone: profile.phone,
+        emailVerified: profile.emailVerified,
+        phoneVerified: profile.phoneVerified,
+        onboardingCompleted: profile.onboardingCompleted,
+        status: profile.status,
+      );
+      _userEmail = profile.email;
+      notifyListeners();
+    } catch (_) {
+      // Offline: keep the persisted session; flags load on next action.
+    }
   }
 
   /// Called by [ApiClient.onUnauthorized] on HTTP 401.

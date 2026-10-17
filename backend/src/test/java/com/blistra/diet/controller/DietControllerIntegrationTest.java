@@ -716,8 +716,8 @@ class DietControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.mealCount").value(1))
                 .andExpect(jsonPath("$.meals[0].items.length()").value(2))
                 .andExpect(jsonPath("$.waterCount").value(3))
-                // Numeric units (ml/L) sum to 1500 ml; "glass" is excluded from the derived total.
-                .andExpect(jsonPath("$.waterTotalMilliliters").value(1500))
+                // 500 ml + 1 L + 1 glass (counted as 250 ml).
+                .andExpect(jsonPath("$.waterTotalMilliliters").value(1750))
                 .andExpect(jsonPath("$.nutrition.caloriesKcal.total").value(142))
                 .andExpect(jsonPath("$.nutrition.caloriesKcal.recordedItems").value(2))
                 .andExpect(jsonPath("$.nutrition.proteinG.total").value(2.7))

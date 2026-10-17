@@ -527,8 +527,12 @@ class _SummaryCards extends StatelessWidget {
     final double progress = data == null || data.totalDoses == 0
         ? 0.0
         : data.takenDoses / data.totalDoses;
-    return Row(
-      children: [
+    // Cards grow with their content (large text, progress bar) but stay the
+    // same height as each other.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
         _SummaryCard(
           value: data == null ? '—' : '${data.takenDoses}/${data.totalDoses}',
           label: 'Taken today',
@@ -562,6 +566,7 @@ class _SummaryCards extends StatelessWidget {
           iconColor: const Color(0xFF9145E8),
         ),
       ],
+      ),
     );
   }
 }
@@ -587,7 +592,7 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        height: 112,
+        constraints: const BoxConstraints(minHeight: 112),
         padding: const EdgeInsets.fromLTRB(10, 10, 10, 9),
         decoration: BoxDecoration(
           color: color,
@@ -605,7 +610,7 @@ class _SummaryCard extends StatelessWidget {
               ),
               child: Icon(icon, size: 18, color: iconColor),
             ),
-            const Spacer(),
+            const SizedBox(height: 14),
             Text(
               value,
               maxLines: 1,
