@@ -1,13 +1,13 @@
-/// Application state for the finance feature.
+/// Application state for Finance: the month being viewed (overview +
+/// expenses), friends and requests, and the user's default currency.
 ///
-/// [FinanceController] owns all finance data currently on screen, exposes it
-/// to the UI via notifications, and is the single path through which every
-/// mutation reaches the backend. After each successful mutation the affected
-/// slices (accounts, summary, transactions) are re-fetched from the backend,
-/// which is the source of truth.
+/// Every mutation goes through here, then re-fetches the affected slices from
+/// the backend (the source of truth) and notifies [onMutated] so Home can
+/// refresh its finance card.
 library;
 
 import 'package:flutter/foundation.dart' show ChangeNotifier;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api/api_exception.dart';
 import 'finance_api.dart';
@@ -20,72 +20,60 @@ class FinanceController extends ChangeNotifier {
 
   final FinanceApi api;
 
-  /// Invoked after a successful Finance mutation so owners (e.g. the app
-  /// shell) can refresh dependent state such as the Home dashboard, which
-  /// aggregates Finance data. Never breaks Finance itself.
+  /// Invoked after a successful mutation (e.g. to refresh the Home dashboard).
   final Future<void> Function()? onMutated;
+
+  static const String _currencyKey = 'finance.defaultCurrency';
+  static const List<String> commonCurrencies = [
+    'INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD', 'JPY',
+  ];
+  static const int _pageSize = 50;
 
   FinanceLoadStatus _status = FinanceLoadStatus.idle;
   String? _errorMessage;
-
-  List<Account> _accounts = const [];
-  List<Category> _categories = const [];
-  List<FinanceTransaction> _transactions = const [];
-  List<FinanceTransfer> _transfers = const [];
-  Summary? _summary;
-
-  DateTime _from = _firstOfMonth(DateTime.now());
-  DateTime _to = _lastOfMonth(DateTime.now());
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  FinanceOverview? _overview;
+  List<Expense> _expenses = const [];
+  bool _expensesLast = true;
+  int _expensesPage = 0;
+  bool _loadingMore = false;
+  FriendsData _friends = FriendsData.empty;
+  String _currency = 'INR';
+  bool _currencyLoaded = false;
 
   FinanceLoadStatus get status => _status;
   String? get errorMessage => _errorMessage;
-
-  List<Account> get accounts => _accounts;
-  List<Category> get categories => _categories;
-  List<FinanceTransaction> get transactions => _transactions;
-  List<FinanceTransfer> get transfers => _transfers;
-  Summary? get summary => _summary;
-
-  DateTime get from => _from;
-  DateTime get to => _to;
-
-  bool get hasAccounts => _accounts.isNotEmpty;
-
   bool get isLoading => _status == FinanceLoadStatus.loading;
+  DateTime get month => _month;
+  FinanceOverview? get overview => _overview;
+  List<Expense> get expenses => _expenses;
+  bool get hasMoreExpenses => !_expensesLast;
+  bool get loadingMore => _loadingMore;
+  FriendsData get friends => _friends;
+  UserSummary? get me => _friends.me;
+  String get currency => _currency;
 
-  List<Account> get activeAccounts =>
-      _accounts.where((Account a) => !a.isArchived).toList();
-
-  List<Category> get activeCategories =>
-      _categories.where((Category c) => !c.isArchived).toList();
-
-  List<Category> categoriesOfType(CategoryType type) =>
-      activeCategories.where((Category c) => c.type == type).toList();
-
-  Account? accountById(String id) {
-    for (final Account account in _accounts) {
-      if (account.id == id) {
-        return account;
-      }
-    }
-    return null;
+  bool get isCurrentMonth {
+    final now = DateTime.now();
+    return _month.year == now.year && _month.month == now.month;
   }
 
-  Category? categoryById(String id) {
-    for (final Category category in _categories) {
-      if (category.id == id) {
-        return category;
-      }
+  DateTime get monthEnd => DateTime(_month.year, _month.month + 1, 0);
+
+  /// Overview for the default currency (or the first one with activity).
+  CurrencyOverview? get primaryOverview {
+    final list = _overview?.currencies ?? const [];
+    for (final c in list) {
+      if (c.currency == _currency) return c;
     }
-    return null;
+    return list.isEmpty ? null : list.first;
   }
 
-  /// Sets the reporting month and reloads the month-scoped data.
-  Future<void> setRange(DateTime from, DateTime to) async {
-    _from = from;
-    _to = to;
-    notifyListeners();
-    await loadMonthData();
+  Friend? friendById(String userId) {
+    for (final f in _friends.friends) {
+      if (f.user.id == userId) return f;
+    }
+    return null;
   }
 
   Future<void> loadAll() async {
@@ -94,301 +82,212 @@ class FinanceController extends ChangeNotifier {
     notifyListeners();
     try {
       await Future.wait([
-        _loadAccounts(),
-        _loadCategories(),
-        _loadMonthTransactions(),
-        _loadMonthTransfers(),
-        _loadSummary(),
+        _loadCurrency(),
+        _loadOverview(),
+        _loadExpenses(),
+        _loadFriends(),
       ]);
       _status = FinanceLoadStatus.ready;
-    } on ApiException catch (error) {
-      _errorMessage = error.toString();
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
       _status = FinanceLoadStatus.error;
-    } catch (error) {
-      // Unexpected payloads must end in the error state, never a spinner.
-      _errorMessage = 'Unexpected response: $error';
+    } catch (e) {
+      _errorMessage = 'Something went wrong loading Finance.';
       _status = FinanceLoadStatus.error;
     }
     notifyListeners();
   }
 
-  /// Reloads the month-scoped slices (summary, transactions, transfers)
-  /// without rebuilding accounts/categories.
-  Future<void> loadMonthData() async {
-    _status = FinanceLoadStatus.loading;
-    _errorMessage = null;
+  /// Pull-to-refresh: reload everything without blanking the screen.
+  Future<void> refresh() async {
+    try {
+      await Future.wait([_loadOverview(), _loadExpenses(), _loadFriends()]);
+      _errorMessage = null;
+      _status = FinanceLoadStatus.ready;
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+    } catch (_) {
+      _errorMessage = 'Could not refresh Finance.';
+    }
+    notifyListeners();
+  }
+
+  Future<void> shiftMonth(int delta) async {
+    final next = DateTime(_month.year, _month.month + delta);
+    final now = DateTime.now();
+    if (next.isAfter(DateTime(now.year, now.month))) return;
+    _month = next;
+    _overview = null;
+    _expenses = const [];
     notifyListeners();
     try {
-      await Future.wait([
-        _loadMonthTransactions(),
-        _loadMonthTransfers(),
-        _loadSummary(),
-      ]);
-      _status = FinanceLoadStatus.ready;
-    } on ApiException catch (error) {
-      _errorMessage = error.toString();
-      _status = FinanceLoadStatus.error;
-    } catch (error) {
-      // Unexpected payloads must end in the error state, never a spinner.
-      _errorMessage = 'Unexpected response: $error';
-      _status = FinanceLoadStatus.error;
+      await Future.wait([_loadOverview(), _loadExpenses()]);
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
     }
     notifyListeners();
   }
 
-  // -------------------------------------------------------------------------
-  // Accounts
-  // -------------------------------------------------------------------------
+  Future<void> loadMoreExpenses() async {
+    if (_expensesLast || _loadingMore) return;
+    _loadingMore = true;
+    notifyListeners();
+    try {
+      final page = await api.expenses(
+        from: _month,
+        to: monthEnd,
+        page: _expensesPage + 1,
+        size: _pageSize,
+      );
+      _expensesPage += 1;
+      _expenses = [..._expenses, ...page.items];
+      _expensesLast = page.last;
+    } finally {
+      _loadingMore = false;
+      notifyListeners();
+    }
+  }
 
-  Future<Account> addAccount({
-    required String name,
-    required AccountType type,
+  Future<void> setCurrency(String code) async {
+    _currency = code;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_currencyKey, code);
+    } catch (_) {
+      // Preference is a convenience; ignore storage failures.
+    }
+  }
+
+  // ---------------------------------------------------------------- mutations
+
+  Future<Expense> saveExpense(ExpenseDraft draft, {String? id}) async {
+    final saved = id == null ? await api.createExpense(draft) : await api.updateExpense(id, draft);
+    if (draft.currency != _currency && id == null) {
+      await setCurrency(draft.currency);
+    }
+    await _afterMutation(friends: draft.splitType != SplitType.none);
+    return saved;
+  }
+
+  Future<void> deleteExpense(Expense expense) async {
+    await api.deleteExpense(expense.id);
+    await _afterMutation(friends: expense.isShared);
+  }
+
+  /// Returns "PENDING" or "ACCEPTED".
+  Future<String> addFriend(String username) async {
+    final status = await api.addFriend(username);
+    await _loadFriends();
+    notifyListeners();
+    return status;
+  }
+
+  Future<void> acceptRequest(FriendRequest request) async {
+    await api.acceptRequest(request.id);
+    await Future.wait([_loadFriends(), _loadOverview()]);
+    notifyListeners();
+  }
+
+  Future<void> dismissRequest(FriendRequest request) async {
+    await api.dismissRequest(request.id);
+    await _loadFriends();
+    notifyListeners();
+  }
+
+  Future<void> removeFriend(String userId) async {
+    await api.removeFriend(userId);
+    await Future.wait([_loadFriends(), _loadOverview()]);
+    notifyListeners();
+  }
+
+  Future<void> settleUp({
+    required String friendId,
+    required bool iPaid,
+    required String amount,
     required String currency,
-    required String openingBalance,
-    String? notes,
-  }) async {
-    final Account created = await api.createAccount(
-      name: name,
-      type: type,
-      currency: currency,
-      openingBalance: openingBalance,
-      notes: notes,
-    );
-    _accounts = [..._accounts, created];
-    notifyListeners();
-    await _refreshSensitiveSlices();
-    await _notifyMutated();
-    return created;
-  }
-
-  Future<Account> updateAccount(
-    String id, {
-    required String name,
-    required AccountType type,
-    required String currency,
-    required String openingBalance,
-    String? notes,
-  }) async {
-    final Account updated = await api.updateAccount(
-      id,
-      name: name,
-      type: type,
-      currency: currency,
-      openingBalance: openingBalance,
-      notes: notes,
-    );
-    _accounts = [for (final Account a in _accounts) a.id == id ? updated : a];
-    notifyListeners();
-    // Opening balance feeds every balance: recompute like other mutations.
-    await _refreshSensitiveSlices();
-    await _notifyMutated();
-    return updated;
-  }
-
-  Future<void> archiveAccount(String id) async {
-    await api.archiveAccount(id);
-    await _refreshSensitiveSlices();
-    await _loadAccounts();
-    await _notifyMutated();
-  }
-
-  // ----.*
-  // Categories
-  // -------------------------------------------------------------------------
-
-  Future<Category> addCategory({
-    required String name,
-    required CategoryType type,
-  }) async {
-    final Category created = await api.createCategory(name: name, type: type);
-    _categories = [..._categories, created]..sort((a, b) => a.name.compareTo(b.name));
-    notifyListeners();
-    await _notifyMutated();
-    return created;
-  }
-
-  Future<Category> updateCategory(
-    String id, {
-    required String name,
-    required CategoryType type,
-  }) async {
-    final Category updated = await api.updateCategory(id, name: name, type: type);
-    _categories =
-        [for (final Category c in _categories) c.id == id ? updated : c]
-          ..sort((a, b) => a.name.compareTo(b.name));
-    notifyListeners();
-    await _notifyMutated();
-    return updated;
-  }
-
-  Future<void> archiveCategory(String id) async {
-    await api.archiveCategory(id);
-    await _loadCategories();
-    await _notifyMutated();
-  }
-
-  // -------------------------------------------------------------------------
-  // Transactions
-  // -------------------------------------------------------------------------
-
-  Future<FinanceTransaction> addTransaction({
-    required String accountId,
-    required String categoryId,
-    required TransactionType type,
-    required String amount,
-    DateTime? occurredAt,
-    String? description,
-    String? notes,
-  }) async {
-    final FinanceTransaction created = await api.createTransaction(
-      accountId: accountId,
-      categoryId: categoryId,
-      type: type,
-      amount: amount,
-      occurredAt: occurredAt ?? _to,
-      description: description,
-      notes: notes,
-    );
-    _transactions = [created, ..._transactions]..sort(_compareNewestFirst);
-    notifyListeners();
-    await _refreshSensitiveSlices();
-    await _notifyMutated();
-    return created;
-  }
-
-  Future<FinanceTransaction> updateTransaction(
-    String id, {
-    required String accountId,
-    required String categoryId,
-    required TransactionType type,
-    required String amount,
-    required DateTime occurredAt,
-    String? description,
-    String? notes,
-  }) async {
-    final FinanceTransaction updated = await api.updateTransaction(
-      id,
-      accountId: accountId,
-      categoryId: categoryId,
-      type: type,
-      amount: amount,
-      occurredAt: occurredAt,
-      description: description,
-      notes: notes,
-    );
-    _transactions = [
-      for (final FinanceTransaction t in _transactions) t.id == id ? updated : t,
-    ]..sort(_compareNewestFirst);
-    notifyListeners();
-    await _refreshSensitiveSlices();
-    await _notifyMutated();
-    return updated;
-  }
-
-  Future<void> deleteTransaction(String id) async {
-    await api.deleteTransaction(id);
-    _transactions =
-        _transactions.where((FinanceTransaction t) => t.id != id).toList();
-    notifyListeners();
-    await _refreshSensitiveSlices();
-    await _notifyMutated();
-  }
-
-  // -------------------------------------------------------------------------
-  // Transfers
-  // -------------------------------------------------------------------------
-
-  Future<FinanceTransfer> addTransfer({
-    required String sourceAccountId,
-    required String destinationAccountId,
-    required String amount,
-    DateTime? transferredAt,
+    DateTime? on,
     String? note,
   }) async {
-    final FinanceTransfer created = await api.createTransfer(
-      sourceAccountId: sourceAccountId,
-      destinationAccountId: destinationAccountId,
+    await api.settleUp(
+      friendId: friendId,
+      iPaid: iPaid,
       amount: amount,
-      transferredAt: transferredAt ?? _to,
+      currency: currency,
+      on: on,
       note: note,
     );
-    _transfers = [created, ..._transfers]..sort(_compareTransferNewestFirst);
+    await _afterMutation(friends: true);
+  }
+
+  Future<void> deleteSettlement(Settlement settlement) async {
+    await api.deleteSettlement(settlement.id);
+    await _afterMutation(friends: true);
+  }
+
+  Future<void> saveBudget({ExpenseCategory? category, required String currency, required String limit}) async {
+    await api.saveBudget(category: category, currency: currency, monthlyLimit: limit);
+    await _loadOverview();
     notifyListeners();
-    await _refreshSensitiveSlices();
-    await _notifyMutated();
-    return created;
   }
 
-  Future<void> deleteTransfer(String id) async {
-    await api.deleteTransfer(id);
-    _transfers =
-        _transfers.where((FinanceTransfer t) => t.id != id).toList();
+  Future<void> deleteBudget(Budget budget) async {
+    await api.deleteBudget(budget.id);
+    await _loadOverview();
     notifyListeners();
-    await _refreshSensitiveSlices();
-    await _notifyMutated();
   }
 
-  // -------------------------------------------------------------------------
+  // ---------------------------------------------------------------- loading
 
-  Future<void> _loadAccounts() async {
-    _accounts = await api.fetchAccounts();
-  }
-
-  Future<void> _loadCategories() async {
-    _categories = await api.fetchCategories();
-  }
-
-  Future<void> _loadMonthTransactions() async {
-    final PageResult<FinanceTransaction> result =
-        await api.fetchTransactions(from: _from, to: _to, size: 200);
-    _transactions = result.items..sort(_compareNewestFirst);
-  }
-
-  Future<void> _loadMonthTransfers() async {
-    final PageResult<FinanceTransfer> result =
-        await api.fetchTransfers(from: _from, to: _to, size: 200);
-    _transfers = result.items..sort(_compareTransferNewestFirst);
-  }
-
-  Future<void> _loadSummary() async {
-    _summary = await api.fetchSummary(from: _from, to: _to);
-  }
-
-  Future<void> _notifyMutated() async {
+  Future<void> _afterMutation({required bool friends}) async {
     try {
-      await onMutated?.call();
+      await Future.wait([
+        _loadOverview(),
+        _loadExpenses(),
+        if (friends) _loadFriends(),
+      ]);
     } catch (_) {
-      // Dependent refresh (e.g. dashboard) must never break Finance itself.
+      // The mutation itself succeeded; a later refresh will catch up.
     }
-  }
-
-  /// Refreshes everything affected by a money movement so the UI never shows
-  /// a stale balance.
-  Future<void> _refreshSensitiveSlices() async {
-    await Future.wait([
-      _loadAccounts(),
-      _loadMonthTransactions(),
-      _loadMonthTransfers(),
-      _loadSummary(),
-    ]);
     notifyListeners();
-  }
-
-  static int _compareNewestFirst(FinanceTransaction a, FinanceTransaction b) {
-    final int byDate = b.occurredAt.compareTo(a.occurredAt);
-    if (byDate != 0) {
-      return byDate;
+    final callback = onMutated;
+    if (callback != null) {
+      try {
+        await callback();
+      } catch (_) {
+        // Never let a Home refresh failure break Finance.
+      }
     }
-    return b.createdAt.compareTo(a.createdAt);
   }
 
-  static int _compareTransferNewestFirst(FinanceTransfer a, FinanceTransfer b) {
-    return b.transferredAt.compareTo(a.transferredAt);
+  Future<void> _loadCurrency() async {
+    if (_currencyLoaded) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_currencyKey);
+      if (saved != null && saved.length == 3) _currency = saved;
+    } catch (_) {
+      // Fall back to the default.
+    }
+    _currencyLoaded = true;
   }
 
-  static DateTime _firstOfMonth(DateTime value) =>
-      DateTime(value.year, value.month);
+  Future<void> _loadOverview() async {
+    final month = _month;
+    final overview = await api.overview(month);
+    if (month == _month) _overview = overview;
+  }
 
-  static DateTime _lastOfMonth(DateTime value) =>
-      DateTime(value.year, value.month + 1, 0);
+  Future<void> _loadExpenses() async {
+    final month = _month;
+    final page = await api.expenses(from: month, to: DateTime(month.year, month.month + 1, 0), size: _pageSize);
+    if (month != _month) return;
+    _expenses = page.items;
+    _expensesLast = page.last;
+    _expensesPage = 0;
+  }
+
+  Future<void> _loadFriends() async {
+    _friends = await api.friends();
+  }
 }

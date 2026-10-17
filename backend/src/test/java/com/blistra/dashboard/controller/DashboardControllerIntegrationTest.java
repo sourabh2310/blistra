@@ -4,9 +4,6 @@ import com.blistra.AbstractIntegrationTest;
 import com.blistra.auth.dto.LoginRequest;
 import com.blistra.auth.dto.RegisterRequest;
 import com.blistra.diet.domain.MealType;
-import com.blistra.finance.domain.TransactionType;
-import com.blistra.finance.dto.AccountRequest;
-import com.blistra.finance.dto.TransactionRequest;
 import com.blistra.habits.domain.HabitType;
 import com.blistra.habits.dto.HabitRequest;
 import com.blistra.habits.dto.ScheduleRequest;
@@ -171,7 +168,9 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.finance.unavailable").value(false))
                         .andExpect(jsonPath("$.finance.today").isMap())
-                        .andExpect(jsonPath("$.finance.today.currencies[0].currency").value("INR"));
+                        .andExpect(jsonPath("$.finance.today.currencies[0].currency").value("INR"))
+                        .andExpect(jsonPath("$.finance.today.currencies[0].expense").value("250.0000"))
+                        .andExpect(jsonPath("$.finance.currencies[0].topCategories[0].categoryName").value("Food"));
 
     }
 
@@ -306,49 +305,13 @@ class DashboardControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void createFinanceAccountAndTransactionForUserA() throws Exception {
-        // Create category (required by transaction payload)
-        com.blistra.finance.dto.CategoryRequest categoryReq = com.blistra.finance.dto.CategoryRequest.builder()
-                .name("Salary")
-                .type(com.blistra.finance.domain.CategoryType.INCOME)
-                .build();
-        MvcResult categoryResult = mockMvc.perform(post("/api/v1/finance/categories")
+        String body = """
+                {"description": "Lunch", "category": "FOOD", "amount": "250.00", "currency": "INR"}
+                """;
+        mockMvc.perform(post("/api/v1/finance/expenses")
                         .header("Authorization", authHeader(userAToken))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(categoryReq)))
-                .andExpect(status().isCreated())
-                .andReturn();
-        String categoryId = categoryResult.getResponse().getContentAsString()
-                .split("\"id\":\"")[1].split("\"")[0];
-
-        // Create account
-        AccountRequest accountReq = AccountRequest.builder()
-                .name("Test Account")
-                .type(com.blistra.finance.domain.AccountType.BANK)
-                .currency("INR")
-                .openingBalance("0.00")
-                .build();
-        MvcResult accountResult = mockMvc.perform(post("/api/v1/finance/accounts")
-                        .header("Authorization", authHeader(userAToken))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(accountReq)))
-                .andExpect(status().isCreated())
-                .andReturn();
-
-        // Extract account ID from response
-        String accountBody = accountResult.getResponse().getContentAsString();
-        String accountId = accountBody.split("\"id\":\"")[1].split("\"")[0];
-
-        // Create transaction
-        TransactionRequest txnReq = TransactionRequest.builder()
-                .accountId(UUID.fromString(accountId))
-                .categoryId(UUID.fromString(categoryId))
-                .type(TransactionType.INCOME)
-                .amount("1000.00")
-                .build();
-        mockMvc.perform(post("/api/v1/finance/transactions")
-                        .header("Authorization", authHeader(userAToken))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(txnReq)))
+                        .content(body))
                 .andExpect(status().isCreated());
     }
 }

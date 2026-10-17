@@ -348,6 +348,11 @@ class ApiClient {
     await _send('DELETE', path);
   }
 
+  /// POST for command endpoints that answer 204 No Content.
+  Future<void> postNoContent(String path, {Map<String, dynamic>? body}) async {
+    await _send('POST', path, body: body, expectStatus: 204);
+  }
+
   /// Raw-bytes GET for binary downloads (documents). Throws [ApiException]
   /// on non-2xx, mirroring the backend error contract.
   Future<Uint8List> getBytes(String path) async {

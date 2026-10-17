@@ -574,11 +574,13 @@ class _MoreOptions extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+  // A Material (not a colored Container) so the ListTile's ink is visible.
+  Widget build(BuildContext context) => Material(
+        color: Theme.of(context).colorScheme.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Theme.of(context).dividerColor),
+          side: BorderSide(color: Theme.of(context).dividerColor),
         ),
         child: Column(
           children: [

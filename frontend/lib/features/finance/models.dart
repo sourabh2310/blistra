@@ -1,299 +1,429 @@
-/// Domain models for the finance feature.
-///
-/// All monetary amounts are parsed into [Money] (exact BigInt units) and all
-/// dates are parsed as UTC [DateTime]. Models are immutable and only
-/// constructible from the backend JSON contract.
+/// Finance models: expenses split between friends, balances, settlements,
+/// monthly overview and budgets. Amounts stay decimal strings on the wire and
+/// become [Money] for arithmetic; never floating point.
 library;
+
+import 'package:flutter/material.dart';
 
 import '../../core/money/money.dart';
 
-enum AccountType { cash, bank, savings, creditCard, wallet, other }
+/// Fixed expense categories (mirrors the backend enum).
+enum ExpenseCategory {
+  food('FOOD', 'Food & dining', Icons.restaurant_rounded, Color(0xFFFF8A4C)),
+  groceries('GROCERIES', 'Groceries', Icons.local_grocery_store_rounded, Color(0xFF34C77B)),
+  transport('TRANSPORT', 'Transport', Icons.directions_car_rounded, Color(0xFF4C8DFF)),
+  fuel('FUEL', 'Fuel', Icons.local_gas_station_rounded, Color(0xFF7A6CFF)),
+  shopping('SHOPPING', 'Shopping', Icons.shopping_bag_rounded, Color(0xFFFF5FA2)),
+  bills('BILLS', 'Bills & utilities', Icons.receipt_long_rounded, Color(0xFF00B5C8)),
+  rent('RENT', 'Rent', Icons.home_rounded, Color(0xFF8D6E63)),
+  entertainment('ENTERTAINMENT', 'Entertainment', Icons.movie_rounded, Color(0xFFE040FB)),
+  travel('TRAVEL', 'Travel', Icons.flight_rounded, Color(0xFF26A69A)),
+  health('HEALTH', 'Health', Icons.favorite_rounded, Color(0xFFEF5350)),
+  education('EDUCATION', 'Education', Icons.school_rounded, Color(0xFF5C6BC0)),
+  gifts('GIFTS', 'Gifts', Icons.card_giftcard_rounded, Color(0xFFFFB300)),
+  personalCare('PERSONAL_CARE', 'Personal care', Icons.spa_rounded, Color(0xFFAB47BC)),
+  subscriptions('SUBSCRIPTIONS', 'Subscriptions', Icons.subscriptions_rounded, Color(0xFF29B6F6)),
+  other('OTHER', 'Other', Icons.category_rounded, Color(0xFF90A4AE));
 
-enum AccountStatus { active, archived }
+  const ExpenseCategory(this.wire, this.label, this.icon, this.color);
 
-enum CategoryType { income, expense }
+  final String wire;
+  final String label;
+  final IconData icon;
+  final Color color;
 
-enum CategoryStatus { active, archived }
-
-enum TransactionType { income, expense }
-
-AccountType accountTypeFromJson(String value) {
-  final normalized = value.toLowerCase();
-  // Backend sends CREDIT_CARD (snake); Dart enum is creditCard.
-  if (normalized == 'credit_card') return AccountType.creditCard;
-  return AccountType.values.byName(normalized);
+  static ExpenseCategory fromWire(String? value) => ExpenseCategory.values
+      .firstWhere((c) => c.wire == value, orElse: () => ExpenseCategory.other);
 }
 
-AccountStatus accountStatusFromJson(String value) =>
-    AccountStatus.values.byName(value.toLowerCase());
+enum SplitType {
+  none('NONE', 'Just me'),
+  equal('EQUAL', 'Equally'),
+  exact('EXACT', 'Exact amounts'),
+  percent('PERCENT', 'Percentages'),
+  shares('SHARES', 'Shares');
 
-CategoryType categoryTypeFromJson(String value) =>
-    CategoryType.values.byName(value.toLowerCase());
+  const SplitType(this.wire, this.label);
 
-CategoryStatus categoryStatusFromJson(String value) =>
-    CategoryStatus.values.byName(value.toLowerCase());
+  final String wire;
+  final String label;
 
-TransactionType transactionTypeFromJson(String value) =>
-    TransactionType.values.byName(value.toLowerCase());
+  static SplitType fromWire(String? value) =>
+      SplitType.values.firstWhere((s) => s.wire == value, orElse: () => SplitType.none);
+}
 
-String enumToJson(Enum value) {
-  // AccountType.creditCard -> CREDIT_CARD (backend contract).
-  if (value is AccountType) {
-    return switch (value) {
-      AccountType.creditCard => 'CREDIT_CARD',
-      _ => value.name.toUpperCase(),
-    };
+String _str(Object? v, [String fallback = '']) => v is String ? v : fallback;
+
+DateTime? _date(Object? v) => v is String && v.isNotEmpty ? DateTime.tryParse(v) : null;
+
+List<T> _list<T>(Object? v, T Function(Map<String, dynamic>) parse) => v is List
+    ? v.whereType<Map<String, dynamic>>().map(parse).toList()
+    : <T>[];
+
+/// "yyyy-MM-dd" for API dates.
+String isoDate(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+class UserSummary {
+  const UserSummary({required this.id, required this.username, required this.displayName});
+
+  final String id;
+  final String username;
+  final String displayName;
+
+  String get initials {
+    final parts = displayName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.characters.first.toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first).toUpperCase();
   }
-  return value.name.toUpperCase();
+
+  factory UserSummary.fromJson(Map<String, dynamic> json) => UserSummary(
+        id: _str(json['id']),
+        username: _str(json['username']),
+        displayName: _str(json['displayName'], _str(json['username'])),
+      );
+
+  @override
+  bool operator ==(Object other) => other is UserSummary && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
-class Account {
-  const Account({
-    required this.id,
-    required this.name,
-    required this.type,
-    required this.currency,
-    required this.openingBalance,
-    required this.balance,
-    required this.status,
-    this.notes,
-  });
+class CurrencyAmount {
+  const CurrencyAmount(this.currency, this.amount);
 
-  final String id;
-  final String name;
-  final AccountType type;
   final String currency;
-  final Money openingBalance;
-  final Money balance;
-  final AccountStatus status;
-  final String? notes;
+  final Money amount;
 
-  bool get isArchived => status == AccountStatus.archived;
+  String get display => amount.display(currencyCode: currency);
 
-  factory Account.fromJson(Map<String, dynamic> json) => Account(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        type: accountTypeFromJson(json['type'] as String),
-        currency: json['currency'] as String,
-        openingBalance: Money.parse(json['openingBalance'] as String),
-        balance: Money.parse(json['balance'] as String),
-        status: accountStatusFromJson(json['status'] as String),
-        notes: json['notes'] as String?,
+  factory CurrencyAmount.fromJson(Map<String, dynamic> json) =>
+      CurrencyAmount(_str(json['currency']), Money.tryParse(_str(json['amount'])));
+}
+
+class ExpenseShare {
+  const ExpenseShare({required this.user, required this.amount, this.value});
+
+  final UserSummary user;
+  final Money amount;
+
+  /// Percent or weight as entered (PERCENT / SHARES splits).
+  final String? value;
+
+  factory ExpenseShare.fromJson(Map<String, dynamic> json) => ExpenseShare(
+        user: UserSummary.fromJson(json['user'] as Map<String, dynamic>? ?? const {}),
+        amount: Money.tryParse(_str(json['amount'])),
+        value: json['value'] as String?,
       );
 }
 
-class Category {
-  const Category({
+class Expense {
+  const Expense({
     required this.id,
-    required this.name,
-    required this.type,
-    required this.status,
-  });
-
-  final String id;
-  final String name;
-  final CategoryType type;
-  final CategoryStatus status;
-
-  bool get isArchived => status == CategoryStatus.archived;
-
-  factory Category.fromJson(Map<String, dynamic> json) => Category(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        type: categoryTypeFromJson(json['type'] as String),
-        status: categoryStatusFromJson(json['status'] as String),
-      );
-}
-
-class FinanceTransaction {
-  const FinanceTransaction({
-    required this.id,
-    required this.accountId,
-    required this.accountName,
-    required this.accountCurrency,
-    required this.categoryId,
-    required this.categoryName,
-    required this.type,
+    required this.description,
+    required this.category,
     required this.amount,
     required this.currency,
-    required this.occurredAt,
-    required this.createdAt,
-    this.description,
+    required this.spentOn,
+    required this.splitType,
+    required this.paidBy,
+    required this.createdBy,
+    required this.shares,
+    required this.myShare,
+    required this.myBalance,
+    required this.editable,
     this.notes,
   });
 
   final String id;
-  final String accountId;
-  final String accountName;
-  final String accountCurrency;
-  final String categoryId;
-  final String categoryName;
-  final TransactionType type;
+  final String description;
+  final ExpenseCategory category;
   final Money amount;
   final String currency;
-  final DateTime occurredAt;
-  final String? description;
+  final DateTime spentOn;
   final String? notes;
-  final DateTime createdAt;
+  final SplitType splitType;
+  final UserSummary paidBy;
+  final UserSummary createdBy;
+  final List<ExpenseShare> shares;
+  final Money myShare;
 
-  bool get isIncome => type == TransactionType.income;
+  /// Positive: you lent this much. Negative: you borrowed it.
+  final Money myBalance;
+  final bool editable;
 
-  factory FinanceTransaction.fromJson(Map<String, dynamic> json) =>
-      FinanceTransaction(
-        id: json['id'] as String,
-        accountId: json['accountId'] as String,
-        accountName: json['accountName'] as String,
-        accountCurrency: json['accountCurrency'] as String,
-        categoryId: json['categoryId'] as String,
-        categoryName: json['categoryName'] as String,
-        type: transactionTypeFromJson(json['type'] as String),
-        amount: Money.parse(json['amount'] as String),
-        currency: json['currency'] as String,
-        occurredAt: DateTime.parse(json['occurredAt'] as String),
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        description: json['description'] as String?,
+  bool get isShared => splitType != SplitType.none;
+
+  factory Expense.fromJson(Map<String, dynamic> json) => Expense(
+        id: _str(json['id']),
+        description: _str(json['description']),
+        category: ExpenseCategory.fromWire(json['category'] as String?),
+        amount: Money.tryParse(_str(json['amount'])),
+        currency: _str(json['currency'], 'INR'),
+        spentOn: _date(json['spentOn']) ?? DateTime.now(),
         notes: json['notes'] as String?,
+        splitType: SplitType.fromWire(json['splitType'] as String?),
+        paidBy: UserSummary.fromJson(json['paidBy'] as Map<String, dynamic>? ?? const {}),
+        createdBy: UserSummary.fromJson(json['createdBy'] as Map<String, dynamic>? ?? const {}),
+        shares: _list(json['shares'], ExpenseShare.fromJson),
+        myShare: Money.tryParse(_str(json['myShare'])),
+        myBalance: Money.tryParse(_str(json['myBalance'])),
+        editable: json['editable'] == true,
       );
 }
 
-class FinanceTransfer {
-  const FinanceTransfer({
+class ExpensePage {
+  const ExpensePage({required this.items, required this.last, required this.total});
+
+  final List<Expense> items;
+  final bool last;
+  final int total;
+
+  factory ExpensePage.fromJson(Map<String, dynamic> json) => ExpensePage(
+        items: _list(json['content'], Expense.fromJson),
+        last: json['last'] as bool? ?? true,
+        total: (json['totalElements'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class Settlement {
+  const Settlement({
     required this.id,
-    required this.sourceAccountId,
-    required this.sourceAccountName,
-    required this.destinationAccountId,
-    required this.destinationAccountName,
+    required this.payer,
+    required this.payee,
     required this.amount,
     required this.currency,
-    required this.transferredAt,
+    required this.settledOn,
+    required this.editable,
     this.note,
   });
 
   final String id;
-  final String sourceAccountId;
-  final String sourceAccountName;
-  final String destinationAccountId;
-  final String destinationAccountName;
+  final UserSummary payer;
+  final UserSummary payee;
   final Money amount;
   final String currency;
-  final DateTime transferredAt;
+  final DateTime settledOn;
   final String? note;
+  final bool editable;
 
-  factory FinanceTransfer.fromJson(Map<String, dynamic> json) =>
-      FinanceTransfer(
-        id: json['id'] as String,
-        sourceAccountId: json['sourceAccountId'] as String,
-        sourceAccountName: json['sourceAccountName'] as String,
-        destinationAccountId: json['destinationAccountId'] as String,
-        destinationAccountName: json['destinationAccountName'] as String,
-        amount: Money.parse(json['amount'] as String),
-        currency: json['currency'] as String,
-        transferredAt: DateTime.parse(json['transferredAt'] as String),
+  factory Settlement.fromJson(Map<String, dynamic> json) => Settlement(
+        id: _str(json['id']),
+        payer: UserSummary.fromJson(json['payer'] as Map<String, dynamic>? ?? const {}),
+        payee: UserSummary.fromJson(json['payee'] as Map<String, dynamic>? ?? const {}),
+        amount: Money.tryParse(_str(json['amount'])),
+        currency: _str(json['currency'], 'INR'),
+        settledOn: _date(json['settledOn']) ?? DateTime.now(),
         note: json['note'] as String?,
+        editable: json['editable'] == true,
       );
 }
 
-class SummaryCategorySpend {
-  const SummaryCategorySpend({
-    required this.categoryId,
-    required this.categoryName,
-    required this.amount,
+class Friend {
+  const Friend({required this.user, required this.isFriend, required this.balances});
+
+  final UserSummary user;
+
+  /// False for a former friend you still share an open balance with.
+  final bool isFriend;
+
+  /// Positive: they owe you. Negative: you owe them.
+  final List<CurrencyAmount> balances;
+
+  bool get settled => balances.every((b) => b.amount.isZero);
+
+  factory Friend.fromJson(Map<String, dynamic> json) => Friend(
+        user: UserSummary.fromJson(json['user'] as Map<String, dynamic>? ?? const {}),
+        isFriend: json['friend'] != false,
+        balances: _list(json['balances'], CurrencyAmount.fromJson),
+      );
+}
+
+class FriendRequest {
+  const FriendRequest({required this.id, required this.user});
+
+  final String id;
+  final UserSummary user;
+
+  factory FriendRequest.fromJson(Map<String, dynamic> json) => FriendRequest(
+        id: _str(json['id']),
+        user: UserSummary.fromJson(json['user'] as Map<String, dynamic>? ?? const {}),
+      );
+}
+
+class FriendsData {
+  const FriendsData({
+    required this.me,
+    required this.friends,
+    required this.incoming,
+    required this.outgoing,
   });
 
-  final String categoryId;
-  final String categoryName;
-  final Money amount;
+  final UserSummary? me;
+  final List<Friend> friends;
+  final List<FriendRequest> incoming;
+  final List<FriendRequest> outgoing;
 
-  factory SummaryCategorySpend.fromJson(Map<String, dynamic> json) =>
-      SummaryCategorySpend(
-        categoryId: json['categoryId'] as String,
-        categoryName: json['categoryName'] as String,
-        amount: Money.parse(json['amount'] as String),
+  static const empty = FriendsData(me: null, friends: [], incoming: [], outgoing: []);
+
+  List<Friend> get acceptedFriends => friends.where((f) => f.isFriend).toList();
+
+  factory FriendsData.fromJson(Map<String, dynamic> json) => FriendsData(
+        me: json['me'] is Map<String, dynamic>
+            ? UserSummary.fromJson(json['me'] as Map<String, dynamic>)
+            : null,
+        friends: _list(json['friends'], Friend.fromJson),
+        incoming: _list(json['incoming'], FriendRequest.fromJson),
+        outgoing: _list(json['outgoing'], FriendRequest.fromJson),
       );
 }
 
-class SummaryCurrencySection {
-  const SummaryCurrencySection({
+class FriendDetail {
+  const FriendDetail({required this.friend, required this.expenses, required this.settlements});
+
+  final Friend friend;
+  final List<Expense> expenses;
+  final List<Settlement> settlements;
+
+  factory FriendDetail.fromJson(Map<String, dynamic> json) => FriendDetail(
+        friend: Friend.fromJson(json['friend'] as Map<String, dynamic>? ?? const {}),
+        expenses: _list(json['expenses'], Expense.fromJson),
+        settlements: _list(json['settlements'], Settlement.fromJson),
+      );
+}
+
+class Budget {
+  const Budget({
+    required this.id,
+    required this.category,
     required this.currency,
-    required this.income,
-    required this.expense,
-    required this.net,
-    required this.transferIn,
-    required this.transferOut,
-    required this.spendingByCategory,
+    required this.limit,
+    required this.spent,
+  });
+
+  final String id;
+
+  /// Null for the overall monthly budget.
+  final ExpenseCategory? category;
+  final String currency;
+  final Money limit;
+  final Money spent;
+
+  String get label => category?.label ?? 'Monthly budget';
+
+  /// 0..n fraction of the limit used (may exceed 1 when over budget).
+  double get usage => limit.isZero ? 0 : spent.toDouble() / limit.toDouble();
+
+  bool get over => spent > limit;
+
+  factory Budget.fromJson(Map<String, dynamic> json) => Budget(
+        id: _str(json['id']),
+        category: json['category'] == null ? null : ExpenseCategory.fromWire(json['category'] as String?),
+        currency: _str(json['currency'], 'INR'),
+        limit: Money.tryParse(_str(json['monthlyLimit'])),
+        spent: Money.tryParse(_str(json['spentThisMonth'])),
+      );
+}
+
+class CategoryAmount {
+  const CategoryAmount(this.category, this.amount);
+
+  final ExpenseCategory category;
+  final Money amount;
+
+  factory CategoryAmount.fromJson(Map<String, dynamic> json) => CategoryAmount(
+        ExpenseCategory.fromWire(json['category'] as String?),
+        Money.tryParse(_str(json['amount'])),
+      );
+}
+
+class DayAmount {
+  const DayAmount(this.date, this.amount);
+
+  final DateTime date;
+  final Money amount;
+
+  factory DayAmount.fromJson(Map<String, dynamic> json) =>
+      DayAmount(_date(json['date']) ?? DateTime.now(), Money.tryParse(_str(json['amount'])));
+}
+
+class CurrencyOverview {
+  const CurrencyOverview({
+    required this.currency,
+    required this.spent,
+    required this.paid,
+    required this.previousMonthSpent,
+    required this.todaySpent,
+    required this.byCategory,
+    required this.daily,
+    required this.budgets,
   });
 
   final String currency;
-  final Money income;
-  final Money expense;
-  final Money net;
-  final Money transferIn;
-  final Money transferOut;
-  final List<SummaryCategorySpend> spendingByCategory;
 
-  factory SummaryCurrencySection.fromJson(Map<String, dynamic> json) =>
-      SummaryCurrencySection(
-        currency: json['currency'] as String,
-        income: Money.parse(json['income'] as String),
-        expense: Money.parse(json['expense'] as String),
-        net: Money.parse(json['net'] as String),
-        transferIn: Money.parse(json['transferIn'] as String),
-        transferOut: Money.parse(json['transferOut'] as String),
-        spendingByCategory: (json['spendingByCategory'] as List<dynamic>)
-            .map((Object? item) =>
-                SummaryCategorySpend.fromJson(item as Map<String, dynamic>))
-            .toList(),
+  /// Your own share of everything this month.
+  final Money spent;
+
+  /// What you actually paid out (including friends' shares you fronted).
+  final Money paid;
+  final Money previousMonthSpent;
+  final Money todaySpent;
+  final List<CategoryAmount> byCategory;
+  final List<DayAmount> daily;
+  final List<Budget> budgets;
+
+  Budget? get overallBudget {
+    for (final b in budgets) {
+      if (b.category == null) return b;
+    }
+    return null;
+  }
+
+  factory CurrencyOverview.fromJson(Map<String, dynamic> json) => CurrencyOverview(
+        currency: _str(json['currency'], 'INR'),
+        spent: Money.tryParse(_str(json['spent'])),
+        paid: Money.tryParse(_str(json['paid'])),
+        previousMonthSpent: Money.tryParse(_str(json['previousMonthSpent'])),
+        todaySpent: Money.tryParse(_str(json['todaySpent'])),
+        byCategory: _list(json['byCategory'], CategoryAmount.fromJson),
+        daily: _list(json['daily'], DayAmount.fromJson),
+        budgets: _list(json['budgets'], Budget.fromJson),
       );
 }
 
-class Summary {
-  const Summary({required this.from, required this.to, required this.currencies});
-
-  final DateTime from;
-  final DateTime to;
-  final List<SummaryCurrencySection> currencies;
-
-  factory Summary.fromJson(Map<String, dynamic> json) => Summary(
-        from: DateTime.parse(json['from'] as String),
-        to: DateTime.parse(json['to'] as String),
-        currencies: (json['currencies'] as List<dynamic>)
-            .map((Object? item) =>
-                SummaryCurrencySection.fromJson(item as Map<String, dynamic>))
-            .toList(),
-      );
-}
-
-class PageResult<T> {
-  const PageResult({
-    required this.items,
-    required this.page,
-    required this.size,
-    required this.totalElements,
-    required this.totalPages,
-    required this.last,
+class FinanceOverview {
+  const FinanceOverview({
+    required this.month,
+    required this.currencies,
+    required this.owedToYou,
+    required this.youOwe,
+    required this.friendCount,
+    required this.pendingRequests,
   });
 
-  final List<T> items;
-  final int page;
-  final int size;
-  final int totalElements;
-  final int totalPages;
-  final bool last;
+  final DateTime month;
+  final List<CurrencyOverview> currencies;
+  final List<CurrencyAmount> owedToYou;
+  final List<CurrencyAmount> youOwe;
+  final int friendCount;
+  final int pendingRequests;
 
-  bool get isEmpty => items.isEmpty;
-
-  factory PageResult.fromJson(
-    Map<String, dynamic> json,
-    T Function(Map<String, dynamic>) itemParser,
-  ) =>
-      PageResult(
-        items: (json['content'] as List<dynamic>)
-            .map((Object? item) => itemParser(item as Map<String, dynamic>))
-            .toList(),
-        page: json['page'] as int,
-        size: json['size'] as int,
-        totalElements: json['totalElements'] as int,
-        totalPages: json['totalPages'] as int,
-        last: json['last'] as bool,
+  factory FinanceOverview.fromJson(Map<String, dynamic> json) => FinanceOverview(
+        month: _date(json['from']) ?? DateTime.now(),
+        currencies: _list(json['currencies'], CurrencyOverview.fromJson),
+        owedToYou: _list(json['owedToYou'], CurrencyAmount.fromJson),
+        youOwe: _list(json['youOwe'], CurrencyAmount.fromJson),
+        friendCount: (json['friendCount'] as num?)?.toInt() ?? 0,
+        pendingRequests: (json['pendingRequests'] as num?)?.toInt() ?? 0,
       );
+}
+
+/// One participant in a split being edited in the expense form.
+class SplitEntry {
+  SplitEntry(this.user, {this.value = ''});
+
+  final UserSummary user;
+  String value;
 }

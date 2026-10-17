@@ -7,9 +7,6 @@ import com.blistra.diet.dto.MacroTotalsResponse;
 import com.blistra.diet.dto.MealResponse;
 import com.blistra.diet.dto.NutritionTotalsResponse;
 import com.blistra.diet.dto.WaterResponse;
-import com.blistra.finance.dto.SummaryCategorySpend;
-import com.blistra.finance.dto.SummaryCurrencySection;
-import com.blistra.finance.dto.SummaryResponse;
 import com.blistra.habits.domain.HabitType;
 import com.blistra.habits.dto.HabitTodayResponse;
 import com.blistra.habits.dto.ScheduleResponse;
@@ -44,7 +41,7 @@ class DashboardServiceTest {
     private com.blistra.planner.application.PlannerTodayService plannerTodayService;
 
     @Mock
-    private com.blistra.finance.application.SummaryService financeSummaryService;
+    private FinanceSummaryProvider financeSummaryProvider;
 
     @Mock
     private com.blistra.diet.application.DietSummaryService dietSummaryService;
@@ -78,7 +75,7 @@ class DashboardServiceTest {
         dashboardService = new DashboardService(
                 currentUserProvider,
                 plannerTodayService,
-                financeSummaryService,
+                financeSummaryProvider,
                 dietSummaryService,
                 habitService,
                 healthSummaryProvider,
@@ -114,8 +111,8 @@ class DashboardServiceTest {
         ));
 
         // Finance
-        lenient().when(financeSummaryService.summary(any(), any()))
-                .thenReturn(new SummaryResponse(date.withDayOfMonth(1), date.withDayOfMonth(date.lengthOfMonth()), List.of()));
+        lenient().when(financeSummaryProvider.getFinanceSummary(any()))
+                .thenReturn(emptyFinance(date));
 
         // Diet
         lenient().when(dietSummaryService.dailySummary(any(), any(), anyInt()))
@@ -190,8 +187,8 @@ class DashboardServiceTest {
         when(currentUserProvider.getCurrentUser()).thenReturn(testUser);
         when(plannerTodayService.getToday()).thenThrow(new RuntimeException("DB down"));
 
-        lenient().when(financeSummaryService.summary(any(), any()))
-                .thenReturn(new SummaryResponse(date.withDayOfMonth(1), date.withDayOfMonth(date.lengthOfMonth()), List.of()));
+        lenient().when(financeSummaryProvider.getFinanceSummary(any()))
+                .thenReturn(emptyFinance(date));
         lenient().when(dietSummaryService.dailySummary(any(), any(), anyInt()))
                 .thenReturn(DietSummaryResponse.builder()
                         .date(date)
@@ -262,8 +259,8 @@ class DashboardServiceTest {
                 List.of(event)
         ));
 
-        lenient().when(financeSummaryService.summary(any(), any()))
-                .thenReturn(new SummaryResponse(date.withDayOfMonth(1), date.withDayOfMonth(date.lengthOfMonth()), List.of()));
+        lenient().when(financeSummaryProvider.getFinanceSummary(any()))
+                .thenReturn(emptyFinance(date));
         lenient().when(dietSummaryService.dailySummary(any(), any(), anyInt()))
                 .thenReturn(DietSummaryResponse.builder()
                         .date(date)
@@ -308,28 +305,19 @@ class DashboardServiceTest {
         when(currentUserProvider.getCurrentUser()).thenReturn(testUser);
 
         lenient().when(plannerTodayService.getToday()).thenReturn(new TodayResponse(List.of(), List.of(), List.of()));
-        when(financeSummaryService.summary(
-                eq(date.withDayOfMonth(1)),
-                eq(date.withDayOfMonth(date.lengthOfMonth()))))
-                .thenReturn(new SummaryResponse(
-                        date.withDayOfMonth(1),
-                        date.withDayOfMonth(date.lengthOfMonth()),
-                        List.of(new SummaryCurrencySection(
-                                "INR",
-                                "10000.00",
-                                "3000.00",
-                                "7000.00",
-                                "0.00",
-                                "0.00",
-                                List.of(new SummaryCategorySpend(UUID.randomUUID(), "Food", "1500.00"))
-                        ))
-                ));
-        when(financeSummaryService.summary(date, date))
-                .thenReturn(new SummaryResponse(
-                        date,
-                        date,
-                        List.of(new SummaryCurrencySection(
-                                "INR", "0.00", "125.00", "-125.00", "0.00", "0.00", List.of()))));
+        DashboardResponse.FinanceSection finance = DashboardResponse.FinanceSection.builder()
+                .from(date.withDayOfMonth(1))
+                .to(date.withDayOfMonth(date.lengthOfMonth()))
+                .currencies(List.of(DashboardResponse.CurrencySection.builder()
+                        .currency("INR").income("0.0000").expense("3000.0000").net("-3000.0000")
+                        .transferIn("0.0000").transferOut("0.0000").topCategories(List.of()).build()))
+                .today(DashboardResponse.FinancePeriodSummary.builder().from(date).to(date)
+                        .currencies(List.of(DashboardResponse.CurrencySection.builder()
+                                .currency("INR").expense("125.0000").build()))
+                        .build())
+                .unavailable(false)
+                .build();
+        when(financeSummaryProvider.getFinanceSummary(date)).thenReturn(finance);
         lenient().when(dietSummaryService.dailySummary(any(), any(), anyInt()))
                 .thenReturn(DietSummaryResponse.builder()
                         .date(date)
@@ -359,17 +347,10 @@ class DashboardServiceTest {
 
         DashboardResponse response = dashboardService.getDashboard(date, offsetMinutes);
 
-        assertThat(response.getFinance().getCurrencies()).hasSize(1);
-        assertThat(response.getFinance().getCurrencies().get(0).getCurrency()).isEqualTo("INR");
-        assertThat(response.getFinance().getCurrencies().get(0).getIncome()).isEqualTo("10000.00");
-        assertThat(response.getFinance().getCurrencies().get(0).getExpense()).isEqualTo("3000.00");
-        assertThat(response.getFinance().getCurrencies().get(0).getNet()).isEqualTo("7000.00");
-        assertThat(response.getFinance().getCurrencies().get(0).getTopCategories()).hasSize(1);
-        assertThat(response.getFinance().getToday().getFrom()).isEqualTo(date);
-        assertThat(response.getFinance().getToday().getTo()).isEqualTo(date);
+        assertThat(response.getFinance()).isSameAs(finance);
         assertThat(response.getFinance().getToday().getCurrencies().get(0).getExpense())
-                .isEqualTo("125.00");
-        verify(financeSummaryService).summary(date, date);
+                .isEqualTo("125.0000");
+        verify(financeSummaryProvider).getFinanceSummary(date);
     }
 
     @Test
@@ -380,8 +361,8 @@ class DashboardServiceTest {
         when(currentUserProvider.getCurrentUser()).thenReturn(testUser);
 
         lenient().when(plannerTodayService.getToday()).thenReturn(new TodayResponse(List.of(), List.of(), List.of()));
-        lenient().when(financeSummaryService.summary(any(), any()))
-                .thenReturn(new SummaryResponse(date.withDayOfMonth(1), date.withDayOfMonth(date.lengthOfMonth()), List.of()));
+        lenient().when(financeSummaryProvider.getFinanceSummary(any()))
+                .thenReturn(emptyFinance(date));
         when(dietSummaryService.dailySummary(any(), any(), anyInt()))
                 .thenReturn(DietSummaryResponse.builder()
                         .date(date)
@@ -448,8 +429,8 @@ class DashboardServiceTest {
         when(currentUserProvider.getCurrentUser()).thenReturn(testUser);
 
         lenient().when(plannerTodayService.getToday()).thenReturn(new TodayResponse(List.of(), List.of(), List.of()));
-        lenient().when(financeSummaryService.summary(any(), any()))
-                .thenReturn(new SummaryResponse(date.withDayOfMonth(1), date.withDayOfMonth(date.lengthOfMonth()), List.of()));
+        lenient().when(financeSummaryProvider.getFinanceSummary(any()))
+                .thenReturn(emptyFinance(date));
         lenient().when(dietSummaryService.dailySummary(any(), any(), anyInt()))
                 .thenReturn(DietSummaryResponse.builder()
                         .date(date)
@@ -486,5 +467,16 @@ class DashboardServiceTest {
         assertThat(response.getHabits().getTodayHabits()).hasSize(1);
         assertThat(response.getHabits().getTodayHabits().get(0).getId()).isEqualTo(habitId.toString());
         assertThat(response.getHabits().getTodayHabits().get(0).isCompletedToday()).isTrue();
+    }
+
+    private static DashboardResponse.FinanceSection emptyFinance(LocalDate date) {
+        return DashboardResponse.FinanceSection.builder()
+                .from(date.withDayOfMonth(1))
+                .to(date.withDayOfMonth(date.lengthOfMonth()))
+                .currencies(List.of())
+                .today(DashboardResponse.FinancePeriodSummary.builder()
+                        .from(date).to(date).currencies(List.of()).build())
+                .unavailable(false)
+                .build();
     }
 }

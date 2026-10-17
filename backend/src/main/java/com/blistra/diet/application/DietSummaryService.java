@@ -112,10 +112,12 @@ public class DietSummaryService {
     }
 
     /**
-     * Derives a total in millilitres from entries recorded in ml or litres.
-     * Entries with non-numeric descriptors (e.g. "glass") are excluded from the
-     * total but remain part of the day's list.
+     * Derives a total in millilitres. Glasses and cups count at standard
+     * sizes (250 ml and 240 ml) so logging "2 glasses" moves the day's total.
      */
+    static final int GLASS_ML = 250;
+    static final int CUP_ML = 240;
+
     private BigDecimal totalMilliliters(List<WaterResponse> water) {
         BigDecimal total = null;
         for (WaterResponse entry : water) {
@@ -131,6 +133,8 @@ public class DietSummaryService {
         return switch (entry.getUnit()) {
             case "ml", "mL", "ML" -> entry.getAmount();
             case "L", "l" -> entry.getAmount().multiply(BigDecimal.valueOf(1000));
+            case "GLASS", "glass", "glasses" -> entry.getAmount().multiply(BigDecimal.valueOf(GLASS_ML));
+            case "CUP", "cup", "cups" -> entry.getAmount().multiply(BigDecimal.valueOf(CUP_ML));
             default -> null;
         };
     }

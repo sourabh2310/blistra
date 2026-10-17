@@ -100,10 +100,8 @@ public class UnifiedSearchRepository {
             selects.add(habit());
         }
         if (modules.contains(MODULE_FINANCE)) {
-            selects.add(financeAccount());
-            selects.add(financeCategory());
-            selects.add(financeTransaction());
-            selects.add(financeTransfer());
+            selects.add(financeExpense());
+            selects.add(financeFriend());
         }
         if (modules.contains(MODULE_DOCUMENTS)) {
             selects.add(document());
@@ -327,53 +325,37 @@ public class UnifiedSearchRepository {
                   AND """ + tsRange("(h.created_at AT TIME ZONE 'UTC')");
     }
 
-    private String financeAccount() {
+    private String financeExpense() {
         return """
-                SELECT 'FINANCE'::text AS module, 'ACCOUNT'::text AS result_type, fa.id AS id,
-                       fa.name::text AS title, COALESCE(fa.notes, '')::text AS subtitle,
-                       (fa.created_at AT TIME ZONE 'UTC') AS ts
-                FROM finance_accounts fa
-                WHERE fa.user_id = :userId
-                  AND (LOWER(fa.name) LIKE LOWER(:term) OR LOWER(COALESCE(fa.notes, '')) LIKE LOWER(:term))
-                  AND """ + tsRange("(fa.created_at AT TIME ZONE 'UTC')");
+                SELECT 'FINANCE'::text AS module, 'EXPENSE'::text AS result_type, fe.id AS id,
+                       fe.description::text AS title,
+                       (fe.currency || ' ' || to_char(fe.amount, 'FM999999999990.00'))::text AS subtitle,
+                       (fe.spent_on AT TIME ZONE 'UTC') AS ts
+                FROM finance_expenses fe
+                WHERE (fe.paid_by = :userId
+                       OR EXISTS (SELECT 1 FROM finance_expense_shares fs
+                                   WHERE fs.expense_id = fe.id AND fs.user_id = :userId))
+                  AND (LOWER(fe.description) LIKE LOWER(:term)
+                       OR LOWER(COALESCE(fe.notes, '')) LIKE LOWER(:term)
+                       OR LOWER(fe.category) LIKE LOWER(:term))
+                  AND """ + tsRange("(fe.spent_on AT TIME ZONE 'UTC')");
     }
 
-    private String financeCategory() {
+    private String financeFriend() {
         return """
-                SELECT 'FINANCE'::text AS module, 'CATEGORY'::text AS result_type, fc.id AS id,
-                       fc.name::text AS title, fc.type::text AS subtitle,
-                       (fc.created_at AT TIME ZONE 'UTC') AS ts
-                FROM finance_categories fc
-                WHERE fc.user_id = :userId
-                  AND LOWER(fc.name) LIKE LOWER(:term)
-                  AND """ + tsRange("(fc.created_at AT TIME ZONE 'UTC')");
-    }
-
-    private String financeTransaction() {
-        return """
-                SELECT 'FINANCE'::text AS module, 'TRANSACTION'::text AS result_type, ft.id AS id,
-                       COALESCE(NULLIF(ft.description, ''), ft.type)::text AS title,
-                       ''::text AS subtitle,
-                       (ft.occurred_at AT TIME ZONE 'UTC') AS ts
-                FROM finance_transactions ft
-                WHERE ft.user_id = :userId
-                  AND (LOWER(COALESCE(ft.description, '')) LIKE LOWER(:term)
-                       OR LOWER(COALESCE(ft.notes, '')) LIKE LOWER(:term)
-                       OR LOWER(ft.type) LIKE LOWER(:term))
-                  AND """ + tsRange("(ft.occurred_at AT TIME ZONE 'UTC')");
-    }
-
-    private String financeTransfer() {
-        return """
-                SELECT 'FINANCE'::text AS module, 'TRANSFER'::text AS result_type, tf.id AS id,
-                       'Transfer'::text AS title, COALESCE(tf.note, '')::text AS subtitle,
-                       (tf.transferred_at AT TIME ZONE 'UTC') AS ts
-                FROM finance_transfers tf
-                WHERE tf.user_id = :userId
-                  AND (LOWER(COALESCE(tf.note, '')) LIKE LOWER(:term)
-                        OR LOWER(COALESCE(tf.currency, '')) LIKE LOWER(:term)
-                        OR LOWER('transfer') LIKE LOWER(:term))
-                  AND """ + tsRange("(tf.transferred_at AT TIME ZONE 'UTC')");
+                SELECT 'FINANCE'::text AS module, 'FRIEND'::text AS result_type, u.id AS id,
+                       COALESCE(NULLIF(up.display_name, ''), u.username)::text AS title,
+                       ('@' || u.username)::text AS subtitle,
+                       (ff.updated_at AT TIME ZONE 'UTC') AS ts
+                FROM finance_friendships ff
+                JOIN users u ON u.id = CASE WHEN ff.requester_id = :userId
+                                            THEN ff.addressee_id ELSE ff.requester_id END
+                LEFT JOIN user_profiles up ON up.user_id = u.id
+                WHERE ff.status = 'ACCEPTED'
+                  AND (ff.requester_id = :userId OR ff.addressee_id = :userId)
+                  AND (LOWER(u.username) LIKE LOWER(:term)
+                       OR LOWER(COALESCE(up.display_name, '')) LIKE LOWER(:term))
+                  AND """ + tsRange("(ff.updated_at AT TIME ZONE 'UTC')");
     }
 
     private String document() {

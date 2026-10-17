@@ -107,15 +107,16 @@ class _AppShellState extends State<AppShell> {
       // Notifications stay unavailable; the app remains usable.
     }
     if (!mounted) return;
-    await _d.dashboard.loadDashboard(
-      date: DateTime.now(),
-      offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
-    );
-    if (!mounted) return;
-    await _d.planner.loadToday();
-    try {
-      await _d.syncService.refresh();
-    } catch (_) {}
+    // Independent requests: run them concurrently so Home fills in as soon
+    // as the dashboard lands instead of waiting on each round trip in turn.
+    await Future.wait([
+      _d.dashboard.loadDashboard(
+        date: DateTime.now(),
+        offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
+      ),
+      _d.planner.loadToday(),
+      _d.syncService.refresh().catchError((Object _) {}),
+    ]);
   }
 
   Future<void> _refreshNotifications() async {

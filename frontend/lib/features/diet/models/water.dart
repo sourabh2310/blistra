@@ -1,17 +1,16 @@
 import 'wire.dart';
 
-/// Supported water units. Only `ml`/`L` (and lowercase `mL`/`l`) contribute to
-/// the day's total; descriptors like `glass`/`cup` are still recorded but do
-/// not convert to millilitres (backend contract).
+/// Supported water units. Glasses and cups count at standard sizes (250 ml
+/// and 240 ml), matching the backend's daily total.
 enum WaterUnit {
   ml('ml', 1),
   mL('mL', 1),
   L('L', 1000),
   l('l', 1000),
-  glass('glass', 0),
-  glasses('glasses', 0),
-  cup('cup', 0),
-  cups('cups', 0);
+  glass('glass', 250),
+  glasses('glasses', 250),
+  cup('cup', 240),
+  cups('cups', 240);
 
   const WaterUnit(this.wireName, this.millilitersPerUnit);
 

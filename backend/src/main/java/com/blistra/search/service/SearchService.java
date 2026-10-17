@@ -121,10 +121,8 @@ public class SearchService {
             };
             case "HABITS" -> "habits/" + id;
             case "FINANCE" -> switch (resultType) {
-                case "ACCOUNT" -> "finance/accounts/" + id;
-                case "CATEGORY" -> "finance/categories/" + id;
-                case "TRANSFER" -> "finance/transfers/" + id;
-                default -> "finance/transactions/" + id;
+                case "FRIEND" -> "finance/friends/" + id;
+                default -> "finance/expenses/" + id;
             };
             case "DOCUMENTS" -> "documents/" + id;
             default -> "";

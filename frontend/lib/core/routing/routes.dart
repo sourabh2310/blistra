@@ -7,6 +7,8 @@ import 'package:flutter/widgets.dart';
 
 import '../../features/diet/screens/meal_detail_screen.dart';
 import '../../features/diet/screens/profile_screen.dart';
+import '../../features/finance/screens/expense_detail_screen.dart';
+import '../../features/finance/screens/friend_detail_screen.dart';
 import '../../features/habits/screens/habit_detail_screen.dart';
 import '../../features/medicines/pages/medicine_detail_page.dart';
 import '../../features/planner/screens/planner_search_detail_screen.dart';
@@ -88,6 +90,20 @@ class AppRoutes {
       return SearchDestination(
         tab: AppTab.habits,
         detail: (_) => HabitDetailScreen(habitId: id),
+      );
+    }
+    if (parts.length == 3 && parts[0] == 'finance' && parts[1] == 'expenses') {
+      final String id = parts[2];
+      return SearchDestination(
+        tab: AppTab.finance,
+        detail: (_) => ExpenseDetailScreen(expenseId: id),
+      );
+    }
+    if (parts.length == 3 && parts[0] == 'finance' && parts[1] == 'friends') {
+      final String id = parts[2];
+      return SearchDestination(
+        tab: AppTab.finance,
+        detail: (_) => FriendDetailScreen(userId: id),
       );
     }
     if (parts.isNotEmpty && parts[0] == 'finance') {

@@ -87,7 +87,10 @@ void main() {
       expect(roundTrip['type'], original['type']);
       expect(roundTrip['title'], original['title']);
       expect(roundTrip['body'], original['body']);
-      expect(roundTrip['scheduledAt'], original['scheduledAt']);
+      expect(
+        DateTime.parse(roundTrip['scheduledAt'] as String),
+        DateTime.parse(original['scheduledAt'] as String),
+      );
       expect(roundTrip['timezone'], original['timezone']);
       expect(roundTrip['status'], original['status']);
       expect(roundTrip['sourceId'], original['sourceId']);

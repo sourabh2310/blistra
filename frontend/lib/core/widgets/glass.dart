@@ -182,7 +182,9 @@ class GlassCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: br,
-        child: BackdropFilter(
+        // Grouped: cards only blur the app background, so they can share the
+        // nearest BackdropGroup's snapshot (falls back to a plain blur).
+        child: BackdropFilter.grouped(
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
           child: DecoratedBox(
             decoration: BoxDecoration(
