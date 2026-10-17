@@ -3,16 +3,23 @@ package com.blistra.profile.controller;
 import com.blistra.auth.dto.IdentityUpdateRequest;
 import com.blistra.auth.dto.VerifyOtpRequest;
 import com.blistra.auth.security.BlistraUserPrincipal;
+import com.blistra.profile.application.AccountDeletionService;
+import com.blistra.profile.application.ProfileAvatarService;
 import com.blistra.profile.application.ProfileService;
+import com.blistra.profile.dto.DeleteAccountRequest;
 import com.blistra.profile.dto.ProfileRequest;
 import com.blistra.profile.dto.ProfileResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/profile")
@@ -21,6 +28,12 @@ public class ProfileController {
 
     @Autowired
     private ProfileService profileService;
+
+    @Autowired
+    private ProfileAvatarService avatarService;
+
+    @Autowired
+    private AccountDeletionService accountDeletionService;
 
     @GetMapping
     @Operation(summary = "Get the authenticated user's profile")
@@ -56,5 +69,35 @@ public class ProfileController {
             @Valid @RequestBody VerifyOtpRequest request,
             @RequestParam(defaultValue = "EMAIL") String channel) {
         return ResponseEntity.ok(profileService.confirmIdentity(request.getCode(), channel));
+    }
+
+    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload or replace the profile photo (JPEG, PNG or WebP, max 5 MB)")
+    public ResponseEntity<ProfileResponse> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(avatarService.upload(file));
+    }
+
+    @GetMapping("/avatar")
+    @Operation(summary = "Download the authenticated user's profile photo")
+    public ResponseEntity<Resource> avatar() {
+        ProfileAvatarService.Avatar avatar = avatarService.load();
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(avatar.contentType()))
+                .cacheControl(CacheControl.noCache().cachePrivate())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(avatar.resource());
+    }
+
+    @DeleteMapping("/avatar")
+    @Operation(summary = "Remove the profile photo")
+    public ResponseEntity<ProfileResponse> removeAvatar() {
+        return ResponseEntity.ok(avatarService.remove());
+    }
+
+    @PostMapping("/delete-account")
+    @Operation(summary = "Permanently delete the account and personal data (current password required)")
+    public ResponseEntity<Void> deleteAccount(@Valid @RequestBody DeleteAccountRequest request) {
+        accountDeletionService.deleteCurrentAccount(request.getCurrentPassword());
+        return ResponseEntity.noContent().build();
     }
 }

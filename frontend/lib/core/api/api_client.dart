@@ -120,6 +120,17 @@ class UserProfileDto {
     this.timezone,
     this.language,
     this.unitSystem,
+    this.bio,
+    this.gender,
+    this.emergencyContactName,
+    this.emergencyContactPhone,
+    this.emergencyContactRelation,
+    this.allowFriendRequests = true,
+    this.hasAvatar = false,
+    this.avatarVersion,
+    this.pendingEmail,
+    this.pendingPhone,
+    this.memberSince,
   });
 
   final String userId;
@@ -137,6 +148,29 @@ class UserProfileDto {
   final String? timezone;
   final String? language;
   final String? unitSystem;
+  final String? bio;
+
+  /// FEMALE, MALE, NON_BINARY or PREFER_NOT_TO_SAY.
+  final String? gender;
+  final String? emergencyContactName;
+  final String? emergencyContactPhone;
+  final String? emergencyContactRelation;
+
+  /// Privacy: whether other people can send a friend request.
+  final bool allowFriendRequests;
+  final bool hasAvatar;
+
+  /// Changes whenever the photo changes; used as the image cache key.
+  final int? avatarVersion;
+
+  /// Email/phone changes staged until the OTP sent there is confirmed.
+  final String? pendingEmail;
+  final String? pendingPhone;
+  final DateTime? memberSince;
+
+  bool get hasEmergencyContact =>
+      (emergencyContactName ?? '').isNotEmpty &&
+      (emergencyContactPhone ?? '').isNotEmpty;
 
   factory UserProfileDto.fromJson(Map<String, dynamic> json) => UserProfileDto(
         userId: json['userId'] as String? ?? '',
@@ -154,6 +188,17 @@ class UserProfileDto {
         timezone: json['timezone'] as String?,
         language: json['language'] as String?,
         unitSystem: json['unitSystem'] as String?,
+        bio: json['bio'] as String?,
+        gender: json['gender'] as String?,
+        emergencyContactName: json['emergencyContactName'] as String?,
+        emergencyContactPhone: json['emergencyContactPhone'] as String?,
+        emergencyContactRelation: json['emergencyContactRelation'] as String?,
+        allowFriendRequests: json['allowFriendRequests'] as bool? ?? true,
+        hasAvatar: json['hasAvatar'] as bool? ?? false,
+        avatarVersion: (json['avatarVersion'] as num?)?.toInt(),
+        pendingEmail: json['pendingEmail'] as String?,
+        pendingPhone: json['pendingPhone'] as String?,
+        memberSince: DateTime.tryParse(json['memberSince'] as String? ?? ''),
       );
 
   bool get isOnboardingProfileComplete =>
@@ -731,6 +776,31 @@ class ApiClient {
     ) as Map<String, dynamic>;
     return UserProfileDto.fromJson(body);
   }
+
+  /// Uploads or replaces the profile photo (JPEG, PNG or WebP, max 5 MB).
+  Future<UserProfileDto> uploadAvatar(List<int> bytes, String filename) async {
+    final body = await uploadMultipart(
+      '/api/v1/profile/avatar',
+      fields: const {},
+      files: [http.MultipartFile.fromBytes('file', bytes, filename: filename)],
+      expectStatus: 200,
+    );
+    return UserProfileDto.fromJson(body);
+  }
+
+  Future<Uint8List> fetchAvatar() => getBytes('/api/v1/profile/avatar');
+
+  Future<UserProfileDto> removeAvatar() async {
+    final body =
+        await _send('DELETE', '/api/v1/profile/avatar', expectStatus: 200)
+            as Map<String, dynamic>;
+    return UserProfileDto.fromJson(body);
+  }
+
+  /// Permanently deletes the account. The session is unusable afterwards.
+  Future<void> deleteAccount({required String currentPassword}) =>
+      postNoContent('/api/v1/profile/delete-account',
+          body: {'currentPassword': currentPassword});
 
   /// Development-only: latest usable OTP for the account. The backend 404s
   /// outside dev OTP mode; the Flutter OTP screen uses the same verify API

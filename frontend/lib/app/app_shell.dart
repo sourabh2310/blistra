@@ -82,6 +82,7 @@ class _AppShellState extends State<AppShell> {
     // Bind preferences to the signed-in user (cached first, backend next).
     // ignore: discarded_futures
     _d.preferences.bindUser(_prefsOwner);
+    _d.profile.bindOwner(_prefsOwner);
   }
 
   @override
@@ -95,6 +96,7 @@ class _AppShellState extends State<AppShell> {
     // per-user local cache keep configurations independent.
     // ignore: discarded_futures
     _d.preferences.bindUser(_prefsOwner);
+    _d.profile.bindOwner(_prefsOwner);
   }
 
   Future<void> _boot() async {

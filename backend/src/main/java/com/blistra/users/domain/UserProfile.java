@@ -41,6 +41,35 @@ public class UserProfile {
     @Column(name = "unit_system", length = 16)
     private String unitSystem;
 
+    /** Storage key of the profile photo; null when the user has none. */
+    @Column(name = "avatar_object_key", length = 64)
+    private String avatarObjectKey;
+
+    @Column(name = "avatar_content_type", length = 32)
+    private String avatarContentType;
+
+    @Column(name = "avatar_updated_at")
+    private LocalDateTime avatarUpdatedAt;
+
+    @Column(length = 280)
+    private String bio;
+
+    @Column(length = 24)
+    private String gender;
+
+    @Column(name = "emergency_contact_name", length = 120)
+    private String emergencyContactName;
+
+    @Column(name = "emergency_contact_phone", length = 32)
+    private String emergencyContactPhone;
+
+    @Column(name = "emergency_contact_relation", length = 40)
+    private String emergencyContactRelation;
+
+    /** Privacy: whether other users can send this user a friend request. */
+    @Column(name = "allow_friend_requests", nullable = false)
+    private boolean allowFriendRequests = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -119,6 +148,78 @@ public class UserProfile {
 
     public void setUnitSystem(String unitSystem) {
         this.unitSystem = unitSystem;
+    }
+
+    public String getAvatarObjectKey() {
+        return avatarObjectKey;
+    }
+
+    public void setAvatarObjectKey(String avatarObjectKey) {
+        this.avatarObjectKey = avatarObjectKey;
+    }
+
+    public String getAvatarContentType() {
+        return avatarContentType;
+    }
+
+    public void setAvatarContentType(String avatarContentType) {
+        this.avatarContentType = avatarContentType;
+    }
+
+    public LocalDateTime getAvatarUpdatedAt() {
+        return avatarUpdatedAt;
+    }
+
+    public void setAvatarUpdatedAt(LocalDateTime avatarUpdatedAt) {
+        this.avatarUpdatedAt = avatarUpdatedAt;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getEmergencyContactName() {
+        return emergencyContactName;
+    }
+
+    public void setEmergencyContactName(String emergencyContactName) {
+        this.emergencyContactName = emergencyContactName;
+    }
+
+    public String getEmergencyContactPhone() {
+        return emergencyContactPhone;
+    }
+
+    public void setEmergencyContactPhone(String emergencyContactPhone) {
+        this.emergencyContactPhone = emergencyContactPhone;
+    }
+
+    public String getEmergencyContactRelation() {
+        return emergencyContactRelation;
+    }
+
+    public void setEmergencyContactRelation(String emergencyContactRelation) {
+        this.emergencyContactRelation = emergencyContactRelation;
+    }
+
+    public boolean isAllowFriendRequests() {
+        return allowFriendRequests;
+    }
+
+    public void setAllowFriendRequests(boolean allowFriendRequests) {
+        this.allowFriendRequests = allowFriendRequests;
     }
 
     public LocalDateTime getCreatedAt() {
