@@ -2,6 +2,8 @@ package com.blistra.auth.otp;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,6 +12,10 @@ import java.util.UUID;
 
 @Repository
 public interface VerificationOtpRepository extends JpaRepository<VerificationOtp, UUID> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<VerificationOtp> findFirstByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(
+            UUID userId, OtpPurpose purpose);
 
     List<VerificationOtp> findByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(
             UUID userId, OtpPurpose purpose);

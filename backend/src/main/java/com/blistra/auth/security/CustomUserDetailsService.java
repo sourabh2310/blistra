@@ -14,6 +14,12 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private com.blistra.users.repository.UserProfileRepository profiles;
+
+    private String timezone(User user) {
+        return profiles.findByUserId(user.getId()).map(p -> p.getTimezone()).orElse(null);
+    }
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
@@ -23,7 +29,8 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("User not found");
         }
 
-        return new BlistraUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), java.util.List.of());
+        return new BlistraUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), java.util.List.of())
+                .withSessionVersion(user.getSessionVersion()).withTimezone(timezone(user)).withEmailVerified(user.isEmailVerified());
     }
 
     public UserDetails loadUserById(java.util.UUID id) throws UsernameNotFoundException {
@@ -33,7 +40,8 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("User not found");
         }
 
-        return new BlistraUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), java.util.List.of());
+        return new BlistraUserPrincipal(user.getId(), user.getEmail(), user.getPasswordHash(), java.util.List.of())
+                .withSessionVersion(user.getSessionVersion()).withTimezone(timezone(user)).withEmailVerified(user.isEmailVerified());
     }
 
     /**

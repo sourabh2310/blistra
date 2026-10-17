@@ -18,6 +18,10 @@ import java.util.UUID;
  * maths in the database.
  */
 public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select e from Expense e where e.id=:id")
+    java.util.Optional<Expense> lockForUpdate(@Param("id") UUID id);
+    Page<Expense> findByGroupId(UUID groupId, Pageable pageable);
 
     /**
      * Expenses involving {@code userId}, optionally narrowed to ones that also
@@ -27,6 +31,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
             select e from Expense e
              where (e.paidBy = :userId
                     or exists (select 1 from ExpenseShare s where s.expense = e and s.userId = :userId))
+               and (:friendId is null or e.groupId is null)
                and (:friendId is null
                     or e.paidBy = :friendId
                     or exists (select 1 from ExpenseShare s2 where s2.expense = e and s2.userId = :friendId))
@@ -46,7 +51,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     /** [otherUserId, currency, amount]: what others owe {@code userId} on expenses they paid. */
     @Query("""
             select s.userId, e.currency, sum(s.amount) from ExpenseShare s join s.expense e
-             where e.paidBy = :userId and s.userId <> :userId
+             where e.paidBy = :userId and s.userId <> :userId and e.groupId is null
              group by s.userId, e.currency
             """)
     List<Object[]> owedToUser(@Param("userId") UUID userId);
@@ -54,7 +59,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     /** [payerId, currency, amount]: what {@code userId} owes others on expenses they paid. */
     @Query("""
             select e.paidBy, e.currency, sum(s.amount) from ExpenseShare s join s.expense e
-             where s.userId = :userId and e.paidBy <> :userId
+             where s.userId = :userId and e.paidBy <> :userId and e.groupId is null
              group by e.paidBy, e.currency
             """)
     List<Object[]> owedByUser(@Param("userId") UUID userId);

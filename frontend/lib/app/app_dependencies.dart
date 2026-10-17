@@ -9,6 +9,10 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:path_provider/path_provider.dart';
 
 import 'package:http/http.dart' as http;
 
@@ -71,20 +75,20 @@ class AppDependencies {
   final AuthState authState;
   final AuthStorage authStorage;
 
-  final DashboardController dashboard;
-  final PlannerController planner;
-  final PreferencesController preferences;
-  final ProfileController profile;
-  final DietController diet;
-  final HabitsController habits;
-  final FinanceController finance;
-  final HealthRepository health;
-  final DocumentsProvider documents;
+  DashboardController dashboard;
+  PlannerController planner;
+  PreferencesController preferences;
+  ProfileController profile;
+  DietController diet;
+  HabitsController habits;
+  FinanceController finance;
+  HealthRepository health;
+  DocumentsProvider documents;
 
-  final NotificationsApi notificationsApi;
-  final RemindersController reminders;
-  final SettingsController settings;
-  final ReminderSyncService syncService;
+  NotificationsApi notificationsApi;
+  RemindersController reminders;
+  SettingsController settings;
+  ReminderSyncService syncService;
   final NotificationScheduler scheduler;
   final ThemeController theme;
   final AppUpdateController appUpdate;
@@ -107,15 +111,75 @@ class AppDependencies {
     apiClient.onUnauthorized = authState.handleUnauthorized;
     await authState.restore();
 
-    final dashboard =
-        DashboardController(api: DashboardApi(apiClient: apiClient));
+    final effectiveScheduler = scheduler ?? FlutterNotificationScheduler();
+    final legacyTokens = TokenStore.secured(authStorage);
+    await legacyTokens.load();
+    final deps = _session(
+      apiClient,
+      authState,
+      authStorage,
+      theme,
+      effectiveScheduler,
+      legacyTokens,
+    );
+    authState.onSessionEnded = () async {
+      final previousSync = deps.syncService;
+      final fresh = _session(
+        apiClient,
+        authState,
+        authStorage,
+        theme,
+        effectiveScheduler,
+        legacyTokens,
+      );
+      deps.dashboard = fresh.dashboard;
+      deps.planner = fresh.planner;
+      deps.preferences = fresh.preferences;
+      deps.profile = fresh.profile;
+      deps.diet = fresh.diet;
+      deps.habits = fresh.habits;
+      deps.finance = fresh.finance;
+      deps.health = fresh.health;
+      deps.documents = fresh.documents;
+      deps.notificationsApi = fresh.notificationsApi;
+      deps.reminders = fresh.reminders;
+      deps.settings = fresh.settings;
+      deps.syncService = fresh.syncService;
+      try {
+        await previousSync.clearAll();
+      } finally {
+        if (!kIsWeb) {
+          final temp = await getTemporaryDirectory();
+          final previews = Directory('${temp.path}/blistra-document-previews');
+          if (await previews.exists()) await previews.delete(recursive: true);
+        }
+      }
+    };
+    authState.addListener(() => legacyTokens.prime(apiClient.token));
+    return deps;
+  }
+
+  // Controllers belong to one account session. Replacing this graph makes
+  // late responses unreachable from the next account's widget tree.
+  static AppDependencies _session(
+    ApiClient apiClient,
+    AuthState authState,
+    AuthStorage authStorage,
+    ThemeController theme,
+    NotificationScheduler effectiveScheduler,
+    TokenStore legacyTokens,
+  ) {
+    final resolvedBase = apiClient.baseUrl;
+
+    final dashboard = DashboardController(
+      api: DashboardApi(apiClient: apiClient),
+    );
     Future<void> refreshDashboard() => dashboard.refresh(
-          date: DateTime.now(),
-          offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
-        );
+      date: DateTime.now(),
+      offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
+    );
     late final PlannerController planner;
-    final preferences =
-        PreferencesController(PreferencesApi(apiClient));
+    final preferences = PreferencesController(PreferencesApi(apiClient));
     final profile = ProfileController(apiClient);
     final diet = DietController(
       HttpDietApi(apiClient),
@@ -137,13 +201,8 @@ class AppDependencies {
       onMutated: refreshDashboard,
     );
     final health = HealthRepository(HealthApi(apiClient));
-    final documents =
-        DocumentsProvider(DocumentsRepository(apiClient));
+    final documents = DocumentsProvider(DocumentsRepository(apiClient));
 
-    final effectiveScheduler =
-        scheduler ?? FlutterNotificationScheduler();
-    final legacyTokens = TokenStore.secured(authStorage);
-    await legacyTokens.load();
     final notificationsClient = BlistraApiClient(
       baseUrl: resolvedBase,
       tokenStore: legacyTokens,
@@ -172,11 +231,6 @@ class AppDependencies {
       },
       onDashboardChanged: refreshDashboard,
     );
-
-    // Keep the legacy token cache in step with the secure session.
-    authState.addListener(() {
-      legacyTokens.prime(apiClient.token);
-    });
 
     return AppDependencies._(
       apiClient: apiClient,

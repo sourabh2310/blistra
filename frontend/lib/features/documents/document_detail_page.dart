@@ -1,13 +1,16 @@
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+
+import '../../app/app_scope.dart';
+
 import 'package:frontend/features/documents/models/document.dart';
 import 'package:frontend/features/documents/providers/documents_provider.dart';
-import 'package:frontend/features/documents/repositories/documents_repository.dart';
 
 class DocumentDetailPage extends StatefulWidget {
   final AppDocument document;
@@ -35,7 +38,7 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
   Future<void> _loadImage() async {
     setState(() => _isLoading = true);
     try {
-      final repo = context.read<DocumentsRepository>();
+      final repo = context.read<DocumentsProvider>();
       final bytes = await repo.download(widget.document.id);
       if (mounted) {
         setState(() {
@@ -54,16 +57,31 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
   }
 
   Future<void> _downloadAndOpen() async {
+    final auth = AppScope.of(context).authState;
+    final session = auth.sessionGeneration;
+    bool active() =>
+        mounted && auth.isAuthenticated && session == auth.sessionGeneration;
     setState(() => _isDownloading = true);
     try {
-      final repo = context.read<DocumentsRepository>();
+      final repo = context.read<DocumentsProvider>();
       final bytes = await repo.download(widget.document.id);
+      if (!active()) return;
 
       // Save to temp file
       final dir = await getTemporaryDirectory();
-      final fileName = widget.document.originalFilename;
-      final file = File('${dir.path}/$fileName');
+      if (!active()) return;
+      final cache = Directory('${dir.path}/blistra-document-previews');
+      await cache.create(recursive: true);
+      if (!active()) return;
+      final fileName = widget.document.originalFilename
+          .split(RegExp(r'[/\\]'))
+          .last;
+      final file = File('${cache.path}/${widget.document.id}-$fileName');
       await file.writeAsBytes(bytes);
+      if (!active()) {
+        if (await file.exists()) await file.delete();
+        return;
+      }
 
       // Open with system app
       final result = await OpenFilex.open(file.path);
@@ -72,15 +90,13 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Opening document...')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Opening document...')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to open: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to open: $e')));
       }
     } finally {
       if (mounted) setState(() => _isDownloading = false);
@@ -88,8 +104,12 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
   }
 
   Future<void> _showEditDialog() async {
-    final categoryController = ValueNotifier<DocumentCategory>(widget.document.category);
-    final descriptionController = TextEditingController(text: widget.document.description ?? '');
+    final categoryController = ValueNotifier<DocumentCategory>(
+      widget.document.category,
+    );
+    final descriptionController = TextEditingController(
+      text: widget.document.description ?? '',
+    );
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -105,10 +125,12 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
                   return DropdownButtonFormField<DocumentCategory>(
                     initialValue: category,
                     decoration: const InputDecoration(labelText: 'Category'),
-                    items: DocumentCategory.values.map((c) => DropdownMenuItem(
-                          value: c,
-                          child: Text(c.label),
-                        )).toList(),
+                    items: DocumentCategory.values
+                        .map(
+                          (c) =>
+                              DropdownMenuItem(value: c, child: Text(c.label)),
+                        )
+                        .toList(),
                     onChanged: (v) => categoryController.value = v!,
                   );
                 },
@@ -148,18 +170,18 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
         await provider.update(
           widget.document.id,
           category: result['category'],
-          description: result['description'].isEmpty ? null : result['description'],
+          description: result['description'].isEmpty
+              ? null
+              : result['description'],
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Document updated')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Document updated')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to update: $e')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Failed to update: $e')));
         }
       }
     }
@@ -170,7 +192,9 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Document'),
-        content: Text('Are you sure you want to delete "${widget.document.originalFilename}"? This cannot be undone.'),
+        content: Text(
+          'Are you sure you want to delete "${widget.document.originalFilename}"? This cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -193,15 +217,13 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
         await provider.delete(widget.document.id);
         if (mounted) {
           Navigator.pop(context, true); // Return to list with refresh signal
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Document deleted')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Document deleted')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete: $e')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
         }
       }
     }
@@ -215,7 +237,11 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(doc.originalFilename, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(
+          doc.originalFilename,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
@@ -260,7 +286,11 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
                     if (doc.description != null)
                       _DetailRow(label: 'Description', value: doc.description!),
                     _DetailRow(label: 'Created', value: doc.formattedDate),
-                    _DetailRow(label: 'Modified', value: DateFormat('MMM d, yyyy HH:mm').format(doc.updatedAt)),
+                    _DetailRow(
+                      label: 'Modified',
+                      value: DateFormat('MMM d, yyyy HH:mm')
+                          .format(doc.updatedAt),
+                    ),
                   ],
                 ),
               ),
@@ -282,7 +312,9 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
                         )
                       : const Icon(Icons.download),
                   label: Text(_isDownloading ? 'Opening...' : 'Open Document'),
-                  style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
                 ),
               ),
             ] else if (doc.isImage) ...[
@@ -292,7 +324,9 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
                   onPressed: _downloadAndOpen,
                   icon: const Icon(Icons.download),
                   label: const Text('Download / Save Image'),
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
                 ),
               ),
             ],
@@ -327,29 +361,33 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.broken_image, size: 48, color: theme.colorScheme.error),
-                        const SizedBox(height: 8),
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: _loadImage,
-                          child: const Text('Retry'),
-                        ),
-                      ],
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.broken_image,
+                      size: 48,
+                      color: theme.colorScheme.error,
                     ),
-                  )
-                : _imageBytes != null
-                    ? Image.memory(
-                        _imageBytes!,
-                        fit: BoxFit.contain,
-                        width: double.infinity,
-                        height: double.infinity,
-                      )
-                    : const Center(child: Icon(Icons.image_not_supported, size: 48)),
+                    const SizedBox(height: 8),
+                    Text(_error!, textAlign: TextAlign.center),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _loadImage,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            : _imageBytes != null
+            ? Image.memory(
+                _imageBytes!,
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+              )
+            : const Center(child: Icon(Icons.image_not_supported, size: 48)),
       ),
     );
   }
@@ -368,10 +406,7 @@ class _DocumentDetailPageState extends State<DocumentDetailPage> {
               color: theme.colorScheme.primary,
             ),
             const SizedBox(height: 16),
-            Text(
-              'PDF Document',
-              style: theme.textTheme.titleLarge,
-            ),
+            Text('PDF Document', style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
               'PDF preview is not available in-app. Tap "Open Document" to view with your system PDF viewer.',
@@ -411,12 +446,7 @@ class _DetailRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
+          Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
         ],
       ),
     );

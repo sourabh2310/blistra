@@ -15,7 +15,7 @@ import 'notification_scheduler.dart';
 /// exact-alarm permission.
 class FlutterNotificationScheduler implements NotificationScheduler {
   FlutterNotificationScheduler({FlutterLocalNotificationsPlugin? plugin})
-      : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+    : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
 
@@ -27,8 +27,11 @@ class FlutterNotificationScheduler implements NotificationScheduler {
     priority: Priority.high,
   );
 
-  static const _details =
-      NotificationDetails(android: _androidDetails);
+  static const _details = NotificationDetails(
+    android: _androidDetails,
+    iOS: DarwinNotificationDetails(),
+    macOS: DarwinNotificationDetails(),
+  );
 
   bool _initialized = false;
 
@@ -38,6 +41,16 @@ class FlutterNotificationScheduler implements NotificationScheduler {
     tzdata.initializeTimeZones();
     const settings = InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
+      macOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
     );
     await _plugin.initialize(settings);
     _initialized = true;
@@ -46,20 +59,45 @@ class FlutterNotificationScheduler implements NotificationScheduler {
   @override
   Future<bool> requestPermissions() async {
     await initialize();
-    return (await _plugin.resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>()
-            ?.requestNotificationsPermission()) ??
-        true;
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android != null) {
+      return await android.requestNotificationsPermission() ?? false;
+    }
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    if (ios != null) {
+      return await ios.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          ) ??
+          false;
+    }
+    final mac = _plugin
+        .resolvePlatformSpecificImplementation<
+          MacOSFlutterLocalNotificationsPlugin
+        >();
+    if (mac != null) {
+      return await mac.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          ) ??
+          false;
+    }
+    return false;
   }
 
   @override
   Future<void> schedule(ScheduledNotification notification) async {
     await initialize();
     final whenUtc = notification.when.toUtc();
-    final fireAt = tz.TZDateTime.from(
-      whenUtc,
-      tz.UTC,
-    ).subtract(Duration.zero);
+    final fireAt = tz.TZDateTime.from(whenUtc, tz.UTC).subtract(Duration.zero);
 
     if (!fireAt.isAfter(tz.TZDateTime.now(tz.UTC))) {
       return;
@@ -87,5 +125,11 @@ class FlutterNotificationScheduler implements NotificationScheduler {
     for (final id in ids) {
       await _plugin.cancel(id);
     }
+  }
+
+  @override
+  Future<void> cancelAll() async {
+    await initialize();
+    await _plugin.cancelAll();
   }
 }

@@ -27,6 +27,12 @@ public class User {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
+    @Column(name = "session_version", nullable = false)
+    private long sessionVersion;
+
+    public long getSessionVersion() { return sessionVersion; }
+    public void revokeSessions() { sessionVersion++; }
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserStatus status;
@@ -48,6 +54,10 @@ public class User {
 
     @Column(name = "terms_accepted_at")
     private LocalDateTime termsAcceptedAt;
+    @Column(name = "terms_version", length = 32)
+    private String termsVersion;
+    public String getTermsVersion() { return termsVersion; }
+    public void setTermsVersion(String version) { termsVersion = version; }
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

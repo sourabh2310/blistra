@@ -25,7 +25,15 @@ class FinanceController extends ChangeNotifier {
 
   static const String _currencyKey = 'finance.defaultCurrency';
   static const List<String> commonCurrencies = [
-    'INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD', 'JPY',
+    'INR',
+    'USD',
+    'EUR',
+    'GBP',
+    'AED',
+    'SGD',
+    'AUD',
+    'CAD',
+    'JPY',
   ];
   static const int _pageSize = 50;
 
@@ -162,7 +170,9 @@ class FinanceController extends ChangeNotifier {
   // ---------------------------------------------------------------- mutations
 
   Future<Expense> saveExpense(ExpenseDraft draft, {String? id}) async {
-    final saved = id == null ? await api.createExpense(draft) : await api.updateExpense(id, draft);
+    final saved = id == null
+        ? await api.createExpense(draft)
+        : await api.updateExpense(id, draft);
     if (draft.currency != _currency && id == null) {
       await setCurrency(draft.currency);
     }
@@ -208,6 +218,7 @@ class FinanceController extends ChangeNotifier {
     required String currency,
     DateTime? on,
     String? note,
+    String? groupId,
   }) async {
     await api.settleUp(
       friendId: friendId,
@@ -216,6 +227,7 @@ class FinanceController extends ChangeNotifier {
       currency: currency,
       on: on,
       note: note,
+      groupId: groupId,
     );
     await _afterMutation(friends: true);
   }
@@ -225,8 +237,21 @@ class FinanceController extends ChangeNotifier {
     await _afterMutation(friends: true);
   }
 
-  Future<void> saveBudget({ExpenseCategory? category, required String currency, required String limit}) async {
-    await api.saveBudget(category: category, currency: currency, monthlyLimit: limit);
+  Future<void> decideSettlement(String id, {required bool confirmed}) async {
+    await api.decideSettlement(id, confirmed: confirmed);
+    await _afterMutation(friends: true);
+  }
+
+  Future<void> saveBudget({
+    ExpenseCategory? category,
+    required String currency,
+    required String limit,
+  }) async {
+    await api.saveBudget(
+      category: category,
+      currency: currency,
+      monthlyLimit: limit,
+    );
     await _loadOverview();
     notifyListeners();
   }
@@ -280,7 +305,11 @@ class FinanceController extends ChangeNotifier {
 
   Future<void> _loadExpenses() async {
     final month = _month;
-    final page = await api.expenses(from: month, to: DateTime(month.year, month.month + 1, 0), size: _pageSize);
+    final page = await api.expenses(
+      from: month,
+      to: DateTime(month.year, month.month + 1, 0),
+      size: _pageSize,
+    );
     if (month != _month) return;
     _expenses = page.items;
     _expensesLast = page.last;

@@ -33,7 +33,8 @@ class SecurityScreen extends StatelessWidget {
           ),
         ProfileSection(
           title: 'Sign-in details',
-          footer: 'You can sign in with your username, email or phone. '
+          footer:
+              'You can sign in with your username, email or phone. '
               'Changes need your current password; a new email or phone '
               'only takes effect after you confirm the code sent to it.',
           children: [
@@ -48,8 +49,9 @@ class SecurityScreen extends StatelessWidget {
               title: 'Email',
               subtitle: p?.email ?? '—',
               trailing: StatusPill(
-                  label: emailVerified ? 'Verified' : 'Verify',
-                  positive: emailVerified),
+                label: emailVerified ? 'Verified' : 'Verify',
+                positive: emailVerified,
+              ),
               onTap: () => emailVerified
                   ? _changeIdentity(context, controller, 'email')
                   : _verifyChannel(context, controller, email: true),
@@ -62,7 +64,8 @@ class SecurityScreen extends StatelessWidget {
                   ? null
                   : StatusPill(
                       label: phoneVerified ? 'Verified' : 'Verify',
-                      positive: phoneVerified),
+                      positive: phoneVerified,
+                    ),
               onTap: () => p?.phone != null && !phoneVerified
                   ? _verifyChannel(context, controller, email: false)
                   : _changeIdentity(context, controller, 'phone'),
@@ -97,7 +100,10 @@ class SecurityScreen extends StatelessWidget {
   }
 
   static Future<void> _changeIdentity(
-      BuildContext context, ProfileController controller, String field) async {
+    BuildContext context,
+    ProfileController controller,
+    String field,
+  ) async {
     final labels = {
       'username': 'New username',
       'email': 'New email',
@@ -117,7 +123,9 @@ class SecurityScreen extends StatelessWidget {
                 'We\'ll send a code to the new $field. Your current one keeps '
                 'working until you confirm it.',
                 style: TextStyle(
-                    fontSize: 13, color: BlistraColors.resolve(context).muted),
+                  fontSize: 13,
+                  color: BlistraColors.resolve(context).muted,
+                ),
               ),
             TextField(
               controller: value,
@@ -132,18 +140,20 @@ class SecurityScreen extends StatelessWidget {
             TextField(
               controller: current,
               obscureText: true,
-              decoration:
-                  const InputDecoration(labelText: 'Current password'),
+              decoration: const InputDecoration(labelText: 'Current password'),
             ),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-            onPressed: () => Navigator.pop(
-                context, {'current': current.text, 'value': value.text.trim()}),
+            onPressed: () => Navigator.pop(context, {
+              'current': current.text,
+              'value': value.text.trim(),
+            }),
             child: const Text('Continue'),
           ),
         ],
@@ -168,32 +178,45 @@ class SecurityScreen extends StatelessWidget {
       return;
     }
     await _confirmIdentity(
-        context, controller, field == 'email' ? 'EMAIL' : 'SMS');
+      context,
+      controller,
+      field == 'email' ? 'EMAIL' : 'SMS',
+    );
   }
 
   static Future<void> _confirmIdentity(
-      BuildContext context, ProfileController controller, String channel) async {
-    final code = await showOtpDialog(context,
-        title: 'Enter the code',
-        message: channel == 'EMAIL'
-            ? 'We sent a 6-digit code to your new email.'
-            : 'We sent a 6-digit code to your new phone.',
-        confirmLabel: 'Confirm');
+    BuildContext context,
+    ProfileController controller,
+    String channel,
+  ) async {
+    final code = await showOtpDialog(
+      context,
+      title: 'Enter the code',
+      message: channel == 'EMAIL'
+          ? 'We sent a 6-digit code to your new email.'
+          : 'We sent a 6-digit code to your new phone.',
+      confirmLabel: 'Confirm',
+    );
     if (code == null || !context.mounted) return;
     final ok = await controller.confirmIdentity(code: code, channel: channel);
     if (!context.mounted) return;
     showProfileMessage(
-        context, ok ? 'Sign-in details updated.' : controller.error);
+      context,
+      ok ? 'Sign-in details updated.' : controller.error,
+    );
   }
 
   static Future<void> _verifyChannel(
-      BuildContext context, ProfileController controller,
-      {required bool email}) async {
+    BuildContext context,
+    ProfileController controller, {
+    required bool email,
+  }) async {
     final auth = AppScope.of(context).authState;
     int? cooldown;
     try {
-      cooldown =
-          email ? await auth.resendEmailOtp() : await auth.resendPhoneOtp();
+      cooldown = email
+          ? await auth.resendEmailOtp()
+          : await auth.resendPhoneOtp();
     } on ApiException catch (e) {
       if (context.mounted) showProfileMessage(context, e.message);
       return;
@@ -203,14 +226,17 @@ class SecurityScreen extends StatelessWidget {
       showProfileMessage(context, auth.lastError?.message);
       return;
     }
-    final code = await showOtpDialog(context,
-        title: email ? 'Verify email' : 'Verify phone',
-        message: email
-            ? 'Enter the 6-digit code we emailed you.'
-            : 'Enter the 6-digit code we texted you.');
+    final code = await showOtpDialog(
+      context,
+      title: email ? 'Verify email' : 'Verify phone',
+      message: email
+          ? 'Enter the 6-digit code we emailed you.'
+          : 'Enter the 6-digit code we texted you.',
+    );
     if (code == null || !context.mounted) return;
-    final account =
-        email ? await auth.verifyEmail(code) : await auth.verifyPhone(code);
+    final account = email
+        ? await auth.verifyEmail(code)
+        : await auth.verifyPhone(code);
     if (!context.mounted) return;
     if (account == null) {
       showProfileMessage(context, auth.lastError?.message);
@@ -220,7 +246,9 @@ class SecurityScreen extends StatelessWidget {
   }
 
   static Future<void> _changePassword(
-      BuildContext context, ProfileController controller) async {
+    BuildContext context,
+    ProfileController controller,
+  ) async {
     final current = TextEditingController();
     final next = TextEditingController();
     final confirm = TextEditingController();
@@ -232,27 +260,32 @@ class SecurityScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-                controller: current,
-                obscureText: true,
-                decoration:
-                    const InputDecoration(labelText: 'Current password')),
+              controller: current,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Current password'),
+            ),
             TextField(
-                controller: next,
-                obscureText: true,
-                decoration: const InputDecoration(
-                    labelText: 'New password',
-                    helperText: '8+ characters, a letter and a digit')),
+              controller: next,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'New password',
+                helperText: '8+ characters, a letter and a digit',
+              ),
+            ),
             TextField(
-                controller: confirm,
-                obscureText: true,
-                decoration: const InputDecoration(
-                    labelText: 'Confirm new password')),
+              controller: confirm,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Confirm new password',
+              ),
+            ),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(context, {
               'current': current.text,
@@ -277,17 +310,25 @@ class SecurityScreen extends StatelessWidget {
       newPassword: result['next']!,
     );
     if (!context.mounted) return;
-    showProfileMessage(context, ok ? 'Password changed.' : controller.error);
+    if (ok) {
+      final auth = AppScope.of(context).authState;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      await auth.logout();
+    } else {
+      showProfileMessage(context, controller.error);
+    }
   }
 }
 
 /// Asks before ending the session, then signs out.
 Future<void> confirmSignOut(BuildContext context) async {
   final auth = AppScope.of(context).authState;
-  final yes = await confirmAction(context,
-      title: 'Sign out?',
-      message: 'You\'ll need your password to sign back in on this device.',
-      confirmLabel: 'Sign out');
+  final yes = await confirmAction(
+    context,
+    title: 'Sign out?',
+    message: 'You\'ll need your password to sign back in on this device.',
+    confirmLabel: 'Sign out',
+  );
   if (!yes || !context.mounted) return;
   Navigator.of(context).popUntil((route) => route.isFirst);
   await auth.logout();
@@ -315,8 +356,11 @@ class _PendingBanner extends StatelessWidget {
           Icon(Icons.mark_email_unread_outlined, color: colors.accentText),
           const SizedBox(width: 10),
           Expanded(
-              child: Text(text,
-                  style: TextStyle(fontSize: 13, color: colors.text))),
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 13, color: colors.text),
+            ),
+          ),
           TextButton(onPressed: onConfirm, child: const Text('Enter code')),
         ],
       ),

@@ -1,17 +1,24 @@
-# Render blueprint: free web service running the backend container.
+# Production blueprint; review paid disk/compute costs before applying.
 # Secrets marked sync:false are entered in the Render dashboard, never committed.
 services:
   - type: web
     name: blistra-api
     runtime: docker
+    branch: main
     dockerContext: backend
     dockerfilePath: backend/Dockerfile
-    plan: free
-    healthCheckPath: /health
-    autoDeploy: true
+    plan: 0.5c-512mb
+    healthCheckPath: /actuator/health/readiness
+    autoDeployTrigger: checksPass
+    disk:
+      name: blistra-files
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+      - key: DOCUMENTS_STORAGE_ROOT
+        value: /var/data/blistra-documents
       - key: DB_URL
         sync: false            # jdbc:postgresql://<neon-host>/<db>?sslmode=require
       - key: DB_USERNAME
@@ -33,4 +40,4 @@ services:
       - key: MAIL_FROM
         sync: false            # verified sender address
       - key: BLISTRA_CORS_ORIGIN_PATTERNS
-        value: "*"             # the APK is not a browser; tighten if you host a web build
+        sync: false            # exact browser origins; native apps do not need CORS

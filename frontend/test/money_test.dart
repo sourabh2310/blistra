@@ -14,8 +14,10 @@ void main() {
     });
 
     test('accepts the fixed maximum precision', () {
-      expect(Money.parse('12345678901234.5678').toPlainString(),
-          '12345678901234.5678');
+      expect(
+        Money.parse('12345678901234.5678').toPlainString(),
+        '12345678901234.5678',
+      );
     });
 
     test('rejects more than four fraction digits', () {
@@ -32,9 +34,8 @@ void main() {
 
   group('Money arithmetic', () {
     test('adds exactly without floating point drift', () {
-      final Money sum = Money.parse('0.1') +
-          Money.parse('0.2') +
-          Money.parse('0.0001');
+      final Money sum =
+          Money.parse('0.1') + Money.parse('0.2') + Money.parse('0.0001');
       expect(sum.toPlainString(), '0.3001');
     });
 
@@ -77,6 +78,11 @@ void main() {
   });
 
   group('Money.display', () {
+    test('does not hide sub-cent balances', () {
+      expect(Money.parse('0.0001').display(currencyCode: 'USD'), r'$0.0001');
+      expect(Money.parse('1.9999').display(), '1.9999');
+      expect(Money.parseSigned('-0.0010').display(), '-0.001');
+    });
     test('uses a currency symbol and drops a zero fraction', () {
       expect(Money.parse('24580.0000').display(currencyCode: 'INR'), '₹24,580');
     });
@@ -90,7 +96,10 @@ void main() {
     });
 
     test('handles negatives', () {
-      expect((Money.zero() - Money.parse('420')).display(currencyCode: 'INR'), '-₹420');
+      expect(
+        (Money.zero() - Money.parse('420')).display(currencyCode: 'INR'),
+        '-₹420',
+      );
     });
   });
 }

@@ -25,7 +25,8 @@ class RegionScreen extends StatelessWidget {
       children: [
         ProfileSection(
           title: 'Region',
-          footer: 'Your timezone decides when "today" starts for meals, '
+          footer:
+              'Your timezone decides when "today" starts for meals, '
               'doses, habits and reminders.',
           children: [
             ProfileTile(
@@ -44,15 +45,18 @@ class RegionScreen extends StatelessWidget {
               trailing: p?.timezone != deviceZone
                   ? TextButton(
                       onPressed: () => save({'timezone': deviceZone}),
-                      child: const Text('Use device'),
+                      child: const Text('Use estimate'),
                     )
-                  : const StatusPill(label: 'Matches device', positive: true),
+                  : const StatusPill(label: 'Matches estimate', positive: true),
               onTap: () async {
-                final value = await showTextFieldDialog(context,
-                    title: 'Timezone',
-                    initial: p?.timezone ?? deviceZone,
-                    hint: 'e.g. Asia/Kolkata',
-                    helper: 'IANA name. This device: $deviceZone');
+                final value = await showTextFieldDialog(
+                  context,
+                  title: 'Timezone',
+                  initial: p?.timezone ?? deviceZone,
+                  hint: 'e.g. Asia/Kolkata',
+                  helper:
+                      'Check this IANA name. Suggested from device offset: $deviceZone',
+                );
                 if (value != null && value.isNotEmpty) {
                   await save({'timezone': value});
                 }
@@ -62,31 +66,27 @@ class RegionScreen extends StatelessWidget {
         ),
         ProfileSection(
           title: 'Preferences',
+          footer:
+              'The interface is currently English and measurement inputs use metric units. '
+              'Saved preferences do not translate screens or convert previous records.',
           children: [
             ProfileTile(
               icon: Icons.translate_outlined,
               title: 'Language',
-              subtitle: languageLabel(p?.language),
-              onTap: () async {
-                final choice = await pickOption(context,
-                    title: 'Language',
-                    options: kLanguageLabels,
-                    selected: p?.language);
-                if (choice != null) await save({'language': choice});
-              },
+              subtitle:
+                  'English · saved preference: ${languageLabel(p?.language)}',
             ),
             ProfileTile(
               icon: Icons.straighten_outlined,
               title: 'Units',
               subtitle: unitLabel(p?.unitSystem),
               onTap: () async {
-                final choice = await pickOption(context,
-                    title: 'Units',
-                    options: const {
-                      'METRIC': 'Metric (cm, kg, ml)',
-                      'IMPERIAL': 'Imperial (in, lb, oz)',
-                    },
-                    selected: p?.unitSystem);
+                final choice = await pickOption(
+                  context,
+                  title: 'Units',
+                  options: const {'METRIC': 'Metric (cm, kg, ml)'},
+                  selected: p?.unitSystem,
+                );
                 if (choice != null) await save({'unitSystem': choice});
               },
             ),

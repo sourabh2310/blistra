@@ -4,6 +4,8 @@ import com.blistra.common.exception.OtpVerificationException;
 import com.blistra.common.exception.ResendCooldownException;
 import com.blistra.common.exception.TooManyRequestsException;
 import com.blistra.users.domain.User;
+import com.blistra.users.repository.UserRepository;
+import com.blistra.common.exception.VerificationUnavailableException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -40,6 +42,7 @@ public class VerificationService {
     private final EmailSender emailSender;
     private final SmsSender smsSender;
     private final OtpProperties properties;
+    private final UserRepository users;
     private final TransactionTemplate requiresNew;
     private final SecureRandom random = new SecureRandom();
 
@@ -47,11 +50,13 @@ public class VerificationService {
                                EmailSender emailSender,
                                SmsSender smsSender,
                                OtpProperties properties,
-                               PlatformTransactionManager transactionManager) {
+                               PlatformTransactionManager transactionManager,
+                               UserRepository users) {
         this.otpRepository = otpRepository;
         this.emailSender = emailSender;
         this.smsSender = smsSender;
         this.properties = properties;
+        this.users = users;
         this.requiresNew = new TransactionTemplate(transactionManager);
         this.requiresNew.setPropagationBehavior(
                 org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -65,8 +70,10 @@ public class VerificationService {
      * Issues a fresh code for (user, purpose), superseding older active ones,
      * and delivers it on {@code channel} to {@code destination}.
      */
-    @Transactional
+    @Transactional(noRollbackFor = {VerificationUnavailableException.class,
+            ResendCooldownException.class, TooManyRequestsException.class})
     public Issuance issue(UUID userId, OtpPurpose purpose, OtpChannel channel, String destination) {
+        users.lockById(userId).orElseThrow();
         enforceHourlyCap(userId, purpose);
         enforceCooldown(userId, purpose);
 
@@ -87,13 +94,21 @@ public class VerificationService {
         // newest code verifies (old codes fail closed as invalid).
         List<VerificationOtp> prior =
                 otpRepository.findByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(userId, purpose);
+        otpRepository.save(otp);
+
+        try {
+            deliver(channel, destination, code);
+        } catch (VerificationUnavailableException e) {
+            // An undelivered code must not block immediate retry or roll back
+            // the account transaction which called this service.
+            otpRepository.delete(otp);
+            throw e;
+        }
+        // Preserve the last delivered code when sending its replacement fails.
         for (VerificationOtp old : prior) {
             old.setConsumed(true);
             old.setConsumedAt(LocalDateTime.now());
         }
-        otpRepository.save(otp);
-
-        deliver(channel, destination, code);
         log.info("OTP issued purpose={} channel={} destination={}", purpose, channel, mask(destination));
         return new Issuance(otp.getExpiresAt(), properties.getResendCooldownSeconds());
     }
@@ -129,7 +144,8 @@ public class VerificationService {
     }
 
     private Outcome check(UUID userId, OtpPurpose purpose, String code) {
-        Optional<VerificationOtp> latest = otpRepository.findLatestActive(userId, purpose);
+        Optional<VerificationOtp> latest = otpRepository
+                .findFirstByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(userId, purpose);
         if (latest.isEmpty()) {
             return Outcome.fail("INVALID_OTP", "Invalid or expired code.");
         }

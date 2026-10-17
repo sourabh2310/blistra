@@ -60,7 +60,8 @@ public class DoseService {
     }
 
     public DoseResponse record(UUID medicineId, DoseRequest request) {
-        Medicine medicine = requireOwnedMedicine(medicineId);
+        Medicine medicine = medicineRepository.lockOwned(medicineId, currentUserProvider.getCurrentUser().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Medicine not found"));
         OffsetDateTime takenAt = resolveTakenAt(request.getStatus(), request.getTakenAt());
         validateEventTimes(request.getStatus(), request.getScheduledAt(), takenAt);
         rejectDuplicate(medicineId, request);

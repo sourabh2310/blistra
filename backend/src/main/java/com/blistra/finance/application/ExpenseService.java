@@ -51,6 +51,10 @@ public class ExpenseService {
     private final FriendService friendService;
     private final FinanceUsers financeUsers;
     private final UserTime userTime;
+    @org.springframework.beans.factory.annotation.Autowired
+    private FinanceGroupService groups;
+    @org.springframework.beans.factory.annotation.Autowired
+    private FinanceHistoryService history;
 
     public ExpenseService(ExpenseRepository expenseRepository,
                           CurrentUserProvider currentUserProvider,
@@ -68,8 +72,11 @@ public class ExpenseService {
     public ExpenseResponse create(ExpenseRequest request) {
         UUID me = currentUserProvider.getCurrentUser().getId();
         Expense expense = new Expense(me);
-        apply(expense, request, me, friendService.acceptedFriendIds(me));
-        Expense saved = expenseRepository.save(expense);
+        expense.setGroupId(request.groupId());
+        apply(expense, request, me, request.groupId() == null ? friendService.acceptedFriendIds(me)
+                : groups.acceptedMemberIds(request.groupId(),me));
+        Expense saved = expenseRepository.saveAndFlush(expense);
+        history.expense(saved,"CREATED",me,null,Set.of());
         return toResponses(List.of(saved), me).get(0);
     }
 
@@ -77,8 +84,15 @@ public class ExpenseService {
     public ExpenseResponse update(UUID id, ExpenseRequest request) {
         UUID me = currentUserProvider.getCurrentUser().getId();
         Expense expense = requireEditable(id, me);
+        var previousAudience = history.audience(expense);
+        var previousAmount = expense.getAmount();
+        if (!java.util.Objects.equals(expense.getGroupId(),request.groupId())) {
+            throw new BadRequestException("An expense cannot be moved between groups. Create a separate entry instead.");
+        }
         // People already on the expense may stay even if no longer friends.
-        Set<UUID> allowed = new HashSet<>(friendService.acceptedFriendIds(me));
+        Set<UUID> allowed = expense.getGroupId() == null
+                ? new HashSet<>(friendService.acceptedFriendIds(me))
+                : groups.acceptedMemberIds(expense.getGroupId(),me);
         allowed.add(expense.getPaidBy());
         expense.getShares().forEach(s -> allowed.add(s.getUserId()));
         // Hibernate flushes inserts before orphan deletes; drop the old shares
@@ -86,19 +100,22 @@ public class ExpenseService {
         expense.replaceShares(List.of());
         expenseRepository.flush();
         apply(expense, request, me, allowed);
+        history.expense(expense,"UPDATED",me,previousAmount,previousAudience);
         return toResponses(List.of(expenseRepository.saveAndFlush(expense)), me).get(0);
     }
 
     @Transactional
     public void delete(UUID id) {
         UUID me = currentUserProvider.getCurrentUser().getId();
-        expenseRepository.delete(requireEditable(id, me));
+        var expense = requireEditable(id,me);
+        history.expense(expense,"DELETED",me,expense.getAmount(),Set.of());
+        expenseRepository.delete(expense);
     }
 
     public ExpenseResponse get(UUID id) {
         UUID me = currentUserProvider.getCurrentUser().getId();
         Expense expense = expenseRepository.findById(id)
-                .filter(e -> e.involves(me))
+                .filter(e -> e.involves(me) || isGroupMember(e.getGroupId(),me))
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
         return toResponses(List.of(expense), me).get(0);
     }
@@ -137,19 +154,25 @@ public class ExpenseService {
                     Money.toPlainString(e.getAmount()), e.getCurrency(), e.getSpentOn(), e.getNotes(),
                     e.getSplitType(), FinanceUsers.of(users, e.getPaidBy()), FinanceUsers.of(users, e.getCreatedBy()),
                     shares, Money.toPlainString(myShare), Money.toPlainString(paid.subtract(myShare)),
-                    e.getCreatedBy().equals(me), e.getCreatedAt()));
+                    e.getCreatedBy().equals(me), e.getCreatedAt(),e.getGroupId()));
         }
         return responses;
     }
 
     private Expense requireEditable(UUID id, UUID me) {
-        Expense expense = expenseRepository.findById(id)
+        Expense expense = expenseRepository.lockForUpdate(id)
                 .filter(e -> e.involves(me))
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
         if (!expense.getCreatedBy().equals(me)) {
             throw new BadRequestException("Only the person who added this expense can change it");
         }
         return expense;
+    }
+
+    private boolean isGroupMember(UUID group,UUID user) {
+        if (group == null) return false;
+        try { groups.requireMember(group,user); return true; }
+        catch (ResourceNotFoundException e) { return false; }
     }
 
     private void apply(Expense expense, ExpenseRequest request, UUID me, Collection<UUID> allowed) {

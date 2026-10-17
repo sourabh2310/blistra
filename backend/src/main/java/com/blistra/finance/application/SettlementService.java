@@ -45,6 +45,10 @@ public class SettlementService {
     private final FinanceUsers financeUsers;
     private final CurrentUserProvider currentUserProvider;
     private final UserTime userTime;
+    @org.springframework.beans.factory.annotation.Autowired
+    private FinanceGroupService groups;
+    @org.springframework.beans.factory.annotation.Autowired
+    private FinanceHistoryService history;
 
     public SettlementService(SettlementRepository settlementRepository,
                              ExpenseRepository expenseRepository,
@@ -71,7 +75,10 @@ public class SettlementService {
         if (friend.equals(me)) {
             throw new BadRequestException("Choose a friend to settle up with");
         }
-        if (!friendService.areFriends(me, friend) && !balanceService.balances(me).containsKey(friend)) {
+        if (request.groupId() != null) {
+            var members = groups.acceptedMemberIds(request.groupId(),me);
+            if (!members.contains(friend)) throw new ResourceNotFoundException("Group member not found");
+        } else if (!friendService.areFriends(me, friend) && !balanceService.balances(me).containsKey(friend)) {
             throw new ResourceNotFoundException("Friend not found");
         }
         BigDecimal amount = Money.parse(request.amount());
@@ -82,24 +89,59 @@ public class SettlementService {
         Settlement settlement = new Settlement(me, iPaid ? me : friend, iPaid ? friend : me, amount,
                 request.currency(), request.settledOn() != null ? request.settledOn() : userTime.today(),
                 request.note() == null || request.note().isBlank() ? null : request.note().trim());
-        return toResponses(List.of(settlementRepository.save(settlement)), me).get(0);
+        settlement.setGroupId(request.groupId());
+        settlementRepository.saveAndFlush(settlement);
+        history.settlement(settlement,"PENDING",me);
+        return toResponses(List.of(settlement), me).get(0);
     }
 
     @Transactional
     public void delete(UUID id) {
         UUID me = currentUserProvider.getCurrentUser().getId();
-        Settlement settlement = settlementRepository.findById(id)
+        Settlement settlement = settlementRepository.lockForDecision(id)
                 .filter(s -> s.involves(me))
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
         if (!settlement.getCreatedBy().equals(me)) {
             throw new BadRequestException("Only the person who recorded this payment can delete it");
         }
+        if (java.util.Set.of("CONFIRMED","LEGACY_RECORDED").contains(settlement.getStatus())) {
+            throw new BadRequestException("Confirmed payments cannot be deleted. Record a correcting payment for confirmation.");
+        }
+        history.settlement(settlement,"DELETED",me);
         settlementRepository.delete(settlement);
+    }
+
+    @Transactional
+    public SettlementResponse decide(UUID id, boolean confirmed) {
+        UUID me = currentUserProvider.getCurrentUser().getId();
+        Settlement settlement = settlementRepository.lockForDecision(id)
+                .filter(s -> s.involves(me))
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+        if (settlement.getCreatedBy().equals(me)) {
+            throw new BadRequestException("Only the other participant can confirm or reject this payment");
+        }
+        String target = confirmed ? "CONFIRMED" : "REJECTED";
+        if (!"PENDING".equals(settlement.getStatus()) && !target.equals(settlement.getStatus())) {
+            throw new com.blistra.common.exception.InvalidStateException("This payment has already been decided");
+        }
+        if ("PENDING".equals(settlement.getStatus())) {
+            settlement.decide(confirmed);
+            history.settlement(settlement,target,me);
+        }
+        settlementRepository.saveAndFlush(settlement);
+        return toResponses(List.of(settlement), me).get(0);
     }
 
     public List<SettlementResponse> list(UUID friendId) {
         UUID me = currentUserProvider.getCurrentUser().getId();
         return toResponses(settlementRepository.findInvolving(me, friendId), me);
+    }
+
+    public List<SettlementResponse> groupList(UUID groupId) {
+        UUID me=currentUserProvider.getCurrentUser().getId();
+        groups.requireMember(groupId,me);
+        return toResponses(settlementRepository.findByGroupIdOrderByCreatedAtDesc(groupId,
+                org.springframework.data.domain.PageRequest.of(0,200)).getContent(),me);
     }
 
     /** Balance, shared expenses and repayments with one person. */
@@ -132,8 +174,10 @@ public class SettlementService {
         return settlements.stream()
                 .map(s -> new SettlementResponse(s.getId(), FinanceUsers.of(users, s.getPayerId()),
                         FinanceUsers.of(users, s.getPayeeId()), Money.toPlainString(s.getAmount()),
-                        s.getCurrency(), s.getSettledOn(), s.getNote(), s.getCreatedBy().equals(me),
-                        s.getCreatedAt()))
+                        s.getCurrency(), s.getSettledOn(), s.getNote(),
+                        s.getCreatedBy().equals(me) && java.util.Set.of("PENDING","REJECTED").contains(s.getStatus()),
+                        s.getCreatedAt(), s.getStatus(),
+                        s.involves(me) && !s.getCreatedBy().equals(me) && "PENDING".equals(s.getStatus()),s.getGroupId()))
                 .toList();
     }
 }

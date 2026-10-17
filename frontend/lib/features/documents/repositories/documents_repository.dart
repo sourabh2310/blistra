@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:frontend/core/api/api_client.dart';
+import 'package:frontend/core/api/api_exception.dart';
 import 'package:frontend/features/documents/models/document.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
@@ -53,6 +54,7 @@ class DocumentsRepository {
     String? description,
     void Function(double progress)? onProgress,
   }) async {
+    final session = _api.token;
     // file_picker on mobile often returns path-only (bytes == null) unless
     // withData: true was used. Fall back to reading the file from disk.
     Uint8List? bytes = file.bytes;
@@ -61,6 +63,9 @@ class DocumentsRepository {
     }
     if (bytes == null) {
       throw ArgumentError.value(file, 'file', 'No file bytes to upload');
+    }
+    if (session != _api.token) {
+      throw ApiException(409, 'SESSION_CHANGED', 'The account session changed.');
     }
     final multipartFile = http.MultipartFile.fromBytes(
       'file',

@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN session_version BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN terms_version VARCHAR(32);

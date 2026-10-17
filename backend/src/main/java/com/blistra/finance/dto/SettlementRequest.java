@@ -16,7 +16,8 @@ public record SettlementRequest(
         @NotBlank String amount,
         @NotBlank @Pattern(regexp = "^[A-Z]{3}$", message = "must be a 3-letter currency code") String currency,
         LocalDate settledOn,
-        @Size(max = 255) String note
+        @Size(max = 255) String note,
+        UUID groupId
 ) {
     public enum Direction { I_PAID, THEY_PAID }
 }

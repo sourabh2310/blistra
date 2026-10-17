@@ -13,6 +13,9 @@ public record SettlementResponse(
         LocalDate settledOn,
         String note,
         boolean editable,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String status,
+        boolean confirmable,
+        UUID groupId
 ) {
 }

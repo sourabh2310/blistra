@@ -7,7 +7,6 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -37,10 +36,8 @@ class UserResponseDto {
   final String id;
   final String email;
 
-  factory UserResponseDto.fromJson(Map<String, dynamic> json) => UserResponseDto(
-        id: json['id'] as String,
-        email: json['email'] as String,
-      );
+  factory UserResponseDto.fromJson(Map<String, dynamic> json) =>
+      UserResponseDto(id: json['id'] as String, email: json['email'] as String);
 }
 
 /// V1 account identity: username/email/phone + verification/onboarding flags.
@@ -69,16 +66,16 @@ class UserAccountDto {
   final String? token;
 
   factory UserAccountDto.fromJson(Map<String, dynamic> json) => UserAccountDto(
-        id: json['id'] as String? ?? '',
-        username: json['username'] as String? ?? '',
-        email: json['email'] as String? ?? '',
-        phone: json['phone'] as String?,
-        emailVerified: json['emailVerified'] as bool? ?? false,
-        phoneVerified: json['phoneVerified'] as bool? ?? false,
-        onboardingCompleted: json['onboardingCompleted'] as bool? ?? false,
-        status: json['status'] as String? ?? '',
-        token: json['token'] as String?,
-      );
+    id: json['id'] as String? ?? '',
+    username: json['username'] as String? ?? '',
+    email: json['email'] as String? ?? '',
+    phone: json['phone'] as String?,
+    emailVerified: json['emailVerified'] as bool? ?? false,
+    phoneVerified: json['phoneVerified'] as bool? ?? false,
+    onboardingCompleted: json['onboardingCompleted'] as bool? ?? false,
+    status: json['status'] as String? ?? '',
+    token: json['token'] as String?,
+  );
 
   bool get needsVerification =>
       !emailVerified ||
@@ -96,9 +93,9 @@ class OtpIssuanceDto {
   final int cooldownSeconds;
 
   factory OtpIssuanceDto.fromJson(Map<String, dynamic> json) => OtpIssuanceDto(
-        expiresAt: json['expiresAt'] as String? ?? '',
-        cooldownSeconds: (json['resendCooldownSeconds'] as num?)?.toInt() ?? 60,
-      );
+    expiresAt: json['expiresAt'] as String? ?? '',
+    cooldownSeconds: (json['resendCooldownSeconds'] as num?)?.toInt() ?? 60,
+  );
 }
 
 /// Authenticated profile: identity + display/locale fields. Age is derived
@@ -173,33 +170,33 @@ class UserProfileDto {
       (emergencyContactPhone ?? '').isNotEmpty;
 
   factory UserProfileDto.fromJson(Map<String, dynamic> json) => UserProfileDto(
-        userId: json['userId'] as String? ?? '',
-        username: json['username'] as String? ?? '',
-        email: json['email'] as String? ?? '',
-        phone: json['phone'] as String?,
-        emailVerified: json['emailVerified'] as bool? ?? false,
-        phoneVerified: json['phoneVerified'] as bool? ?? false,
-        onboardingCompleted: json['onboardingCompleted'] as bool? ?? false,
-        status: json['status'] as String? ?? '',
-        displayName: json['displayName'] as String?,
-        dateOfBirth: json['dateOfBirth'] as String?,
-        age: (json['age'] as num?)?.toInt(),
-        country: json['country'] as String?,
-        timezone: json['timezone'] as String?,
-        language: json['language'] as String?,
-        unitSystem: json['unitSystem'] as String?,
-        bio: json['bio'] as String?,
-        gender: json['gender'] as String?,
-        emergencyContactName: json['emergencyContactName'] as String?,
-        emergencyContactPhone: json['emergencyContactPhone'] as String?,
-        emergencyContactRelation: json['emergencyContactRelation'] as String?,
-        allowFriendRequests: json['allowFriendRequests'] as bool? ?? true,
-        hasAvatar: json['hasAvatar'] as bool? ?? false,
-        avatarVersion: (json['avatarVersion'] as num?)?.toInt(),
-        pendingEmail: json['pendingEmail'] as String?,
-        pendingPhone: json['pendingPhone'] as String?,
-        memberSince: DateTime.tryParse(json['memberSince'] as String? ?? ''),
-      );
+    userId: json['userId'] as String? ?? '',
+    username: json['username'] as String? ?? '',
+    email: json['email'] as String? ?? '',
+    phone: json['phone'] as String?,
+    emailVerified: json['emailVerified'] as bool? ?? false,
+    phoneVerified: json['phoneVerified'] as bool? ?? false,
+    onboardingCompleted: json['onboardingCompleted'] as bool? ?? false,
+    status: json['status'] as String? ?? '',
+    displayName: json['displayName'] as String?,
+    dateOfBirth: json['dateOfBirth'] as String?,
+    age: (json['age'] as num?)?.toInt(),
+    country: json['country'] as String?,
+    timezone: json['timezone'] as String?,
+    language: json['language'] as String?,
+    unitSystem: json['unitSystem'] as String?,
+    bio: json['bio'] as String?,
+    gender: json['gender'] as String?,
+    emergencyContactName: json['emergencyContactName'] as String?,
+    emergencyContactPhone: json['emergencyContactPhone'] as String?,
+    emergencyContactRelation: json['emergencyContactRelation'] as String?,
+    allowFriendRequests: json['allowFriendRequests'] as bool? ?? true,
+    hasAvatar: json['hasAvatar'] as bool? ?? false,
+    avatarVersion: (json['avatarVersion'] as num?)?.toInt(),
+    pendingEmail: json['pendingEmail'] as String?,
+    pendingPhone: json['pendingPhone'] as String?,
+    memberSince: DateTime.tryParse(json['memberSince'] as String? ?? ''),
+  );
 
   bool get isOnboardingProfileComplete =>
       (displayName ?? '').trim().isNotEmpty &&
@@ -243,8 +240,7 @@ class RecoveryChannelsDto {
   final String? phoneMasked;
 
   bool get offersEmail => channels.contains('EMAIL');
-  bool get offersSms =>
-      channels.contains('SMS') || channels.contains('PHONE');
+  bool get offersSms => channels.contains('SMS') || channels.contains('PHONE');
 
   factory RecoveryChannelsDto.fromJson(Map<String, dynamic> json) {
     final raw = json['channels'];
@@ -261,7 +257,8 @@ class RecoveryChannelsDto {
 }
 
 /// Development-only OTP retrieval payload.
-class DevOtpDto {  DevOtpDto({
+class DevOtpDto {
+  DevOtpDto({
     required this.purpose,
     required this.channel,
     required this.code,
@@ -274,11 +271,11 @@ class DevOtpDto {  DevOtpDto({
   final String expiresAt;
 
   factory DevOtpDto.fromJson(Map<String, dynamic> json) => DevOtpDto(
-        purpose: json['purpose'] as String? ?? '',
-        channel: json['channel'] as String? ?? '',
-        code: json['code'] as String? ?? '',
-        expiresAt: json['expiresAt'] as String? ?? '',
-      );
+    purpose: json['purpose'] as String? ?? '',
+    channel: json['channel'] as String? ?? '',
+    code: json['code'] as String? ?? '',
+    expiresAt: json['expiresAt'] as String? ?? '',
+  );
 }
 
 class ApiClient {
@@ -339,16 +336,20 @@ class ApiClient {
   Map<String, String> _headers() => buildHeaders(token: token);
 
   /// GET that may legitimately answer 204 No Content (returned as null).
-  Future<Map<String, dynamic>?> getOptional(String path,
-      {Map<String, String>? query}) async {
+  Future<Map<String, dynamic>?> getOptional(
+    String path, {
+    Map<String, String>? query,
+  }) async {
     final Object? decoded = await _send('GET', path, query: query);
     if (decoded == null) return null;
     if (decoded is Map<String, dynamic>) return decoded;
     throw ApiException(200, 'UNEXPECTED_RESPONSE', 'Expected a JSON object');
   }
 
-  Future<Map<String, dynamic>> get(String path,
-      {Map<String, String>? query}) async {
+  Future<Map<String, dynamic>> get(
+    String path, {
+    Map<String, String>? query,
+  }) async {
     final Object? decoded = await _send('GET', path, query: query);
     if (decoded is Map<String, dynamic>) {
       return decoded;
@@ -356,8 +357,10 @@ class ApiClient {
     throw ApiException(200, 'UNEXPECTED_RESPONSE', 'Expected a JSON object');
   }
 
-  Future<List<dynamic>> getList(String path,
-      {Map<String, String>? query}) async {
+  Future<List<dynamic>> getList(
+    String path, {
+    Map<String, String>? query,
+  }) async {
     final Object? decoded = await _send('GET', path, query: query);
     if (decoded is List) {
       return decoded;
@@ -365,37 +368,67 @@ class ApiClient {
     throw ApiException(200, 'UNEXPECTED_RESPONSE', 'Expected a JSON array');
   }
 
-  Future<Map<String, dynamic>> post(String path,
-      {Map<String, dynamic>? body, int expectStatus = 201}) async {
-    final Object? decoded = await _send('POST', path,
-        body: body, expectStatus: expectStatus);
+  Future<Map<String, dynamic>> post(
+    String path, {
+    Map<String, dynamic>? body,
+    int expectStatus = 201,
+  }) async {
+    final Object? decoded = await _send(
+      'POST',
+      path,
+      body: body,
+      expectStatus: expectStatus,
+    );
     if (decoded is Map<String, dynamic>) {
       return decoded;
     }
-    throw ApiException(expectStatus, 'UNEXPECTED_RESPONSE',
-        'Expected a JSON object');
+    throw ApiException(
+      expectStatus,
+      'UNEXPECTED_RESPONSE',
+      'Expected a JSON object',
+    );
   }
 
-  Future<Map<String, dynamic>> put(String path,
-      {Map<String, dynamic>? body, int expectStatus = 200}) async {
-    final Object? decoded = await _send('PUT', path,
-        body: body, expectStatus: expectStatus);
+  Future<Map<String, dynamic>> put(
+    String path, {
+    Map<String, dynamic>? body,
+    int expectStatus = 200,
+  }) async {
+    final Object? decoded = await _send(
+      'PUT',
+      path,
+      body: body,
+      expectStatus: expectStatus,
+    );
     if (decoded is Map<String, dynamic>) {
       return decoded;
     }
-    throw ApiException(expectStatus, 'UNEXPECTED_RESPONSE',
-        'Expected a JSON object');
+    throw ApiException(
+      expectStatus,
+      'UNEXPECTED_RESPONSE',
+      'Expected a JSON object',
+    );
   }
 
-  Future<Map<String, dynamic>> patch(String path,
-      {Map<String, dynamic>? body, int expectStatus = 200}) async {
-    final Object? decoded = await _send('PATCH', path,
-        body: body, expectStatus: expectStatus);
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    Map<String, dynamic>? body,
+    int expectStatus = 200,
+  }) async {
+    final Object? decoded = await _send(
+      'PATCH',
+      path,
+      body: body,
+      expectStatus: expectStatus,
+    );
     if (decoded is Map<String, dynamic>) {
       return decoded;
     }
-    throw ApiException(expectStatus, 'UNEXPECTED_RESPONSE',
-        'Expected a JSON object');
+    throw ApiException(
+      expectStatus,
+      'UNEXPECTED_RESPONSE',
+      'Expected a JSON object',
+    );
   }
 
   Future<void> delete(String path) async {
@@ -410,17 +443,23 @@ class ApiClient {
   /// Raw-bytes GET for binary downloads (documents). Throws [ApiException]
   /// on non-2xx, mirroring the backend error contract.
   Future<Uint8List> getBytes(String path) async {
+    final session = token;
     final Uri uri = Uri.parse('$baseUrl$path');
     final http.Request request = http.Request('GET', uri)
       ..headers.addAll(_headers());
     try {
-      final http.StreamedResponse streamed =
-          await _http.send(request).timeout(timeout);
-      final http.Response response =
-          await http.Response.fromStream(streamed).timeout(timeout);
+      final http.StreamedResponse streamed = await _http
+          .send(request)
+          .timeout(timeout);
+      final http.Response response = await http.Response.fromStream(streamed)
+          .timeout(timeout);
+      _requireSameSession(session);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw await _toApiExceptionAsync(response.statusCode,
-            _tryDecode(response.body), response.body);
+        throw await _toApiExceptionAsync(
+          response.statusCode,
+          _tryDecode(response.body),
+          response.body,
+        );
       }
       return response.bodyBytes;
     } on ApiException {
@@ -444,27 +483,36 @@ class ApiClient {
     void Function(double progress)? onProgress,
     int expectStatus = 201,
   }) async {
+    final session = token;
     final Uri uri = Uri.parse('$baseUrl$path');
     final http.MultipartRequest request = http.MultipartRequest('POST', uri)
       ..headers.addAll(_headers())
       ..fields.addAll(fields)
       ..files.addAll(files);
     try {
-      final http.StreamedResponse streamed =
-          await _http.send(request).timeout(timeout);
-      final http.Response response =
-          await http.Response.fromStream(streamed).timeout(timeout);
+      final http.StreamedResponse streamed = await _http
+          .send(request)
+          .timeout(timeout);
+      final http.Response response = await http.Response.fromStream(streamed)
+          .timeout(timeout);
+      _requireSameSession(session);
       final Object? decoded = _tryDecode(response.body);
       if (response.statusCode != expectStatus) {
         throw await _toApiExceptionAsync(
-            response.statusCode, decoded, response.body);
+          response.statusCode,
+          decoded,
+          response.body,
+        );
       }
       if (decoded is Map<String, dynamic>) {
         onProgress?.call(1.0);
         return decoded;
       }
-      throw ApiException(expectStatus, 'UNEXPECTED_RESPONSE',
-          'Expected a JSON object');
+      throw ApiException(
+        expectStatus,
+        'UNEXPECTED_RESPONSE',
+        'Expected a JSON object',
+      );
     } on ApiException {
       rethrow;
     } catch (error) {
@@ -479,8 +527,8 @@ class ApiClient {
     Map<String, String>? query,
     int? expectStatus,
   }) async {
-    final Uri uri =
-        Uri.parse('$baseUrl$path').replace(queryParameters: query);
+    final session = token;
+    final Uri uri = Uri.parse('$baseUrl$path').replace(queryParameters: query);
     final http.Request request = http.Request(method, uri)
       ..headers.addAll(_headers());
     if (body != null) {
@@ -488,10 +536,12 @@ class ApiClient {
     }
     _requestStarted();
     try {
-      final http.StreamedResponse streamed =
-          await _http.send(request).timeout(timeout);
-      final http.Response response =
-          await http.Response.fromStream(streamed).timeout(timeout);
+      final http.StreamedResponse streamed = await _http
+          .send(request)
+          .timeout(timeout);
+      final http.Response response = await http.Response.fromStream(streamed)
+          .timeout(timeout);
+      _requireSameSession(session);
       return _decode(response, expectStatus: expectStatus);
     } on ApiException {
       rethrow;
@@ -524,16 +574,32 @@ class ApiClient {
     }
     if (expectStatus != null) {
       if (response.statusCode != expectStatus) {
-        throw _toApiException(response.statusCode, decoded,
-            rawBody: response.body);
+        throw _toApiException(
+          response.statusCode,
+          decoded,
+          rawBody: response.body,
+        );
       }
       return decoded;
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw _toApiException(response.statusCode, decoded,
-          rawBody: response.body);
+      throw _toApiException(
+        response.statusCode,
+        decoded,
+        rawBody: response.body,
+      );
     }
     return decoded;
+  }
+
+  void _requireSameSession(String? session) {
+    if (session != token) {
+      throw ApiException(
+        409,
+        'SESSION_CHANGED',
+        'The account session changed.',
+      );
+    }
   }
 
   static Object? _tryDecode(String raw) {
@@ -562,17 +628,21 @@ class ApiClient {
     return _toApiException(statusCode, decoded, rawBody: rawBody);
   }
 
-  static ApiException _toApiException(int statusCode, Object? decoded,
-      {String rawBody = ''}) {
-    final Map<String, dynamic>? json =
-        decoded is Map<String, dynamic> ? decoded : null;
+  static ApiException _toApiException(
+    int statusCode,
+    Object? decoded, {
+    String rawBody = '',
+  }) {
+    final Map<String, dynamic>? json = decoded is Map<String, dynamic>
+        ? decoded
+        : null;
     if (json == null) {
       // Never surface raw HTML/stack traces; keep a safe message.
       final message = statusCode >= 500
           ? 'Something went wrong. Please try again.'
           : rawBody.isNotEmpty && rawBody.length < 200 && !rawBody.contains('<')
-              ? rawBody
-              : '';
+          ? rawBody
+          : '';
       return ApiException(statusCode, 'HTTP_$statusCode', message);
     }
     final String code = json['code'] as String? ?? 'HTTP_$statusCode';
@@ -596,8 +666,13 @@ class ApiClient {
     final int? retryAfter = json['retryAfterSeconds'] is num
         ? (json['retryAfterSeconds'] as num).toInt()
         : null;
-    return ApiException(statusCode, code, message,
-        fieldErrors: fieldErrors, retryAfterSeconds: retryAfter);
+    return ApiException(
+      statusCode,
+      code,
+      message,
+      fieldErrors: fieldErrors,
+      retryAfterSeconds: retryAfter,
+    );
   }
 
   // ── Identity (V1): register / login / OTP / recovery / profile ──────
@@ -610,11 +685,14 @@ class ApiClient {
     String? email,
     String? phone,
   }) async {
-    final body = await get('/api/v1/auth/availability', query: {
-      if (username != null && username.isNotEmpty) 'username': username,
-      if (email != null && email.isNotEmpty) 'email': email,
-      if (phone != null && phone.isNotEmpty) 'phone': phone,
-    });
+    final body = await get(
+      '/api/v1/auth/availability',
+      query: {
+        if (username != null && username.isNotEmpty) 'username': username,
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+      },
+    );
     return AvailabilityDto.fromJson(body);
   }
 
@@ -630,11 +708,11 @@ class ApiClient {
       'POST',
       '/api/v1/auth/register',
       body: {
-        'username':? username,
+        'username': ?username,
         'email': email,
-        'phone':? phone,
+        'phone': ?phone,
         'password': password,
-        'displayName':? displayName,
+        'displayName': ?displayName,
         'termsAccepted': termsAccepted,
       },
       expectStatus: 201,
@@ -662,14 +740,20 @@ class ApiClient {
   }
 
   Future<UserAccountDto> verifyEmail(String code) async {
-    final body = await post('/api/v1/auth/verify/email',
-        body: {'code': code}, expectStatus: 200);
+    final body = await post(
+      '/api/v1/auth/verify/email',
+      body: {'code': code},
+      expectStatus: 200,
+    );
     return UserAccountDto.fromJson(body);
   }
 
   Future<UserAccountDto> verifyPhone(String code) async {
-    final body = await post('/api/v1/auth/verify/phone',
-        body: {'code': code}, expectStatus: 200);
+    final body = await post(
+      '/api/v1/auth/verify/phone',
+      body: {'code': code},
+      expectStatus: 200,
+    );
     return UserAccountDto.fromJson(body);
   }
 
@@ -682,14 +766,15 @@ class ApiClient {
     final body = await post('/api/v1/auth/resend/phone', expectStatus: 200);
     return OtpIssuanceDto.fromJson(body);
   }
-  Future<String> forgotPassword({required String identifier, String? channel}) async {
+
+  Future<String> forgotPassword({
+    required String identifier,
+    String? channel,
+  }) async {
     final body = await _send(
       'POST',
       '/api/v1/auth/forgot-password',
-      body: {
-        'identifier': identifier,
-        'channel':? channel,
-      },
+      body: {'identifier': identifier, 'channel': ?channel},
       expectStatus: 200,
     ) as Map<String, dynamic>;
     return body['message'] as String? ?? '';
@@ -733,9 +818,11 @@ class ApiClient {
     required String currentPassword,
     required String newPassword,
   }) async {
-    final body = await post('/api/v1/auth/change-password',
-        body: {'currentPassword': currentPassword, 'newPassword': newPassword},
-        expectStatus: 200);
+    final body = await post(
+      '/api/v1/auth/change-password',
+      body: {'currentPassword': currentPassword, 'newPassword': newPassword},
+      expectStatus: 200,
+    );
     return UserAccountDto.fromJson(body);
   }
 
@@ -745,14 +832,19 @@ class ApiClient {
   }
 
   Future<UserProfileDto> updateProfile(Map<String, Object?> fields) async {
-    final body = await put('/api/v1/profile',
-        body: Map<String, dynamic>.from(fields), expectStatus: 200);
+    final body = await put(
+      '/api/v1/profile',
+      body: Map<String, dynamic>.from(fields),
+      expectStatus: 200,
+    );
     return UserProfileDto.fromJson(body);
   }
 
   Future<UserProfileDto> completeOnboarding() async {
-    final body = await post('/api/v1/profile/complete-onboarding',
-        expectStatus: 200);
+    final body = await post(
+      '/api/v1/profile/complete-onboarding',
+      expectStatus: 200,
+    );
     return UserProfileDto.fromJson(body);
   }
 
@@ -762,14 +854,16 @@ class ApiClient {
     String? email,
     String? phone,
   }) async {
-    final body = await post('/api/v1/profile/identity',
-        body: {
-          'currentPassword': currentPassword,
-          'username':? username,
-          'email':? email,
-          'phone':? phone,
-        },
-        expectStatus: 200);
+    final body = await post(
+      '/api/v1/profile/identity',
+      body: {
+        'currentPassword': currentPassword,
+        'username': ?username,
+        'email': ?email,
+        'phone': ?phone,
+      },
+      expectStatus: 200,
+    );
     return UserProfileDto.fromJson(body);
   }
 
@@ -800,16 +894,20 @@ class ApiClient {
   Future<Uint8List> fetchAvatar() => getBytes('/api/v1/profile/avatar');
 
   Future<UserProfileDto> removeAvatar() async {
-    final body =
-        await _send('DELETE', '/api/v1/profile/avatar', expectStatus: 200)
-            as Map<String, dynamic>;
+    final body = await _send(
+      'DELETE',
+      '/api/v1/profile/avatar',
+      expectStatus: 200,
+    ) as Map<String, dynamic>;
     return UserProfileDto.fromJson(body);
   }
 
   /// Permanently deletes the account. The session is unusable afterwards.
   Future<void> deleteAccount({required String currentPassword}) =>
-      postNoContent('/api/v1/profile/delete-account',
-          body: {'currentPassword': currentPassword});
+      postNoContent(
+        '/api/v1/profile/delete-account',
+        body: {'currentPassword': currentPassword},
+      );
 
   /// Development-only: latest usable OTP for the account. The backend 404s
   /// outside dev OTP mode; the Flutter OTP screen uses the same verify API

@@ -1,0 +1,5 @@
+CREATE TABLE storage_deletion_queue (
+    object_key VARCHAR(64) PRIMARY KEY,
+    queued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    attempts INTEGER NOT NULL DEFAULT 0
+);

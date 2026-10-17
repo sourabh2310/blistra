@@ -27,6 +27,7 @@ public record ExpenseResponse(
         String myBalance,
         @Schema(description = "Whether you may edit or delete it (the creator only)")
         boolean editable,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        UUID groupId
 ) {
 }

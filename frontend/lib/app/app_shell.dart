@@ -14,7 +14,9 @@ import 'package:provider/provider.dart';
 import '../core/api/api_client.dart';
 import '../core/routing/routes.dart';
 import '../core/theme/app_theme.dart';
+
 import 'dart:ui' show ImageFilter;
+
 import '../core/widgets/module_guard.dart';
 import '../core/widgets/quick_add.dart';
 import '../features/app_update/update_dialog.dart';
@@ -54,7 +56,7 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   String _selectedDestination = ShellDestinations.home;
   planner.PlannerSection _plannerSection = planner.PlannerSection.today;
   bool _booted = false;
@@ -73,6 +75,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _d.authState.addListener(_onAuthChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _boot());
   }
@@ -88,8 +91,22 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _d.authState.removeListener(_onAuthChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !_d.authState.isAuthenticated) {
+      return;
+    }
+    _d.dashboard.refresh(
+      date: DateTime.now(),
+      offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
+    );
+    _d.planner.loadToday();
+    _d.syncService.refresh().catchError((Object _) {});
   }
 
   void _onAuthChanged() {

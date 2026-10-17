@@ -15,19 +15,26 @@ import 'package:flutter/foundation.dart';
 class AppConfig {
   AppConfig._();
 
-  static const String _apiBaseUrlDefine = String.fromEnvironment('API_BASE_URL');
-  static const String _legacyDefine = String.fromEnvironment('BACKEND_BASE_URL');
+  static const String _apiBaseUrlDefine = String.fromEnvironment(
+    'API_BASE_URL',
+  );
+  static const String _legacyDefine = String.fromEnvironment(
+    'BACKEND_BASE_URL',
+  );
 
   /// Whether a phone number must be verified with an SMS code. Off by default
   /// because only email delivery is configured; build with
   /// `--dart-define=REQUIRE_PHONE_VERIFICATION=true` once SMS is available.
-  static bool requirePhoneVerification =
-      const bool.fromEnvironment('REQUIRE_PHONE_VERIFICATION');
+  static bool requirePhoneVerification = const bool.fromEnvironment(
+    'REQUIRE_PHONE_VERIFICATION',
+  );
 
   /// Shown in Profile > Help. Keep in step with `version:` in pubspec.yaml,
   /// or override with `--dart-define=APP_VERSION=...` in release builds.
-  static const String appVersion =
-      String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
+  static const String appVersion = String.fromEnvironment(
+    'APP_VERSION',
+    defaultValue: '1.0.0',
+  );
 
   /// CI build number of this APK (`--dart-define=APP_BUILD=...`, set by the
   /// APK workflow to the same number as its `apk-<n>` release). 0 for local
@@ -45,6 +52,11 @@ class AppConfig {
     if (_legacyDefine.isNotEmpty) {
       return _stripTrailingSlash(_legacyDefine);
     }
+    if (kReleaseMode) {
+      throw StateError(
+        'Release builds require API_BASE_URL=https://your-api-host',
+      );
+    }
     if (!kIsWeb && Platform.isAndroid) {
       return 'http://10.0.2.2:8080';
     }
@@ -52,6 +64,19 @@ class AppConfig {
   }
 
   static String _stripTrailingSlash(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null ||
+        uri.host.isEmpty ||
+        (kReleaseMode &&
+            (uri.scheme != 'https' ||
+                uri.userInfo.isNotEmpty ||
+                (uri.path.isNotEmpty && uri.path != '/') ||
+                uri.hasQuery ||
+                uri.hasFragment))) {
+      throw StateError(
+        'API_BASE_URL must be an HTTPS origin without credentials or a path.',
+      );
+    }
     var url = value;
     while (url.endsWith('/')) {
       url = url.substring(0, url.length - 1);

@@ -56,6 +56,8 @@ import 'package:frontend/features/profile/profile_controller.dart';
 
 class _FakeScheduler implements NotificationScheduler {
   @override
+  Future<void> cancelAll() async {}
+  @override
   Future<void> initialize() async {}
 
   @override
@@ -94,21 +96,27 @@ _Scope _buildScope() {
     }
     if (path.endsWith('/preferences')) {
       return http.Response(
-          '{"enabled":true,"medicineEnabled":true,"habitEnabled":true,'
-          '"plannerEnabled":true,"healthEnabled":true,"generalEnabled":true,'
-          '"hideSensitiveContent":false}',
-          200);
+        '{"enabled":true,"medicineEnabled":true,"habitEnabled":true,'
+        '"plannerEnabled":true,"healthEnabled":true,"generalEnabled":true,'
+        '"hideSensitiveContent":false}',
+        200,
+      );
     }
     return http.Response('{}', 200);
   });
   final scope = _Scope();
   scope.api = ApiClient(baseUrl: 'http://localhost:8080', httpClient: mock);
   scope.auth = AuthState(apiClient: scope.api, storage: AuthStorage());
-  scope.dashboard = DashboardController(api: DashboardApi(apiClient: scope.api));
+  scope.dashboard = DashboardController(
+    api: DashboardApi(apiClient: scope.api),
+  );
   scope.planner = PlannerController(PlannerApi(scope.api));
   scope.profile = ProfileController(scope.api);
-  scope.diet = DietController(HttpDietApi(scope.api),
-      onUnauthorized: () async {}, onMutated: () async {});
+  scope.diet = DietController(
+    HttpDietApi(scope.api),
+    onUnauthorized: () async {},
+    onMutated: () async {},
+  );
   scope.habits = HabitsController(api: HabitsApi(apiClient: scope.api));
   scope.finance = FinanceController(api: FinanceApi(apiClient: scope.api));
   scope.health = HealthRepository(HealthApi(scope.api));
@@ -125,8 +133,7 @@ _Scope _buildScope() {
     tokens: TokenStore.secured(AuthStorage()),
   );
   scope.reminders = RemindersController(api: notificationsApi);
-  scope.settings =
-      SettingsController(api: notificationsApi, syncService: sync);
+  scope.settings = SettingsController(api: notificationsApi, syncService: sync);
   return scope;
 }
 
@@ -142,19 +149,19 @@ Widget _rootScope(_Scope scope, Widget home) {
         Provider<ApiClient>.value(value: scope.api),
         ChangeNotifierProvider<AuthState>.value(value: scope.auth),
         ChangeNotifierProvider<DashboardController>.value(
-            value: scope.dashboard),
+          value: scope.dashboard,
+        ),
         ChangeNotifierProvider<PlannerController>.value(value: scope.planner),
         ChangeNotifierProvider<ProfileController>.value(value: scope.profile),
         ChangeNotifierProvider<DietController>.value(value: scope.diet),
         ChangeNotifierProvider<HabitsController>.value(value: scope.habits),
         ChangeNotifierProvider<FinanceController>.value(value: scope.finance),
         ChangeNotifierProvider<HealthRepository>.value(value: scope.health),
-        ChangeNotifierProvider<DocumentsProvider>.value(
-            value: scope.documents),
+        ChangeNotifierProvider<DocumentsProvider>.value(value: scope.documents),
         ChangeNotifierProvider<RemindersController>.value(
-            value: scope.reminders),
-        ChangeNotifierProvider<SettingsController>.value(
-            value: scope.settings),
+          value: scope.reminders,
+        ),
+        ChangeNotifierProvider<SettingsController>.value(value: scope.settings),
       ],
       child: MaterialApp(home: home),
     ),
@@ -169,118 +176,130 @@ void main() {
   testWidgets('pushed routes inherit every module dependency', (tester) async {
     final scope = _buildScope();
     Object? probeError;
-    await tester.pumpWidget(_rootScope(
-      scope,
-      Builder(
-        builder: (context) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => Builder(
-                  builder: (context) {
-                    try {
-                      context.read<AuthState>();
-                      context.read<DashboardController>();
-                      context.read<PlannerController>();
-                      context.read<ProfileController>();
-                      context.read<DietController>();
-                      context.read<HabitsController>();
-                      context.read<FinanceController>();
-                      context.read<HealthRepository>();
-                      context.read<DocumentsProvider>();
-                      context.read<RemindersController>();
-                      context.read<SettingsController>();
-                      AppScope.of(context);
-                    } catch (e) {
-                      probeError = e;
-                    }
-                    return const SizedBox.shrink();
-                  },
+    await tester.pumpWidget(
+      _rootScope(
+        scope,
+        Builder(
+          builder: (context) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => Builder(
+                    builder: (context) {
+                      try {
+                        context.read<AuthState>();
+                        context.read<DashboardController>();
+                        context.read<PlannerController>();
+                        context.read<ProfileController>();
+                        context.read<DietController>();
+                        context.read<HabitsController>();
+                        context.read<FinanceController>();
+                        context.read<HealthRepository>();
+                        context.read<DocumentsProvider>();
+                        context.read<RemindersController>();
+                        context.read<SettingsController>();
+                        AppScope.of(context);
+                      } catch (e) {
+                        probeError = e;
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ),
-              ),
-            );
-          });
-          return const SizedBox.shrink();
-        },
+              );
+            });
+            return const SizedBox.shrink();
+          },
+        ),
       ),
-    ));
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(probeError, isNull,
-        reason: 'root scope must serve every module dependency');
+    expect(
+      probeError,
+      isNull,
+      reason: 'root scope must serve every module dependency',
+    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Medicines page builds without ProviderNotFoundException',
-      (tester) async {
+  testWidgets('Medicines page builds without ProviderNotFoundException', (
+    tester,
+  ) async {
     final scope = _buildScope();
-    await tester.pumpWidget(
-        _rootScope(scope, const MedicineListPage()));
+    await tester.pumpWidget(_rootScope(scope, const MedicineListPage()));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(MedicineListPage), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Diet page builds without ProviderNotFoundException',
-      (tester) async {
+  testWidgets('Diet page builds without ProviderNotFoundException', (
+    tester,
+  ) async {
     final scope = _buildScope();
-    await tester.pumpWidget(
-        _rootScope(scope, const diet.TodayScreen()));
+    await tester.pumpWidget(_rootScope(scope, const diet.TodayScreen()));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(diet.TodayScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Documents page builds without ProviderNotFoundException',
-      (tester) async {
+  testWidgets('Documents page builds without ProviderNotFoundException', (
+    tester,
+  ) async {
     final scope = _buildScope();
-    await tester.pumpWidget(
-        _rootScope(scope, const DocumentsPage()));
+    await tester.pumpWidget(_rootScope(scope, const DocumentsPage()));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(DocumentsPage), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Reminders + settings build without ProviderNotFoundException',
-      (tester) async {
+  testWidgets('Reminders + settings build without ProviderNotFoundException', (
+    tester,
+  ) async {
     final scope = _buildScope();
-    await tester.pumpWidget(_rootScope(
-      scope,
-      RemindersScreen(onRefresh: () async {}),
-    ));
+    await tester.pumpWidget(
+      _rootScope(scope, RemindersScreen(onRefresh: () async {})),
+    );
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(RemindersScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     // Production wraps bare settings content in a Scaffold (ownAppBar:false);
     // mirror that here: ListTile content needs a Material ancestor.
-    await tester.pumpWidget(_rootScope(
-      scope,
-      Scaffold(
-        appBar: AppBar(title: const Text('Notifications')),
-        body: NotificationSettingsScreen(onRefresh: () async {}),
+    await tester.pumpWidget(
+      _rootScope(
+        scope,
+        Scaffold(
+          appBar: AppBar(title: const Text('Notifications')),
+          body: NotificationSettingsScreen(onRefresh: () async {}),
+        ),
       ),
-    ));
+    );
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(NotificationSettingsScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Habits + Finance build with their explicit scopes',
-      (tester) async {
+  testWidgets('Habits + Finance build with their explicit scopes', (
+    tester,
+  ) async {
     final scope = _buildScope();
-    await tester.pumpWidget(_rootScope(
-      scope,
-      HabitsScope(controller: scope.habits, child: const HabitsHome()),
-    ));
+    await tester.pumpWidget(
+      _rootScope(
+        scope,
+        HabitsScope(controller: scope.habits, child: const HabitsHome()),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(HabitsHome), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.pumpWidget(_rootScope(
-      scope,
-      FinanceScope(controller: scope.finance, child: const FinanceHome()),
-    ));
+    await tester.pumpWidget(
+      _rootScope(
+        scope,
+        FinanceScope(controller: scope.finance, child: const FinanceHome()),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(FinanceHome), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -288,19 +307,22 @@ void main() {
 
   testWidgets('Health builds with repository + root AppScope', (tester) async {
     final scope = _buildScope();
-    await tester.pumpWidget(_rootScope(
-      scope,
-      HealthHomeScreen(repository: scope.health, onLogout: () async {}),
-    ));
+    await tester.pumpWidget(
+      _rootScope(
+        scope,
+        HealthHomeScreen(repository: scope.health, onLogout: () async {}),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byType(HealthHomeScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('ModuleErrorScreen offers Back without crashing',
-      (tester) async {
+  testWidgets('ModuleErrorScreen offers Back without crashing', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(home: ModuleErrorScreen(title: 'T', message: 'M')),
+      const MaterialApp(
+        home: ModuleErrorScreen(title: 'T', message: 'M'),
+      ),
     );
     expect(find.text('Something went wrong'), findsOneWidget);
     expect(find.text('Back'), findsOneWidget);
@@ -334,7 +356,11 @@ void main() {
     });
 
     test('Planner task event and list search routes open owned details', () {
-      for (final route in ['planner/task/abc', 'planner/event/abc', 'planner/list/abc']) {
+      for (final route in [
+        'planner/task/abc',
+        'planner/event/abc',
+        'planner/list/abc',
+      ]) {
         final dest = AppRoutes.resolveSearchRoute(route);
         expect(dest.tab, AppTab.planner);
         expect(dest.detail, isNotNull);

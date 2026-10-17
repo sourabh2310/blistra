@@ -32,8 +32,8 @@ android {
     }
 
     // Release signing: android/key.properties (local) or the same keys from
-    // the CI workflow. Without it, release builds fall back to the debug key so
-    // `flutter run --release` still works.
+    // the CI workflow. Release packaging fails when signing is unavailable;
+    // debug builds continue to use the normal development signing setup.
     val keystoreProperties = Properties()
     val keystorePropertiesFile = rootProject.file("key.properties")
     if (keystorePropertiesFile.exists()) {
@@ -56,7 +56,7 @@ android {
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
-                signingConfigs.getByName("debug")
+                null
             }
         }
     }
@@ -65,6 +65,15 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+gradle.taskGraph.whenReady {
+    if (allTasks.any { it.name.contains("Release") &&
+            (it.name.startsWith("assemble") || it.name.startsWith("bundle") || it.name.startsWith("package")) }) {
+        check(rootProject.file("key.properties").exists()) {
+            "Release signing is required. Configure android/key.properties."
+        }
     }
 }
 

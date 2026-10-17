@@ -17,7 +17,17 @@ import '../models.dart';
 import '../widgets/finance_widgets.dart';
 
 class ExpenseFormScreen extends StatefulWidget {
-  const ExpenseFormScreen({super.key, this.existing, this.withFriend});
+  const ExpenseFormScreen({
+    super.key,
+    this.existing,
+    this.withFriend,
+    this.groupId,
+    this.groupMembers,
+    this.groupCurrency,
+  });
+  final String? groupId;
+  final List<UserSummary>? groupMembers;
+  final String? groupCurrency;
 
   /// Expense being edited, or null to add one.
   final Expense? existing;
@@ -53,7 +63,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   void initState() {
     super.initState();
     final controller = _controller;
-    _currency = controller.currency;
+    _currency = widget.groupCurrency ?? controller.currency;
     final e = widget.existing;
     if (e != null) {
       _amount.text = e.amount.display().replaceAll(',', '');
@@ -76,8 +86,15 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
             _ => '',
           };
         }
-        if (e.paidBy.id != meId && !_friends.contains(e.paidBy)) _friends.add(e.paidBy);
+        if (e.paidBy.id != meId && !_friends.contains(e.paidBy)) {
+          _friends.add(e.paidBy);
+        }
       }
+    } else if (widget.groupMembers != null) {
+      _friends.addAll(
+        widget.groupMembers!.where((u) => u.id != controller.me?.id),
+      );
+      _split = _friends.isNotEmpty;
     } else if (widget.withFriend != null) {
       _split = true;
       _friends.add(widget.withFriend!);
@@ -103,9 +120,9 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
 
   /// Everyone who shares the cost, in display order (me first).
   List<UserSummary> _participants(UserSummary? me) => [
-        if (_includeMe && me != null) me,
-        ..._friends,
-      ];
+    if (_includeMe && me != null) me,
+    ..._friends,
+  ];
 
   Money? get _amountMoney {
     final normalized = normalizeAmount(_amount.text);
@@ -130,7 +147,11 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     if (total == null) return null;
     switch (_type) {
       case SplitType.exact:
-        final sum = sumMoney(people.map((p) => Money.tryParse(normalizeAmount(_valueFor(p.id).text))));
+        final sum = sumMoney(
+          people.map(
+            (p) => Money.tryParse(normalizeAmount(_valueFor(p.id).text)),
+          ),
+        );
         if (sum != total) {
           final diff = total - sum;
           return diff.isNegative
@@ -138,10 +159,18 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
               : '${diff.display(currencyCode: _currency)} left to assign';
         }
       case SplitType.percent:
-        final sum = people.fold<double>(0, (a, p) => a + (double.tryParse(_valueFor(p.id).text) ?? 0));
-        if ((sum - 100).abs() > 0.0001) return 'Percentages add up to ${_trim(sum)}%, not 100%';
+        final sum = people.fold<double>(
+          0,
+          (a, p) => a + (double.tryParse(_valueFor(p.id).text) ?? 0),
+        );
+        if ((sum - 100).abs() > 0.0001) {
+          return 'Percentages add up to ${_trim(sum)}%, not 100%';
+        }
       case SplitType.shares:
-        final sum = people.fold<double>(0, (a, p) => a + (double.tryParse(_valueFor(p.id).text) ?? 0));
+        final sum = people.fold<double>(
+          0,
+          (a, p) => a + (double.tryParse(_valueFor(p.id).text) ?? 0),
+        );
         if (sum <= 0) return 'Give at least one person a share';
       default:
         break;
@@ -149,7 +178,8 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     return null;
   }
 
-  static String _trim(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+  static String _trim(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
   /// Approximate per-person preview (display only; the server computes cents).
   String _preview(UserSummary person, UserSummary? me) {
@@ -164,15 +194,25 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       case SplitType.percent:
         share = t * (double.tryParse(_valueFor(person.id).text) ?? 0) / 100;
       case SplitType.shares:
-        final weights = people.fold<double>(0, (a, p) => a + (double.tryParse(_valueFor(p.id).text) ?? 0));
-        share = weights == 0 ? 0 : t * (double.tryParse(_valueFor(person.id).text) ?? 0) / weights;
+        final weights = people.fold<double>(
+          0,
+          (a, p) => a + (double.tryParse(_valueFor(p.id).text) ?? 0),
+        );
+        share = weights == 0
+            ? 0
+            : t * (double.tryParse(_valueFor(person.id).text) ?? 0) / weights;
       default:
         return '';
     }
-    return NumberFormat.currency(name: _currency, symbol: _symbol, decimalDigits: 2).format(share);
+    return NumberFormat.currency(
+      name: _currency,
+      symbol: _symbol,
+      decimalDigits: 2,
+    ).format(share);
   }
 
-  String get _symbol => Money.zero().display(currencyCode: _currency).replaceAll('0', '').trim();
+  String get _symbol =>
+      Money.zero().display(currencyCode: _currency).replaceAll('0', '').trim();
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
@@ -197,7 +237,9 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       _friends
         ..clear()
         ..addAll(selected);
-      if (_paidBy != null && !_friends.any((f) => f.id == _paidBy)) _paidBy = null;
+      if (_paidBy != null && !_friends.any((f) => f.id == _paidBy)) {
+        _paidBy = null;
+      }
     });
   }
 
@@ -218,11 +260,14 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       return;
     }
     if (_split && me == null) {
-      setState(() => _error = 'Still loading your friends. Try again in a moment.');
+      setState(
+        () => _error = 'Still loading your friends. Try again in a moment.',
+      );
       return;
     }
     final people = _split ? _participants(me) : <UserSummary>[];
     final draft = ExpenseDraft(
+      groupId: widget.groupId ?? widget.existing?.groupId,
       description: _description.text,
       category: _category,
       amount: amount,
@@ -238,9 +283,11 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
             switch (_type) {
               SplitType.exact => normalizeAmount(_valueFor(p.id).text) ?? '0',
               SplitType.percent || SplitType.shares =>
-                _valueFor(p.id).text.trim().isEmpty ? '0' : _valueFor(p.id).text.trim(),
+                _valueFor(p.id).text.trim().isEmpty
+                    ? '0'
+                    : _valueFor(p.id).text.trim(),
               _ => null,
-            }
+            },
           ),
       ],
     );
@@ -264,7 +311,12 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     final colors = BlistraColors.resolve(context);
     final controller = context.watch<FinanceController>();
     final me = controller.me;
-    final accepted = controller.friends.acceptedFriends;
+    final accepted = widget.groupMembers == null
+        ? controller.friends.acceptedFriends
+        : widget.groupMembers!
+              .where((u) => u.id != controller.me?.id)
+              .map((u) => Friend(user: u, isFriend: true, balances: const []))
+              .toList();
     final problem = _splitProblem(me);
 
     return Scaffold(
@@ -291,10 +343,15 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                               value: _currency,
                               underline: const SizedBox.shrink(),
                               items: [
-                                for (final c in {...FinanceController.commonCurrencies, _currency})
+                                for (final c in {
+                                  ...FinanceController.commonCurrencies,
+                                  _currency,
+                                })
                                   DropdownMenuItem(value: c, child: Text(c)),
                               ],
-                              onChanged: (c) => c == null ? null : setState(() => _currency = c),
+                              onChanged: (c) => c == null
+                                  ? null
+                                  : setState(() => _currency = c),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -302,9 +359,16 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                                 key: const Key('expense-amount'),
                                 controller: _amount,
                                 autofocus: widget.existing == null,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 inputFormatters: amountFormatters,
-                                style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, color: colors.text),
+                                style: TextStyle(
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.text,
+                                ),
                                 decoration: const InputDecoration(
                                   hintText: '0',
                                   border: InputBorder.none,
@@ -352,7 +416,9 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                     child: ListTile(
                       leading: const Icon(Icons.event_rounded),
                       title: Text(dayLabel(_date)),
-                      subtitle: Text(DateFormat('EEEE, d MMMM yyyy').format(_date)),
+                      subtitle: Text(
+                        DateFormat('EEEE, d MMMM yyyy').format(_date),
+                      ),
                       trailing: const Icon(Icons.chevron_right_rounded),
                     ),
                   ),
@@ -364,12 +430,23 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                       children: [
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Split with friends'),
-                          subtitle: Text(_split ? 'Shared cost' : 'Personal expense — only you'),
+                          title: Text(widget.groupId == null ? 'Split with friends' : 'Split with group members'),
+                          subtitle: Text(
+                            _split
+                                ? 'Shared cost'
+                                : 'Personal expense — only you',
+                          ),
                           value: _split,
                           onChanged: (v) => setState(() => _split = v),
                         ),
-                        if (_split) ..._splitSection(context, colors, me, accepted, problem),
+                        if (_split)
+                          ..._splitSection(
+                            context,
+                            colors,
+                            me,
+                            accepted,
+                            problem,
+                          ),
                       ],
                     ),
                   ),
@@ -379,21 +456,38 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                     maxLines: 3,
                     minLines: 1,
                     maxLength: 1000,
-                    decoration: const InputDecoration(hintText: 'Optional', counterText: ''),
+                    decoration: const InputDecoration(
+                      hintText: 'Optional',
+                      counterText: '',
+                    ),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text(_error!, style: const TextStyle(color: oweColor, fontWeight: FontWeight.w600)),
+                    Text(
+                      _error!,
+                      style: const TextStyle(
+                        color: oweColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                   const SizedBox(height: 18),
                   FilledButton.icon(
                     key: const Key('expense-save'),
-                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
                     onPressed: _saving ? null : _save,
                     icon: _saving
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Icon(Icons.check_rounded),
-                    label: Text(widget.existing == null ? 'Save expense' : 'Save changes'),
+                    label: Text(
+                      widget.existing == null ? 'Save expense' : 'Save changes',
+                    ),
                   ),
                 ],
               ),
@@ -404,12 +498,19 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     );
   }
 
-  List<Widget> _splitSection(BuildContext context, BlistraColors colors, UserSummary? me,
-      List<Friend> accepted, String? problem) {
+  List<Widget> _splitSection(
+    BuildContext context,
+    BlistraColors colors,
+    UserSummary? me,
+    List<Friend> accepted,
+    String? problem,
+  ) {
     if (accepted.isEmpty && _friends.isEmpty) {
       return [
         Text(
-          'Add friends by username in the Friends tab to split costs with them.',
+          widget.groupId == null
+              ? 'Add friends by username in the Friends tab to split costs with them.'
+              : 'Invite a member and wait for them to join this group before splitting an expense.',
           style: TextStyle(color: colors.muted),
         ),
       ];
@@ -431,7 +532,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
             ),
           ActionChip(
             avatar: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-            label: Text(_friends.isEmpty ? 'Choose friends' : 'Edit'),
+            label: Text(_friends.isEmpty ? (widget.groupId == null ? 'Choose friends' : 'Choose members') : 'Edit'),
             onPressed: () => _pickFriends(accepted),
           ),
         ],
@@ -442,7 +543,9 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
         value: _includeMe,
         onChanged: (v) => setState(() => _includeMe = v ?? true),
         title: const Text('Include me in the split'),
-        subtitle: _includeMe ? null : const Text('You paid on their behalf; they owe it all'),
+        subtitle: _includeMe
+            ? null
+            : const Text('You paid on their behalf; they owe it all'),
         controlAffinity: ListTileControlAffinity.leading,
       ),
       DropdownButtonFormField<String?>(
@@ -451,7 +554,8 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
         decoration: const InputDecoration(labelText: 'Paid by'),
         items: [
           const DropdownMenuItem(value: null, child: Text('You')),
-          for (final f in _friends) DropdownMenuItem(value: f.id, child: Text(f.displayName)),
+          for (final f in _friends)
+            DropdownMenuItem(value: f.id, child: Text(f.displayName)),
         ],
         onChanged: (v) => setState(() => _paidBy = v),
       ),
@@ -471,7 +575,9 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
             _type = s.first;
             if (_type == SplitType.shares) {
               for (final p in people) {
-                if (_valueFor(p.id).text.trim().isEmpty) _valueFor(p.id).text = '1';
+                if (_valueFor(p.id).text.trim().isEmpty) {
+                  _valueFor(p.id).text = '1';
+                }
               }
             }
           }),
@@ -489,7 +595,10 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                 child: Text(
                   p.id == me?.id ? 'You' : p.displayName,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: colors.text, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    color: colors.text,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               if (_type == SplitType.equal)
@@ -498,18 +607,25 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                 if (_type != SplitType.exact)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: Text(_preview(p, me), style: TextStyle(color: colors.muted, fontSize: 12)),
+                    child: Text(
+                      _preview(p, me),
+                      style: TextStyle(color: colors.muted, fontSize: 12),
+                    ),
                   ),
                 SizedBox(
                   width: 96,
                   child: TextField(
                     controller: _valueFor(p.id),
                     textAlign: TextAlign.end,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: amountFormatters,
                     decoration: InputDecoration(
                       isDense: true,
-                      prefixText: _type == SplitType.exact ? '$_currency ' : null,
+                      prefixText: _type == SplitType.exact
+                          ? '$_currency '
+                          : null,
                       suffixText: switch (_type) {
                         SplitType.percent => '%',
                         SplitType.shares => '×',
@@ -526,7 +642,10 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       if (problem != null && _amountMoney != null)
         Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: Text(problem, style: const TextStyle(color: oweColor, fontSize: 12.5)),
+          child: Text(
+            problem,
+            style: const TextStyle(color: oweColor, fontSize: 12.5),
+          ),
         ),
     ];
   }
@@ -551,11 +670,17 @@ class _FriendPickerState extends State<_FriendPicker> {
     final colors = BlistraColors.resolve(context);
     final q = _query.toLowerCase();
     final visible = widget.friends
-        .where((f) =>
-            q.isEmpty || f.user.displayName.toLowerCase().contains(q) || f.user.username.contains(q))
+        .where(
+          (f) =>
+              q.isEmpty ||
+              f.user.displayName.toLowerCase().contains(q) ||
+              f.user.username.contains(q),
+        )
         .toList();
     // Keep already-selected people (e.g. former friends on an old expense).
-    final extra = widget.initial.where((u) => !widget.friends.any((f) => f.user.id == u.id)).toList();
+    final extra = widget.initial
+        .where((u) => !widget.friends.any((f) => f.user.id == u.id))
+        .toList();
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * .7,
       child: Column(
@@ -563,7 +688,10 @@ class _FriendPickerState extends State<_FriendPicker> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: TextField(
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Search friends'),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search_rounded),
+                hintText: 'Search friends',
+              ),
               onChanged: (v) => setState(() => _query = v),
             ),
           ),
@@ -575,8 +703,15 @@ class _FriendPickerState extends State<_FriendPicker> {
                     value: _selected.contains(u.id),
                     secondary: UserAvatar(u),
                     title: Text(u.displayName),
-                    subtitle: Text('@${u.username}', style: TextStyle(color: colors.muted)),
-                    onChanged: (v) => setState(() => v == true ? _selected.add(u.id) : _selected.remove(u.id)),
+                    subtitle: Text(
+                      '@${u.username}',
+                      style: TextStyle(color: colors.muted),
+                    ),
+                    onChanged: (v) => setState(
+                      () => v == true
+                          ? _selected.add(u.id)
+                          : _selected.remove(u.id),
+                    ),
                   ),
               ],
             ),
@@ -584,12 +719,17 @@ class _FriendPickerState extends State<_FriendPicker> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: FilledButton(
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
               onPressed: () {
                 final all = [...extra, ...widget.friends.map((f) => f.user)];
-                Navigator.of(context).pop(all.where((u) => _selected.contains(u.id)).toList());
+                Navigator.of(context)
+                    .pop(all.where((u) => _selected.contains(u.id)).toList());
               },
-              child: Text(_selected.isEmpty ? 'Done' : 'Split with ${_selected.length}'),
+              child: Text(
+                _selected.isEmpty ? 'Done' : 'Split with ${_selected.length}',
+              ),
             ),
           ),
         ],

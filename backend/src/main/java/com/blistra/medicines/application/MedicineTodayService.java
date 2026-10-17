@@ -68,7 +68,7 @@ public class MedicineTodayService {
 
     public MedicineTodayResponse getToday(LocalDate date, Integer offsetMinutes) {
         User user = currentUserProvider.getCurrentUser();
-        ZoneId zone = offsetMinutes != null
+        ZoneId zone = UserTime.profileZone() != null ? UserTime.profileZone() : offsetMinutes != null
                 ? ZoneOffset.ofTotalSeconds(offsetMinutes * 60)
                 : userTime.zone();
         LocalDate effectiveDate = date != null ? date : LocalDate.now(zone);

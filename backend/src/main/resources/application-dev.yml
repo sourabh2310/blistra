@@ -24,6 +24,12 @@ spring:
       max-request-size: 15MB
 
 blistra:
+  security:
+    verified-sharing-required: false
+    private-discovery: false
+    require-terms: false
+    rate-limit:
+      enabled: false
   documents:
     storage-root: ${DOCUMENTS_STORAGE_ROOT:${java.io.tmpdir}/blistra-documents}
     max-file-size: 10MB

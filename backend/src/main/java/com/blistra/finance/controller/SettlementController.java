@@ -33,8 +33,9 @@ public class SettlementController {
 
     @GetMapping
     @Operation(summary = "Repayments you are part of, optionally with one friend")
-    public List<SettlementResponse> list(@RequestParam(required = false) UUID friendId) {
-        return settlementService.list(friendId);
+    public List<SettlementResponse> list(@RequestParam(required = false) UUID friendId,
+            @RequestParam(required = false) UUID groupId) {
+        return groupId == null ? settlementService.list(friendId) : settlementService.groupList(groupId);
     }
 
     @PostMapping
@@ -49,5 +50,15 @@ public class SettlementController {
     @Operation(summary = "Delete a repayment you recorded")
     public void delete(@PathVariable UUID id) {
         settlementService.delete(id);
+    }
+
+    @PostMapping("/{id}/confirm")
+    public SettlementResponse confirm(@PathVariable UUID id) {
+        return settlementService.decide(id, true);
+    }
+
+    @PostMapping("/{id}/reject")
+    public SettlementResponse reject(@PathVariable UUID id) {
+        return settlementService.decide(id, false);
     }
 }

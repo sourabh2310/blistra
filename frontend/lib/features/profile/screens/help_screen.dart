@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../app_update/update_dialog.dart';
 import '../profile_controller.dart';
 import '../widgets/profile_widgets.dart';
+import 'policy_screen.dart';
 
 /// FAQ, ways to get help, and app information.
 class HelpScreen extends StatelessWidget {
@@ -82,15 +83,23 @@ class HelpScreen extends StatelessWidget {
                   tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                   childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                   expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                  title: Text(q,
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: colors.text)),
+                  title: Text(
+                    q,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.text,
+                    ),
+                  ),
                   children: [
-                    Text(a,
-                        style: TextStyle(
-                            fontSize: 14, color: colors.muted, height: 1.45)),
+                    Text(
+                      a,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: colors.muted,
+                        height: 1.45,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -98,7 +107,8 @@ class HelpScreen extends StatelessWidget {
         ),
         ProfileSection(
           title: 'Get in touch',
-          footer: 'Include the copied details when you report a problem so '
+          footer:
+              'Include the copied details when you report a problem so '
               'we can find it faster. They contain no health or finance data.',
           children: [
             if (AppConfig.supportEmail.isNotEmpty)
@@ -109,7 +119,8 @@ class HelpScreen extends StatelessWidget {
                 trailing: Icon(Icons.copy, size: 18, color: colors.muted),
                 onTap: () async {
                   await Clipboard.setData(
-                      const ClipboardData(text: AppConfig.supportEmail));
+                    const ClipboardData(text: AppConfig.supportEmail),
+                  );
                   if (context.mounted) {
                     showProfileMessage(context, 'Support email copied.');
                   }
@@ -122,7 +133,8 @@ class HelpScreen extends StatelessWidget {
               trailing: Icon(Icons.copy, size: 18, color: colors.muted),
               onTap: () async {
                 await Clipboard.setData(
-                    ClipboardData(text: _diagnostics(userId)));
+                  ClipboardData(text: _diagnostics(userId)),
+                );
                 if (context.mounted) {
                   showProfileMessage(context, 'Details copied to clipboard.');
                 }
@@ -134,16 +146,36 @@ class HelpScreen extends StatelessWidget {
           title: 'About',
           children: [
             ProfileTile(
+              icon: Icons.policy_outlined,
+              title: 'Privacy Policy',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const PolicyScreen(privacy: true),
+                ),
+              ),
+            ),
+            ProfileTile(
+              icon: Icons.description_outlined,
+              title: 'Terms',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const PolicyScreen(privacy: false),
+                ),
+              ),
+            ),
+            ProfileTile(
               icon: Icons.info_outline,
               title: 'Blistra',
-              subtitle: 'Version ${AppConfig.appVersion}'
+              subtitle:
+                  'Version ${AppConfig.appVersion}'
                   '${AppConfig.appBuild > 0 ? ' · build ${AppConfig.appBuild}' : ''}',
               trailing: const SizedBox.shrink(),
             ),
             ProfileTile(
               icon: Icons.system_update_outlined,
               title: 'Check for updates',
-              onTap: () => checkForUpdateAndPrompt(context, userInitiated: true),
+              onTap: () =>
+                  checkForUpdateAndPrompt(context, userInitiated: true),
             ),
             ProfileTile(
               icon: Icons.article_outlined,

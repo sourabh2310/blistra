@@ -21,7 +21,8 @@ class PrivacyScreen extends StatelessWidget {
       children: [
         ProfileSection(
           title: 'Visibility',
-          footer: 'When off, people can\'t find you by username to send a '
+          footer:
+              'When off, people can\'t find you by username to send a '
               'friend request. Existing friends and shared expenses are '
               'not affected, and you can still add others.',
           children: [
@@ -34,8 +35,9 @@ class PrivacyScreen extends StatelessWidget {
                 onChanged: controller.saving || p == null
                     ? null
                     : (v) async {
-                        final ok =
-                            await controller.save({'allowFriendRequests': v});
+                        final ok = await controller.save({
+                          'allowFriendRequests': v,
+                        });
                         if (!ok && context.mounted) {
                           showProfileMessage(context, controller.error);
                         }
@@ -50,21 +52,24 @@ class PrivacyScreen extends StatelessWidget {
             _InfoTile(
               icon: Icons.lock_outline,
               title: 'Private by default',
-              body: 'Health, diet, medicines, documents, habits and planner '
+              body:
+                  'Health, diet, medicines, documents, habits and planner '
                   'data are visible only to you. Friends only see your name, '
                   'username, and the expenses you share with them.',
             ),
             _InfoTile(
               icon: Icons.shield_outlined,
               title: 'Only you can open your files',
-              body: 'Your session token is kept in the device\'s secure '
-                  'storage. Documents and your photo are served only to '
-                  'your signed-in account.',
+              body:
+                  'Native devices use secure storage when available; otherwise '
+                  'your session is kept in memory. Documents and photos require '
+                  'your signed-in account. Files opened in other apps may remain there.',
             ),
             _InfoTile(
               icon: Icons.notifications_none_outlined,
               title: 'Reminders stay on this device',
-              body: 'Medicine and task reminders are scheduled locally by '
+              body:
+                  'Medicine and task reminders are scheduled locally by '
                   'this phone\'s notification system.',
             ),
           ],
@@ -84,8 +89,9 @@ class PrivacyScreen extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
           child: Text(
-            'Expenses you shared with friends stay in their history under '
-            '"Deleted user" so their balances remain correct.',
+            'Shared expenses, settlement history and their notes stay visible '
+            'to participants under "Deleted user". Physical file cleanup may '
+            'be delayed while storage failures retry.',
             style: TextStyle(fontSize: 12, color: colors.muted, height: 1.4),
           ),
         ),
@@ -94,11 +100,14 @@ class PrivacyScreen extends StatelessWidget {
   }
 
   static Future<void> _deleteAccount(
-      BuildContext context, ProfileController controller) async {
+    BuildContext context,
+    ProfileController controller,
+  ) async {
     final sure = await confirmAction(
       context,
       title: 'Delete your account?',
-      message: 'This permanently erases your profile, photo, health records, '
+      message:
+          'This permanently erases your profile, photo, health records, '
           'meals, medicines, habits, planner, documents and personal '
           'finances. It cannot be undone.',
       confirmLabel: 'Continue',
@@ -118,11 +127,13 @@ class PrivacyScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             onPressed: () => Navigator.pop(context, password.text),
             child: const Text('Delete forever'),
           ),
@@ -143,12 +154,17 @@ class PrivacyScreen extends StatelessWidget {
     Navigator.of(context).popUntil((route) => route.isFirst);
     await auth.logout();
     messenger.showSnackBar(
-        const SnackBar(content: Text('Your account has been deleted.')));
+      const SnackBar(content: Text('Your account has been deleted.')),
+    );
   }
 }
 
 class _InfoTile extends StatelessWidget {
-  const _InfoTile({required this.icon, required this.title, required this.body});
+  const _InfoTile({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
 
   final IconData icon;
   final String title;
@@ -168,13 +184,22 @@ class _InfoTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700, color: colors.text)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: colors.text,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(body,
-                    style: TextStyle(
-                        fontSize: 13, color: colors.muted, height: 1.4)),
+                Text(
+                  body,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: colors.muted,
+                    height: 1.4,
+                  ),
+                ),
               ],
             ),
           ),
