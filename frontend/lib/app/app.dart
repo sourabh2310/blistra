@@ -18,6 +18,7 @@ import '../core/theme/theme_controller.dart';
 import '../core/theme/app_theme.dart' show BlistraColors;
 import '../core/widgets/glass.dart';
 import '../features/auth/auth_widgets.dart' show AuthColors;
+import '../features/app_update/app_update_controller.dart';
 import '../features/auth/auth_screen.dart';
 import '../features/dashboard/dashboard_controller.dart';
 import '../features/diet/diet_controller.dart';
@@ -68,6 +69,8 @@ class BlistraApp extends StatelessWidget {
               value: deps.reminders),
           ChangeNotifierProvider<SettingsController>.value(
               value: deps.settings),
+          ChangeNotifierProvider<AppUpdateController>.value(
+              value: deps.appUpdate),
         ],
         child: ListenableBuilder(
           listenable: deps.theme,

@@ -29,6 +29,11 @@ class AppConfig {
   static const String appVersion =
       String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
 
+  /// CI build number of this APK (`--dart-define=APP_BUILD=...`, set by the
+  /// APK workflow to the same number as its `apk-<n>` release). 0 for local
+  /// builds, which never prompt for updates.
+  static const int appBuild = int.fromEnvironment('APP_BUILD');
+
   /// Support inbox shown in Profile > Help. Empty hides the email row; set
   /// with `--dart-define=SUPPORT_EMAIL=...`.
   static const String supportEmail = String.fromEnvironment('SUPPORT_EMAIL');

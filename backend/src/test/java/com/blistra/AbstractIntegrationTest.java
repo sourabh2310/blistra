@@ -32,6 +32,8 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
         // Test-only JWT secret (>= 32 bytes). Production must supply JWT_SECRET
         // via the environment; the application fails startup without it.
+        // Never call GitHub from tests; the update check answers 204.
+        registry.add("blistra.app-update.github-repo", () -> "");
         registry.add("JWT_SECRET", () -> "blistra-test-secret-0123456789abcdef-test-only");
     }
 
