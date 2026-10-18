@@ -51,7 +51,9 @@ blistra:
   sms:
     enabled: ${SMS_ENABLED:false}
   documents:
-    storage-root: ${DOCUMENTS_STORAGE_ROOT}
+    backend: ${DOCUMENTS_STORAGE_BACKEND:postgres}
+    max-total-bytes: ${DOCUMENTS_MAX_TOTAL_BYTES:67108864}
+    storage-root: ${DOCUMENTS_STORAGE_ROOT:/var/data/blistra-documents}
     max-file-size: ${DOCUMENTS_MAX_FILE_SIZE:10MB}
   otp:
     outbox-enabled: true

@@ -1,18 +1,30 @@
 # Deploying Blistra and testing the signed Android APK
 
-Stack: PostgreSQL + a container host with a persistent file volume + configured SMTP + GitHub Actions. The Render blueprint now requests paid compute and a persistent disk. Review the provider's current costs before applying it. No service has been purchased or deployed by the remediation work.
+Stack: existing Neon PostgreSQL + **free Render web service** + configured SMTP + GitHub Actions. Documents and avatars now use PostgreSQL binary storage, so no paid Render disk is required. The blueprint uses `plan: free` with no disk. This supersedes the earlier paid-volume proposal. No hosting purchase has been made.
 
 Store credentials in a password manager or provider secret store. Never commit them to this repository or paste them into public build logs.
 
 ## Existing deployment: preserve data first
 
-Before restarting or replacing a service that stored uploads in `/tmp/blistra-documents`, copy those document/photo bytes to an encrypted backup while the old container still exists. Back up PostgreSQL at the same point in time. A new disk does not recover bytes already lost by earlier restarts. Temporarily stop writes during the final database/file copy, verify hashes/counts, and copy files into `/var/data/blistra-documents` on the new persistent volume before reopening writes. Preserve existing JWT/OTP secrets unless deliberately rotating them.
+Previously uploaded files stored only in `/tmp` or the old container cannot be reconstructed from document metadata. Preserve any existing file backup; files already lost on a restart must be restored or re-uploaded. There is no silent fallback to ephemeral file storage. New PostgreSQL-mode uploads and their metadata commit together and survive application-container replacement. Migration V118 adds the binary-object table; it does not invent missing historic bytes. Preserve existing JWT/OTP secrets unless deliberately rotating them.
 
-Migrations V109–V117 add session versions, deletion queues, rate limits, settlement decisions, trip groups, finance snapshots/archival and durable OTP delivery. Filesystem upload markers allow interrupted uploads to be reconciled. Existing payments retain their balance effect as `LEGACY_RECORDED`; new payments require confirmation. Configure `BLISTRA_OTP_DELIVERY_KEY` before deploying the new backend. Deploy the matching app together after a staging migration and backup restore drill. Do not run automatic down-migrations against live shared-finance data. See [operations.md](operations.md) for the proposed backup retention, monitoring and remaining owner decisions.
+For an existing Render service, set `DOCUMENTS_STORAGE_BACKEND=postgres` and optionally `DOCUMENTS_MAX_TOTAL_BYTES=67108864` in **Environment**. Remove a manually configured filesystem backend override. `DOCUMENTS_STORAGE_ROOT` is unused in PostgreSQL mode. Set `BLISTRA_OTP_DELIVERY_KEY` before redeploying as described below. Committing a blueprint does not update a manually created Render service's environment.
+
+The 64-MiB aggregate logical upload cap leaves room for the rest of the database. It covers documents and avatars, not PostgreSQL indexes, retained history or backup overhead. Monitor actual project usage in Neon; a quota is not a promise of unlimited free hosting. Current provider allowances are documented in [Neon plans](https://neon.com/docs/introduction/plans). Render's sleep, bandwidth, build and SMTP restrictions still apply: [free instance limitations](https://render.com/docs/free).
+
+Migrations V109–V118 add session versions, deletion queues, rate limits, settlement decisions, trip groups, finance snapshots/archival and durable OTP delivery. V118 adds database binary storage. In optional filesystem mode, upload markers allow interrupted uploads to be reconciled. Existing payments retain their balance effect as `LEGACY_RECORDED`; new payments require confirmation. Configure `BLISTRA_OTP_DELIVERY_KEY` before deploying the new backend. Deploy the matching app together after a staging migration and backup restore drill. Do not run automatic down-migrations against live shared-finance data. See [operations.md](operations.md) for the proposed backup retention, monitoring and remaining owner decisions.
 
 ## 1. Neon (database)
 
 Production OTP delivery now uses a database outbox (migration V115). Before deployment, create `BLISTRA_OTP_DELIVERY_KEY` using a cryptographically random 32-byte key encoded as base64, for example `openssl rand -base64 32`. Store it separately from the database and the OTP pepper, and preserve it across restarts. Startup fails if the key is missing or malformed. AES-256-GCM encrypts queued codes with the OTP ID as authenticated context. Successful, expired and exhausted deliveries erase the queued ciphertext. The database retains only the verification hash in production.
+
+On PowerShell 7, generate the delivery key directly into the clipboard, then paste it into Render's secret environment field (never into chat or a committed file):
+
+```powershell
+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) | Set-Clipboard
+```
+
+Generate once, preserve the configured value across deploys, and clear the clipboard after saving it securely.
 
 The worker polls every five seconds, claims ten items per batch with two-minute recovery leases, and retries at most five provider attempts within the original code lifetime. Provider I/O holds no database connection. A process crash after provider acceptance can deliver the same code more than once; delivery is at least once. Codes become usable after acknowledgement commits, and a failed replacement preserves the last delivered code. A resend while delivery is pending reuses that queued code. Monitor queue count/oldest age and SMTP failures; a mail outage must not trigger repeated manual restarts. Drain the queue before rotating the delivery key, or deliberately cancel outstanding requests and ask users to request new codes. Old database backups containing ciphertext must be protected alongside key backups.
 
@@ -45,12 +57,14 @@ The backend creates its tables itself on first start (Flyway).
 ## 3. Render (backend)
 
 1. Sign up at render.com with your GitHub account.
-2. Review `render.yaml` for service `blistra-api`, branch `main`, a persistent disk mounted at `/var/data`, and readiness health checks. Review costs before applying. The container refuses to start without the mounted volume.
-3. Fill in `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, and `BLISTRA_CORS_ORIGIN_PATTERNS` (exact browser origins; native apps do not rely on CORS). New services generate `JWT_SECRET` and `BLISTRA_OTP_PEPPER`; preserve existing values during migration. Keep `SPRING_PROFILES_ACTIVE=prod` and OTP dev mode disabled.
+2. Review `render.yaml` for service `blistra-api`, branch `main`, `plan: free`, PostgreSQL storage and readiness health checks. For your existing service, preserve its intended deployment branch and configure its environment directly; do not create a duplicate service merely to apply the blueprint.
+3. Fill in `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `BLISTRA_OTP_DELIVERY_KEY`, `DOCUMENTS_STORAGE_BACKEND=postgres`, and `BLISTRA_CORS_ORIGIN_PATTERNS` (exact browser origins; native apps do not rely on CORS). New services generate `JWT_SECRET` and `BLISTRA_OTP_PEPPER`; preserve existing values during migration. Keep `SPRING_PROFILES_ACTIVE=prod` and OTP dev mode disabled.
 4. Apply only after the backup/migration and policy checks below are complete. Inspect the proposed resources before confirming any charges.
-5. Check `https://<your-service>.onrender.com/actuator/health/readiness`. It must report `UP` with HTTP 200; this checks database, disk space and the writable upload directory. The origin without that path is the app's API URL.
+5. Check `https://<your-service>.onrender.com/actuator/health/readiness`. It must report `UP` with HTTP 200; PostgreSQL storage readiness does not require a local mounted directory. Upload a disposable document, redeploy, then confirm it still downloads. The origin without that path is the app's API URL.
 
-Configure monitoring for readiness, error rates, API latency, available disk space and the age/count/attempts of `storage_deletion_queue`. Confirm how the host supplies the client address before tuning authentication limits; do not blindly trust client-supplied forwarding headers. Current budgets are 100 auth requests per source/15 minutes and 20 logins per account/15 minutes. A shared proxy address can incorrectly combine users without trusted-proxy configuration.
+Filesystem storage remains an explicit optional backend for a host with a durable volume: set `DOCUMENTS_STORAGE_BACKEND=filesystem` and mount `/var/data`, with `DOCUMENTS_STORAGE_ROOT=/var/data/blistra-documents`. That mode retains the mount guard and requires an appropriate paid/durable host. Do not select it on Render Free.
+
+Configure monitoring for readiness, error rates, API latency, database upload budget and actual Neon project usage. Filesystem free-space/deletion-worker monitoring applies only to the optional filesystem backend; retain historic deletion-queue rows until old bytes are accounted for. Confirm how the host supplies the client address before tuning authentication limits; do not blindly trust client-supplied forwarding headers. Current budgets are 100 auth requests per source/15 minutes and 20 logins per account/15 minutes. A shared proxy address can incorrectly combine users without trusted-proxy configuration.
 
 ## 4. Sign the APK (once)
 

@@ -72,6 +72,7 @@ jobs:
           --health-timeout 5s --health-retries 12
     env:
       SPRING_PROFILES_ACTIVE: dev
+      DOCUMENTS_STORAGE_BACKEND: postgres
       DB_URL: jdbc:postgresql://localhost:5432/blistra_contract
       DB_USERNAME: blistra_contract
       DB_PASSWORD: disposable_contract_password

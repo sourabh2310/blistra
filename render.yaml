@@ -1,4 +1,4 @@
-# Production blueprint; review paid disk/compute costs before applying.
+# Free Render compute with upload bytes stored in the existing Neon database.
 # Secrets marked sync:false are entered in the Render dashboard, never committed.
 services:
   - type: web
@@ -7,18 +7,16 @@ services:
     branch: main
     dockerContext: backend
     dockerfilePath: backend/Dockerfile
-    plan: 0.5c-512mb
+    plan: free
     healthCheckPath: /actuator/health/readiness
     autoDeployTrigger: checksPass
-    disk:
-      name: blistra-files
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: DOCUMENTS_STORAGE_ROOT
-        value: /var/data/blistra-documents
+      - key: DOCUMENTS_STORAGE_BACKEND
+        value: postgres
+      - key: DOCUMENTS_MAX_TOTAL_BYTES
+        value: "67108864"       # 64 MiB aggregate logical upload budget
       - key: DB_URL
         sync: false            # jdbc:postgresql://<neon-host>/<db>?sslmode=require
       - key: DB_USERNAME

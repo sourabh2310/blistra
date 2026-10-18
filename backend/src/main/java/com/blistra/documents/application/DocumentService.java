@@ -77,7 +77,8 @@ public class DocumentService {
     /**
      * Uploads a new document.
      *
-     * <p>Filesystem and database operations are <em>not</em> atomic, so the
+     * <p>PostgreSQL storage joins the metadata transaction. For the optional
+     * filesystem backend, filesystem and database operations are not atomic, so the
      * steps are ordered to make partial failure safe:
      * <ol>
      *   <li>file bytes are streamed to storage under a server-generated UUID

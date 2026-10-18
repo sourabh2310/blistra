@@ -16,15 +16,19 @@ public class OperationalMetrics {
     private final JdbcTemplate jdbc;
     private final Map<String,Double> samples=new ConcurrentHashMap<>();
     private final java.nio.file.Path storageRoot;
+    private final boolean databaseStorage;
     public OperationalMetrics(JdbcTemplate jdbc,MeterRegistry meters,
             com.blistra.documents.config.DocumentsProperties documents,
-            @org.springframework.beans.factory.annotation.Value("${blistra.documents.max-total-bytes:838860800}") double storageBudget) {
+            @org.springframework.beans.factory.annotation.Value("${blistra.documents.max-total-bytes:0}") double configuredBudget,
+            @org.springframework.beans.factory.annotation.Value("${blistra.documents.backend:filesystem}") String backend) {
         this.jdbc=jdbc;
         storageRoot=documents.storageRoot();
+        databaseStorage="postgres".equals(backend);
+        double storageBudget=configuredBudget>0 ? configuredBudget : (databaseStorage?67108864:838860800);
         samples.put("storage_used",0.0);
         Gauge.builder("blistra.storage.used.bytes",samples,m -> m.get("storage_used")).register(meters);
         Gauge.builder("blistra.storage.budget.bytes",() -> storageBudget).register(meters);
-        Gauge.builder("blistra.storage.free.bytes",storageRoot,p -> {
+        if (!databaseStorage) Gauge.builder("blistra.storage.free.bytes",storageRoot,p -> {
             try { return java.nio.file.Files.getFileStore(p).getUsableSpace(); }
             catch (java.io.IOException e) { return Double.NaN; }
         }).register(meters);
@@ -45,7 +49,9 @@ public class OperationalMetrics {
             read("storage_deletion","storage_deletion_queue","queued_at");
             read("otp_delivery","otp_delivery_outbox","created_at");
             long used=0; int entries=0;
-            try (var files=java.nio.file.Files.newDirectoryStream(storageRoot)) {
+            if (databaseStorage) {
+                used=jdbc.queryForObject("SELECT COALESCE(sum(byte_count),0) FROM document_objects",Long.class);
+            } else try (var files=java.nio.file.Files.newDirectoryStream(storageRoot)) {
                 for (var file:files) {
                     if (++entries>20000) throw new IllegalStateException("Storage sampling limit exceeded");
                     if (java.nio.file.Files.isRegularFile(file,java.nio.file.LinkOption.NOFOLLOW_LINKS)) used+=java.nio.file.Files.size(file);

@@ -16,6 +16,7 @@ COPY --from=build /app/app.jar app.jar
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 ENV SPRING_PROFILES_ACTIVE=prod \
+    DOCUMENTS_STORAGE_BACKEND=postgres \
     DOCUMENTS_STORAGE_ROOT=/var/data/blistra-documents \
     JAVA_TOOL_OPTIONS="-Xmx320m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m"
 EXPOSE 8080

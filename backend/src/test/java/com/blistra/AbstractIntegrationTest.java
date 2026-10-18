@@ -49,6 +49,7 @@ public abstract class AbstractIntegrationTest {
      * to be cleared explicitly before the users they reference.
      */
     protected void deleteAllUsers() {
+        jdbcTemplate.execute("DELETE FROM document_objects");
         jdbcTemplate.execute("DELETE FROM finance_change_history");
         jdbcTemplate.execute("DELETE FROM finance_groups");
         jdbcTemplate.execute("DELETE FROM finance_expense_shares");
