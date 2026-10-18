@@ -48,6 +48,7 @@ import '../features/search/screens/search_screen.dart';
 import '../features/search/search_api.dart';
 import '../features/ai/ai_api.dart';
 import '../features/ai/ai_screen.dart';
+import '../features/documents/upload_document_page.dart';
 import 'app_dependencies.dart';
 
 class AppShell extends StatefulWidget {
@@ -501,7 +502,30 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       final api = AiApi(context.read<ApiClient>());
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => AiScreen(api: api, authState: _d.authState),
+          builder: (_) => AiScreen(
+            api: api,
+            authState: _d.authState,
+            onUploadDocument: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const UploadDocumentPage()),
+            ),
+            onEntrySaved: () async {
+              await _refreshOnResume();
+              if (mounted) _refreshForDestination(_selectedDestination);
+            },
+            onViewEntry: (module) {
+              Navigator.of(context).pop();
+              if (module == 'Reminders') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        RemindersScreen(onRefresh: _refreshNotifications),
+                  ),
+                );
+              } else {
+                goToDestination(module.toUpperCase());
+              }
+            },
+          ),
         ),
       );
     },

@@ -105,8 +105,8 @@ void main() {
     );
     await tester.tap(find.text('What can I do in Blistra?'));
     await tester.pumpAndSettle();
-    expect(requests.single['includeSummary'], false);
-    expect(requests.single['history'], isEmpty);
+    expect((requests.single['chat'] as Map)['includeSummary'], false);
+    expect((requests.single['chat'] as Map)['history'], isEmpty);
     expect(find.text('Open Planner to organize your tasks.'), findsOneWidget);
     await tester.tap(find.byType(SwitchListTile));
     await tester.pumpAndSettle();

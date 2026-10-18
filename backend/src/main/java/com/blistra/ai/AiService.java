@@ -32,6 +32,11 @@ public class AiService {
     }
 
     public String chat(AiRequest request) {
+        String reply = actionReply(request, null);
+        return reply.length() > 4000 ? reply.substring(0, 4000) : reply;
+    }
+
+    public String actionReply(AiRequest request, String policy) {
         var user = users.getCurrentUser();
         if (!enabled) throw new AiUnavailableException();
         limiter.attempt("blistra-ai-user", user.getId().toString(), 20);
@@ -40,6 +45,7 @@ public class AiService {
         messages.add(Map.of("role", "system", "content", instructions));
         messages.add(Map.of("role", "system", "content", "Current user date: " + time.today()
                 + "; timezone: " + time.zone() + ". Server summary: " + summary(Boolean.TRUE.equals(request.includeSummary()))));
+        if (policy != null) messages.add(Map.of("role", "system", "content", policy));
         for (var turn : request.history()) messages.add(Map.of("role", turn.role(), "content", turn.content()));
         messages.add(Map.of("role", "user", "content", request.message().trim()));
         return gateway.reply(messages);

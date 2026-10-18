@@ -45,7 +45,7 @@ The initial V1 focuses on:
 6. Habits
 7. Finance
 
-Documents, Notifications, Profile and Blistra AI chat are also implemented. Goals and AI record-changing workflows remain future scope.
+Documents, Notifications, Profile and Blistra AI chat are also implemented. Blistra AI can prepare supported entries for explicit review and approval before saving. Goals remains future scope.
 
 ---
 
