@@ -21,7 +21,7 @@ public class AuthRateLimiter {
     @Value("${blistra.security.rate-limit.enabled:true}") private boolean enabled;
     public AuthRateLimiter(JdbcTemplate jdbc, OtpProperties otp) { this.jdbc = jdbc; this.otp = otp; }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = TooManyRequestsException.class)
     public void attempt(String scope, String identifier, int maximum) {
         if (!enabled) return;
         long window = Instant.now().getEpochSecond() / 900;
@@ -35,8 +35,8 @@ public class AuthRateLimiter {
                 INSERT INTO authentication_rate_limits(bucket_key, window_start, hits, expires_at)
                 VALUES (?, ?, 1, CURRENT_TIMESTAMP + INTERVAL '30 minutes')
                 ON CONFLICT (bucket_key, window_start) DO UPDATE
-                SET hits = authentication_rate_limits.hits + 1 RETURNING hits
-                """, Integer.class, key, window);
+                SET hits = LEAST(authentication_rate_limits.hits, ?) + 1 RETURNING hits
+                """, Integer.class, key, window,maximum);
         if (hits != null && hits > maximum) throw new TooManyRequestsException("Too many attempts. Please try again later.");
     }
 

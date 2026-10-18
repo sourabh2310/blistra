@@ -159,7 +159,7 @@ class _EventsScreenState extends State<EventsScreen> {
       title: 'Delete this event?',
       message: 'This cannot be undone.',
     );
-    if (confirmed) await _runAction(context, action);
+    if (confirmed && context.mounted) await _runAction(context, action);
   }
 
   Future<void> _runAction(BuildContext context, Future<void> Function() action) async {

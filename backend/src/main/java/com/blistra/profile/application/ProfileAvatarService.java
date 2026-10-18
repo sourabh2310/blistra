@@ -35,13 +35,15 @@ public class ProfileAvatarService {
     private final CurrentUserProvider currentUserProvider;
     private final UserProfileRepository profileRepository;
     private final DocumentStorageService storage;
+    private final com.blistra.users.repository.UserRepository users;
 
     public ProfileAvatarService(CurrentUserProvider currentUserProvider,
                                 UserProfileRepository profileRepository,
-                                DocumentStorageService storage) {
+                                DocumentStorageService storage,com.blistra.users.repository.UserRepository users) {
         this.currentUserProvider = currentUserProvider;
         this.profileRepository = profileRepository;
         this.storage = storage;
+        this.users = users;
     }
 
     public record Avatar(Resource resource, String contentType) {}
@@ -56,6 +58,7 @@ public class ProfileAvatarService {
         }
         String contentType = detectImageType(file);
         User user = currentUserProvider.getCurrentUser();
+        users.lockById(user.getId()).orElseThrow(() -> new ResourceNotFoundException("Account not found"));
         UserProfile profile = profileFor(user.getId());
 
         String key = UUID.randomUUID().toString();
@@ -89,6 +92,7 @@ public class ProfileAvatarService {
     @Transactional
     public ProfileResponse remove() {
         User user = currentUserProvider.getCurrentUser();
+        users.lockById(user.getId()).orElseThrow(() -> new ResourceNotFoundException("Account not found"));
         UserProfile profile = profileFor(user.getId());
         String previous = profile.getAvatarObjectKey();
         profile.setAvatarObjectKey(null);

@@ -54,6 +54,8 @@ blistra:
     storage-root: ${DOCUMENTS_STORAGE_ROOT}
     max-file-size: ${DOCUMENTS_MAX_FILE_SIZE:10MB}
   otp:
+    outbox-enabled: true
+    delivery-key: ${BLISTRA_OTP_DELIVERY_KEY:}
     # Production: dev senders and the dev OTP endpoint are disabled.
     # REQUIRED: BLISTRA_OTP_PEPPER (code-hash pepper) and real
     # EmailSender/SmsSender provider beans (SMTP/SMS gateway).

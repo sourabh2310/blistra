@@ -34,8 +34,9 @@ public class SettlementController {
     @GetMapping
     @Operation(summary = "Repayments you are part of, optionally with one friend")
     public List<SettlementResponse> list(@RequestParam(required = false) UUID friendId,
-            @RequestParam(required = false) UUID groupId) {
-        return groupId == null ? settlementService.list(friendId) : settlementService.groupList(groupId);
+            @RequestParam(required = false) UUID groupId,
+            @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="200") int size) {
+        return groupId == null ? settlementService.list(friendId) : settlementService.groupList(groupId,page,size);
     }
 
     @PostMapping

@@ -8,9 +8,7 @@ import com.blistra.users.repository.UserRepository;
 import com.blistra.common.exception.VerificationUnavailableException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -26,12 +24,13 @@ import java.util.UUID;
  *
  * <ul>
  *   <li>Codes are random (SecureRandom), short-lived and single-use.</li>
- *   <li>Only a SHA-256 hash (code + server pepper) is stored; plaintext is
- *       never persisted except the dev-only {@code devCode} copy.</li>
+ *   <li>Verification stores a peppered SHA-256 hash. Production delivery
+ *       temporarily retains AES-GCM ciphertext; plaintext is only persisted
+ *       in the explicitly enabled dev-only {@code devCode} copy.</li>
  *   <li>Attempt counting, resend cooldown and hourly caps are enforced here,
  *       so every caller (registration, recovery, identity change) inherits
  *       the same abuse protection.</li>
- *   <li>Codes themselves are never logged; destinations are masked.</li>
+ *   <li>Production codes are never logged; destinations are masked.</li>
  * </ul>
  */
 @Slf4j
@@ -43,23 +42,22 @@ public class VerificationService {
     private final SmsSender smsSender;
     private final OtpProperties properties;
     private final UserRepository users;
-    private final TransactionTemplate requiresNew;
+    private final OtpDeliveryOutbox outbox;
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entities;
     private final SecureRandom random = new SecureRandom();
 
     public VerificationService(VerificationOtpRepository otpRepository,
                                EmailSender emailSender,
                                SmsSender smsSender,
                                OtpProperties properties,
-                               PlatformTransactionManager transactionManager,
-                               UserRepository users) {
+                               UserRepository users, OtpDeliveryOutbox outbox) {
         this.otpRepository = otpRepository;
         this.emailSender = emailSender;
         this.smsSender = smsSender;
         this.properties = properties;
         this.users = users;
-        this.requiresNew = new TransactionTemplate(transactionManager);
-        this.requiresNew.setPropagationBehavior(
-                org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.outbox = outbox;
     }
 
     /** Result of issuing a code: expiry + cooldown for client UX. */
@@ -76,6 +74,21 @@ public class VerificationService {
         users.lockById(userId).orElseThrow();
         enforceHourlyCap(userId, purpose);
         enforceCooldown(userId, purpose);
+
+        // A retrying delivery retains the same code. Do not accumulate queued
+        // replacements or invalidate a code which has already reached a provider.
+        if (properties.isOutboxEnabled()) {
+            var pending = otpRepository.findByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(userId, purpose)
+                    .stream().filter(o -> !o.isDelivered() && !o.isExpired()).findFirst();
+            if (pending.isPresent() && pending.get().getDestination().equals(destination) && outbox.contains(pending.get().getId())) {
+                return new Issuance(pending.get().getExpiresAt(), properties.getResendCooldownSeconds());
+            }
+            for (var old:otpRepository.findByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(userId,purpose)) {
+                if (!old.isDelivered()) {
+                    old.setConsumed(true); old.setConsumedAt(LocalDateTime.now()); outbox.cancel(old.getId());
+                }
+            }
+        }
 
         String code = String.format("%06d", random.nextInt(1000000));
         VerificationOtp otp = new VerificationOtp();
@@ -94,7 +107,14 @@ public class VerificationService {
         // newest code verifies (old codes fail closed as invalid).
         List<VerificationOtp> prior =
                 otpRepository.findByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(userId, purpose);
+        otp.setDelivered(!properties.isOutboxEnabled());
         otpRepository.save(otp);
+
+        if (properties.isOutboxEnabled()) {
+            otpRepository.flush();
+            outbox.enqueue(otp.getId(), code);
+            return new Issuance(otp.getExpiresAt(), properties.getResendCooldownSeconds());
+        }
 
         try {
             deliver(channel, destination, code);
@@ -118,13 +138,19 @@ public class VerificationService {
      * success. Throws {@link OtpVerificationException} with INVALID_OTP,
      * EXPIRED_OTP or TOO_MANY_ATTEMPTS.
      *
-     * <p>State changes commit in an isolated transaction BEFORE the outcome is
-     * reported: a thrown verification failure must not roll back attempt
-     * counting or consumption (otherwise brute force would never lock out and
-     * used codes could verify twice on partial failures).
+     * <p>Expected OTP failures commit attempt counts. Callers use the same
+     * noRollbackFor policy, while successful consumption and the account change
+     * commit atomically. Joining the caller avoids borrowing a second connection
+     * while every request in a small pool is already holding one.
      */
+    @Transactional(noRollbackFor = OtpVerificationException.class)
     public VerificationOtp verify(UUID userId, OtpPurpose purpose, String code) {
-        Outcome outcome = requiresNew.execute(status -> check(userId, purpose, code));
+        var user=users.lockById(userId).orElseThrow();
+        // Callers may have read the user before waiting for this lock. Refresh
+        // that managed instance so a verification update cannot write an older
+        // session version over a concurrently completed password reset.
+        entities.refresh(user,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        Outcome outcome = check(userId, purpose, code);
         if (outcome == null || outcome.errorCode != null) {
             String errorCode = outcome == null ? "INVALID_OTP" : outcome.errorCode;
             String message = outcome == null ? "Invalid or expired code." : outcome.message;
@@ -145,7 +171,7 @@ public class VerificationService {
 
     private Outcome check(UUID userId, OtpPurpose purpose, String code) {
         Optional<VerificationOtp> latest = otpRepository
-                .findFirstByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(userId, purpose);
+                .findFirstByUserIdAndPurposeAndConsumedFalseAndDeliveredTrueOrderByCreatedAtDesc(userId, purpose);
         if (latest.isEmpty()) {
             return Outcome.fail("INVALID_OTP", "Invalid or expired code.");
         }
@@ -180,16 +206,19 @@ public class VerificationService {
         otp.setConsumed(true);
         otp.setConsumedAt(LocalDateTime.now());
         otpRepository.save(otp);
+        // A successfully used prior code also cancels any queued replacement;
+        // password reset must not leave a second recovery code in flight.
+        if (properties.isOutboxEnabled()) {
+            for (var other:otpRepository.findByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(userId,purpose)) {
+                other.setConsumed(true); other.setConsumedAt(LocalDateTime.now()); outbox.cancel(other.getId());
+            }
+        }
         return Outcome.ok(otp);
     }
 
     /** Seconds until a resend is allowed; 0 when no cooldown applies. */
     @Transactional(readOnly = true)
     public long resendCooldownRemaining(UUID userId, OtpPurpose purpose) {
-        Optional<VerificationOtp> latest = otpRepository.findLatestActive(userId, purpose);
-        if (latest.isEmpty()) {
-            return 0;
-        }
         // Cooldown runs from the newest issuance regardless of consumption:
         // check all recent rows for the purpose.
         List<VerificationOtp> recent =

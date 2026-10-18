@@ -7,9 +7,11 @@ import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 import 'app/app_dependencies.dart';
+import 'core/device/device_context.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await DeviceContext.refreshTimezone();
   final deps = await AppDependencies.create();
   runApp(BlistraApp(deps: deps));
 }

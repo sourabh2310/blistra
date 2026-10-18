@@ -180,7 +180,6 @@ class AppDependencies {
     );
     late final PlannerController planner;
     final preferences = PreferencesController(PreferencesApi(apiClient));
-    final profile = ProfileController(apiClient);
     final diet = DietController(
       HttpDietApi(apiClient),
       onUnauthorized: () => authState.handleUnauthorized(),
@@ -218,6 +217,14 @@ class AppDependencies {
     final reminders = RemindersController(
       api: notificationsApi,
       onChanged: syncService.refresh,
+    );
+    final profile = ProfileController(
+      apiClient,
+      onTimezoneChanged: () async {
+        await syncService.refresh();
+        await refreshDashboard();
+        await planner.loadToday();
+      },
     );
     final settings = SettingsController(
       api: notificationsApi,

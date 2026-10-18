@@ -25,7 +25,7 @@ public class FinanceGroupService {
         this.jdbc = jdbc; this.current = current; this.users = users;
         this.profiles = profiles; this.identities = identities;
     }
-    public record Group(UUID id, String name, String currency, UUID ownerId, String membership) {}
+    public record Group(UUID id, String name, String currency, UUID ownerId, String membership, boolean archived) {}
     public record Member(UserSummary user, String status, boolean owner) {}
     public record Balance(UUID userId, String currency, String amount) {}
     public record Detail(Group group, List<Member> members, List<Balance> balances) {}
@@ -37,7 +37,7 @@ public class FinanceGroupService {
             SELECT g.*, m.status FROM finance_groups g JOIN finance_group_members m ON m.group_id=g.id
             WHERE m.user_id=? ORDER BY g.created_at DESC LIMIT 100
             """, (rs, n) -> new Group(rs.getObject("id", UUID.class), rs.getString("name"),
-                rs.getString("currency"), rs.getObject("owner_id", UUID.class), rs.getString("status")), me);
+                rs.getString("currency"), rs.getObject("owner_id", UUID.class), rs.getString("status"),rs.getBoolean("archived")), me);
     }
 
     public Group create(String name, String currency) {
@@ -50,7 +50,7 @@ public class FinanceGroupService {
         UUID id = UUID.randomUUID();
         jdbc.update("INSERT INTO finance_groups(id,owner_id,name,currency) VALUES (?,?,?,?)", id,me,name.trim(),currency);
         jdbc.update("INSERT INTO finance_group_members(group_id,user_id,status) VALUES (?,?,'ACCEPTED')",id,me);
-        return new Group(id,name.trim(),currency,me,"ACCEPTED");
+        return new Group(id,name.trim(),currency,me,"ACCEPTED",false);
     }
 
     @Transactional(readOnly = true)
@@ -64,6 +64,7 @@ public class FinanceGroupService {
         if (jdbc.queryForList("SELECT id FROM finance_groups WHERE id=? FOR UPDATE", UUID.class,group).isEmpty())
             throw new ResourceNotFoundException("Group not found");
         requireMember(group,me);
+        requireWritable(group);
         return new HashSet<>(jdbc.queryForList("SELECT user_id FROM finance_group_members WHERE group_id=? AND status='ACCEPTED'",UUID.class,group));
     }
 
@@ -71,6 +72,7 @@ public class FinanceGroupService {
         UUID me = current.getCurrentUser().getId();
         requireMember(group,me);
         UUID owner = jdbc.queryForObject("SELECT owner_id FROM finance_groups WHERE id=? FOR UPDATE",UUID.class,group);
+        requireWritable(group);
         if (!me.equals(owner)) throw new BadRequestException("Only the group owner can invite members");
         var other = users.findByUsernameIgnoreCase(username == null ? "" : username.trim().replaceFirst("^@", ""))
                 .filter(u -> !u.isBlocked()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -92,8 +94,9 @@ public class FinanceGroupService {
 
     public void transfer(UUID group, UUID nextOwner) {
         UUID me=current.getCurrentUser().getId();
-        var members=acceptedMemberIds(group,me);
-        UUID owner=jdbc.queryForObject("SELECT owner_id FROM finance_groups WHERE id=?",UUID.class,group);
+        UUID owner=jdbc.queryForObject("SELECT owner_id FROM finance_groups WHERE id=? FOR UPDATE",UUID.class,group);
+        requireMember(group,me);
+        var members=jdbc.queryForList("SELECT user_id FROM finance_group_members WHERE group_id=? AND status='ACCEPTED'",UUID.class,group);
         if (!me.equals(owner)) throw new BadRequestException("Only the owner can transfer ownership");
         if (!members.contains(nextOwner)) throw new BadRequestException("Choose an accepted member");
         jdbc.update("UPDATE finance_groups SET owner_id=? WHERE id=?",nextOwner,group);
@@ -108,12 +111,37 @@ public class FinanceGroupService {
             throw new ResourceNotFoundException("Group membership not found");
     }
 
+    public void requireWritable(UUID group) {
+        var archived=jdbc.queryForList("SELECT archived FROM finance_groups WHERE id=? FOR UPDATE",Boolean.class,group);
+        if (archived.isEmpty()) throw new ResourceNotFoundException("Group not found");
+        if (archived.getFirst()) throw new BadRequestException("This trip is archived. Ask its owner to reopen it before changing the ledger.");
+    }
+
+    @Transactional(readOnly=true)
+    public Set<UUID> writableGroupIds(Collection<UUID> ids,UUID user) {
+        if (ids.isEmpty()) return Set.of();
+        String values="{"+ids.stream().filter(Objects::nonNull).map(UUID::toString).distinct()
+            .collect(java.util.stream.Collectors.joining(","))+"}";
+        return new HashSet<>(jdbc.queryForList("""
+            SELECT g.id FROM finance_groups g JOIN finance_group_members m ON m.group_id=g.id
+            WHERE g.id=ANY(CAST(? AS uuid[])) AND NOT g.archived AND m.user_id=? AND m.status='ACCEPTED'
+            """,UUID.class,values,user));
+    }
+
+    public void archive(UUID group, boolean archived) {
+        UUID me=current.getCurrentUser().getId();
+        var owners=jdbc.queryForList("SELECT owner_id FROM finance_groups WHERE id=? FOR UPDATE",UUID.class,group);
+        requireMember(group,me);
+        if (owners.isEmpty() || !me.equals(owners.getFirst())) throw new BadRequestException("Only the owner can archive or reopen a trip");
+        jdbc.update("UPDATE finance_groups SET archived=? WHERE id=?",archived,group);
+    }
+
     @Transactional(readOnly = true)
     public Detail detail(UUID id) {
         UUID me = current.getCurrentUser().getId();
         requireMember(id,me);
         Group group = jdbc.queryForObject("SELECT * FROM finance_groups WHERE id=?", (rs,n) ->
-            new Group(id,rs.getString("name"),rs.getString("currency"),rs.getObject("owner_id",UUID.class),"ACCEPTED"),id);
+            new Group(id,rs.getString("name"),rs.getString("currency"),rs.getObject("owner_id",UUID.class),"ACCEPTED",rs.getBoolean("archived")),id);
         var rows = jdbc.queryForList("SELECT user_id,status FROM finance_group_members WHERE group_id=? ORDER BY joined_at",id);
         var summaries = identities.summaries(rows.stream().map(r -> (UUID)r.get("user_id")).toList());
         var members = rows.stream().map(r -> new Member(FinanceUsers.of(summaries,(UUID)r.get("user_id")),

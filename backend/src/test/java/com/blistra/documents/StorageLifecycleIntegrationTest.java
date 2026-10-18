@@ -60,6 +60,29 @@ class StorageLifecycleIntegrationTest extends AbstractIntegrationTest {
         assertThat(Files.exists(ROOT.resolve(".blistra-upload-"+key+".lease"))).isTrue();
         storage.delete(key);
     }
+    @Test void concurrentUploadsCannotExceedTheAggregateBudget() throws Exception {
+        long initial=0;
+        try (var files=Files.list(ROOT)) { for (var file:files.toList()) initial+=Files.size(file); }
+        Object prior=org.springframework.test.util.ReflectionTestUtils.getField(storage,"maxTotalBytes");
+        org.springframework.test.util.ReflectionTestUtils.setField(storage,"maxTotalBytes",initial+15L);
+        var start=new java.util.concurrent.CyclicBarrier(2);
+        var keys=java.util.List.of(UUID.randomUUID().toString(),UUID.randomUUID().toString());
+        try (var pool=java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var tasks=keys.stream().map(key -> pool.submit(() -> {
+                start.await(5,java.util.concurrent.TimeUnit.SECONDS);
+                try {
+                    new TransactionTemplate(transactions).executeWithoutResult(status ->
+                        storage.store(key,new ByteArrayInputStream(new byte[10]),10));
+                    return true;
+                } catch (com.blistra.documents.storage.StorageCapacityException e) { return false; }
+            })).toList();
+            assertThat(java.util.List.of(tasks.get(0).get(10,java.util.concurrent.TimeUnit.SECONDS),
+                tasks.get(1).get(10,java.util.concurrent.TimeUnit.SECONDS))).containsExactlyInAnyOrder(true,false);
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(storage,"maxTotalBytes",prior);
+            keys.forEach(storage::delete);
+        }
+    }
     @org.junit.jupiter.api.AfterAll static void cleanup() throws Exception {
         try (var files=Files.list(ROOT)) { for (var path:files.toList()) Files.deleteIfExists(path); }
         Files.deleteIfExists(ROOT);

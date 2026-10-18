@@ -100,6 +100,66 @@ class FinanceGroupIntegrationTest extends FinanceTestSupport {
         request(get(GROUPS+"/"+group),alice,null,404);
         assertThat(request(get(GROUPS+"/"+group+"/expenses"),bob,null,200).get("content")).hasSize(1);
     }
+    @Test void splitSnapshotsSurviveEditAndDeleteAndHistoryCanBePaged() throws Exception {
+        String group=create("History trip");join(group,"bob",bob);join(group,"carol",carol);
+        String id=expense(group);
+        request(put("/api/v1/finance/expenses/"+id),alice,java.util.Map.of(
+            "description","Updated hotel","notes","Do not copy this note into history", "category","TRAVEL",
+            "amount","600", "currency","INR","groupId",group,"splitType","EQUAL","participants",java.util.List.of(
+                java.util.Map.of("userId",aliceId),java.util.Map.of("userId",bobId))),200);
+        request(delete("/api/v1/finance/expenses/"+id),alice,null,204);
+        var history=request(get("/api/v1/finance/history").param("groupId",group),bob,null,200);
+        assertThat(history).hasSize(3);
+        var changed=history.get(1);
+        var before=jsonMapper.readTree(changed.get("beforeState").asText());
+        var after=jsonMapper.readTree(changed.get("afterState").asText());
+        assertThat(before.get("shares")).hasSize(3);
+        assertThat(after.get("shares")).hasSize(2);
+        assertThat(new java.math.BigDecimal(before.get("amount").asText())).isEqualByComparingTo("300");
+        assertThat(new java.math.BigDecimal(after.get("amount").asText())).isEqualByComparingTo("600");
+        assertThat(changed.get("actorName").asText()).isNotBlank();
+        assertThat(history.toString()).doesNotContain("Updated hotel","Do not copy this note");
+        var first=request(get("/api/v1/finance/history").param("groupId",group).param("size","1"),bob,null,200);
+        var second=request(get("/api/v1/finance/history").param("groupId",group).param("size","1").param("page","1"),bob,null,200);
+        assertThat(first.get(0).get("id")).isNotEqualTo(second.get(0).get("id"));
+        request(get("/api/v1/finance/history").param("groupId",group).param("page","1"),stranger,null,404);
+    }
+
+    @Test void archivedTripPreservesLedgerAndExportButRejectsNewWrites() throws Exception {
+        String group=create("Archive trip");join(group,"bob",bob);join(group,"carol",carol);
+        String id=expense(group);
+        String payment=request(post(PAYMENTS),bob,java.util.Map.of("groupId",group,"friendId",aliceId,
+            "direction","I_PAID","amount","100","currency","INR"),201).get("id").asText();
+        request(post(GROUPS+"/"+group+"/archive"),bob,java.util.Map.of("archived",true),400);
+        request(post(GROUPS+"/"+group+"/archive"),alice,java.util.Map.of("archived",true),204);
+        assertThat(request(get(GROUPS+"/"+group),bob,null,200).get("group").get("archived").asBoolean()).isTrue();
+        assertThat(request(get("/api/v1/finance/expenses/"+id),alice,null,200).get("editable").asBoolean()).isFalse();
+        request(delete("/api/v1/finance/expenses/"+id),alice,null,400);
+        request(post(GROUPS+"/"+group+"/members"),alice,java.util.Map.of("username","stranger"),400);
+        request(post(PAYMENTS),bob,java.util.Map.of("groupId",group,"friendId",aliceId,
+            "direction","I_PAID","amount","10","currency","INR"),400);
+        request(post(PAYMENTS+"/"+payment+"/confirm"),alice,null,200);
+        var export=request(get(GROUPS+"/"+group+"/export"),carol,null,200);
+        assertThat(export.get("expenses")).hasSize(1);
+        assertThat(export.get("payments")).hasSize(1);
+        assertThat(export.get("history")).hasSize(3);
+        assertThat(export.toString()).doesNotContain("passwordHash","@example.com","Bearer ");
+        request(get(GROUPS+"/"+group+"/export"),stranger,null,404);
+        request(post(GROUPS+"/"+group+"/archive"),alice,java.util.Map.of("archived",false),204);
+        request(delete("/api/v1/finance/expenses/"+id),alice,null,204);
+    }
+
+    @Test void groupPaymentsCanBePagedWithoutCrossTripLeakage() throws Exception {
+        String group=create("Payment pages");join(group,"bob",bob);
+        for (int i=0;i<3;i++) request(post(PAYMENTS),bob,java.util.Map.of("groupId",group,"friendId",aliceId,
+            "direction","I_PAID","amount","10","currency","INR"),201);
+        var one=request(get(PAYMENTS).param("groupId",group).param("size","1"),bob,null,200);
+        var two=request(get(PAYMENTS).param("groupId",group).param("size","1").param("page","1"),bob,null,200);
+        assertThat(one).hasSize(1);assertThat(two).hasSize(1);
+        assertThat(one.get(0).get("id")).isNotEqualTo(two.get(0).get("id"));
+        request(get(PAYMENTS).param("groupId",group).param("page","1"),stranger,null,404);
+    }
+
     @Test void accountDeletionTransfersSharedGroupAndKeepsOtherMembersLedger() throws Exception {
         String group=create("Shared trip");join(group,"bob",bob);join(group,"carol",carol);expense(group);
         request(post("/api/v1/profile/delete-account"),alice,java.util.Map.of("currentPassword","Password123!"),204);

@@ -1262,7 +1262,7 @@ class _FoodLogRow extends StatelessWidget {
     final calories = item.caloriesKcal;
     final detail = [
       if (calories != null) '${_formatNumber(calories)} kcal',
-      if (quantity != null) quantity,
+      ?quantity,
     ].join('  •  ');
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 2),

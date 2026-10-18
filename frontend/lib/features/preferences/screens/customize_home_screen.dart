@@ -154,9 +154,8 @@ class _CustomizeHomeScreenState extends State<CustomizeHomeScreen> {
             child: ReorderableListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               itemCount: _sections.length,
-              onReorder: (oldIndex, newIndex) {
+              onReorderItem: (oldIndex, newIndex) {
                 setState(() {
-                  if (newIndex > oldIndex) newIndex -= 1;
                   final value = _sections.removeAt(oldIndex);
                   _sections.insert(newIndex, value);
                 });
@@ -190,9 +189,8 @@ class _CustomizeHomeScreenState extends State<CustomizeHomeScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _modules.length,
-              onReorder: (oldIndex, newIndex) {
+              onReorderItem: (oldIndex, newIndex) {
                 setState(() {
-                  if (newIndex > oldIndex) newIndex -= 1;
                   final value = _modules.removeAt(oldIndex);
                   _modules.insert(newIndex, value);
                 });

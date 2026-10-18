@@ -1,0 +1,65 @@
+groups:
+  - name: blistra-pilot
+    rules:
+      - alert: BlistraMetricsUnavailable
+        expr: up{job="blistra"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Blistra metrics cannot be scraped
+      - alert: BlistraWorkerSamplingStale
+        expr: time() - blistra_queue_sample_timestamp_seconds > 180
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Worker metrics have not refreshed
+      - alert: BlistraOtpDeliveryDelayed
+        expr: blistra_queue_oldest_seconds{queue="otp_delivery"} > 120
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Verification delivery is delayed
+      - alert: BlistraOtpDeliveryExhausted
+        expr: increase(blistra_otp_delivery_exhausted_total[10m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Verification delivery exhausted its retry budget
+      - alert: BlistraDeletionDelayed
+        expr: blistra_queue_oldest_seconds{queue="storage_deletion"} > 3600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Physical file deletion is delayed
+      - alert: BlistraStorageBudgetNearlyFull
+        expr: blistra_storage_used_bytes / blistra_storage_budget_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Upload storage is approaching its configured budget
+      - alert: BlistraVolumeNearlyFull
+        expr: blistra_storage_free_bytes < 104857600
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Upload volume has less than 100 MiB available
+      - alert: BlistraApiErrors
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 0.01) > 0.05 and sum(increase(http_server_requests_seconds_count[5m])) >= 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: API server errors exceed five percent
+      - alert: BlistraApiSlow
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: API p95 response time exceeds two seconds

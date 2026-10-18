@@ -15,6 +15,61 @@ import 'package:frontend/features/finance/screens/payment_tile.dart';
 import 'package:frontend/features/finance/widgets/finance_widgets.dart';
 
 void main() {
+  testWidgets(
+    'financial history exposes both split snapshots at 200 percent text',
+    (tester) async {
+      final state = {
+        'amount': '300.0000',
+        'currency': 'INR',
+        'paidBy': 'a',
+        'spentOn': '2026-10-18',
+        'splitType': 'EQUAL',
+        'shares': [
+          {'userId': 'a', 'amount': '150.0000'},
+          {'userId': 'b', 'amount': '150.0000'},
+        ],
+      };
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: Scaffold(
+              body: SingleChildScrollView(
+                child: FinanceHistoryList(
+                  meId: 'a',
+                  names: const {'b': 'Bob'},
+                  entries: [
+                    {
+                      'id': 1,
+                      'entityType': 'EXPENSE',
+                      'action': 'UPDATED',
+                      'actorId': 'b',
+                      'actorName': 'Bob',
+                      'recordedAt': '2026-10-18T10:00:00Z',
+                      'beforeAmount': '200.0000',
+                      'afterAmount': '300.0000',
+                      'currency': 'INR',
+                      'beforeState': jsonEncode({
+                        ...state,
+                        'amount': '200.0000',
+                      }),
+                      'afterState': jsonEncode(state),
+                    },
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('EXPENSE · UPDATED'));
+      await tester.pumpAndSettle();
+      expect(find.text('Before'), findsOneWidget);
+      expect(find.text('After'), findsOneWidget);
+      expect(find.text('Bob: INR 150.0000'), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
   test('finance entry preserves four-decimal payments and rejects malformed amounts', () {
     expect(normalizeAmount('0.0001'), '0.0001');
     expect(normalizeAmount('.5'), '0.5');

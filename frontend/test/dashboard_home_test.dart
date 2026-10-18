@@ -60,7 +60,7 @@ CurrencySection _currency(String currency, String expense) => CurrencySection(
       currency: currency,
       income: '0',
       expense: expense,
-      net: '-${expense}',
+      net: '-$expense',
       transferIn: '0',
       transferOut: '0',
       topCategories: const [],

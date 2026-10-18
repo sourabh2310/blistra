@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -106,7 +110,11 @@ class _GroupsTabState extends State<GroupsTab> {
             child: ListTile(
               title: Text(g.name),
               subtitle: Text(
-                '${g.currency} · ${g.invited ? 'Invitation' : 'Joined'}',
+                '${g.currency} · ${g.invited
+                    ? 'Invitation'
+                    : g.archived
+                    ? 'Archived'
+                    : 'Joined'}',
               ),
               onTap: g.invited ? null : () => _open(g),
               trailing: g.invited
@@ -152,6 +160,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   List<Map<String, dynamic>> _history = [];
   bool _busy = false, _last = true;
   int _page = 0;
+  int _paymentPage = 0, _historyPage = 0;
+  bool _morePayments = false, _moreHistory = false;
   String? _error;
   FinanceController get controller => context.read<FinanceController>();
   @override
@@ -178,6 +188,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         _page = 0;
         _payments = results[2] as List<Settlement>;
         _history = results[3] as List<Map<String, dynamic>>;
+        _paymentPage = _historyPage = 0;
+        _morePayments = _payments.length == 200;
+        _moreHistory = _history.length == 100;
         _error = null;
       });
     } catch (e) {
@@ -202,6 +215,48 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final username = await _ask(context, 'Invite a member', 'Exact username');
     if (username != null && mounted) {
       await _run(() => controller.api.inviteToGroup(widget.group.id, username));
+    }
+  }
+
+  Future<void> _export() async {
+    final consent = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Export trip ledger?'),
+        content: const Text(
+          'The JSON download includes members, expense notes, payments and change history. '
+          'It stays in your chosen folder after logout. Keep it private.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Export'),
+          ),
+        ],
+      ),
+    );
+    if (consent != true || !mounted || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final ledger = await controller.api.exportGroup(widget.group.id);
+      if (!mounted) return;
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Save trip ledger',
+        fileName: 'blistra-trip-${widget.group.id}.json',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        bytes: Uint8List.fromList(
+          utf8.encode(const JsonEncoder.withIndent('  ').convert(ledger)),
+        ),
+      );
+    } catch (e) {
+      if (mounted) setState(() => _error = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -281,16 +336,82 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     }
   }
 
+  Future<void> _moreLedger({required bool payments}) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      if (payments) {
+        final rows = await controller.api.groupPayments(
+          widget.group.id,
+          page: _paymentPage + 1,
+        );
+        if (!mounted) return;
+        setState(() {
+          final ids = _payments.map((s) => s.id).toSet();
+          _payments.addAll(rows.where((s) => ids.add(s.id)));
+          _paymentPage++;
+          _morePayments = rows.length == 200;
+        });
+      } else {
+        final rows = await controller.api.history(
+          groupId: widget.group.id,
+          page: _historyPage + 1,
+        );
+        if (!mounted) return;
+        setState(() {
+          final ids = _history.map((h) => h['id']).toSet();
+          _history.addAll(rows.where((h) => ids.add(h['id'])));
+          _historyPage++;
+          _moreHistory = rows.length == 100;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final detail = _detail, me = controller.me?.id;
     final owner = detail?.group.ownerId == me;
+    final archived = detail?.group.archived ?? false;
     final names = {
       for (final m in detail?.members ?? <TripMember>[])
         m.user.id: m.user.displayName,
     };
     return Scaffold(
-      appBar: AppBar(title: Text(detail?.group.name ?? widget.group.name)),
+      appBar: AppBar(
+        title: Text(detail?.group.name ?? widget.group.name),
+        actions: [
+          if (detail != null)
+            PopupMenuButton<String>(
+              enabled: !_busy,
+              onSelected: (action) {
+                if (action == 'export') {
+                  _export();
+                } else {
+                  _run(
+                    () =>
+                        controller.api.archiveGroup(widget.group.id, !archived),
+                  );
+                }
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: 'export',
+                  child: Text('Export ledger (JSON)'),
+                ),
+                if (owner)
+                  PopupMenuItem(
+                    value: 'archive',
+                    child: Text(archived ? 'Reopen trip' : 'Archive trip'),
+                  ),
+              ],
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -309,13 +430,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 spacing: 8,
                 children: [
                   FilledButton.icon(
-                    onPressed: _busy ? null : _expense,
+                    onPressed: _busy || archived ? null : _expense,
                     icon: const Icon(Icons.add),
                     label: const Text('Add expense'),
                   ),
                   if (owner)
                     OutlinedButton(
-                      onPressed: _busy ? null : _invite,
+                      onPressed: _busy || archived ? null : _invite,
                       child: const Text('Invite member'),
                     ),
                   if (!owner)
@@ -326,6 +447,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 ],
               ),
               const SectionLabel('Group balances'),
+              if (archived)
+                const ListTile(
+                  leading: Icon(Icons.inventory_2_outlined),
+                  title: Text('Archived trip'),
+                  subtitle: Text(
+                    'The ledger is preserved. Pending payments can still be confirmed or rejected. The owner can reopen this trip.',
+                  ),
+                ),
               const Text(
                 'Positive: owed to this person. Negative: this person owes the group. Currencies stay separate.',
               ),
@@ -359,10 +488,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             }
                           },
                           itemBuilder: (_) => [
-                            const PopupMenuItem(
-                              value: 'pay',
-                              child: Text('Record payment'),
-                            ),
+                            if (!archived)
+                              const PopupMenuItem(
+                                value: 'pay',
+                                child: Text('Record payment'),
+                              ),
                             if (owner)
                               const PopupMenuItem(
                                 value: 'owner',
@@ -395,7 +525,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   onPressed: _busy ? null : _more,
                   child: const Text('Load more expenses'),
                 ),
-              const SectionLabel('Payments (latest 200)'),
+              const SectionLabel('Payments'),
               const Text(
                 'Recorded payments change balances only after the other participant confirms.',
               ),
@@ -413,8 +543,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         )
                       : null,
                 ),
-              const SectionLabel('Change history (latest 100)'),
-              FinanceHistoryList(entries: _history, meId: me),
+              if (_morePayments)
+                TextButton(
+                  onPressed: _busy ? null : () => _moreLedger(payments: true),
+                  child: const Text('Load more payments'),
+                ),
+              const SectionLabel('Change history'),
+              FinanceHistoryList(entries: _history, meId: me, names: names),
+              if (_moreHistory)
+                TextButton(
+                  onPressed: _busy ? null : () => _moreLedger(payments: false),
+                  child: const Text('Load more changes'),
+                ),
             ],
           ],
         ),
@@ -424,23 +564,92 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 }
 
 class FinanceHistoryList extends StatelessWidget {
-  const FinanceHistoryList({super.key, required this.entries, this.meId});
+  const FinanceHistoryList({
+    super.key,
+    required this.entries,
+    this.meId,
+    this.names = const {},
+  });
   final List<Map<String, dynamic>> entries;
   final String? meId;
+  final Map<String, String> names;
+
+  Map<String, dynamic>? _state(dynamic value) {
+    if (value == null) return null;
+    try {
+      return (value is String ? jsonDecode(value) : value)
+          as Map<String, dynamic>;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  String _amountSummary(Map<String, dynamic> entry) {
+    final before = entry['beforeAmount'];
+    final after = entry['afterAmount'];
+    final oldCurrency =
+        _state(entry['beforeState'])?['currency'] ?? entry['currency'];
+    final newCurrency =
+        _state(entry['afterState'])?['currency'] ?? entry['currency'];
+    return '${before == null ? '' : '$oldCurrency $before → '}'
+        '${after == null ? 'removed' : '$newCurrency $after'}';
+  }
+
+  String _name(dynamic id) => id == meId
+      ? 'You'
+      : names[id] ??
+            'Participant ${id.toString().substring(0, id.toString().length.clamp(0, 8))}';
+
+  Widget _snapshot(String label, Map<String, dynamic>? state) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        if (state == null)
+          const Text('No record')
+        else ...[
+          Text('${state['currency']} ${state['amount']}'),
+          if (state['spentOn'] != null) Text('Date: ${state['spentOn']}'),
+          if (state['paidBy'] != null)
+            Text('Paid by: ${_name(state['paidBy'])}'),
+          if (state['splitType'] != null) Text('Split: ${state['splitType']}'),
+          if (state['payerId'] != null)
+            Text('${_name(state['payerId'])} paid ${_name(state['payeeId'])}'),
+          if (state['status'] != null) Text('Status: ${state['status']}'),
+          for (final share in state['shares'] as List? ?? const [])
+            Text(
+              '${_name(share['userId'])}: ${state['currency']} ${share['amount']}',
+            ),
+        ],
+      ],
+    ),
+  );
   @override
   Widget build(BuildContext context) => Column(
     children: [
       if (entries.isEmpty)
         const ListTile(title: Text('No changes recorded yet.')),
       for (final h in entries)
-        ListTile(
+        ExpansionTile(
           title: Text('${h['entityType']} · ${h['action']}'),
           subtitle: Text(
-            '${h['actorId'] == meId ? 'You' : 'Participant'} · ${h['recordedAt']}',
+            '${h['actorId'] == meId ? 'You' : h['actorName'] ?? 'Participant'} · ${h['recordedAt']}\n'
+            '${_amountSummary(h)}',
           ),
-          trailing: Text(
-            '${h['currency']} ${h['beforeAmount'] == null ? '' : '${h['beforeAmount']} → '}${h['afterAmount'] ?? 'removed'}',
-          ),
+          children: [
+            if (h['beforeState'] == null && h['afterState'] == null)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Split details were not recorded for this older change.',
+                ),
+              )
+            else ...[
+              _snapshot('Before', _state(h['beforeState'])),
+              _snapshot('After', _state(h['afterState'])),
+            ],
+          ],
         ),
     ],
   );

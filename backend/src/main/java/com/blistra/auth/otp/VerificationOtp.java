@@ -51,6 +51,12 @@ public class VerificationOtp {
     @Column(nullable = false)
     private boolean consumed;
 
+    @Column(nullable = false)
+    private boolean delivered = true;
+
+    public boolean isDelivered() { return delivered; }
+    public void setDelivered(boolean delivered) { this.delivered = delivered; }
+
     @Column(name = "consumed_at")
     private LocalDateTime consumedAt;
 

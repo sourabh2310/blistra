@@ -32,6 +32,8 @@ public class SecurityConfig {
     private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     @Autowired
     private com.blistra.auth.security.AuthRateLimiter authRateLimiter;
+    @Autowired private com.blistra.auth.security.TrustedClientAddress clientAddresses;
+    @Value("${blistra.security.rate-limit.global-maximum:1000}") private int globalAuthMaximum;
 
     /**
      * Origin patterns allowed to call the API from a browser (Flutter web).
@@ -89,6 +91,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/availability").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/app/latest").permitAll()
                         .requestMatchers(HttpMethod.GET, "/health").permitAll()
+                        // Separate operator token is checked by the controller;
+                        // a normal user JWT never grants metrics access.
+                        .requestMatchers(HttpMethod.GET, "/internal/metrics").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health/readiness", "/actuator/health/liveness").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
@@ -97,7 +102,7 @@ public class SecurityConfig {
                 );
 
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-        http.addFilterBefore(new com.blistra.auth.security.AuthRateLimitFilter(authRateLimiter), JwtAuthenticationFilter.class);
+        http.addFilterBefore(new com.blistra.auth.security.AuthRateLimitFilter(authRateLimiter,clientAddresses,globalAuthMaximum), JwtAuthenticationFilter.class);
 
         return http.build();
     }

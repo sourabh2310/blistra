@@ -12,6 +12,12 @@ import java.time.LocalDateTime;
 
 @RestControllerAdvice
 public class DocumentsExceptionHandler {
+    @ExceptionHandler(com.blistra.documents.storage.StorageCapacityException.class)
+    public ResponseEntity<ApiErrorResponse> handleStorageCapacity(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiErrorResponse.builder()
+            .timestamp(LocalDateTime.now()).status(503).code("STORAGE_CAPACITY")
+            .message("Upload storage is at capacity. Please try again later.").path(request.getServletPath()).build());
+    }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiErrorResponse> handleMaxUploadSizeExceeded(

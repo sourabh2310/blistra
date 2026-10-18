@@ -127,8 +127,7 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _pinned.length,
-                  onReorder: (oldIndex, newIndex) {
-                    final targetIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+                  onReorderItem: (oldIndex, targetIndex) {
                     final moving = _pinned[oldIndex];
                     final target = _pinned[targetIndex];
                     if (moving == ShellDestinations.home ||

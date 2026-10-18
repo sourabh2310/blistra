@@ -532,8 +532,10 @@ class TripGroup {
     required this.currency,
     required this.ownerId,
     required this.membership,
+    this.archived = false,
   });
   final String id, name, currency, ownerId, membership;
+  final bool archived;
   bool get invited => membership == 'INVITED';
   factory TripGroup.fromJson(Map<String, dynamic> j) => TripGroup(
     id: _str(j['id']),
@@ -541,6 +543,7 @@ class TripGroup {
     currency: _str(j['currency']),
     ownerId: _str(j['ownerId']),
     membership: _str(j['membership']),
+    archived: j['archived'] == true,
   );
 }
 
