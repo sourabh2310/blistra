@@ -15,7 +15,7 @@ It brings together:
 - Documents
 - Notifications
 
-Goals and AI-assisted workflows remain planned capabilities.
+Blistra AI provides in-app help, planning suggestions and optional daily-count summaries. See [AI setup and behavior](docs/blistra-ai.md). Goals remains planned.
 
 The goal is to provide one coherent personal system rather than a collection of disconnected utilities.
 
@@ -45,7 +45,7 @@ The initial V1 focuses on:
 6. Habits
 7. Finance
 
-Documents, Notifications and Profile are also implemented. Goals and richer AI functionality are future scope.
+Documents, Notifications, Profile and Blistra AI chat are also implemented. Goals and AI record-changing workflows remain future scope.
 
 ---
 
@@ -320,7 +320,7 @@ See:
 
 AI is intended to be an assistant layer rather than an unrestricted system interface.
 
-Future AI capabilities may include:
+Blistra AI supports:
 
 - Explanation
 - Summarization

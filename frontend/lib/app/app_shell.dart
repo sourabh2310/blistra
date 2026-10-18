@@ -46,6 +46,8 @@ import '../features/planner/screens/planner_search_detail_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/search/screens/search_screen.dart';
 import '../features/search/search_api.dart';
+import '../features/ai/ai_api.dart';
+import '../features/ai/ai_screen.dart';
 import 'app_dependencies.dart';
 
 class AppShell extends StatefulWidget {
@@ -184,6 +186,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     if (selected < 0) selected = 0;
     if (wide) {
       return Scaffold(
+        floatingActionButton: _aiButton(),
         body: Row(
           children: [
             NavigationRail(
@@ -216,6 +219,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       );
     }
     return Scaffold(
+      floatingActionButton: _aiButton(),
       extendBody: false,
       body: IndexedStack(index: selected, children: pages),
       bottomNavigationBar: _BlistraBottomBar(
@@ -489,6 +493,20 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       ),
     );
   }
+
+  Widget _aiButton() => FloatingActionButton.small(
+    heroTag: 'blistra-ai',
+    tooltip: 'Blistra AI',
+    onPressed: () {
+      final api = AiApi(context.read<ApiClient>());
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AiScreen(api: api, authState: _d.authState),
+        ),
+      );
+    },
+    child: const Icon(Icons.auto_awesome),
+  );
 
   void _openSearch() {
     final apiClient = context.read<ApiClient>();
