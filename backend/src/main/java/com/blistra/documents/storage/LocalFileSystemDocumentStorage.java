@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 @Service
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="blistra.documents.backend",havingValue="filesystem",matchIfMissing=true)
 public class LocalFileSystemDocumentStorage implements DocumentStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(LocalFileSystemDocumentStorage.class);

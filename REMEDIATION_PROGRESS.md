@@ -2,7 +2,7 @@
 
 Updated: 2026-10-18. Source: `APPLICATION_REVIEW_2026-10-17.md` (preserved as the original review).
 
-The user authorized implementation after the initial read-only review, required the other participant to confirm settlements, and requested multi-person trip groups. The first pass was merged into `develop` in PR #20 with all three hosted CI jobs passing. The follow-up described here adds the remaining engineering work on `codex/remaining-review-remediation`. No production deployment, hosting purchase, release publication, or database migration against live data has been performed. India is the intended operating country; operator identity and support contact remain undecided. Backup retention is a documented proposal, not an active promise.
+The user authorized implementation after the initial read-only review, required the other participant to confirm settlements, and requested multi-person trip groups. The first pass was merged into `develop` in PR #20 with all three hosted CI jobs passing. PR #21 merged the follow-up engineering changes. Its Render deployment failed at the persistent-volume guard; the current correction uses the owner-confirmed Neon database on Render Free. No production deployment, hosting purchase, release publication, or database migration against live data has been performed. India is the intended operating country; operator identity and support contact remain undecided. Backup retention is a documented proposal, not an active promise.
 
 ## Implemented product behavior
 
@@ -21,7 +21,7 @@ The user authorized implementation after the initial read-only review, required 
 
 | Finding | Status | Changes and remaining work |
 |---|---|---|
-| F01 Durable file storage | Partial; rollout required | Render blueprint mounts a persistent volume; container refuses a missing volume and runs Java without root privileges. Copy existing files before replacing the old service. Volume + database backup/restore drill remains required. |
+| F01 Durable file storage | Partial; rollout required | Render Free now uses the existing Neon database for document/avatar bytes (V118), with no paid disk. Metadata and bytes commit together. The optional filesystem backend retains its mount guard. Preserve historic bytes and test a database restore; lost temporary files need restoration/re-upload. |
 | F02 Document preview provider | Implemented | Detail uses the DocumentsProvider registered by the app, including download/open. Device file-opening validation remains. |
 | F03 Failed upload shown as success | Implemented | Null/failed upload retains the form and selected file and displays an error. |
 | F04 Optional phone onboarding | Implemented | Backend requires phone verification only when SMS is configured; frontend defaults to email verification. Configure both together if SMS is enabled. |
@@ -36,7 +36,7 @@ The user authorized implementation after the initial read-only review, required 
 | F13 Plaintext credentials | Implemented | Removes legacy plaintext preferences; secure-storage failure keeps an in-memory session. A non-secret logout marker prevents restoring a secure token after failed erasure. |
 | F14 OTP delivery/transactions | Implemented; rollout requires delivery key | Production issuance atomically queues AES-GCM ciphertext with the OTP. Short-transaction worker claims recoverable leases, sends outside the database transaction, retries the same code at most five times, preserves prior delivered codes on failure, and purges completed/expired/exhausted payloads. Successful use cancels queued replacements. At-least-once delivery can resend the same code after a crash. Configure the separate delivery key before deployment. Dev console mode retains synchronous delivery. |
 | F15 Concurrent writes | Implemented targeted fixes; load testing remains | OTP verification joins the caller transaction, commits wrong-attempt counters and atomically consumes successful codes with account changes. Two-connection saturation, stale session-version and worker races are covered. Avatar/profile writes serialize on the user, unrelated user updates preserve changed database columns, and shared storage capacity checks serialize across instances. Broader financial/account lifecycle load testing on the intended host remains. |
-| F16 Storage commit windows | Implemented and integration-tested | Rollback removes new uploads; deletion waits for commit; durable retry queue survives failures. Filesystem upload markers reconcile interrupted uploads after a 24-hour grace period. Cleanup avoids borrowing a second connection while the upload transaction holds one. |
+| F16 Storage commit windows | Implemented and integration-tested | PostgreSQL bytes and metadata share one transaction, including deletion and rollback. Optional filesystem mode removes rolled-back uploads, queues deletions after commit, and reconciles interrupted uploads after a 24-hour grace period without borrowing a nested connection. |
 | F17 Physical erasure | Partial | Durable deletion retries and orphan reconciliation; personal history removed; shared records anonymized and disclosed. Define backup retention, operator access and deletion service levels, and verify provider behavior. |
 | F18 Timezone semantics | Partial | Backend profile IANA boundaries and DST tests; Android now reads the native region identifier at startup/resume instead of inferring it from an offset. Saving a profile zone immediately refreshes reminders/dashboard/planner. Native-zone/travel fallback tests added. Other platforms retain labelled estimates; physical travel tests and remaining device-local date defaults need validation. |
 | F19 Money precision | Implemented | Displays exact sub-cent debt instead of making it appear zero; finance entry accepts up to four decimal places so those debts can be settled. Regression tests include positive/negative fractions and carry boundaries. |
@@ -45,12 +45,20 @@ The user authorized implementation after the initial read-only review, required 
 | F22 Signing/release channel | Implemented configuration | Release signing fails without the real key. APK publication only from main; develop/PRs run verification. No key generated or live release published. Configure repository protections externally. |
 | F23 CI gates | Implemented; first-pass hosted CI passed | PR #20 passed backend, frontend and disposable API/Flutter contract jobs. Follow-up also makes Flutter analysis strict and adds dependency inventories. Follow-up hosted results are recorded below when complete; branch protection remains an operator setting. |
 | F24 Release environment | Implemented | Release requires an explicit HTTPS API origin; CI validates origin and requires support email. No production URL/inbox has been invented. |
-| F25 Readiness/observability | Implemented instrumentation; rollout pending | Readiness plus an opt-in operator-token Prometheus endpoint, HTTP latency/error histograms, storage budget/free bytes, queue counts/age/attempts, sampler freshness and OTP delivery/exhaustion counters. Example alert rules and incident steps added. Provision a collector, choose an alert owner/contact, validate thresholds and perform a staging drill. |
+| F25 Readiness/observability | Implemented instrumentation; rollout pending | Readiness plus an opt-in operator-token Prometheus endpoint, HTTP latency/error histograms, backend-specific storage budget/usage (free-volume bytes for filesystem mode), queue counts/age/attempts, sampler freshness and OTP delivery/exhaustion counters. Example alert rules and incident steps added. Provision a collector, choose an alert owner/contact, validate thresholds and perform a staging drill. |
 | F26 Platform/localization | Partial | iOS display name corrected, Apple notification permissions wired, unsupported-platform permission result explicit. UI discloses English/metric limitations and removes unimplemented choices. Android is the current release target; other platform builds/device tests remain. |
-| F27 Upload controls | Partial | Per-user quotas, 10-MiB per-document limit, shared 800-MiB default storage budget and 50-MiB volume reserve. Concurrent global capacity check covered. Isolated malware/content inspection, robust PDF/image decoding and image downsampling remain. MIME/signature checks do not provide antivirus protection. |
+| F27 Upload controls | Partial | Per-user quotas, 10-MiB per-document limit, shared 64-MiB database upload budget; optional filesystem mode has an 800-MiB budget and 50-MiB reserve. Concurrent global capacity check covered. Isolated malware/content inspection, robust PDF/image decoding and image downsampling remain. MIME/signature checks do not provide antivirus protection. |
 | F28 Documentation/support/dependencies | Implemented maintenance foundations; ownership pending | Official action releases pinned to commit SHAs, Ubuntu runner fixed, weekly dependency update configuration, packaged CycloneDX SBOM, Flutter inventory and operations/backup/alert guidance. Advisory triage and support/on-call ownership remain ongoing responsibilities. |
 
 ## Validation record
+
+### Render Free correction, 2026-10-18
+
+- Owner confirmed Render Free and Neon. Replaced the required paid disk with bounded PostgreSQL binary storage. The filesystem backend remains optional and guarded.
+- Updated deployment, capacity, metrics and backup instructions for the selected backend. V118 does not reconstruct historic missing files.
+- Full backend `mvnw verify`: **587 tests across 74 suites passed**, zero failures/errors/skips. Storage coverage includes concurrent budget enforcement, transaction rollback, cross-account denial and document/avatar account deletion.
+- Final production-mode Docker image reached readiness without any volume, ran Java as UID 999, and returned identical previously uploaded bytes after container replacement. A 10-MiB upload/download matched SHA-256 under a local 512-MiB container memory limit. Optional filesystem mode still rejected an absent mount. These are isolated local checks, not live Neon/Render verification.
+- Hosted CI additionally exercises the real Flutter API contract with PostgreSQL storage; results are recorded on the repair pull request.
 
 ### Follow-up, 2026-10-18
 
@@ -75,8 +83,8 @@ The user authorized implementation after the initial read-only review, required 
 
 ## Release sequence and remaining decisions
 
-1. Review the recorded verification results, complete diff and migrations V109–V117.
-2. Review the costed persistent-storage blueprint. Preserve existing files and create a matched database/file backup before any restart or deployment. Follow `docs/deployment.md`.
+1. Review the recorded verification results, complete diff and migrations V109–V118.
+2. Use the existing Neon database with the Render Free PostgreSQL storage backend. Preserve available historic files and back up the database before rollout. Follow `docs/deployment.md`.
 3. Configure production mail, support contact, exact browser CORS origins, JWT/OTP secrets and stable signing secrets. Test proxy rate limits under the actual hosting topology.
 4. Owner approves policies, operating identity, operational retention/access rules and incident/support responsibilities. India is confirmed; a 14-day daily-backup retention and monthly restore exercise are proposals in `docs/operations.md`. Do not assert a compliance certification from these code changes.
 5. Run a small Android pilot with at least three people, two overlapping trip groups, multiple currencies, rejected/confirmed payments, travel timezone changes, logout/account switching, and reboot/permission-denied reminder scenarios.
