@@ -228,7 +228,7 @@ public class AuthService {
                 .build();
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = OtpVerificationException.class)
     public UserResponse verifyEmail(UUID userId, String code) {
         User user = requireUser(userId);
         VerificationOtp otp = verificationService.verify(userId, OtpPurpose.EMAIL_VERIFY, code);
@@ -243,7 +243,7 @@ public class AuthService {
         return mapToUserResponse(user, null);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = OtpVerificationException.class)
     public UserResponse verifyPhone(UUID userId, String code) {
         User user = requireUser(userId);
         if (user.getPhone() == null) {
@@ -350,7 +350,7 @@ public class AuthService {
         }
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = OtpVerificationException.class)
     public void resetPassword(String identifier, String code, String newPassword, String confirmPassword) {
         if (!newPassword.equals(confirmPassword)) {
             throw new BadRequestException("Passwords do not match.");
@@ -370,7 +370,7 @@ public class AuthService {
 
     @Transactional
     public UserResponse changePassword(UUID userId, String currentPassword, String newPassword) {
-        User user = requireUser(userId);
+        User user = userRepository.lockById(userId).orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             throw new InvalidCredentialsException("Invalid email or password");
         }

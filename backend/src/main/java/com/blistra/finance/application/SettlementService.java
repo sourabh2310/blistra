@@ -104,6 +104,10 @@ public class SettlementService {
         if (!settlement.getCreatedBy().equals(me)) {
             throw new BadRequestException("Only the person who recorded this payment can delete it");
         }
+        if (settlement.getGroupId()!=null) {
+            groups.requireMember(settlement.getGroupId(),me);
+            groups.requireWritable(settlement.getGroupId());
+        }
         if (java.util.Set.of("CONFIRMED","LEGACY_RECORDED").contains(settlement.getStatus())) {
             throw new BadRequestException("Confirmed payments cannot be deleted. Record a correcting payment for confirmation.");
         }
@@ -138,10 +142,14 @@ public class SettlementService {
     }
 
     public List<SettlementResponse> groupList(UUID groupId) {
+        return groupList(groupId,0,200);
+    }
+    public List<SettlementResponse> groupList(UUID groupId,int page,int size) {
         UUID me=currentUserProvider.getCurrentUser().getId();
         groups.requireMember(groupId,me);
         return toResponses(settlementRepository.findByGroupIdOrderByCreatedAtDesc(groupId,
-                org.springframework.data.domain.PageRequest.of(0,200)).getContent(),me);
+                org.springframework.data.domain.PageRequest.of(Math.max(0,page),Math.min(200,Math.max(1,size)),
+                    Sort.by(Sort.Direction.DESC,"id"))).getContent(),me);
     }
 
     /** Balance, shared expenses and repayments with one person. */
@@ -165,6 +173,8 @@ public class SettlementService {
     }
 
     private List<SettlementResponse> toResponses(List<Settlement> settlements, UUID me) {
+        var writableGroups=groups.writableGroupIds(settlements.stream().map(Settlement::getGroupId)
+            .filter(java.util.Objects::nonNull).toList(),me);
         Set<UUID> ids = new HashSet<>();
         settlements.forEach(s -> {
             ids.add(s.getPayerId());
@@ -175,7 +185,8 @@ public class SettlementService {
                 .map(s -> new SettlementResponse(s.getId(), FinanceUsers.of(users, s.getPayerId()),
                         FinanceUsers.of(users, s.getPayeeId()), Money.toPlainString(s.getAmount()),
                         s.getCurrency(), s.getSettledOn(), s.getNote(),
-                        s.getCreatedBy().equals(me) && java.util.Set.of("PENDING","REJECTED").contains(s.getStatus()),
+                        s.getCreatedBy().equals(me) && java.util.Set.of("PENDING","REJECTED").contains(s.getStatus())
+                            && (s.getGroupId()==null || writableGroups.contains(s.getGroupId())),
                         s.getCreatedAt(), s.getStatus(),
                         s.involves(me) && !s.getCreatedBy().equals(me) && "PENDING".equals(s.getStatus()),s.getGroupId()))
                 .toList();

@@ -20,6 +20,8 @@ public class FinanceGroupController {
     private final ExpenseService expenses;
     private final ExpenseRepository repository;
     private final CurrentUserProvider current;
+    @org.springframework.beans.factory.annotation.Autowired
+    private FinanceGroupExportService export;
     public FinanceGroupController(FinanceGroupService groups, ExpenseService expenses,
             ExpenseRepository repository, CurrentUserProvider current) {
         this.groups=groups; this.expenses=expenses; this.repository=repository; this.current=current;
@@ -27,6 +29,7 @@ public class FinanceGroupController {
     public record Create(@NotBlank @Size(max=120) String name, @Pattern(regexp="[A-Z]{3}") @NotNull String currency) {}
     public record Invite(@NotBlank @Size(max=30) String username) {}
     public record Transfer(@NotNull UUID userId) {}
+    public record Archive(boolean archived) {}
     @GetMapping public List<FinanceGroupService.Group> list() { return groups.list(); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     public FinanceGroupService.Group create(@Valid @RequestBody Create body) { return groups.create(body.name(),body.currency()); }
@@ -39,6 +42,14 @@ public class FinanceGroupController {
     public void leave(@PathVariable UUID id) { groups.leave(id); }
     @PostMapping("/{id}/owner") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void transfer(@PathVariable UUID id,@Valid @RequestBody Transfer body) { groups.transfer(id,body.userId()); }
+    @PostMapping("/{id}/archive") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void archive(@PathVariable UUID id,@RequestBody Archive body) { groups.archive(id,body.archived()); }
+    @GetMapping("/{id}/export")
+    public org.springframework.http.ResponseEntity<Map<String,Object>> export(@PathVariable UUID id) {
+        return org.springframework.http.ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore())
+            .header("Content-Disposition","attachment; filename=\"blistra-trip-"+id+".json\"")
+            .body(export.export(id));
+    }
     @GetMapping("/{id}/expenses") @Transactional(readOnly=true)
     public PageResponse<ExpenseResponse> expenses(@PathVariable UUID id,
             @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="50") int size) {

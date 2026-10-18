@@ -24,6 +24,7 @@ frontend/.flutter-plugins
 frontend/.flutter-plugins-dependencies
 frontend/.packages
 frontend/build/
+frontend/dependency-inventory.json
 frontend/.pub-cache/
 frontend/android/.gradle/
 frontend/android/local.properties

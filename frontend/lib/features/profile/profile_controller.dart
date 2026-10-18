@@ -12,7 +12,9 @@ import '../../core/api/api_client.dart';
 import '../../core/api/api_exception.dart';
 
 class ProfileController extends ChangeNotifier {
-  ProfileController(this._client);
+  ProfileController(this._client, {this.onTimezoneChanged});
+
+  final Future<void> Function()? onTimezoneChanged;
 
   final ApiClient _client;
 
@@ -33,7 +35,8 @@ class ProfileController extends ChangeNotifier {
 
   /// Photo bytes for the current profile, or null when there is none (or it
   /// is still downloading).
-  Uint8List? get avatarBytes => _profile?.hasAvatar == true ? _avatarBytes : null;
+  Uint8List? get avatarBytes =>
+      _profile?.hasAvatar == true ? _avatarBytes : null;
 
   /// Drops everything cached for the previous user when the signed-in
   /// account changes, so the next user never sees someone else's profile,
@@ -89,9 +92,25 @@ class ProfileController extends ChangeNotifier {
     }
   }
 
-  Future<bool> save(Map<String, Object?> fields) =>
-      _run(() async => _profile = await _client.updateProfile(fields),
-          'Could not save your profile.');
+  Future<bool> save(Map<String, Object?> fields) async {
+    final before = _profile?.timezone;
+    final saved = await _run(
+      () async => _profile = await _client.updateProfile(fields),
+      'Could not save your profile.',
+    );
+    if (saved &&
+        fields.containsKey('timezone') &&
+        before != _profile?.timezone) {
+      try {
+        await onTimezoneChanged?.call();
+      } catch (_) {
+        _error =
+            'Timezone saved. Open the app again to retry refreshing reminders.';
+        notifyListeners();
+      }
+    }
+    return saved;
+  }
 
   Future<bool> uploadAvatar(List<int> bytes, String filename) async {
     _photoBusy = true;
@@ -120,49 +139,51 @@ class ProfileController extends ChangeNotifier {
     return ok;
   }
 
-  Future<bool> completeOnboarding() =>
-      _run(() async => _profile = await _client.completeOnboarding(),
-          'Could not complete onboarding.');
+  Future<bool> completeOnboarding() => _run(
+    () async => _profile = await _client.completeOnboarding(),
+    'Could not complete onboarding.',
+  );
 
   Future<bool> changeIdentity({
     required String currentPassword,
     String? username,
     String? email,
     String? phone,
-  }) =>
-      _run(
-        () async => _profile = await _client.updateIdentity(
-          currentPassword: currentPassword,
-          username: username,
-          email: email,
-          phone: phone,
-        ),
-        'Could not update sign-in details.',
-      );
+  }) => _run(
+    () async => _profile = await _client.updateIdentity(
+      currentPassword: currentPassword,
+      username: username,
+      email: email,
+      phone: phone,
+    ),
+    'Could not update sign-in details.',
+  );
 
-  Future<bool> confirmIdentity({required String code, String channel = 'EMAIL'}) =>
-      _run(
-        () async => _profile =
-            await _client.confirmIdentity(code: code, channel: channel),
-        'Could not confirm the change.',
-      );
+  Future<bool> confirmIdentity({
+    required String code,
+    String channel = 'EMAIL',
+  }) => _run(
+    () async =>
+        _profile = await _client.confirmIdentity(code: code, channel: channel),
+    'Could not confirm the change.',
+  );
 
   Future<bool> changePassword({
     required String currentPassword,
     required String newPassword,
-  }) =>
-      _run(
-        () => _client.changePassword(
-          currentPassword: currentPassword,
-          newPassword: newPassword,
-        ),
-        'Could not change your password.',
-      );
+  }) => _run(
+    () => _client.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    ),
+    'Could not change your password.',
+  );
 
   /// Permanently deletes the account. The caller signs out on success.
-  Future<bool> deleteAccount({required String currentPassword}) =>
-      _run(() => _client.deleteAccount(currentPassword: currentPassword),
-          'Could not delete your account.');
+  Future<bool> deleteAccount({required String currentPassword}) => _run(
+    () => _client.deleteAccount(currentPassword: currentPassword),
+    'Could not delete your account.',
+  );
 
   Future<bool> _run(Future<void> Function() action, String fallback) async {
     _saving = true;
@@ -175,8 +196,8 @@ class ProfileController extends ChangeNotifier {
       _error = e.fieldErrors.isNotEmpty
           ? e.fieldErrors.values.first
           : e.message == 'Request validation failed'
-              ? 'We couldn\'t save your details. Please try again.'
-              : e.message;
+          ? 'We couldn\'t save your details. Please try again.'
+          : e.message;
       return false;
     } catch (_) {
       _error = fallback;

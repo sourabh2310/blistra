@@ -930,6 +930,7 @@ class _DoseAction extends StatelessWidget {
                 final ok = await today.takeDose(dose);
                 if (!context.mounted) return;
                 if (ok) await refreshHomeDashboard(context);
+                if (!context.mounted) return;
                 if (!ok && today.recordError != null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(today.recordError.toString())),

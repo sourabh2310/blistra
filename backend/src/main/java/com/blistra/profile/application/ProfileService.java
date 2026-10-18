@@ -67,6 +67,7 @@ public class ProfileService {
     @Transactional
     public ProfileResponse update(ProfileRequest request) {
         User user = currentUserProvider.getCurrentUser();
+        userRepository.lockById(user.getId()).orElseThrow(() -> new com.blistra.common.exception.ResourceNotFoundException("Account not found"));
         UserProfile profile = profileFor(user.getId());
         if (request.getDisplayName() != null) {
             String name = request.getDisplayName().trim();
@@ -189,7 +190,7 @@ public class ProfileService {
      *
      * @param channel EMAIL confirms the pending email, SMS/PHONE the pending phone
      */
-    @Transactional
+    @Transactional(noRollbackFor = com.blistra.common.exception.OtpVerificationException.class)
     public ProfileResponse confirmIdentity(String code, String channel) {
         User user = currentUserProvider.getCurrentUser();
         boolean email = channel == null || channel.equalsIgnoreCase("EMAIL");

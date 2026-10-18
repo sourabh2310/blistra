@@ -29,6 +29,8 @@ services:
         generateValue: true
       - key: BLISTRA_OTP_PEPPER
         generateValue: true
+      - key: BLISTRA_OTP_DELIVERY_KEY
+        sync: false            # base64-encoded 32 random bytes; preserve across restarts
       - key: MAIL_ENABLED
         value: "true"
       - key: MAIL_PORT

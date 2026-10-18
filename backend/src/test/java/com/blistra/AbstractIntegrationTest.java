@@ -34,6 +34,8 @@ public abstract class AbstractIntegrationTest {
         // Exercise workers explicitly in lifecycle tests, never across contexts.
         registry.add("blistra.documents.cleanup-initial-delay-ms", () -> "86400000");
         registry.add("blistra.documents.reconcile-initial-delay-ms", () -> "86400000");
+        registry.add("blistra.otp.delivery-initial-delay-ms", () -> "86400000");
+        registry.add("blistra.monitoring.sample-initial-delay-ms", () -> "86400000");
         // Test-only JWT secret (>= 32 bytes). Production must supply JWT_SECRET
         // via the environment; the application fails startup without it.
         // Never call GitHub from tests; the update check answers 204.

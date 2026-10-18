@@ -10,13 +10,18 @@ import java.io.IOException;
 
 public class AuthRateLimitFilter extends OncePerRequestFilter {
     private final AuthRateLimiter limiter;
-    public AuthRateLimitFilter(AuthRateLimiter limiter) { this.limiter = limiter; }
+    private final TrustedClientAddress addresses;
+    private final int globalMaximum;
+    public AuthRateLimitFilter(AuthRateLimiter limiter,TrustedClientAddress addresses,int globalMaximum) {
+        this.limiter = limiter; this.addresses=addresses;
+        this.globalMaximum=Math.min(1000000,Math.max(1,globalMaximum));
+    }
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
             FilterChain chain) throws ServletException, IOException {
         if (request.getRequestURI().startsWith("/api/v1/auth/") && !"OPTIONS".equals(request.getMethod())) {
             try {
-                // Forwarding headers must only be interpreted by a trusted proxy configuration.
-                limiter.attempt("auth-source", request.getRemoteAddr(), 100);
+                limiter.attempt("auth-global", "all", globalMaximum);
+                limiter.attempt("auth-source", addresses.resolve(request), 100);
             } catch (TooManyRequestsException e) {
                 response.setStatus(429);
                 response.setContentType("application/json");

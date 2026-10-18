@@ -29,7 +29,7 @@ The repository contains Flutter screens and a Spring Boot/PostgreSQL API for das
 
 Android is the current release target. Other platform folders do not imply verified release support. The interface and measurement inputs currently use English and metric units. Local reminders use a rolling scheduling window and require periodic app refresh.
 
-The product is **not yet release-ready**. See [remediation progress](REMEDIATION_PROGRESS.md) for exact changes, validation and remaining work, and [deployment guidance](docs/deployment.md) before applying any infrastructure changes. The [original application review](APPLICATION_REVIEW_2026-10-17.md) is a historical snapshot.
+The product is **not yet release-ready**. See [remediation progress](REMEDIATION_PROGRESS.md) for exact changes, validation and remaining work, [deployment guidance](docs/deployment.md) before applying infrastructure changes, and [pilot operations](docs/operations.md) for backup, monitoring and owner decisions. The [original application review](APPLICATION_REVIEW_2026-10-17.md) is a historical snapshot.
 
 ---
 

@@ -14,7 +14,7 @@ import java.util.UUID;
 public interface VerificationOtpRepository extends JpaRepository<VerificationOtp, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<VerificationOtp> findFirstByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(
+    Optional<VerificationOtp> findFirstByUserIdAndPurposeAndConsumedFalseAndDeliveredTrueOrderByCreatedAtDesc(
             UUID userId, OtpPurpose purpose);
 
     List<VerificationOtp> findByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(
@@ -23,6 +23,7 @@ public interface VerificationOtpRepository extends JpaRepository<VerificationOtp
     default Optional<VerificationOtp> findLatestActive(UUID userId, OtpPurpose purpose) {
         return findByUserIdAndPurposeAndConsumedFalseOrderByCreatedAtDesc(userId, purpose)
                 .stream()
+                .filter(VerificationOtp::isDelivered)
                 .findFirst();
     }
 

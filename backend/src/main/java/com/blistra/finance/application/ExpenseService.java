@@ -85,7 +85,7 @@ public class ExpenseService {
         UUID me = currentUserProvider.getCurrentUser().getId();
         Expense expense = requireEditable(id, me);
         var previousAudience = history.audience(expense);
-        var previousAmount = expense.getAmount();
+        var previousState = history.snapshot(expense);
         if (!java.util.Objects.equals(expense.getGroupId(),request.groupId())) {
             throw new BadRequestException("An expense cannot be moved between groups. Create a separate entry instead.");
         }
@@ -100,7 +100,7 @@ public class ExpenseService {
         expense.replaceShares(List.of());
         expenseRepository.flush();
         apply(expense, request, me, allowed);
-        history.expense(expense,"UPDATED",me,previousAmount,previousAudience);
+        history.expense(expense,"UPDATED",me,previousState,previousAudience);
         return toResponses(List.of(expenseRepository.saveAndFlush(expense)), me).get(0);
     }
 
@@ -108,7 +108,11 @@ public class ExpenseService {
     public void delete(UUID id) {
         UUID me = currentUserProvider.getCurrentUser().getId();
         var expense = requireEditable(id,me);
-        history.expense(expense,"DELETED",me,expense.getAmount(),Set.of());
+        if (expense.getGroupId()!=null) {
+            groups.requireMember(expense.getGroupId(),me);
+            groups.requireWritable(expense.getGroupId());
+        }
+        history.expense(expense,"DELETED",me,history.snapshot(expense),Set.of());
         expenseRepository.delete(expense);
     }
 
@@ -134,6 +138,8 @@ public class ExpenseService {
 
     /** Batch-maps expenses, resolving every user name in one lookup. */
     public List<ExpenseResponse> toResponses(List<Expense> expenses, UUID me) {
+        var writableGroups=groups.writableGroupIds(expenses.stream().map(Expense::getGroupId)
+            .filter(java.util.Objects::nonNull).toList(),me);
         Set<UUID> ids = new HashSet<>();
         for (Expense e : expenses) {
             ids.add(e.getPaidBy());
@@ -154,7 +160,7 @@ public class ExpenseService {
                     Money.toPlainString(e.getAmount()), e.getCurrency(), e.getSpentOn(), e.getNotes(),
                     e.getSplitType(), FinanceUsers.of(users, e.getPaidBy()), FinanceUsers.of(users, e.getCreatedBy()),
                     shares, Money.toPlainString(myShare), Money.toPlainString(paid.subtract(myShare)),
-                    e.getCreatedBy().equals(me), e.getCreatedAt(),e.getGroupId()));
+                    e.getCreatedBy().equals(me) && (e.getGroupId()==null || writableGroups.contains(e.getGroupId())), e.getCreatedAt(),e.getGroupId()));
         }
         return responses;
     }

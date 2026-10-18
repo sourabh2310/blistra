@@ -73,6 +73,10 @@ class FinanceApi {
       );
   Future<TripGroupDetail> group(String id) async =>
       TripGroupDetail.fromJson(await apiClient.get('$_base/groups/$id'));
+  Future<void> archiveGroup(String id, bool archived) => apiClient
+      .postNoContent('$_base/groups/$id/archive', body: {'archived': archived});
+  Future<Map<String, dynamic>> exportGroup(String id) =>
+      apiClient.get('$_base/groups/$id/export');
   Future<void> inviteToGroup(String id, String username) =>
       apiClient.postNoContent(
         '$_base/groups/$id/members',
@@ -91,20 +95,18 @@ class FinanceApi {
           query: {'page': '$page', 'size': '50'},
         ),
       );
-  Future<List<Settlement>> groupPayments(String id) async =>
+  Future<List<Settlement>> groupPayments(String id, {int page = 0}) async =>
       (await apiClient.getList(
         '$_base/settlements',
-        query: {'groupId': id},
+        query: {'groupId': id, 'page': '$page', 'size': '200'},
       )).map((e) => Settlement.fromJson(e as Map<String, dynamic>)).toList();
   Future<List<Map<String, dynamic>>> history({
     String? groupId,
     String? friendId,
+    int page = 0,
   }) async => (await apiClient.getList(
     '$_base/history',
-    query: {
-      if (groupId != null) 'groupId': groupId,
-      if (friendId != null) 'friendId': friendId,
-    },
+    query: {'groupId': ?groupId, 'friendId': ?friendId, 'page': '$page'},
   )).map((e) => e as Map<String, dynamic>).toList();
 
   Future<FinanceOverview> overview(
@@ -194,7 +196,7 @@ class FinanceApi {
       '$_base/settlements',
       body: {
         'friendId': friendId,
-        if (groupId != null) 'groupId': groupId,
+        'groupId': ?groupId,
         'direction': iPaid ? 'I_PAID' : 'THEY_PAID',
         'amount': amount,
         'currency': currency,

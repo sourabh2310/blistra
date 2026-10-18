@@ -54,7 +54,7 @@ public class SmtpEmailSender implements EmailSender {
 
     private String plainText(String code) {
         return "Your " + appName + " verification code is " + code + ".\n\n"
-                + "It expires in " + ttlMinutes + " minutes. If you did not request it, ignore this email.";
+                + "It expires " + ttlMinutes + " minutes after your request. If you did not request it, ignore this email.";
     }
 
     private String htmlText(String code) {
@@ -62,7 +62,7 @@ public class SmtpEmailSender implements EmailSender {
                 + "<h2 style=\"margin:0 0 8px\">" + appName + "</h2>"
                 + "<p>Your verification code is</p>"
                 + "<p style=\"font-size:32px;letter-spacing:8px;font-weight:bold;margin:12px 0\">" + code + "</p>"
-                + "<p style=\"color:#666\">It expires in " + ttlMinutes
-                + " minutes. If you did not request it, ignore this email.</p></div>";
+                + "<p style=\"color:#666\">It expires " + ttlMinutes
+                + " minutes after your request. If you did not request it, ignore this email.</p></div>";
     }
 }

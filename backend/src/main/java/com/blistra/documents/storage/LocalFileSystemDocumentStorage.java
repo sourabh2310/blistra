@@ -24,6 +24,10 @@ public class LocalFileSystemDocumentStorage implements DocumentStorageService {
     private final Path root;
     private org.springframework.jdbc.core.JdbcTemplate jdbc;
     private org.springframework.transaction.support.TransactionTemplate independent;
+    @org.springframework.beans.factory.annotation.Value("${blistra.documents.max-total-bytes:838860800}")
+    private long maxTotalBytes=838860800L;
+    @org.springframework.beans.factory.annotation.Value("${blistra.documents.min-free-bytes:52428800}")
+    private long minFreeBytes=52428800L;
 
     @org.springframework.beans.factory.annotation.Autowired
     void configureLifecycle(org.springframework.jdbc.core.JdbcTemplate jdbc,
@@ -68,6 +72,7 @@ public class LocalFileSystemDocumentStorage implements DocumentStorageService {
         long written = 0;
         Path lease=root.resolve(".blistra-upload-"+objectKey+".lease");
         try {
+            checkCapacity(maxBytes);
             // Filesystem marker survives a process crash without borrowing a
             // second DB connection while the upload transaction holds one.
             Files.createFile(lease);
@@ -114,6 +119,27 @@ public class LocalFileSystemDocumentStorage implements DocumentStorageService {
             if (tempFile != null) deleteQuietly(lease);
             throw new DocumentStorageException("Failed to store document: " + objectKey, e);
         }
+    }
+
+    private void checkCapacity(long reservation) throws IOException {
+        if (reservation<0 || maxTotalBytes<1 || minFreeBytes<0)
+            throw new IllegalStateException("Invalid storage capacity configuration");
+        if (jdbc!=null && org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            // All document/avatar requests already own a transaction. One
+            // cross-instance lock serializes capacity checks until commit,
+            // without borrowing another connection or releasing early.
+            jdbc.execute("SELECT pg_advisory_xact_lock(191742031)");
+        }
+        long total=0; int entries=0;
+        try (var files=Files.newDirectoryStream(root)) {
+            for (Path file:files) {
+                if (++entries>20000) throw new StorageCapacityException();
+                if (Files.isRegularFile(file,java.nio.file.LinkOption.NOFOLLOW_LINKS)) total+=Files.size(file);
+                if (total>maxTotalBytes) throw new StorageCapacityException();
+            }
+        }
+        if (reservation>maxTotalBytes-total || Files.getFileStore(root).getUsableSpace()-reservation<minFreeBytes)
+            throw new StorageCapacityException();
     }
 
     @Override

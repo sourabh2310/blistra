@@ -31,6 +31,8 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
   String? _error;
   bool _busy = false;
   List<Map<String, dynamic>> _history = [];
+  int _historyPage = 0;
+  bool _moreHistory = false;
 
   @override
   void initState() {
@@ -48,6 +50,8 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
         setState(() {
           _detail = detail;
           _history = history;
+          _historyPage = 0;
+          _moreHistory = history.length == 100;
           _error = null;
         });
       }
@@ -66,6 +70,28 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
       ),
     );
     if (changed == true) await _load();
+  }
+
+  Future<void> _loadMoreHistory() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final rows = await context.read<FinanceController>().api.history(
+        friendId: widget.userId,
+        page: _historyPage + 1,
+      );
+      if (!mounted) return;
+      setState(() {
+        final ids = _history.map((h) => h['id']).toSet();
+        _history.addAll(rows.where((h) => ids.add(h['id'])));
+        _historyPage++;
+        _moreHistory = rows.length == 100;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _error = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _settle() async {
@@ -300,8 +326,13 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                                 ],
                               ),
                             ),
-                          const SectionLabel('Change history (latest 100)'),
+                          const SectionLabel('Change history'),
                           FinanceHistoryList(entries: _history, meId: meId),
+                          if (_moreHistory)
+                            TextButton(
+                              onPressed: _busy ? null : _loadMoreHistory,
+                              child: const Text('Load more changes'),
+                            ),
                         ],
                       ),
                     ),

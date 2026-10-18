@@ -37,8 +37,23 @@ public class OtpProperties {
      */
     private String pepper;
 
+    /** Durable provider delivery; development keeps its synchronous console flow. */
+    private boolean outboxEnabled = false;
+
+    /** Base64-encoded 32-byte AES key, separate from the verification pepper. */
+    private String deliveryKey;
+
     @PostConstruct
     public void validate() {
+        if (outboxEnabled) {
+            try {
+                if (java.util.Base64.getDecoder().decode(deliveryKey).length != 32) {
+                    throw new IllegalArgumentException();
+                }
+            } catch (Exception e) {
+                throw new IllegalStateException("OTP outbox requires a base64-encoded 32-byte delivery key");
+            }
+        }
         if (!devMode && (pepper == null || pepper.isBlank())) {
             throw new IllegalStateException(
                     "blistra.otp.pepper is required in production (non-dev OTP mode)");

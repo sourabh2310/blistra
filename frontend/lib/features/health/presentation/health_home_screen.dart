@@ -968,7 +968,7 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _Panel extends StatelessWidget {
-  const _Panel({required this.child, this.padding = const EdgeInsets.all(16)});
+  const _Panel({required this.child}) : padding = const EdgeInsets.all(16);
 
   final Widget child;
   final EdgeInsets padding;
@@ -995,7 +995,7 @@ class _Panel extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.icon, required this.title, this.trailing});
+  const _SectionTitle({required this.icon, required this.title}) : trailing = null;
 
   final IconData icon;
   final String title;
@@ -1018,7 +1018,7 @@ class _SectionTitle extends StatelessWidget {
             ),
           ),
         ),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     );
   }
@@ -1416,8 +1416,8 @@ class _ProgressItem extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.label,
-    Color? color,
-  }) : _color = color;
+    this._color,
+  });
 
   final double progress;
   final Color? _color;

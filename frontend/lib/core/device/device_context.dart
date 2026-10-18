@@ -5,9 +5,36 @@
 /// never requests GPS permission.
 library;
 
+import 'dart:async';
+
+import 'package:flutter/services.dart';
+
 /// Pure, testable device-context helpers. Widget code resolves the live
 /// locale/timezone and delegates here so the mapping rules stay unit-tested.
 class DeviceContext {
+  static const _channel = MethodChannel('blistra/device_context');
+  static String? _nativeTimezone;
+
+  static bool get hasNativeTimezone => _nativeTimezone != null;
+
+  /// Read the operating system's region identifier without location permission.
+  /// Refresh on startup and resume so travel does not leave a stale suggestion.
+  /// Other platforms keep the explicitly labelled offset estimate.
+  static Future<void> refreshTimezone() async {
+    try {
+      final value = await _channel
+          .invokeMethod<String>('timezone')
+          .timeout(const Duration(seconds: 1));
+      _nativeTimezone = value == 'UTC' || value == 'GMT'
+          ? 'UTC'
+          : value != null && _looksLikeIana(value)
+          ? value
+          : null;
+    } on Exception {
+      _nativeTimezone = null;
+    }
+  }
+
   /// Resolves an IANA timezone identifier from platform signals.
   ///
   /// Flutter's [DateTime.timeZoneName] yields an abbreviation (e.g. `IST`),
@@ -37,6 +64,7 @@ class DeviceContext {
 
   /// Live device timezone using current clock signals.
   static String currentTimezone() => resolveTimezone(
+    ianaName: _nativeTimezone,
     abbreviation: DateTime.now().timeZoneName,
     offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
   );
@@ -72,6 +100,7 @@ class DeviceContext {
   }
 
   static bool _looksLikeIana(String value) {
+    if (value == 'UTC') return true;
     if (!value.contains('/')) return false;
     if (value.length > 64) return false;
     return RegExp(r'^[A-Za-z0-9_+\-]+(/[A-Za-z0-9_+\-]+)+$').hasMatch(value);

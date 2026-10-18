@@ -57,7 +57,7 @@ enum _Reg {
 
 enum _Forgot { identifier, channel, code, reset, success }
 
-enum _HealthStep { height, weight, dietary }
+enum _HealthStep { height, weight }
 
 /// Live availability state for one identity field while typing.
 enum _Avail { idle, checking, available, taken }
@@ -1883,7 +1883,7 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'We sent a 6-digit code to\n$destination',
+            'Check for a 6-digit code at\n$destination\nDelivery may take a minute.',
             style: TextStyle(fontSize: 15, color: AuthColors.muted),
           ),
           const SizedBox(height: 28),

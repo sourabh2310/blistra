@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 @Table(name = "users", uniqueConstraints = {
         @UniqueConstraint(columnNames = "email", name = "users_email_unique")
 })

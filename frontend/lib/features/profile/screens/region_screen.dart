@@ -45,9 +45,18 @@ class RegionScreen extends StatelessWidget {
               trailing: p?.timezone != deviceZone
                   ? TextButton(
                       onPressed: () => save({'timezone': deviceZone}),
-                      child: const Text('Use estimate'),
+                      child: Text(
+                        DeviceContext.hasNativeTimezone
+                            ? 'Use device zone'
+                            : 'Use estimate',
+                      ),
                     )
-                  : const StatusPill(label: 'Matches estimate', positive: true),
+                  : StatusPill(
+                      label: DeviceContext.hasNativeTimezone
+                          ? 'Matches device'
+                          : 'Matches estimate',
+                      positive: true,
+                    ),
               onTap: () async {
                 final value = await showTextFieldDialog(
                   context,
@@ -55,7 +64,7 @@ class RegionScreen extends StatelessWidget {
                   initial: p?.timezone ?? deviceZone,
                   hint: 'e.g. Asia/Kolkata',
                   helper:
-                      'Check this IANA name. Suggested from device offset: $deviceZone',
+                      'Check this IANA name. ${DeviceContext.hasNativeTimezone ? 'Device timezone' : 'Estimate from device offset'}: $deviceZone',
                 );
                 if (value != null && value.isNotEmpty) {
                   await save({'timezone': value});

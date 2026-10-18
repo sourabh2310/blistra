@@ -216,7 +216,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Future<void> _confirm(BuildContext context, String title, Future<void> Function() action) async {
     final confirmed = await confirmAction(context, title: title, message: 'This action cannot be undone.');
-    if (confirmed) await _runAction(context, action);
+    if (confirmed && context.mounted) await _runAction(context, action);
   }
 
   Future<void> _runAction(BuildContext context, Future<void> Function() action) async {

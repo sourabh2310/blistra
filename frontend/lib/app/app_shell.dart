@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/api/api_client.dart';
+import '../core/device/device_context.dart';
 import '../core/routing/routes.dart';
 import '../core/theme/app_theme.dart';
 
@@ -101,6 +102,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     if (state != AppLifecycleState.resumed || !_d.authState.isAuthenticated) {
       return;
     }
+    _refreshOnResume();
+  }
+
+  Future<void> _refreshOnResume() async {
+    await DeviceContext.refreshTimezone();
+    if (!mounted || !_d.authState.isAuthenticated) return;
     _d.dashboard.refresh(
       date: DateTime.now(),
       offsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
@@ -461,7 +468,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     } finally {
       if (mounted) setState(() => _quickAddOpen = false);
     }
-    if (!mounted || selected == null) return;
+    if (!context.mounted || selected == null) return;
     // Open the existing domain creation flow. Each flow owns its errors and
     // dashboard refresh is quiet + non-blocking (see openQuickAddCreation).
     await openQuickAddCreation(context, selected);
@@ -516,7 +523,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       final document = await context.read<DocumentsProvider>().getById(
         dest.documentId!,
       );
-      if (!context.mounted) return;
+      if (!mounted) return;
       if (document != null) {
         pushModulePage(
           context,
