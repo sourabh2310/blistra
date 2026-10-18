@@ -118,7 +118,7 @@ jobs:
         run: if [ -n "${CONTRACT_PID:-}" ]; then kill "$CONTRACT_PID" || true; fi
   apk:
     needs: [backend, frontend, contract]
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
     permissions:
       contents: write
     runs-on: ubuntu-24.04
