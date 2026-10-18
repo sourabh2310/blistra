@@ -35,6 +35,8 @@ IDDecisionStatusADR-001Use a modular monolith for the initial backendAcceptedADR
 
 ## ADR Index
 
+- [ADR-017 — Server-owned AI entry drafts and explicit approval](ADR-017-ai-entry-approval.md) — Accepted.
+
 ### ADR-001 — Modular Monolith
 
 The initial backend is a modular monolith rather than a microservices architecture.

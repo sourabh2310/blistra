@@ -37,7 +37,7 @@ class AiServiceTest {
         when(gateway.reply(anyList())).thenAnswer(call -> {
             List<Map<String, String>> messages = call.getArgument(0);
             assertThat(messages.getFirst().get("role")).isEqualTo("system");
-            assertThat(messages.getFirst().get("content")).contains("Blistra AI", "NO tools", "Never diagnose");
+            assertThat(messages.getFirst().get("content")).contains("Blistra AI", "separate approval endpoint", "Never diagnose");
             assertThat(messages.get(1).get("content")).contains("Not shared", "2026-10-18");
             assertThat(messages.getLast().get("role")).isEqualTo("user");
             return "Open Planner.";

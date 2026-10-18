@@ -16,6 +16,7 @@ public class FreeLlmGateway implements AiGateway {
     private final String key;
     private final String model;
     private final URI endpoint;
+    @Value("${blistra.ai.max-tokens:2048}") private int maxTokens = 2048;
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER).build();
 
@@ -40,19 +41,21 @@ public class FreeLlmGateway implements AiGateway {
     public String reply(List<Map<String, String>> messages) {
         if (key == null || key.isBlank()) throw new AiUnavailableException();
         try {
+            Map<String, Object> payload = new java.util.LinkedHashMap<>(Map.of(
+                    "model", model, "messages", messages, "temperature", 0.2,
+                    "max_tokens", Math.max(256, Math.min(4096, maxTokens)), "stream", false));
+            if (model.startsWith("openai/gpt-oss-")) payload.put("reasoning_effort", "low");
             var request = HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(45))
                     .header("Authorization", "Bearer " + key)
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(Map.of(
-                            "model", model, "messages", messages, "temperature", 0.2,
-                            "max_tokens", 700, "stream", false)))).build();
+                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload))).build();
             // Read at most 64 KiB even if a malfunctioning provider sends an oversized body.
             var response = http.send(request, info -> new LimitedBody());
             byte[] bytes = response.body();
             if (response.statusCode() != 200 || bytes.length > 65536) throw new AiUnavailableException();
             var root = mapper.readTree(bytes);
             String content = root.path("choices").path(0).path("message").path("content").asString("");
-            if (content.isBlank() || content.length() > 4000) throw new AiUnavailableException();
+            if (content.isBlank() || content.length() > 16000) throw new AiUnavailableException();
             return content.trim();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
