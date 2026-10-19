@@ -767,7 +767,7 @@ class ApiClient {
       '/api/v1/auth/pre-register/send-email-otp',
       body: {'email': email},
       expectStatus: 200,
-    ) as Map<String, dynamic>;
+    );
     return (body['cooldownSeconds'] as num).toInt();
   }
 
