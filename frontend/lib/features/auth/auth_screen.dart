@@ -91,6 +91,8 @@ class _AuthScreenState extends State<AuthScreen> {
   final _signInPassword = TextEditingController();
 
   final _otp = TextEditingController();
+  final _emailInlineOtp = TextEditingController();
+  final _phoneInlineOtp = TextEditingController();
   final _country = TextEditingController();
   String? _selectedCountryCode;
   final _height = TextEditingController();
@@ -229,6 +231,8 @@ class _AuthScreenState extends State<AuthScreen> {
     _identifier.dispose();
     _signInPassword.dispose();
     _otp.dispose();
+    _emailInlineOtp.dispose();
+    _phoneInlineOtp.dispose();
     _country.dispose();
     _height.dispose();
     _weight.dispose();
@@ -2847,8 +2851,52 @@ class _AuthScreenState extends State<AuthScreen> {
             ],
           ),
           _availRow(_emailAvail, takenMessage: 'Email already registered.'),
+          if (_emailOtpSent) ...[
+            const SizedBox(height: 16),
+            OtpInput(
+              controller: _emailInlineOtp,
+              onCompleted: () => setState(() {}),
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: () {},
+                child: Text(
+                  "Didn't get it? Resend",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AuthColors.teal,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           _phoneRow(),
+          if (_phoneOtpSent) ...[
+            const SizedBox(height: 16),
+            OtpInput(
+              controller: _phoneInlineOtp,
+              onCompleted: () => setState(() {}),
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: () {},
+                child: Text(
+                  "Didn't get it? Resend",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AuthColors.teal,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 32),
 
           // SECURITY
