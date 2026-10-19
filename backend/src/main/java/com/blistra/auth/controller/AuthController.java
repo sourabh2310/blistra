@@ -11,6 +11,7 @@ import com.blistra.auth.dto.RegisterRequest;
 import com.blistra.auth.dto.ResetPasswordRequest;
 import com.blistra.auth.dto.UserResponse;
 import com.blistra.auth.dto.VerifyOtpRequest;
+import com.blistra.auth.otp.PreRegOtpService;
 import com.blistra.auth.otp.VerificationService;
 import com.blistra.auth.security.BlistraUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +39,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private PreRegOtpService preRegOtpService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -174,5 +178,32 @@ public class AuthController {
             @Valid @RequestBody ChangePasswordRequest request) {
         return ResponseEntity.ok(authService.changePassword(
                 principal.getId(), request.getCurrentPassword(), request.getNewPassword()));
+    }
+
+    @PostMapping("/pre-register/send-email-otp")
+    @Operation(summary = "Send a pre-registration email OTP (no auth required)")
+    public ResponseEntity<Map<String, Object>> sendPreRegEmailOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "email is required"));
+        }
+        long cooldown = preRegOtpService.send(email.trim());
+        return ResponseEntity.ok(Map.of("cooldownSeconds", cooldown));
+    }
+
+    @PostMapping("/pre-register/verify-email-otp")
+    @Operation(summary = "Verify a pre-registration email OTP (no auth required)")
+    public ResponseEntity<Map<String, Object>> verifyPreRegEmailOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String code = body.get("code");
+        if (email == null || code == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "email and code are required"));
+        }
+        try {
+            preRegOtpService.verify(email.trim(), code.trim());
+            return ResponseEntity.ok(Map.of("verified", true));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(422).body(Map.of("error", e.getMessage(), "code", "INVALID_OTP"));
+        }
     }
 }

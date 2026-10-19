@@ -89,6 +89,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/recovery/channels").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/availability").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/pre-register/send-email-otp").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/pre-register/verify-email-otp").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/app/latest").permitAll()
                         .requestMatchers(HttpMethod.GET, "/health").permitAll()
                         // Separate operator token is checked by the controller;

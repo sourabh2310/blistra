@@ -16,7 +16,7 @@ import '../../notifications/state/reminders_controller.dart';
 import '../../preferences/shell_destinations.dart';
 import '../models/dashboard_response.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     super.key,
     this.onDestination,
@@ -33,6 +33,41 @@ class DashboardScreen extends StatelessWidget {
   final VoidCallback? onProfile;
   final bool hubPinned;
   final List<String>? homeWidgets;
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final _scheduleKey = GlobalKey();
+  final _medicinesKey = GlobalKey();
+  final _habitsKey = GlobalKey();
+  final _financeKey = GlobalKey();
+
+  void _scrollToDestination(String destination) {
+    GlobalKey? key = switch (destination) {
+      'PLANNER/TODAY' => _scheduleKey,
+      'MEDICINES' => _medicinesKey,
+      'HABITS' => _habitsKey,
+      'FINANCE' => _financeKey,
+      _ => null,
+    };
+    if (key == null) {
+      widget.onDestination?.call(destination);
+      return;
+    }
+    final ctx = key.currentContext;
+    if (ctx == null) {
+      widget.onDestination?.call(destination);
+      return;
+    }
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOut,
+      alignment: 0.05,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,50 +101,60 @@ class DashboardScreen extends StatelessWidget {
                         child: Center(
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 1000),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                16,
-                                12,
-                                16,
-                                24,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _Header(
-                                    displayName: name,
-                                    onSearch: onSearch,
-                                    onNotifications: onNotifications,
-                                    onProfile: onProfile,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _Greeting(
+                                  name: name,
+                                  now: now,
+                                  dashboard: controller.dashboard,
+                                  displayName: name,
+                                  onSearch: widget.onSearch,
+                                  onNotifications: widget.onNotifications,
+                                  onProfile: widget.onProfile,
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    0,
+                                    16,
+                                    24,
                                   ),
-                                  const SizedBox(height: 16),
-                                  _Greeting(
-                                    name: name,
-                                    now: now,
-                                    dashboard: controller.dashboard,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (controller.isLoading &&
+                                          controller.dashboard == null)
+                                        const _DashboardSkeleton()
+                                      else if (controller.dashboard == null)
+                                        _FullError(
+                                          message:
+                                              controller.error ??
+                                              'Home is unavailable right now.',
+                                          onRetry: refresh,
+                                        )
+                                      else
+                                        _HomeContent(
+                                          dashboard: controller.dashboard!,
+                                          now: now,
+                                          homeWidgets: _orderedWidgets(
+                                            widget.homeWidgets,
+                                          ),
+                                          hubPinned: widget.hubPinned,
+                                          onDestination: widget.onDestination,
+                                          onRefresh: refresh,
+                                          scheduleKey: _scheduleKey,
+                                          medicinesKey: _medicinesKey,
+                                          habitsKey: _habitsKey,
+                                          financeKey: _financeKey,
+                                          scrollToDestination:
+                                              _scrollToDestination,
+                                        ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 8),
-                                  if (controller.isLoading &&
-                                      controller.dashboard == null)
-                                    const _DashboardSkeleton()
-                                  else if (controller.dashboard == null)
-                                    _FullError(
-                                      message:
-                                          controller.error ??
-                                          'Home is unavailable right now.',
-                                      onRetry: refresh,
-                                    )
-                                  else
-                                    _HomeContent(
-                                      dashboard: controller.dashboard!,
-                                      now: now,
-                                      homeWidgets: _orderedWidgets(homeWidgets),
-                                      hubPinned: hubPinned,
-                                      onDestination: onDestination,
-                                      onRefresh: refresh,
-                                    ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -315,11 +360,6 @@ class _HeaderAction extends StatelessWidget {
 /// Shows a dot only when a [RemindersController] is available above Home and
 /// it holds at least one active (scheduled) reminder. With no provider or no
 /// active reminders, no badge is rendered — never a fake permanent dot.
-/// Bell action with an unread dot driven exclusively by real reminder state.
-///
-/// Shows a dot only when a [RemindersController] is available above Home and
-/// it holds at least one active (scheduled) reminder. With no provider or no
-/// active reminders, no badge is rendered — never a fake permanent dot.
 class _NotificationAction extends StatelessWidget {
   const _NotificationAction({required this.onPressed});
 
@@ -343,116 +383,455 @@ class _NotificationAction extends StatelessWidget {
   }
 }
 
+/// Dark-background variant of [_HeaderAction] — used inside the hero panel.
+class _DarkHeaderAction extends StatelessWidget {
+  const _DarkHeaderAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.badge = false,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onPressed,
+        child: Semantics(
+          button: true,
+          label: tooltip,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  icon,
+                  size: 19,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+              ),
+              if (badge)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFF4D6D),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DarkNotificationAction extends StatelessWidget {
+  const _DarkNotificationAction({required this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    bool hasActive = false;
+    try {
+      final reminders = context.watch<RemindersController>();
+      hasActive = reminders.reminders.any((r) => r.isActive);
+    } catch (_) {
+      hasActive = false;
+    }
+    return _DarkHeaderAction(
+      tooltip: 'Notifications',
+      icon: Icons.notifications_none_outlined,
+      onPressed: onPressed,
+      badge: hasActive,
+    );
+  }
+}
+
+class _DarkProfileAvatar extends StatelessWidget {
+  const _DarkProfileAvatar({
+    required this.displayName,
+    required this.gradient,
+    this.onTap,
+  });
+
+  final String displayName;
+  final LinearGradient gradient;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Profile',
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Text(
+            initialsForName(displayName),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Greeting extends StatelessWidget {
   const _Greeting({
     required this.name,
     required this.now,
     required this.dashboard,
+    required this.displayName,
+    this.onSearch,
+    this.onNotifications,
+    this.onProfile,
   });
 
   final String name;
   final DateTime now;
   final DashboardResponse? dashboard;
+  final String displayName;
+  final VoidCallback? onSearch;
+  final VoidCallback? onNotifications;
+  final VoidCallback? onProfile;
 
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    final attention = buildAttentionItems(
-      dashboard,
-      now: now,
-      limit: 1000,
-    ).length;
-    final focus = attention == 0
-        ? "You're all caught up for today."
-        : 'You have $attention thing${attention == 1 ? '' : 's'} to focus on today.';
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final artWidth = constraints.maxWidth * .58;
-        final artHeight = artWidth * 210 / 220;
-        return SizedBox(
-          height: math.max(210, artHeight),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(
-                right: -16,
-                top: -6,
-                width: artWidth,
-                height: artHeight,
-                child: ExcludeSemantics(
-                  child: CustomPaint(painter: _ArchPainter(colors)),
-                ),
-              ),
-              Positioned(
-                left: 0,
-                top: 0,
-                right: artWidth * .5,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${greetingForHour(now.hour)},',
-                      style: TextStyle(
-                        fontFamily: 'Fraunces',
-                        fontSize: 17,
-                        color: colors.muted,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: 'Fraunces',
-                              fontSize: 40,
-                              height: 1.05,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -.8,
-                              color: colors.text,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(
-                          _dayPartIcon(now.hour),
-                          size: 28,
-                          color: const Color(0xFFFFB020),
-                          semanticLabel: greetingForHour(now.hour),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      DateFormat('EEEE, d MMMM').format(now),
-                      style: TextStyle(
-                        fontFamily: 'Fraunces',
-                        fontSize: 15,
-                        color: colors.text,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      focus,
-                      style: TextStyle(
-                        fontFamily: 'Fraunces',
-                        fontSize: 14,
-                        height: 1.4,
-                        color: colors.muted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    final palette = colors.palette;
+    final heroBg = Color.lerp(
+      const Color(0xFF080F0C),
+      palette.secondary,
+      colors.isDark ? 0.32 : 0.25,
+    )!;
+    final heroText = Colors.white.withValues(alpha: 0.95);
+    final heroMuted = Colors.white.withValues(alpha: 0.55);
+    final progress = computeDayProgress(dashboard, now: now);
+    final pct = progress.total == 0
+        ? 0.0
+        : (progress.completed / progress.total).clamp(0.0, 1.0).toDouble();
+    return Semantics(
+      label: '${greetingForHour(now.hour)}, $name. '
+          '${progress.total == 0 ? "All caught up." : "${progress.completed} of ${progress.total} done today."}',
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(28),
+            bottomRight: Radius.circular(28),
+          ),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              heroBg,
+              Color.lerp(heroBg, palette.primary, 0.42)!,
             ],
           ),
-        );
-      },
+          boxShadow: [
+            BoxShadow(
+              color: palette.primary.withValues(alpha: 0.28),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Nav bar inside dark hero
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 0),
+              child: Row(
+                children: [
+                  const BlistraMark(size: 24),
+                  const SizedBox(width: 7),
+                  Text(
+                    'Blistra',
+                    style: TextStyle(
+                      fontFamily: 'Fraunces',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -.5,
+                      color: heroText,
+                      height: 1.1,
+                    ),
+                  ),
+                  const Spacer(),
+                  _DarkHeaderAction(
+                    tooltip: 'Search',
+                    icon: Icons.search_rounded,
+                    onPressed: onSearch,
+                  ),
+                  const SizedBox(width: 8),
+                  _DarkNotificationAction(onPressed: onNotifications),
+                  const SizedBox(width: 8),
+                  _DarkProfileAvatar(
+                    displayName: displayName,
+                    gradient: colors.gradient,
+                    onTap: onProfile,
+                  ),
+                ],
+              ),
+            ),
+            // Greeting body
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 18, 46),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          DateFormat('EEEE · d MMMM').format(now),
+                          style: TextStyle(
+                            fontFamily: 'Fraunces',
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            color: heroMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${greetingForHour(now.hour)},',
+                          style: TextStyle(
+                            fontFamily: 'Fraunces',
+                            fontSize: 13,
+                            color: heroMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: 'Fraunces',
+                                  fontSize: 34,
+                                  height: 1.05,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -.7,
+                                  color: heroText,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              _dayPartIcon(now.hour),
+                              size: 22,
+                              color: const Color(0xFFFFB020),
+                              semanticLabel: '',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        if (progress.attention > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFFEF4444,
+                              ).withValues(alpha: 0.22),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFFEF4444,
+                                ).withValues(alpha: 0.35),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Text(
+                              '🔴 ${progress.attention} ${progress.attention == 1 ? 'thing needs' : 'things need'} your focus',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          )
+                        else if (progress.total == 0)
+                          Text(
+                            "You're all caught up for today.",
+                            style: TextStyle(
+                              fontFamily: 'Fraunces',
+                              fontSize: 13,
+                              color: heroMuted,
+                            ),
+                          ),
+                        if (progress.total > 0) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            '${progress.completed} of ${progress.total} done today',
+                            style: TextStyle(fontSize: 11.5, color: heroMuted),
+                          ),
+                          const SizedBox(height: 5),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: SizedBox(
+                              height: 4,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Container(
+                                    color: Colors.white.withValues(alpha: 0.14),
+                                  ),
+                                  FractionallySizedBox(
+                                    widthFactor: pct,
+                                    alignment: Alignment.centerLeft,
+                                    child: Container(color: palette.glowA),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ExcludeSemantics(
+                    child: progress.total == 0
+                        ? Container(
+                            width: 76,
+                            height: 76,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.18),
+                              border: Border.all(
+                                color: palette.glowA.withValues(alpha: 0.35),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.check_rounded,
+                              size: 34,
+                              color: palette.glowA,
+                            ),
+                          )
+                        : SizedBox(
+                            width: 76,
+                            height: 76,
+                            child: CustomPaint(
+                              painter: _RingPainter(
+                                progress: pct,
+                                ringColor: palette.glowA,
+                                trackColor: Colors.white.withValues(
+                                  alpha: 0.13,
+                                ),
+                              ),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '${(pct * 100).round()}%',
+                                      style: TextStyle(
+                                        fontFamily: 'Fraunces',
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: heroText,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${progress.completed}/${progress.total}',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        color: heroMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
+}
+
+class _RingPainter extends CustomPainter {
+  const _RingPainter({
+    required this.progress,
+    required this.ringColor,
+    required this.trackColor,
+  });
+  final double progress;
+  final Color ringColor;
+  final Color trackColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.shortestSide - 10) / 2;
+    const stroke = 7.0;
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = trackColor
+        ..strokeWidth = stroke
+        ..style = PaintingStyle.stroke,
+    );
+    if (progress <= 0) return;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * progress,
+      false,
+      Paint()
+        ..color = ringColor
+        ..strokeWidth = stroke
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) => old.progress != progress;
 }
 
 class _HomeContent extends StatelessWidget {
@@ -463,6 +842,11 @@ class _HomeContent extends StatelessWidget {
     required this.hubPinned,
     required this.onDestination,
     required this.onRefresh,
+    required this.scheduleKey,
+    required this.medicinesKey,
+    required this.habitsKey,
+    required this.financeKey,
+    required this.scrollToDestination,
   });
 
   final DashboardResponse dashboard;
@@ -471,84 +855,86 @@ class _HomeContent extends StatelessWidget {
   final bool hubPinned;
   final void Function(String destinationId)? onDestination;
   final Future<void> Function() onRefresh;
+  final GlobalKey scheduleKey;
+  final GlobalKey medicinesKey;
+  final GlobalKey habitsKey;
+  final GlobalKey financeKey;
+  final void Function(String destination) scrollToDestination;
 
-  Widget _section(String id, {bool compact = false}) => _SectionContent(
-    compact: compact,
-    id: id,
-    dashboard: dashboard,
-    now: now,
-    onDestination: onDestination,
-    onRefresh: onRefresh,
-    homeWidgets: homeWidgets,
-  );
+  Widget _section(String id, {bool compact = false}) {
+    GlobalKey? key = switch (id) {
+      HomeWidgets.todaysSchedule => scheduleKey,
+      HomeWidgets.medicines => medicinesKey,
+      HomeWidgets.habits => habitsKey,
+      HomeWidgets.finance => financeKey,
+      _ => null,
+    };
+    final content = _SectionContent(
+      compact: compact,
+      id: id,
+      dashboard: dashboard,
+      now: now,
+      onDestination: onDestination,
+      onRefresh: onRefresh,
+      homeWidgets: homeWidgets,
+      scrollToDestination: scrollToDestination,
+    );
+    if (key != null) return KeyedSubtree(key: key, child: content);
+    return content;
+  }
 
   @override
   Widget build(BuildContext context) {
     final sections = homeWidgets.where(HomeWidgets.sections.contains).toList();
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final children = <Widget>[];
-        // Reference places schedule + attention side by side. On wide
-        // layouts pair them in a row (in the user's configured order);
-        // phones keep the stacked mobile-first flow.
-        final wide = constraints.maxWidth >= 300;
-        final pair = wide &&
-            sections.contains(HomeWidgets.todaysSchedule) &&
-            sections.contains(HomeWidgets.needsAttention);
-        var paired = false;
-        for (final id in sections) {
-          final isPair = id == HomeWidgets.todaysSchedule ||
-              id == HomeWidgets.needsAttention;
-          if (pair && isPair) {
-            if (paired) continue;
-            paired = true;
-            final first = sections.firstWhere(
-              (s) =>
-                  s == HomeWidgets.todaysSchedule ||
-                  s == HomeWidgets.needsAttention,
-            );
-            final second = first == HomeWidgets.todaysSchedule
-                ? HomeWidgets.needsAttention
-                : HomeWidgets.todaysSchedule;
-            children.add(
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: first == HomeWidgets.todaysSchedule ? 112 : 88,
-                    child: _section(first, compact: true),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: second == HomeWidgets.todaysSchedule ? 112 : 88,
-                    child: _section(second, compact: true),
-                  ),
-                ],
-              ),
-            );
-            children.add(const SizedBox(height: 12));
-            continue;
-          }
-          children.add(_section(id));
-          children.add(const SizedBox(height: 12));
-        }
-        if (!hubPinned) {
-          children.add(
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => onDestination?.call('HUB'),
-                icon: const Icon(Icons.grid_view_outlined),
-                label: const Text('Explore Hub'),
-              ),
-            ),
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
+    // Modules shown as separate panels (health/diet stay in _YourLife)
+    final moduleIds = homeWidgets
+        .where(
+          (id) =>
+              id == HomeWidgets.medicines ||
+              id == HomeWidgets.habits ||
+              id == HomeWidgets.finance,
+        )
+        .toList();
+    final children = <Widget>[];
+    for (final id in sections) {
+      if (id == HomeWidgets.todayOverview) {
+        // Float card: visually overlaps the hero bottom by 26 px.
+        // Transform.translate does not affect layout, so the card's
+        // layout box stays at position 0 (immediately below the hero),
+        // while its visual position moves up by 26 px into the hero's
+        // bottom padding area.  The 26 px natural gap that results below
+        // the card's visual bottom provides clean spacing to the next
+        // section without an explicit SizedBox.
+        children.add(
+          Transform.translate(
+            offset: const Offset(0, -26),
+            child: _section(id),
+          ),
         );
-      },
+      } else {
+        children.add(_section(id));
+        children.add(const SizedBox(height: 12));
+      }
+    }
+    for (final id in moduleIds) {
+      children.add(_section(id));
+      children.add(const SizedBox(height: 12));
+    }
+    if (!hubPinned) {
+      children.add(
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => onDestination?.call('HUB'),
+            icon: const Icon(Icons.explore_outlined),
+            label: const Text('Explore Hub'),
+          ),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
     );
   }
 }
@@ -562,6 +948,7 @@ class _SectionContent extends StatelessWidget {
     required this.onDestination,
     required this.onRefresh,
     required this.homeWidgets,
+    required this.scrollToDestination,
   });
 
   final bool compact;
@@ -571,6 +958,7 @@ class _SectionContent extends StatelessWidget {
   final void Function(String destinationId)? onDestination;
   final Future<void> Function() onRefresh;
   final List<String> homeWidgets;
+  final void Function(String destination) scrollToDestination;
 
   @override
   Widget build(BuildContext context) => switch (id) {
@@ -578,6 +966,7 @@ class _SectionContent extends StatelessWidget {
       dashboard: dashboard,
       onDestination: onDestination,
       onRefresh: onRefresh,
+      scrollToDestination: scrollToDestination,
     ),
     HomeWidgets.todaysSchedule => _TodaySchedule(
       dashboard: dashboard,
@@ -602,6 +991,48 @@ class _SectionContent extends StatelessWidget {
       onDestination: onDestination,
       onRefresh: onRefresh,
     ),
+    HomeWidgets.medicines => _Panel(
+      title: 'Medicines',
+      icon: Icons.medication_outlined,
+      trailing: _SeeAll(
+        label: 'See all',
+        onTap: () => onDestination?.call('MEDICINES'),
+      ),
+      child: _ModuleCard(
+        id: HomeWidgets.medicines,
+        dashboard: dashboard,
+        onDestination: onDestination,
+        onRefresh: onRefresh,
+      ),
+    ),
+    HomeWidgets.habits => _Panel(
+      title: 'Habits',
+      icon: Icons.eco_outlined,
+      trailing: _SeeAll(
+        label: 'See all',
+        onTap: () => onDestination?.call('HABITS'),
+      ),
+      child: _ModuleCard(
+        id: HomeWidgets.habits,
+        dashboard: dashboard,
+        onDestination: onDestination,
+        onRefresh: onRefresh,
+      ),
+    ),
+    HomeWidgets.finance => _Panel(
+      title: 'Finance',
+      icon: Icons.account_balance_wallet_outlined,
+      trailing: _SeeAll(
+        label: 'See all',
+        onTap: () => onDestination?.call('FINANCE'),
+      ),
+      child: _ModuleCard(
+        id: HomeWidgets.finance,
+        dashboard: dashboard,
+        onDestination: onDestination,
+        onRefresh: onRefresh,
+      ),
+    ),
     _ => const SizedBox.shrink(),
   };
 }
@@ -611,11 +1042,13 @@ class _TodayOverview extends StatelessWidget {
     required this.dashboard,
     required this.onDestination,
     required this.onRefresh,
+    required this.scrollToDestination,
   });
 
   final DashboardResponse dashboard;
   final void Function(String destinationId)? onDestination;
   final Future<void> Function() onRefresh;
+  final void Function(String destination) scrollToDestination;
 
   @override
   Widget build(BuildContext context) {
@@ -627,8 +1060,8 @@ class _TodayOverview extends StatelessWidget {
       icon: metrics.availableMetrics[i].icon,
       caption: metrics.availableMetrics[i].caption,
       semanticLabel: metrics.availableMetrics[i].semanticLabel,
-      onTap: () =>
-          onDestination?.call(metrics.availableMetrics[i].destination),
+      progress: metrics.availableMetrics[i].progress,
+      onTap: () => scrollToDestination(metrics.availableMetrics[i].destination),
     );
     return _Panel(
       title: 'Today',
@@ -1591,6 +2024,7 @@ class _MetricCard extends StatelessWidget {
     required this.caption,
     required this.semanticLabel,
     required this.onTap,
+    this.progress = 0.0,
   });
 
   final String label;
@@ -1600,6 +2034,7 @@ class _MetricCard extends StatelessWidget {
   final String caption;
   final String semanticLabel;
   final VoidCallback onTap;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -1611,7 +2046,7 @@ class _MetricCard extends StatelessWidget {
       child: _ModuleTile(
         color: style.foreground,
         onTap: onTap,
-        padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
+        padding: const EdgeInsets.fromLTRB(10, 10, 6, 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1645,6 +2080,26 @@ class _MetricCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 11, height: 1.2, color: colors.muted),
             ),
+            if (progress > 0) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: SizedBox(
+                  height: 3,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Container(color: style.foreground.withValues(alpha: 0.18)),
+                      FractionallySizedBox(
+                        widthFactor: progress.clamp(0.0, 1.0),
+                        alignment: Alignment.centerLeft,
+                        child: Container(color: style.foreground),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -2365,6 +2820,7 @@ class HomeMetric {
     required this.destination,
     required this.caption,
     required this.semanticLabel,
+    this.progress = 0.0,
   });
 
   final String label;
@@ -2380,6 +2836,9 @@ class HomeMetric {
 
   /// Accessibility label for the card action (e.g. "Open today's tasks").
   final String semanticLabel;
+
+  /// Completion ratio [0, 1] shown as a thin progress bar on the tile.
+  final double progress;
 }
 
 class HomeOverview {
@@ -2393,12 +2852,13 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
   final metrics = <HomeMetric>[];
   final planner = dashboard.planner;
   if (planner != null && !planner.unavailable) {
-    final remaining = _uniqueTasks(planner).where((
-      task,
-    ) {
+    final allTasks = _uniqueTasks(planner);
+    final total = allTasks.length;
+    final remaining = allTasks.where((task) {
       final status = (task.status ?? '').toUpperCase();
       return status != 'COMPLETED' && status != 'CANCELLED';
     }).length;
+    final done = total - remaining;
     metrics.add(
       HomeMetric(
         label: 'Tasks remaining',
@@ -2408,6 +2868,7 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
         destination: 'PLANNER/TODAY',
         caption: 'tasks\nremaining',
         semanticLabel: "Open today's tasks",
+        progress: total == 0 ? 0.0 : (done / total).clamp(0.0, 1.0),
       ),
     );
   }
@@ -2424,11 +2885,14 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
         destination: 'MEDICINES',
         caption: 'medicines\ntaken',
         semanticLabel: 'Open medicines',
+        progress: expected == 0 ? 0.0 : (taken / expected).clamp(0.0, 1.0),
       ),
     );
   }
   final habits = dashboard.habits;
   if (habits != null && !habits.unavailable) {
+    final expected = habits.expectedToday;
+    final done = habits.completedToday;
     metrics.add(
       HomeMetric(
         label: 'Habits',
@@ -2438,6 +2902,7 @@ HomeOverview computeHomeOverview(DashboardResponse? dashboard) {
         destination: 'HABITS',
         caption: 'habits\ncompleted',
         semanticLabel: 'Open habits',
+        progress: expected == 0 ? 0.0 : (done / expected).clamp(0.0, 1.0),
       ),
     );
   }
@@ -2797,130 +3262,6 @@ String formatSpend(String amount, String currency) {
   return symbol != null ? '$symbol$text' : '$currency $text';
 }
 
-/// Window-with-landscape artwork used beside the greeting. Colours follow the
-/// accent palette and light/dark mode.
-class _ArchPainter extends CustomPainter {
-  const _ArchPainter(this.colors);
-
-  final BlistraColors colors;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.scale(size.width / 220, size.height / 210);
-    final p = colors.accent;
-    final p2 = colors.accent2;
-    final dark = colors.isDark;
-    Color mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
-    final sky1 = dark ? mix(const Color(0xFF12113A), p, .28) : mix(const Color(0xFFFFF0D8), p2, .32);
-    final sky2 = dark ? mix(const Color(0xFF2A1848), p2, .6) : mix(const Color(0xFFEAF6F2), p, .28);
-    final sun = dark ? const Color(0xFFFFD9A0) : const Color(0xFFFFF4CC);
-    final m1 = dark ? mix(const Color(0xFF1D1B4A), p, .4) : mix(const Color(0xFFDBE9EC), p, .4);
-    final m2 = dark ? mix(const Color(0xFF13113A), p, .28) : mix(const Color(0xFFBCD6D6), p, .62);
-    final m3 = dark ? mix(const Color(0xFF0A0A26), p, .2) : mix(const Color(0xFF16463D), p, .78);
-    final tree = dark ? const Color(0xFF0A0A26) : mix(const Color(0xFF06251F), p, .85);
-
-    final frame = Path()
-      ..moveTo(12, 210)
-      ..lineTo(12, 92)
-      ..cubicTo(12, 30, 58, -6, 112, -6)
-      ..cubicTo(166, -6, 212, 30, 212, 92)
-      ..lineTo(212, 210)
-      ..close();
-    canvas.drawPath(frame, Paint()..color = m1.withValues(alpha: .55));
-
-    final arch = Path()
-      ..moveTo(24, 210)
-      ..lineTo(24, 92)
-      ..cubicTo(24, 38, 62, 8, 112, 8)
-      ..cubicTo(162, 8, 200, 38, 200, 92)
-      ..lineTo(200, 210)
-      ..close();
-    canvas.save();
-    canvas.clipPath(arch);
-    canvas.drawRect(const Rect.fromLTWH(0, 0, 220, 100), Paint()..color = sky1);
-    canvas.drawRect(const Rect.fromLTWH(0, 100, 220, 110), Paint()..color = sky2);
-    if (dark) {
-      final star = Paint()..color = Colors.white.withValues(alpha: .85);
-      canvas.drawCircle(const Offset(60, 40), 1.5, star);
-      canvas.drawCircle(const Offset(150, 30), 1.3, star);
-      canvas.drawCircle(const Offset(180, 62), 1.5, star);
-    }
-    canvas.drawCircle(const Offset(140, 96), 22, Paint()..color = sun);
-    canvas.drawPath(
-      Path()
-        ..moveTo(0, 120)
-        ..lineTo(40, 80)
-        ..lineTo(72, 110)
-        ..lineTo(112, 66)
-        ..lineTo(156, 112)
-        ..lineTo(220, 84)
-        ..lineTo(220, 210)
-        ..lineTo(0, 210)
-        ..close(),
-      Paint()..color = m1,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(0, 142)
-        ..lineTo(52, 104)
-        ..lineTo(100, 136)
-        ..lineTo(150, 100)
-        ..lineTo(220, 134)
-        ..lineTo(220, 210)
-        ..lineTo(0, 210)
-        ..close(),
-      Paint()..color = m2,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(0, 168)
-        ..quadraticBezierTo(60, 150, 120, 164)
-        ..quadraticBezierTo(180, 178, 220, 158)
-        ..lineTo(220, 210)
-        ..lineTo(0, 210)
-        ..close(),
-      Paint()..color = m3,
-    );
-    final trees = Paint()..color = tree;
-    void pine(double x, double top, double w, double h) => canvas.drawPath(
-      Path()
-        ..moveTo(x, top)
-        ..lineTo(x - w / 2, top + h)
-        ..lineTo(x + w / 2, top + h)
-        ..close(),
-      trees,
-    );
-    pine(34, 126, 20, 40);
-    pine(58, 140, 16, 30);
-    pine(178, 126, 20, 42);
-    canvas.restore();
-
-    final leaf = Paint()..color = tree.withValues(alpha: .85);
-    canvas.drawPath(
-      Path()
-        ..moveTo(200, 150)
-        ..cubicTo(228, 130, 232, 100, 216, 80)
-        ..cubicTo(206, 108, 196, 124, 200, 150)
-        ..close(),
-      leaf,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(212, 178)
-        ..cubicTo(236, 164, 240, 140, 228, 126)
-        ..cubicTo(222, 146, 210, 158, 212, 178)
-        ..close(),
-      leaf..color = tree.withValues(alpha: .7),
-    );
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _ArchPainter old) =>
-      old.colors.palette != colors.palette ||
-      old.colors.brightness != colors.brightness;
-}
 
 
 /// "68.40" -> "68.4", "72.00" -> "72"; non-numeric text is returned as is.

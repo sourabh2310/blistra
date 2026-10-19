@@ -43,11 +43,16 @@ class AuthScaffold extends StatelessWidget {
     required this.child,
     this.onBack,
     this.bottom,
+    this.stickyHeader,
   });
 
   final Widget child;
   final VoidCallback? onBack;
   final Widget? bottom;
+  /// Widget placed between the top bar and the scrollable [child] — does not
+  /// scroll with the content (used by the single-form registration screen so
+  /// the Blistra logo + page title stay visible while the form scrolls).
+  final Widget? stickyHeader;
 
   Widget _themeToggle(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -94,13 +99,18 @@ class AuthScaffold extends StatelessWidget {
               ),
             ),
             const _WakingBanner(),
+            if (stickyHeader != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+                child: stickyHeader!,
+              ),
             Expanded(
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
                   24,
-                  onBack == null ? 32 : 4,
+                  stickyHeader != null ? 0 : (onBack == null ? 32 : 4),
                   24,
                   16,
                 ),

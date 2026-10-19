@@ -47,7 +47,7 @@ abstract final class ShellDestinations {
         diet => 'Diet',
         habits => 'Habits',
         finance => 'Finance',
-        hub => 'Hub',
+        hub => 'Explore',
         _ => id,
       };
 
@@ -59,7 +59,7 @@ abstract final class ShellDestinations {
         diet => Icons.restaurant_outlined,
         habits => Icons.check_circle_outline,
         finance => Icons.account_balance_wallet_outlined,
-        hub => Icons.grid_view_outlined,
+        hub => Icons.explore_outlined,
         _ => Icons.circle_outlined,
       };
 
@@ -71,7 +71,7 @@ abstract final class ShellDestinations {
         diet => Icons.restaurant,
         habits => Icons.check_circle,
         finance => Icons.account_balance_wallet,
-        hub => Icons.grid_view_rounded,
+        hub => Icons.explore,
         _ => Icons.circle,
       };
 

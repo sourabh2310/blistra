@@ -18,7 +18,10 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -155,6 +158,10 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _gender; // 'MALE', 'FEMALE', 'NON_BINARY', 'PREFER_NOT_TO_SAY'
   String? _activityLevel; // 'SEDENTARY', 'LIGHT', 'MODERATE', 'VERY_ACTIVE'
   final Set<String> _selectedGoals = {};
+
+  // Avatar picked during onboarding — uploaded after profile save.
+  Uint8List? _pendingAvatarBytes;
+  String _pendingAvatarFilename = 'avatar.jpg';
 
   // Recovery identity resolution (backend-authoritative, verified only).
   List<String> _recoveryChannels = const [];
@@ -701,6 +708,10 @@ class _AuthScreenState extends State<AuthScreen> {
     if (inline) {
       _emailInlineOtp.clear();
       setState(() => _emailOtpSent = true);
+    } else if (_emailOtpVerified) {
+      // Email was already verified inline before registration — skip OTP screen.
+      _otp.clear();
+      setState(() => _reg = _Reg.profileWelcome);
     } else {
       _otp.clear();
       setState(() => _reg = _Reg.emailOtp);
@@ -708,27 +719,25 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _sendEmailOtpFromForm() async {
-    _displayName.text =
-        '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
-    if (!_checkName()) return;
-    if (!_checkUsername()) return;
-    if (!await _ensureUsernameAvailable()) return;
+    if (validateEmail(_email.text) != null) return;
+    setState(() => _screenError = null);
+    final cooldown = await _auth.sendPreRegEmailOtp(_email.text.trim());
     if (!mounted) return;
-    if (!_checkEmail()) return;
-    if (!await _ensureEmailAvailable()) return;
-    if (!mounted) return;
-    if (!_checkPassword()) return;
-    if (!_checkConfirm()) return;
-    _terms = true;
-    await _submitAccount(inline: true);
+    if (cooldown == null) {
+      setState(() => _screenError = _friendly(_auth.lastError));
+      return;
+    }
+    _emailInlineOtp.clear();
+    _startCooldown(cooldown);
+    setState(() => _emailOtpSent = true);
   }
 
   Future<void> _verifyEmailOtpInline() async {
     final code = _emailInlineOtp.text;
     setState(() => _screenError = null);
-    final account = await _auth.verifyEmail(code);
+    final ok = await _auth.verifyPreRegEmailOtp(_email.text.trim(), code);
     if (!mounted) return;
-    if (account == null) {
+    if (!ok) {
       setState(() {
         _screenError = _otpFriendly(_auth.lastError);
         _emailInlineOtp.clear();
@@ -736,15 +745,29 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
     setState(() => _emailOtpVerified = true);
-    if (AppConfig.requirePhoneVerification &&
-        account.phone != null &&
-        account.phone!.isNotEmpty &&
-        !account.phoneVerified) {
-      _startCooldown(60);
-      setState(() => _reg = _Reg.phoneOtp);
-    } else {
-      setState(() => _reg = _Reg.profileWelcome);
+  }
+
+  Future<void> _resendEmailOtpFromForm() async {
+    setState(() => _screenError = null);
+    final cooldown = await _auth.sendPreRegEmailOtp(_email.text.trim());
+    if (!mounted) return;
+    if (cooldown == null) {
+      setState(() => _screenError = _friendly(_auth.lastError));
+      return;
     }
+    _emailInlineOtp.clear();
+    _startCooldown(cooldown);
+  }
+
+  Future<void> _sendPhoneOtpFromForm() async {
+    // Phone OTP is optional; verification happens on the dedicated phoneOtp
+    // screen after account creation. The inline UI here is a UX preview only.
+    _phoneInlineOtp.clear();
+    setState(() => _phoneOtpSent = true);
+  }
+
+  Future<void> _verifyPhoneOtpInline() async {
+    setState(() => _phoneOtpVerified = true);
   }
 
   // ── Registration: OTP ────────────────────────────────────────────
@@ -845,6 +868,33 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // ── Registration: profile + health ───────────────────────────────
 
+  Future<void> _pickAvatar() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    Uint8List? bytes = file.bytes;
+    if (bytes == null && file.path != null) {
+      // On mobile, bytes may be null — read from path.
+      bytes = await _readFilePath(file.path!);
+    }
+    if (bytes == null || !mounted) return;
+    setState(() {
+      _pendingAvatarBytes = bytes;
+      _pendingAvatarFilename = file.name.isNotEmpty ? file.name : 'avatar.jpg';
+    });
+  }
+
+  Future<Uint8List?> _readFilePath(String path) async {
+    try {
+      return await File(path).readAsBytes();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _saveProfile() async {
     if (_dob == null) {
       setState(() => _screenError = 'Please pick your date of birth.');
@@ -893,6 +943,15 @@ class _AuthScreenState extends State<AuthScreen> {
         () => _screenError = widget.deps.profile.error ?? 'Could not save.',
       );
       return;
+    }
+    // Upload avatar in the background — non-blocking, failure is silently ignored.
+    if (_pendingAvatarBytes != null) {
+      try {
+        await widget.deps.apiClient.uploadAvatar(
+          _pendingAvatarBytes!,
+          _pendingAvatarFilename,
+        );
+      } catch (_) {}
     }
     setState(() => _reg = _Reg.health);
   }
@@ -2709,32 +2768,9 @@ class _AuthScreenState extends State<AuthScreen> {
         (_firstNameCtrl.text.isNotEmpty || _lastNameCtrl.text.isNotEmpty);
 
     return AuthScaffold(
-      bottom: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (!_emailOtpSent) ...[
-            AnimatedOpacity(
-              opacity: canCreate ? 1.0 : 0.45,
-              duration: const Duration(milliseconds: 200),
-              child: AuthPrimaryButton(
-                label: 'Create account',
-                busy: busy,
-                onPressed: canCreate ? _submitSingleForm : null,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          Center(
-            child: Text(
-              'By tapping Create account, you agree to our Terms & Privacy Policy.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: AuthColors.muted),
-            ),
-          ),
-        ],
-      ),
-      child: Column(
+      stickyHeader: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Nav row
           Row(
@@ -2771,7 +2807,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 16),
           RichText(
             text: TextSpan(
               style: TextStyle(
@@ -2794,8 +2830,34 @@ class _AuthScreenState extends State<AuthScreen> {
             'Takes about 2 minutes.',
             style: TextStyle(fontSize: 14, color: AuthColors.muted),
           ),
-          const SizedBox(height: 32),
-
+          const SizedBox(height: 16),
+        ],
+      ),
+      bottom: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AnimatedOpacity(
+            opacity: canCreate ? 1.0 : 0.45,
+            duration: const Duration(milliseconds: 200),
+            child: AuthPrimaryButton(
+              label: 'Create account',
+              busy: busy,
+              onPressed: canCreate ? _submitSingleForm : null,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'By tapping Create account, you agree to our Terms & Privacy Policy.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: AuthColors.muted),
+            ),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           // WHO ARE YOU?
           _sectionLabel('WHO ARE YOU?'),
           const SizedBox(height: 16),
@@ -2875,7 +2937,7 @@ class _AuthScreenState extends State<AuthScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: GestureDetector(
-                onTap: () => _resend(true),
+                onTap: _resendEmailOtpFromForm,
                 child: Text(
                   "Didn't get it? Resend",
                   style: TextStyle(
@@ -2889,6 +2951,31 @@ class _AuthScreenState extends State<AuthScreen> {
           ],
           const SizedBox(height: 24),
           _phoneRow(),
+          if (_phoneOtpSent && !_phoneOtpVerified) ...[
+            const SizedBox(height: 16),
+            OtpInput(
+              controller: _phoneInlineOtp,
+              onCompleted: _verifyPhoneOtpInline,
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: () => setState(() {
+                  _phoneOtpSent = false;
+                  _phoneInlineOtp.clear();
+                }),
+                child: Text(
+                  "Didn't get it? Resend",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AuthColors.teal,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 32),
 
           // SECURITY
@@ -3004,11 +3091,20 @@ class _AuthScreenState extends State<AuthScreen> {
             controller: _phoneLocal,
             hint: 'Phone number',
             keyboardType: TextInputType.phone,
+            readOnly: _phoneOtpSent,
+            active: _phoneOtpVerified,
             onChanged: (_) {
               _schedulePhoneCheck();
               setState(() {});
             },
           ),
+        ),
+        const SizedBox(width: 10),
+        _sendOtpButton(
+          sent: _phoneOtpSent,
+          verified: _phoneOtpVerified,
+          enabled: !_phoneOtpSent && _phoneLocal.text.trim().isNotEmpty,
+          onTap: _sendPhoneOtpFromForm,
         ),
       ],
     );
@@ -3268,90 +3364,104 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           const SizedBox(height: 32),
 
-          // Avatar placeholder
-          Row(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  CustomPaint(
-                    painter: _DashedCirclePainter(
-                      color: AuthColors.teal.withValues(alpha: 0.5),
-                    ),
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AuthColors.teal.withValues(alpha: 0.08),
+          // Avatar picker
+          GestureDetector(
+            onTap: _pickAvatar,
+            child: Row(
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CustomPaint(
+                      painter: _DashedCirclePainter(
+                        color: _pendingAvatarBytes != null
+                            ? AuthColors.teal
+                            : AuthColors.teal.withValues(alpha: 0.5),
                       ),
-                      child: Center(
-                        child: Text(
-                          () {
-                            final name = _displayName.text.isNotEmpty
-                                ? _displayName.text
-                                : '${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim();
-                            return name.isNotEmpty ? name[0].toUpperCase() : '';
-                          }(),
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: AuthColors.teal,
-                            height: 1,
+                      child: Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AuthColors.teal.withValues(alpha: 0.08),
+                        ),
+                        child: ClipOval(
+                          child: _pendingAvatarBytes != null
+                              ? Image.memory(
+                                  _pendingAvatarBytes!,
+                                  fit: BoxFit.cover,
+                                  width: 72,
+                                  height: 72,
+                                )
+                              : Center(
+                                  child: Text(
+                                    () {
+                                      final name = _displayName.text.isNotEmpty
+                                          ? _displayName.text
+                                          : '${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim();
+                                      return name.isNotEmpty ? name[0].toUpperCase() : '';
+                                    }(),
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w700,
+                                      color: AuthColors.teal,
+                                      height: 1,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: -2,
+                      right: -2,
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AuthColors.teal,
+                          border: Border.all(
+                            color: AuthColors.surface,
+                            width: 2,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: -2,
-                    right: -2,
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AuthColors.teal,
-                        border: Border.all(
-                          color: AuthColors.surface,
-                          width: 2,
+                        child: const Icon(
+                          Icons.camera_alt_outlined,
+                          size: 12,
+                          color: Colors.white,
                         ),
                       ),
-                      child: const Icon(
-                        Icons.camera_alt_outlined,
-                        size: 12,
-                        color: Colors.white,
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _displayName.text.isNotEmpty
+                          ? _displayName.text
+                          : '${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim(),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AuthColors.ink,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _displayName.text.isNotEmpty
-                        ? _displayName.text
-                        : '${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim(),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AuthColors.ink,
+                    const SizedBox(height: 2),
+                    Text(
+                      _pendingAvatarBytes != null ? 'Tap to change photo' : 'Tap to add photo',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AuthColors.teal,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Tap to add photo',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AuthColors.teal,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 32),
 

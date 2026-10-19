@@ -61,6 +61,8 @@ public class AuthService {
     @Autowired
     private OtpProperties otpProperties;
     @Autowired
+    private com.blistra.auth.otp.PreRegOtpService preRegOtpService;
+    @Autowired
     private com.blistra.auth.security.AuthRateLimiter rateLimiter;
 
     /** SMS codes are only issued when an SMS provider exists (dev console counts). */
@@ -177,8 +179,15 @@ public class AuthService {
         // Verification codes are part of onboarding, but delivery must never
         // roll the account back: a misconfigured sender surfaces on resend.
         try {
-            verificationService.issue(saved.getId(), OtpPurpose.EMAIL_VERIFY,
-                    OtpChannel.EMAIL, email);
+            if (preRegOtpService.consumeVerified(email)) {
+                // Email was verified inline before registration — mark it immediately.
+                saved.setEmailVerified(true);
+                maybeActivate(saved);
+                userRepository.save(saved);
+            } else {
+                verificationService.issue(saved.getId(), OtpPurpose.EMAIL_VERIFY,
+                        OtpChannel.EMAIL, email);
+            }
             if (phone != null && smsEnabled) {
                 verificationService.issue(saved.getId(), OtpPurpose.PHONE_VERIFY,
                         OtpChannel.SMS, phone);

@@ -304,6 +304,42 @@ class AuthState extends ChangeNotifier {
     }
   }
 
+  /// Returns cooldown seconds on success; null on failure.
+  Future<int?> sendPreRegEmailOtp(String email) async {
+    try {
+      final cooldown = await apiClient.sendPreRegEmailOtp(email.trim());
+      _lastError = null;
+      notifyListeners();
+      return cooldown;
+    } on ApiException catch (error) {
+      _lastError = _safe(error);
+      notifyListeners();
+      return null;
+    } catch (error) {
+      _lastError = NetworkException(error);
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Returns true on success; false on failure (see [lastError]).
+  Future<bool> verifyPreRegEmailOtp(String email, String code) async {
+    try {
+      await apiClient.verifyPreRegEmailOtp(email.trim(), code.trim());
+      _lastError = null;
+      notifyListeners();
+      return true;
+    } on ApiException catch (error) {
+      _lastError = _safe(error);
+      notifyListeners();
+      return false;
+    } catch (error) {
+      _lastError = NetworkException(error);
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Always resolves (generic server message prevents enumeration).
   Future<String?> forgotPassword({
     required String identifier,

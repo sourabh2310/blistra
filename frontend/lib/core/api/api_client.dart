@@ -762,6 +762,23 @@ class ApiClient {
     return OtpIssuanceDto.fromJson(body);
   }
 
+  Future<int> sendPreRegEmailOtp(String email) async {
+    final body = await post(
+      '/api/v1/auth/pre-register/send-email-otp',
+      body: {'email': email},
+      expectStatus: 200,
+    ) as Map<String, dynamic>;
+    return (body['cooldownSeconds'] as num).toInt();
+  }
+
+  Future<void> verifyPreRegEmailOtp(String email, String code) async {
+    await post(
+      '/api/v1/auth/pre-register/verify-email-otp',
+      body: {'email': email, 'code': code},
+      expectStatus: 200,
+    );
+  }
+
   Future<OtpIssuanceDto> resendPhoneOtp() async {
     final body = await post('/api/v1/auth/resend/phone', expectStatus: 200);
     return OtpIssuanceDto.fromJson(body);
