@@ -163,6 +163,7 @@ jobs:
         env:
           API_BASE_URL: ${{ vars.API_BASE_URL }}
           SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+          GOOGLE_SERVER_CLIENT_ID: ${{ vars.GOOGLE_SERVER_CLIENT_ID }}
         run: |
           set -eu
           test -n "$SUPPORT_EMAIL"
@@ -172,6 +173,7 @@ jobs:
             --build-number "${{ github.run_number }}" \
             --dart-define=API_BASE_URL="$API_BASE_URL" \
             --dart-define=SUPPORT_EMAIL="$SUPPORT_EMAIL" \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID" \
             --dart-define=APP_BUILD="${{ github.run_number }}"
 
       - name: Rename APK

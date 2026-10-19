@@ -116,6 +116,20 @@ Installed apps ask the backend (`GET /api/v1/app/latest`) for the newest `apk-N`
 - The backend reads releases from `APP_UPDATE_GITHUB_REPO` (default `sourabh2310/blistra`, which must be public). If GitHub rate limits ever bite, set `APP_UPDATE_GITHUB_TOKEN`.
 - APKs built before this feature (builds 1–4) have no update check; install the next build by hand once.
 
+## Sign in with Google
+
+The login screen's **Continue with Google** uses native Google Sign-In: the app gets a Google ID token and sends it to `POST /api/v1/auth/google`, where the backend verifies it against Google's public keys and issues the normal Blistra session. An existing account with the same verified email is linked; otherwise a verified account is created and the user continues into profile setup.
+
+One-time setup in Google Cloud Console (APIs & Services → Credentials):
+
+1. Configure the OAuth consent screen.
+2. Create an **OAuth client ID → Web application**. Its client id is the *server* client id.
+3. Create an **OAuth client ID → Android** with package name `com.blistra.app` and the SHA-1 of the keystore that signs the build. Add one per keystore (debug and release).
+4. Set `GOOGLE_CLIENT_IDS` on the backend to the Web client id (comma-separate several).
+5. Build the app with `--dart-define=GOOGLE_SERVER_CLIENT_ID=<web client id>`. For releases set it as the repository variable `GOOGLE_SERVER_CLIENT_ID`.
+
+Without these the button explains that Google sign-in isn't set up (app) or the endpoint answers 503 (backend); password sign-in is unaffected. iOS needs additional Info.plist setup that isn't done yet.
+
 ## Limits to know about
 
 - **Documents/photos** require the mounted persistent volume. Database backups alone do not include those bytes. Per-user documents are limited to 100 files / 100 MiB, with a 10-MiB per-file limit. File validation is not malware scanning; enable a scanning solution before opening uploads broadly.

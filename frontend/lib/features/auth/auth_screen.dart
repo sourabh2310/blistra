@@ -28,6 +28,7 @@ import 'package:provider/provider.dart';
 import '../../app/app_dependencies.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/auth/auth_state.dart';
+import '../../core/auth/google_sign_in_service.dart';
 import '../../core/device/device_context.dart';
 import '../../core/theme/theme_controller.dart';
 import '../diet/models/dietary_preference.dart';
@@ -68,9 +69,17 @@ enum _Forgot { identifier, channel, code, reset, success }
 enum _Avail { idle, checking, available, taken }
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key, required this.deps, this.startWizard = false});
+  const AuthScreen({
+    super.key,
+    required this.deps,
+    this.startWizard = false,
+    this.googleTokenProvider,
+  });
 
   final AppDependencies deps;
+
+  /// Overrides native Google Sign-In (tests).
+  final GoogleIdTokenProvider? googleTokenProvider;
 
   /// Resume the post-registration wizard (used by [AuthGate]).
   final bool startWizard;
@@ -170,6 +179,10 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _resolvingChannels = false;
 
   AuthState get _auth => widget.deps.authState;
+
+  late final GoogleIdTokenProvider _google =
+      widget.googleTokenProvider ?? googleIdTokenProvider;
+  bool _googleBusy = false;
 
   @override
   void initState() {
@@ -293,6 +306,39 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _finishing = true);
     await _initializeHome();
     if (mounted) setState(() => _finishing = false);
+  }
+
+  Future<void> _signInWithGoogle() async {
+    if (_googleBusy || _busy) return;
+    setState(() {
+      _googleBusy = true;
+      _loginError = null;
+    });
+    try {
+      final idToken = await _google.getIdToken();
+      if (!mounted) return;
+      if (idToken == null) return; // user dismissed the account picker
+      final account = await _auth.loginWithGoogle(idToken);
+      if (!mounted) return;
+      if (account == null) {
+        final error = _auth.lastError;
+        setState(
+          () => _loginError = error != null && error.statusCode == 503
+              ? 'Google sign-in is unavailable right now. Please try again later.'
+              : error != null && error.code == 'RATE_LIMITED'
+              ? _friendly(error)
+              : "Couldn't sign in with Google. Please try again.",
+        );
+        return;
+      }
+      setState(() => _finishing = true);
+      await _initializeHome();
+      if (mounted) setState(() => _finishing = false);
+    } on GoogleSignInUnavailable catch (error) {
+      if (mounted) setState(() => _loginError = error.message);
+    } finally {
+      if (mounted) setState(() => _googleBusy = false);
+    }
   }
 
   // ── Registration: per-step validation ────────────────────────────
@@ -1264,6 +1310,12 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           const SizedBox(height: 16),
           _googleButton(),
+          const SizedBox(height: 10),
+          Text(
+            'By continuing with Google you agree to the Terms and Privacy Policy.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AuthColors.muted, fontSize: 11.5),
+          ),
         ],
       ),
       child: Column(
@@ -1400,13 +1452,18 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           side: BorderSide(color: AuthColors.border, width: 1),
         ),
-        onPressed: () {
-          // Google Sign-In: requires backend integration.
-        },
+        onPressed: _googleBusy || _busy ? null : _signInWithGoogle,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _googleLogo(),
+            if (_googleBusy)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              _googleLogo(),
             const SizedBox(width: 10),
             Text(
               'Continue with Google',

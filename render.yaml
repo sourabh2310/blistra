@@ -39,5 +39,7 @@ services:
         sync: false            # Brevo SMTP key
       - key: MAIL_FROM
         sync: false            # verified sender address
+      - key: GOOGLE_CLIENT_IDS
+        sync: false            # Google OAuth Web client id(s), comma-separated; empty disables Google sign-in
       - key: BLISTRA_CORS_ORIGIN_PATTERNS
         sync: false            # exact browser origins; native apps do not need CORS

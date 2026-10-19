@@ -2,7 +2,10 @@ package com.blistra.auth.application;
 
 import com.blistra.auth.dto.AuthResponse;
 import com.blistra.auth.dto.AvailabilityResponse;
+import com.blistra.auth.dto.GoogleLoginRequest;
 import com.blistra.auth.dto.LoginRequest;
+import com.blistra.auth.google.GoogleIdTokenVerifier;
+import com.blistra.auth.google.GoogleIdentity;
 import com.blistra.auth.dto.RecoveryChannelsResponse;
 import com.blistra.auth.dto.RegisterRequest;
 import com.blistra.auth.dto.UserResponse;
@@ -60,6 +63,8 @@ public class AuthService {
 
     @Autowired
     private OtpProperties otpProperties;
+    @Autowired
+    private GoogleIdTokenVerifier googleIdTokenVerifier;
     @Autowired
     private com.blistra.auth.otp.PreRegOtpService preRegOtpService;
     @Autowired
@@ -235,6 +240,85 @@ public class AuthService {
                 .expiresIn(jwtExpirationMs / 1000)
                 .user(mapToUserResponse(user, null))
                 .build();
+    }
+
+    /**
+     * Sign in (or sign up) with a Google ID token. Resolution order: the linked
+     * Google account, then an existing account with the same verified email
+     * (which gets linked), otherwise a new verified account.
+     */
+    @Transactional
+    public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
+        if (!googleIdTokenVerifier.isConfigured()) {
+            throw new VerificationUnavailableException("Google sign-in is not available right now.");
+        }
+        GoogleIdentity identity = googleIdTokenVerifier.verify(request.getIdToken());
+        String email = IdentityNormalizer.normalizeEmail(identity.email());
+        if (identity.subject() == null || email == null || !identity.emailVerified()) {
+            log.warn("Google sign-in rejected: missing subject or unverified email");
+            throw new InvalidCredentialsException("Google sign-in failed");
+        }
+
+        User user = userRepository.findByGoogleSub(identity.subject())
+                .or(() -> userRepository.findByEmailIgnoreCase(email)
+                        .map(existing -> linkGoogle(existing, identity)))
+                .orElseGet(() -> createGoogleUser(identity, email, request));
+        if (user.isBlocked()) {
+            log.warn("Google sign-in for blocked account: {}", user.getId());
+            throw new InvalidCredentialsException("Google sign-in failed");
+        }
+
+        String token = jwtProvider.generateToken(user.getId(), user.getEmail(), user.getSessionVersion());
+        log.info("User signed in with Google: {}", user.getId());
+        return AuthResponse.builder()
+                .token(token)
+                .tokenType("Bearer")
+                .expiresIn(jwtExpirationMs / 1000)
+                .user(mapToUserResponse(user, null))
+                .build();
+    }
+
+    private User linkGoogle(User user, GoogleIdentity identity) {
+        if (user.getGoogleSub() != null && !user.getGoogleSub().equals(identity.subject())) {
+            throw new InvalidCredentialsException("Google sign-in failed");
+        }
+        if (!user.isEmailVerified()) {
+            // Someone may have registered this address without proving they own it
+            // (pre-hijacking). Google has now proven ownership, so invalidate any
+            // password and sessions the earlier registrant holds.
+            user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+            user.revokeSessions();
+            user.setEmailVerified(true);
+            maybeActivate(user);
+        }
+        user.setGoogleSub(identity.subject());
+        return userRepository.save(user);
+    }
+
+    private User createGoogleUser(GoogleIdentity identity, String email, GoogleLoginRequest request) {
+        if (requireTerms && !Boolean.TRUE.equals(request.getTermsAccepted())) {
+            throw new BadRequestException("Accept the Terms and Privacy Policy to create an account.");
+        }
+        // Google-only accounts get an unguessable password; they can set one via recovery.
+        User user = new User(email, passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setUsername(uniqueUsername(IdentityNormalizer.deriveUsername(email)));
+        user.setGoogleSub(identity.subject());
+        user.setEmailVerified(true);
+        user.setStatus(UserStatus.ACTIVE);
+        if (Boolean.TRUE.equals(request.getTermsAccepted())) {
+            user.setTermsAcceptedAt(LocalDateTime.now());
+            user.setTermsVersion("2026-10-17");
+        }
+        User saved = userRepository.save(user);
+
+        UserProfile profile = new UserProfile(saved.getId());
+        String name = identity.name();
+        profile.setDisplayName(name != null && !name.isBlank()
+                ? name.trim()
+                : displayFromEmail(email));
+        userProfileRepository.save(profile);
+        log.info("User registered via Google: {}", saved.getId());
+        return saved;
     }
 
     @Transactional(noRollbackFor = OtpVerificationException.class)

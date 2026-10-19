@@ -52,7 +52,8 @@ class HelpScreen extends StatelessWidget {
     (
       'How do I delete my account?',
       'Profile > Privacy & data > Delete account. You\'ll be asked for '
-          'your password, and the deletion is permanent.',
+          'your password (or to confirm with Google). Your account is '
+          'deactivated and you can register again any time.',
     ),
   ];
 

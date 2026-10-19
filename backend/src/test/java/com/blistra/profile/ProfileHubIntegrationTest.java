@@ -131,7 +131,7 @@ class ProfileHubIntegrationTest extends AuthFlowTest {
     }
 
     @Test
-    void deleteAccountNeedsPasswordAndRemovesUser() throws Exception {
+    void deleteAccountNeedsPasswordAndDeactivatesUser() throws Exception {
         MvcResult reg = registerFull("leaver", "leaver@example.com", null, "password1");
         String token = tokenOf(reg);
         UUID id = UUID.fromString(userIdOf(reg));
@@ -141,7 +141,14 @@ class ProfileHubIntegrationTest extends AuthFlowTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"currentPassword\":\"nope12345\"}"))
                 .andReturn();
-        assertThat(wrong.getResponse().getStatus()).isEqualTo(401);
+        assertThat(wrong.getResponse().getStatus()).isEqualTo(400);
+
+        MvcResult missing = mockMvc.perform(post("/api/v1/profile/delete-account")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andReturn();
+        assertThat(missing.getResponse().getStatus()).isEqualTo(400);
 
         MvcResult ok = mockMvc.perform(post("/api/v1/profile/delete-account")
                 .header("Authorization", "Bearer " + token)
@@ -149,15 +156,45 @@ class ProfileHubIntegrationTest extends AuthFlowTest {
                 .content("{\"currentPassword\":\"password1\"}"))
                 .andReturn();
         assertThat(ok.getResponse().getStatus()).isEqualTo(204);
-        Integer users = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM users WHERE id = ?", Integer.class, id);
-        assertThat(users).isZero();
+
+        // The row and its profile are kept, but inactive and anonymised.
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                "SELECT username, email, status FROM users WHERE id = ?", id);
+        assertThat(row.get("status")).isEqualTo("INACTIVE");
+        assertThat(row.get("username").toString()).startsWith("deleted_");
+        assertThat(row.get("email").toString()).doesNotContain("leaver");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT display_name FROM user_profiles WHERE user_id = ?",
+                String.class, id)).isEqualTo("Deleted user");
+
+        // It can no longer sign in, and the old session is dead.
         assertThat(loginAs("leaver@example.com", "password1").getResponse().getStatus())
-                .isNotEqualTo(200);
+                .isEqualTo(401);
+        assertThat(mockMvc.perform(get("/api/v1/profile")
+                        .header("Authorization", "Bearer " + token))
+                .andReturn().getResponse().getStatus()).isEqualTo(401);
     }
 
     @Test
-    void deleteAccountWithSharedExpensesAnonymisesInstead() throws Exception {
+    void deactivatedUserCanRegisterAgainWithTheSameDetails() throws Exception {
+        MvcResult first = registerFull("leaver", "leaver@example.com", "+919876543210", "password1");
+        mockMvc.perform(post("/api/v1/profile/delete-account")
+                .header("Authorization", "Bearer " + tokenOf(first))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"password1\"}"));
+
+        MvcResult again = registerFull("leaver", "leaver@example.com", "+919876543210", "password2");
+
+        assertThat(again.getResponse().getStatus()).isEqualTo(201);
+        assertThat(userIdOf(again)).isNotEqualTo(userIdOf(first));
+        assertThat(loginAs("leaver@example.com", "password2").getResponse().getStatus())
+                .isEqualTo(200);
+        assertThat(loginAs("leaver@example.com", "password1").getResponse().getStatus())
+                .isEqualTo(401);
+    }
+
+    @Test
+    void deactivationKeepsSharedExpensesForFriends() throws Exception {
         MvcResult regA = registerFull("sharera", "sharera@example.com", null, "password1");
         MvcResult regB = registerFull("sharerb", "sharerb@example.com", null, "password1");
         UUID a = UUID.fromString(userIdOf(regA));
@@ -180,14 +217,6 @@ class ProfileHubIntegrationTest extends AuthFlowTest {
                 .andReturn();
         assertThat(ok.getResponse().getStatus()).isEqualTo(204);
 
-        Map<String, Object> row = jdbcTemplate.queryForMap(
-                "SELECT username, email, status FROM users WHERE id = ?", a);
-        assertThat(row.get("username").toString()).startsWith("deleted_");
-        assertThat(row.get("email").toString()).doesNotContain("sharera");
-        assertThat(row.get("status")).isEqualTo("INACTIVE");
-        Integer profiles = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM user_profiles WHERE user_id = ?", Integer.class, a);
-        assertThat(profiles).isZero();
         Integer shares = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM finance_expense_shares WHERE expense_id = ?", Integer.class, expense);
         assertThat(shares).isEqualTo(2);

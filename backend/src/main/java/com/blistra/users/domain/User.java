@@ -47,6 +47,12 @@ public class User {
     @Column(name = "onboarding_completed", nullable = false)
     private boolean onboardingCompleted;
 
+    @Column(name = "google_sub", length = 64)
+    private String googleSub;
+
+    public String getGoogleSub() { return googleSub; }
+    public void setGoogleSub(String googleSub) { this.googleSub = googleSub; }
+
     @Column(name = "pending_email", length = 255)
     private String pendingEmail;
 

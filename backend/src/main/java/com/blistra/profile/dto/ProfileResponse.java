@@ -40,6 +40,8 @@ public class ProfileResponse {
     private String emergencyContactRelation;
     private boolean allowFriendRequests;
     private boolean hasAvatar;
+    /** Signed in with / linked to Google; re-authenticates with Google. */
+    private boolean googleLinked;
     /** Changes whenever the photo changes; clients use it as a cache key. */
     private Long avatarVersion;
     /** Staged email/phone waiting for OTP confirmation. */

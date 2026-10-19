@@ -160,7 +160,7 @@ class FinanceGroupIntegrationTest extends FinanceTestSupport {
         request(get(PAYMENTS).param("groupId",group).param("page","1"),stranger,null,404);
     }
 
-    @Test void accountDeletionTransfersSharedGroupAndKeepsOtherMembersLedger() throws Exception {
+    @Test void accountDeactivationTransfersSharedGroupAndKeepsOtherMembersLedger() throws Exception {
         String group=create("Shared trip");join(group,"bob",bob);join(group,"carol",carol);expense(group);
         request(post("/api/v1/profile/delete-account"),alice,java.util.Map.of("currentPassword","Password123!"),204);
         assertThat(request(get(GROUPS+"/"+group),bob,null,200).get("group").get("ownerId").asText()).isEqualTo(bobId);

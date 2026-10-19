@@ -124,6 +124,7 @@ class UserProfileDto {
     this.emergencyContactRelation,
     this.allowFriendRequests = true,
     this.hasAvatar = false,
+    this.googleLinked = false,
     this.avatarVersion,
     this.pendingEmail,
     this.pendingPhone,
@@ -156,6 +157,9 @@ class UserProfileDto {
   /// Privacy: whether other people can send a friend request.
   final bool allowFriendRequests;
   final bool hasAvatar;
+
+  /// Linked to a Google account: sensitive actions re-authenticate with Google.
+  final bool googleLinked;
 
   /// Changes whenever the photo changes; used as the image cache key.
   final int? avatarVersion;
@@ -192,6 +196,7 @@ class UserProfileDto {
     emergencyContactRelation: json['emergencyContactRelation'] as String?,
     allowFriendRequests: json['allowFriendRequests'] as bool? ?? true,
     hasAvatar: json['hasAvatar'] as bool? ?? false,
+    googleLinked: json['googleLinked'] as bool? ?? false,
     avatarVersion: (json['avatarVersion'] as num?)?.toInt(),
     pendingEmail: json['pendingEmail'] as String?,
     pendingPhone: json['pendingPhone'] as String?,
@@ -739,6 +744,21 @@ class ApiClient {
     return response;
   }
 
+  Future<AuthResponseDto> googleLogin({
+    required String idToken,
+    bool termsAccepted = true,
+  }) async {
+    final body = await _send(
+      'POST',
+      '/api/v1/auth/google',
+      body: {'idToken': idToken, 'termsAccepted': termsAccepted},
+      expectStatus: 200,
+    ) as Map<String, dynamic>;
+    final AuthResponseDto response = AuthResponseDto.fromJson(body);
+    token = response.token;
+    return response;
+  }
+
   Future<UserAccountDto> verifyEmail(String code) async {
     final body = await post(
       '/api/v1/auth/verify/email',
@@ -919,11 +939,16 @@ class ApiClient {
     return UserProfileDto.fromJson(body);
   }
 
-  /// Permanently deletes the account. The session is unusable afterwards.
-  Future<void> deleteAccount({required String currentPassword}) =>
+  /// Deactivates the account (data is kept, sign-in identifiers are released).
+  /// Re-authenticates with [currentPassword] or, for Google-linked accounts,
+  /// a fresh [googleIdToken]. The session is unusable afterwards.
+  Future<void> deleteAccount({String? currentPassword, String? googleIdToken}) =>
       postNoContent(
         '/api/v1/profile/delete-account',
-        body: {'currentPassword': currentPassword},
+        body: {
+          'currentPassword': ?currentPassword,
+          'googleIdToken': ?googleIdToken,
+        },
       );
 
   /// Development-only: latest usable OTP for the account. The backend 404s

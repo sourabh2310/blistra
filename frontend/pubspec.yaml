@@ -53,6 +53,7 @@ dependencies:
 
   http_parser: any
   test: any
+  google_sign_in: ^7.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

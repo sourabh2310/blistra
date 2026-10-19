@@ -3,7 +3,7 @@ package com.blistra.profile.controller;
 import com.blistra.auth.dto.IdentityUpdateRequest;
 import com.blistra.auth.dto.VerifyOtpRequest;
 import com.blistra.auth.security.BlistraUserPrincipal;
-import com.blistra.profile.application.AccountDeletionService;
+import com.blistra.profile.application.AccountDeactivationService;
 import com.blistra.profile.application.ProfileAvatarService;
 import com.blistra.profile.application.ProfileService;
 import com.blistra.profile.dto.DeleteAccountRequest;
@@ -33,7 +33,7 @@ public class ProfileController {
     private ProfileAvatarService avatarService;
 
     @Autowired
-    private AccountDeletionService accountDeletionService;
+    private AccountDeactivationService accountDeactivationService;
 
     @GetMapping
     @Operation(summary = "Get the authenticated user's profile")
@@ -95,9 +95,12 @@ public class ProfileController {
     }
 
     @PostMapping("/delete-account")
-    @Operation(summary = "Permanently delete the account and personal data (current password required)")
-    public ResponseEntity<Void> deleteAccount(@Valid @RequestBody DeleteAccountRequest request) {
-        accountDeletionService.deleteCurrentAccount(request.getCurrentPassword());
+    @Operation(summary = "Deactivate the account (current password or a fresh Google token required)",
+            description = "The account becomes inactive and its email, phone, username and Google "
+                    + "link are released so the person can register again. Data is retained.")
+    public ResponseEntity<Void> deleteAccount(@RequestBody DeleteAccountRequest request) {
+        accountDeactivationService.deactivateCurrentAccount(
+                request.getCurrentPassword(), request.getGoogleIdToken());
         return ResponseEntity.noContent().build();
     }
 }

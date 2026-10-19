@@ -179,11 +179,15 @@ class ProfileController extends ChangeNotifier {
     'Could not change your password.',
   );
 
-  /// Permanently deletes the account. The caller signs out on success.
-  Future<bool> deleteAccount({required String currentPassword}) => _run(
-    () => _client.deleteAccount(currentPassword: currentPassword),
-    'Could not delete your account.',
-  );
+  /// Deactivates the account. The caller signs out on success.
+  Future<bool> deleteAccount({String? currentPassword, String? googleIdToken}) =>
+      _run(
+        () => _client.deleteAccount(
+          currentPassword: currentPassword,
+          googleIdToken: googleIdToken,
+        ),
+        'Could not delete your account.',
+      );
 
   Future<bool> _run(Future<void> Function() action, String fallback) async {
     _saving = true;

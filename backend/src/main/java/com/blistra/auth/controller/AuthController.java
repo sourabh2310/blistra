@@ -6,6 +6,7 @@ import com.blistra.auth.dto.AvailabilityResponse;
 import com.blistra.auth.dto.ChangePasswordRequest;
 import com.blistra.auth.dto.ForgotPasswordRequest;
 import com.blistra.auth.dto.RecoveryChannelsResponse;
+import com.blistra.auth.dto.GoogleLoginRequest;
 import com.blistra.auth.dto.LoginRequest;
 import com.blistra.auth.dto.RegisterRequest;
 import com.blistra.auth.dto.ResetPasswordRequest;
@@ -76,6 +77,22 @@ public class AuthController {
         log.info("Received login request");
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/google")
+    @Operation(summary = "Sign in or sign up with Google",
+            description = "Exchanges a Google ID token (obtained by the app via Google Sign-In) for a "
+                    + "Blistra session. Links to an existing account with the same verified email, "
+                    + "or creates a new verified account.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Signed in",
+                    content = @Content(schema = @Schema(implementation = AuthResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Terms not accepted for a new account"),
+            @ApiResponse(responseCode = "401", description = "Invalid Google token"),
+            @ApiResponse(responseCode = "503", description = "Google sign-in not configured")
+    })
+    public ResponseEntity<AuthResponse> google(@Valid @RequestBody GoogleLoginRequest request) {
+        return ResponseEntity.ok(authService.loginWithGoogle(request));
     }
 
     @PostMapping("/verify/email")

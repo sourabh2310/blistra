@@ -303,6 +303,7 @@ public class ProfileService {
                 .phoneVerified(user.isPhoneVerified())
                 .onboardingCompleted(user.isOnboardingCompleted())
                 .status(user.getStatus().toString())
+                .googleLinked(user.getGoogleSub() != null)
                 .displayName(profile.getDisplayName())
                 .dateOfBirth(profile.getDateOfBirth())
                 .age(ProfileResponse.ageOf(profile.getDateOfBirth()))

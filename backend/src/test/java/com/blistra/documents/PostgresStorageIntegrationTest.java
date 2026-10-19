@@ -83,7 +83,7 @@ class PostgresStorageIntegrationTest extends AuthFlowTest {
             .isInstanceOf(DocumentTooLargeException.class);
         assertThat(objects()).isEqualTo(1);
     }
-    @Test void accountDeletionRemovesDocumentAndAvatarBytesInTheDatabase() throws Exception {
+    @Test void accountDeactivationKeepsDocumentAndAvatarBytesInTheDatabase() throws Exception {
         String token=tokenOf(registerFull("deletefiles","deletefiles@example.com",null,"password1"));
         mockMvc.perform(multipart("/api/v1/documents").file(pdf()).param("category","OTHER").header("Authorization","Bearer "+token))
             .andExpect(status().isCreated());
@@ -95,6 +95,6 @@ class PostgresStorageIntegrationTest extends AuthFlowTest {
         mockMvc.perform(post("/api/v1/profile/delete-account").header("Authorization","Bearer "+token)
             .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"password1\"}"))
             .andExpect(status().isNoContent());
-        assertThat(objects()).isZero();
+        assertThat(objects()).isEqualTo(2);
     }
 }

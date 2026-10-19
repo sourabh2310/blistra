@@ -154,18 +154,44 @@ class AuthState extends ChangeNotifier {
     required String identifier,
     required String password,
   }) async {
+    return _signIn(
+      () => apiClient.login(identifier: identifier.trim(), password: password),
+      fallbackEmail: identifier.trim(),
+    );
+  }
+
+  /// Sign in (or sign up) with a Google ID token from native Google Sign-In.
+  /// [termsAccepted] only matters when the token creates a new account.
+  Future<UserAccountDto?> loginWithGoogle(
+    String idToken, {
+    bool termsAccepted = true,
+  }) {
+    return _signIn(
+      () => apiClient.googleLogin(
+        idToken: idToken,
+        termsAccepted: termsAccepted,
+      ),
+      fallbackEmail: '',
+      resumeOnboarding: true,
+    );
+  }
+
+  /// [resumeOnboarding] sends accounts that haven't finished onboarding (e.g.
+  /// a brand-new Google signup) into the profile setup wizard.
+  Future<UserAccountDto?> _signIn(
+    Future<AuthResponseDto> Function() request, {
+    required String fallbackEmail,
+    bool resumeOnboarding = false,
+  }) async {
     await _endingSession;
     _setBusy();
     try {
-      final AuthResponseDto response = await apiClient.login(
-        identifier: identifier.trim(),
-        password: password,
-      );
+      final AuthResponseDto response = await request();
       final json = response.userEmail;
       _account = UserAccountDto(
         id: '',
         username: '',
-        email: json.isNotEmpty ? json : identifier.trim(),
+        email: json.isNotEmpty ? json : fallbackEmail,
         emailVerified: true,
         phoneVerified: true,
         onboardingCompleted: true,
@@ -193,6 +219,9 @@ class AuthState extends ChangeNotifier {
       }
       _lastError = null;
       _status = AuthStatus.authenticated;
+      if (resumeOnboarding && !(_account?.onboardingCompleted ?? true)) {
+        _justRegistered = true;
+      }
       notifyListeners();
       return _account;
     } on ApiException catch (error) {

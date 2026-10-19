@@ -28,7 +28,7 @@ Data is processed on the configured backend, database and file-storage services.
 
 Native devices use secure credential storage where available. When it is unavailable, and on web, sessions are held in memory. Downloaded files may be handed to another app you select; that app can keep its own copy. Notification content can appear on your lock screen unless you enable content hiding.
 
-You can correct or remove records and delete your account in Privacy & data. Shared expenses and settlement history remain for other participants under a deleted identity; their descriptions and notes can still contain information originally entered by participants. File erasure may be delayed while failed storage operations retry. Backup retention depends on the service deployment.
+You can correct or remove records in the app. Deleting your account in Privacy & data deactivates it: you are signed out, your email, phone and Google link are released so you can register again, and your data is retained rather than erased. Shared expenses and settlement history remain for other participants under a deleted identity; their descriptions and notes can still contain information originally entered by participants. Backup retention depends on the service deployment.
 
 Use the support contact in Help & support for data questions. Do not upload important originals until the service operator has confirmed durable storage and backups. Keep your own copies.
 ''';
@@ -41,7 +41,7 @@ Health, diet and medicine features organize your entries. They do not diagnose c
 
 Financial entries and settlements are user-recorded information, not payment processing or proof that money changed hands. Shared expense participants may see the records and retained history described in the Privacy Policy. Resolve payment disagreements directly with the participants.
 
-The service is under development. Features and availability may change. Keep independent copies of important information. You may stop using the service and request account deletion from Privacy & data. Contact the support address in Help & support about problems or data requests.
+The service is under development. Features and availability may change. Keep independent copies of important information. You may stop using the service and deactivate your account from Privacy & data. Contact the support address in Help & support about problems or data requests.
 
 Read the Privacy Policy before creating an account. These terms do not remove rights that apply under the law where you live.
 ''';
