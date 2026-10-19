@@ -193,16 +193,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   _Reg _resumeStep() {
-    final account = _auth.account;
-    if (account == null) return _Reg.emailOtp;
-    if (!account.emailVerified) return _Reg.emailOtp;
-    if (AppConfig.requirePhoneVerification &&
-        account.phone != null &&
-        account.phone!.isNotEmpty &&
-        !account.phoneVerified) {
-      return _Reg.phoneOtp;
-    }
-    return _Reg.profileWelcome;
+    return _auth.account == null ? _Reg.emailOtp : _Reg.profileWelcome;
   }
 
   void _prefillFromAccount() {
@@ -3302,22 +3293,33 @@ class _AuthScreenState extends State<AuthScreen> {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AuthColors.teal.withValues(alpha: 0.5),
-                        width: 1.5,
-                        strokeAlign: BorderSide.strokeAlignOutside,
-                      ),
-                      color: AuthColors.teal.withValues(alpha: 0.08),
+                  CustomPaint(
+                    painter: _DashedCirclePainter(
+                      color: AuthColors.teal.withValues(alpha: 0.5),
                     ),
-                    child: Icon(
-                      Icons.person_outline,
-                      size: 32,
-                      color: AuthColors.teal,
+                    child: Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AuthColors.teal.withValues(alpha: 0.08),
+                      ),
+                      child: Center(
+                        child: Text(
+                          () {
+                            final name = _displayName.text.isNotEmpty
+                                ? _displayName.text
+                                : '${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim();
+                            return name.isNotEmpty ? name[0].toUpperCase() : '';
+                          }(),
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: AuthColors.teal,
+                            height: 1,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   Positioned(
@@ -3859,6 +3861,36 @@ class _GoogleLogoPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+class _DashedCirclePainter extends CustomPainter {
+  const _DashedCirclePainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    const dashCount = 14;
+    const sweepPerDash = (2 * 3.14159265) / dashCount;
+    final radius = (size.shortestSide / 2) - 1.5;
+    final center = Offset(size.width / 2, size.height / 2);
+    for (int i = 0; i < dashCount; i++) {
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        i * sweepPerDash,
+        sweepPerDash * 0.55,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedCirclePainter old) => old.color != color;
+}
+
 class _DobSheet extends StatefulWidget {
   const _DobSheet({this.initialDate, required this.onConfirm});
 
@@ -3872,6 +3904,8 @@ class _DobSheet extends StatefulWidget {
 class _DobSheetState extends State<_DobSheet> {
   late DateTime _viewing;
   DateTime? _selected;
+  bool _manualMode = false;
+  final _manualCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -3881,13 +3915,32 @@ class _DobSheetState extends State<_DobSheet> {
     _viewing = _selected ?? DateTime(now.year - 25, now.month, 1);
   }
 
+  @override
+  void dispose() {
+    _manualCtrl.dispose();
+    super.dispose();
+  }
+
   static const _monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
 
+  DateTime? _parseManual(String v) {
+    final parts = v.trim().split(RegExp(r'[/\-\.]'));
+    if (parts.length != 3) return null;
+    final d = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    final y = int.tryParse(parts[2]);
+    if (d == null || m == null || y == null) return null;
+    if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1900) return null;
+    try { return DateTime(y, m, d); } catch (_) { return null; }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_manualMode) return _buildManualEntry(context);
+
     final daysInMonth =
         DateTime(_viewing.year, _viewing.month + 1, 0).day;
     final firstWeekday =
@@ -3898,6 +3951,26 @@ class _DobSheetState extends State<_DobSheet> {
         height: MediaQuery.sizeOf(context).height * 0.55,
         child: Column(
           children: [
+            // "Enter manually" top-right link
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => setState(() => _manualMode = true),
+                    child: Text(
+                      'Enter manually',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AuthColors.teal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             // Month navigator
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
@@ -4030,6 +4103,83 @@ class _DobSheetState extends State<_DobSheet> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildManualEntry(BuildContext context) {
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.55,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Enter date',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      color: AuthColors.ink,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() => _manualMode = false),
+                    child: Text(
+                      'Back to calendar',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AuthColors.teal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _manualCtrl,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'DD/MM/YYYY',
+                  hintStyle: TextStyle(color: AuthColors.muted),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AuthColors.border),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AuthColors.teal, width: 1.5),
+                  ),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AuthColors.teal,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () {
+                    final date = _parseManual(_manualCtrl.text);
+                    if (date != null) widget.onConfirm(date);
+                  },
+                  child: const Text(
+                    'Confirm',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
