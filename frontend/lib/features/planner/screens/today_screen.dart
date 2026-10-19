@@ -611,8 +611,10 @@ class _TodayScreenState extends State<TodayScreen> {
 
   double? _currentTimeOffset(List<_Row> rows, DateTime now) {
     if (rows.isEmpty || !rows.any((row) => _sameDay(row.at, now))) return null;
+    if (!rows.any((row) => row.timed)) return null;
     var index = -1;
     for (var i = 0; i < rows.length; i++) {
+      if (!rows[i].timed) break;
       if (!rows[i].at.isAfter(now)) {
         index = i;
       } else {
@@ -620,7 +622,7 @@ class _TodayScreenState extends State<TodayScreen> {
       }
     }
     if (index < 0) return 0;
-    if (index == rows.length - 1) return (rows.length - 0.5) * _timelineRowHeight;
+    if (index == rows.length - 1 || !rows[index + 1].timed) return (index + 1) * _timelineRowHeight;
     final previous = rows[index].at;
     final next = rows[index + 1].at;
     final total = next.difference(previous).inMilliseconds;

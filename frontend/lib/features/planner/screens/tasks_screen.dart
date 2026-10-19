@@ -130,14 +130,16 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Widget _groupHeader(String label, int count) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
-      child: Row(
-        children: [
-          Text(label, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const Spacer(),
-          Text('$count', style: Theme.of(context).textTheme.labelLarge),
-        ],
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
+        child: Row(
+          children: [
+            Text(label, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            const Spacer(),
+            Text('$count', style: Theme.of(context).textTheme.labelLarge),
+          ],
+        ),
       ),
     );
   }
