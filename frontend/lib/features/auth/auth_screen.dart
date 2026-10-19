@@ -646,7 +646,7 @@ class _AuthScreenState extends State<AuthScreen> {
     return true;
   }
 
-  Future<void> _submitAccount() async {
+  Future<void> _submitAccount({bool inline = false}) async {
     if (!_terms) {
       setState(
         () => _screenError =
@@ -682,24 +682,69 @@ class _AuthScreenState extends State<AuthScreen> {
           _phoneTakenError = message;
         }
       });
-      // Route back to the offending step so the error is seen in context,
-      // with the live row already showing Taken.
-      final lower = message.toLowerCase();
-      if (lower.contains('email')) {
-        _emailAvail = _Avail.taken;
-        _reg = _Reg.email;
-      } else if (lower.contains('username')) {
-        _usernameAvail = _Avail.taken;
-        _reg = _Reg.username;
-      } else if (lower.contains('phone')) {
-        _phoneAvail = _Avail.taken;
-        _reg = _Reg.phone;
+      if (!inline) {
+        final lower = message.toLowerCase();
+        if (lower.contains('email')) {
+          _emailAvail = _Avail.taken;
+          _reg = _Reg.email;
+        } else if (lower.contains('username')) {
+          _usernameAvail = _Avail.taken;
+          _reg = _Reg.username;
+        } else if (lower.contains('phone')) {
+          _phoneAvail = _Avail.taken;
+          _reg = _Reg.phone;
+        }
       }
       return;
     }
-    _otp.clear();
     _startCooldown(60);
-    setState(() => _reg = _Reg.emailOtp);
+    if (inline) {
+      _emailInlineOtp.clear();
+      setState(() => _emailOtpSent = true);
+    } else {
+      _otp.clear();
+      setState(() => _reg = _Reg.emailOtp);
+    }
+  }
+
+  Future<void> _sendEmailOtpFromForm() async {
+    _displayName.text =
+        '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
+    if (!_checkName()) return;
+    if (!_checkUsername()) return;
+    if (!await _ensureUsernameAvailable()) return;
+    if (!mounted) return;
+    if (!_checkEmail()) return;
+    if (!await _ensureEmailAvailable()) return;
+    if (!mounted) return;
+    if (!_checkPassword()) return;
+    if (!_checkConfirm()) return;
+    _terms = true;
+    await _submitAccount(inline: true);
+  }
+
+  Future<void> _verifyEmailOtpInline() async {
+    final code = _emailInlineOtp.text;
+    setState(() => _screenError = null);
+    final account = await _auth.verifyEmail(code);
+    if (!mounted) return;
+    if (account == null) {
+      setState(() {
+        _screenError = _otpFriendly(_auth.lastError);
+        _emailInlineOtp.clear();
+      });
+      return;
+    }
+    setState(() => _emailOtpVerified = true);
+    if (AppConfig.requirePhoneVerification &&
+        account.phone != null &&
+        account.phone!.isNotEmpty &&
+        !account.phoneVerified) {
+      _startCooldown(60);
+      setState(() => _reg = _Reg.phoneOtp);
+    } else {
+      setState(() => _reg = _Reg.profileWelcome);
+    }
   }
 
   // ── Registration: OTP ────────────────────────────────────────────
@@ -1141,7 +1186,7 @@ class _AuthScreenState extends State<AuthScreen> {
             child: AuthPrimaryButton(
               label: 'Sign in',
               busy: _busy,
-              onPressed: canSignIn ? _signIn : null,
+              onPressed: _signIn,
             ),
           ),
           const SizedBox(height: 16),
@@ -1160,37 +1205,6 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           const SizedBox(height: 16),
           _googleButton(),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'New here? ',
-                style: TextStyle(fontSize: 14, color: AuthColors.muted),
-              ),
-              TextButton(
-                onPressed: () => setState(() {
-                  _loginError = null;
-                  _screenError = null;
-                  _mode = _Mode.register;
-                  _reg = _Reg.welcome;
-                }),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Create account',
-                  style: TextStyle(
-                    color: AuthColors.teal,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
       child: Column(
@@ -2698,16 +2712,18 @@ class _AuthScreenState extends State<AuthScreen> {
       bottom: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AnimatedOpacity(
-            opacity: canCreate ? 1.0 : 0.45,
-            duration: const Duration(milliseconds: 200),
-            child: AuthPrimaryButton(
-              label: 'Create account',
-              busy: busy,
-              onPressed: canCreate ? _submitSingleForm : null,
+          if (!_emailOtpSent) ...[
+            AnimatedOpacity(
+              opacity: canCreate ? 1.0 : 0.45,
+              duration: const Duration(milliseconds: 200),
+              child: AuthPrimaryButton(
+                label: 'Create account',
+                busy: busy,
+                onPressed: canCreate ? _submitSingleForm : null,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
+          ],
           Center(
             child: Text(
               'By tapping Create account, you agree to our Terms & Privacy Policy.',
@@ -2844,7 +2860,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 sent: _emailOtpSent,
                 verified: _emailOtpVerified,
                 enabled: !_emailOtpSent && validateEmail(_email.text) == null,
-                onTap: () => setState(() => _emailOtpSent = true),
+                onTap: _sendEmailOtpFromForm,
               ),
             ],
           ),
@@ -2853,16 +2869,13 @@ class _AuthScreenState extends State<AuthScreen> {
             const SizedBox(height: 16),
             OtpInput(
               controller: _emailInlineOtp,
-              onCompleted: () => setState(() => _emailOtpVerified = true),
+              onCompleted: _verifyEmailOtpInline,
             ),
             const SizedBox(height: 6),
             Align(
               alignment: Alignment.centerRight,
               child: GestureDetector(
-                onTap: () => setState(() {
-                  _emailOtpSent = false;
-                  _emailInlineOtp.clear();
-                }),
+                onTap: () => _resend(true),
                 child: Text(
                   "Didn't get it? Resend",
                   style: TextStyle(
@@ -2876,31 +2889,6 @@ class _AuthScreenState extends State<AuthScreen> {
           ],
           const SizedBox(height: 24),
           _phoneRow(),
-          if (_phoneOtpSent && !_phoneOtpVerified) ...[
-            const SizedBox(height: 16),
-            OtpInput(
-              controller: _phoneInlineOtp,
-              onCompleted: () => setState(() => _phoneOtpVerified = true),
-            ),
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerRight,
-              child: GestureDetector(
-                onTap: () => setState(() {
-                  _phoneOtpSent = false;
-                  _phoneInlineOtp.clear();
-                }),
-                child: Text(
-                  "Didn't get it? Resend",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AuthColors.teal,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: 32),
 
           // SECURITY
@@ -3021,13 +3009,6 @@ class _AuthScreenState extends State<AuthScreen> {
               setState(() {});
             },
           ),
-        ),
-        const SizedBox(width: 10),
-        _sendOtpButton(
-          sent: _phoneOtpSent,
-          verified: _phoneOtpVerified,
-          enabled: !_phoneOtpSent && _phoneLocal.text.trim().isNotEmpty,
-          onTap: () => setState(() => _phoneOtpSent = true),
         ),
       ],
     );
