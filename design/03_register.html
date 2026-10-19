@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blistra — Create Account</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #06090F;
+  display: flex; justify-content: center; align-items: flex-start;
+  min-height: 100vh; gap: 32px; padding: 48px 24px;
+  font-family: -apple-system, 'Inter', sans-serif;
+}
+
+.vf { font-family: Georgia, serif; }
+
+.screen-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.screen-label {
+  font-size: 11px; color: #2E3D36;
+  font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+.screen {
+  width: 390px;
+  min-height: 844px;
+  background: #06090F;
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+
+.glow-tr {
+  position: absolute; width: 220px; height: 220px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.17) 0%, transparent 70%);
+  top: -55px; right: -55px; pointer-events: none;
+}
+.glow-bl {
+  position: absolute; width: 130px; height: 130px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.08) 0%, transparent 70%);
+  bottom: 120px; left: -30px; pointer-events: none;
+}
+
+/* Nav */
+.nav {
+  padding: 56px 24px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+}
+.brand { font-size: 18px; font-weight: 700; color: #EEF2F0; font-family: Georgia, serif; }
+.brand span { color: #12B886; }
+.sign-in-link { font-size: 13px; color: #12B886; font-weight: 600; }
+
+/* Head */
+.head { padding: 20px 24px 0; position: relative; z-index: 1; }
+.h1 { font-size: 28px; color: #EEF2F0; letter-spacing: -0.6px; }
+.h1 em { color: #12B886; font-style: normal; }
+.h2 { font-size: 13px; color: #2E3D36; margin-top: 6px; }
+
+/* Body — scrollable on device, full height here */
+.body {
+  padding: 28px 24px 0; flex: 1;
+  display: flex; flex-direction: column; gap: 0;
+  position: relative; z-index: 1;
+}
+
+/* Section divider label */
+.section-lbl {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: #1A2A22; margin: 18px 0 14px;
+}
+.section-lbl:first-child { margin-top: 0; }
+
+/* Underline field */
+.uf { display: flex; flex-direction: column; gap: 8px; border-bottom: 1.5px solid; padding-bottom: 12px; margin-bottom: 20px; }
+.uf-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.uf-row { display: flex; align-items: center; gap: 10px; }
+.uf-value { font-size: 20px; color: #EEF2F0; flex: 1; }
+.uf-hint  { font-size: 18px; color: rgba(255,255,255,0.18); flex: 1; }
+.cursor   { color: #12B886; font-weight: 200; }
+.at-prefix { font-size: 18px; color: #2E3D36; flex-shrink: 0; }
+.eye { font-size: 16px; color: #2E3D36; cursor: pointer; flex-shrink: 0; }
+
+/* Available chip */
+.avail-chip {
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 11px; font-weight: 700;
+  background: rgba(18,184,134,0.12);
+  border: 0.75px solid rgba(18,184,134,0.3);
+  color: #12B886; flex-shrink: 0;
+}
+
+/* Send OTP button (inline) */
+.send-btn {
+  border-radius: 8px; padding: 6px 14px;
+  font-size: 12px; font-weight: 700;
+  background: #12B886; color: white;
+  flex-shrink: 0; cursor: pointer;
+}
+.send-btn.ghost {
+  background: rgba(18,184,134,0.15); color: #12B886;
+}
+.sent-chip {
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 11px; font-weight: 700;
+  background: rgba(18,184,134,0.12);
+  border: 0.75px solid rgba(18,184,134,0.3);
+  color: #12B886; flex-shrink: 0;
+}
+
+/* OTP slots — inline reveal below email / phone */
+.otp-wrap { margin-top: -12px; margin-bottom: 20px; padding-top: 12px; }
+.otp-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #12B886; margin-bottom: 10px; }
+.otp-slots { display: flex; gap: 10px; }
+.slot {
+  flex: 1; height: 52px; border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: #EEF2F0;
+}
+.slot.active { border-color: #12B886; background: rgba(18,184,134,0.08); }
+.slot.filled { border-color: rgba(18,184,134,0.35); color: #12B886; }
+.resend { font-size: 12px; color: #2E3D36; text-align: right; margin-top: 8px; }
+.resend strong { color: #12B886; }
+
+/* Country code pill for phone */
+.cc-pill {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,0.06);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 6px 10px;
+  flex-shrink: 0; cursor: pointer;
+}
+.cc-flag { font-size: 16px; }
+.cc-code { font-size: 14px; color: #EEF2F0; font-weight: 600; }
+.cc-arrow { font-size: 9px; color: #444; }
+
+/* Optional tag */
+.opt-tag { font-size: 10px; font-weight: 400; color: #2E3D36; text-transform: none; letter-spacing: 0; }
+
+/* Skip link */
+.skip-link { font-size: 12px; color: #2E3D36; text-align: center; margin-top: -12px; margin-bottom: 20px; }
+
+/* Strength meter */
+.strength { margin-top: -14px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 6px; }
+.seg-row { display: flex; gap: 6px; }
+.seg { flex: 1; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.07); }
+.seg.on-strong { background: #12B886; }
+.seg.on-mid    { background: #E8B230; }
+.seg.on-weak   { background: #FF5D7A; }
+.str-label { font-size: 11px; }
+.str-label.strong { color: #12B886; }
+.str-label.mid    { color: #E8B230; }
+
+/* Match row */
+.match-row { display: flex; align-items: center; gap: 6px; margin-top: -14px; margin-bottom: 20px; }
+.match-dot { width: 6px; height: 6px; border-radius: 50%; background: #12B886; flex-shrink: 0; }
+
+/* Bottom */
+.bottom { padding: 0 24px 44px; position: relative; z-index: 1; }
+.cta {
+  border-radius: 14px; padding: 17px;
+  text-align: center; font-size: 16px; font-weight: 700; color: white;
+  cursor: pointer; letter-spacing: 0.1px;
+}
+.cta.active { background: #12B886; }
+.cta.dim    { background: rgba(18,184,134,0.28); }
+
+/* 2-col name row */
+.two-col { display: flex; gap: 20px; }
+.two-col .uf { flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- State 1: Fresh/empty -->
+<div class="screen-wrap">
+  <div class="screen-label">1 — Empty form</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+
+    <div class="nav">
+      <div class="brand vf">Bli<span>stra</span></div>
+      <div class="sign-in-link">Sign in</div>
+    </div>
+
+    <div class="head">
+      <div class="h1 vf">Create your <em>account</em></div>
+      <div class="h2">Takes about 2 minutes.</div>
+    </div>
+
+    <div class="body">
+      <div class="section-lbl">Who are you?</div>
+      <div class="two-col">
+        <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+          <div class="uf-label" style="color:#2E3D36">First name</div>
+          <div class="uf-hint">First</div>
+        </div>
+        <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+          <div class="uf-label" style="color:#2E3D36">Last name</div>
+          <div class="uf-hint">Last</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+        <div class="uf-label" style="color:#2E3D36">Username</div>
+        <div class="uf-row">
+          <div class="at-prefix">@</div>
+          <div class="uf-hint">your_handle</div>
+        </div>
+      </div>
+
+      <div class="section-lbl">Contact</div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+        <div class="uf-label" style="color:#2E3D36">Email</div>
+        <div class="uf-row">
+          <div class="uf-hint">you@example.com</div>
+          <div class="send-btn" style="background:rgba(18,184,134,0.2);color:#12B886;opacity:0.4">Send OTP</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+        <div class="uf-label" style="color:#2E3D36">Phone <span class="opt-tag">(optional)</span></div>
+        <div class="uf-row">
+          <div class="cc-pill">
+            <span class="cc-flag">🇮🇳</span>
+            <span class="cc-code">+91</span>
+            <span class="cc-arrow">▾</span>
+          </div>
+          <div class="uf-hint">phone number</div>
+          <div class="send-btn" style="background:rgba(18,184,134,0.2);color:#12B886;opacity:0.4">Send OTP</div>
+        </div>
+      </div>
+
+      <div class="section-lbl">Security</div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+        <div class="uf-label" style="color:#2E3D36">Password</div>
+        <div class="uf-row">
+          <div class="uf-hint">min. 8 characters</div>
+          <div class="eye">○</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+        <div class="uf-label" style="color:#2E3D36">Confirm password</div>
+        <div class="uf-row">
+          <div class="uf-hint">re-enter password</div>
+          <div class="eye">○</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="cta dim">Create account</div>
+    </div>
+  </div>
+</div>
+
+<!-- State 2: Name + username done, email entered (Send OTP active) -->
+<div class="screen-wrap">
+  <div class="screen-label">2 — Email ready to verify</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+
+    <div class="nav">
+      <div class="brand vf">Bli<span>stra</span></div>
+      <div class="sign-in-link">Sign in</div>
+    </div>
+
+    <div class="head">
+      <div class="h1 vf">Create your <em>account</em></div>
+      <div class="h2">Takes about 2 minutes.</div>
+    </div>
+
+    <div class="body">
+      <div class="section-lbl">Who are you?</div>
+      <div class="two-col">
+        <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+          <div class="uf-label" style="color:#12B886">First name</div>
+          <div class="uf-value">Sourabh</div>
+        </div>
+        <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+          <div class="uf-label" style="color:#12B886">Last name</div>
+          <div class="uf-value">Patel</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+        <div class="uf-label" style="color:#12B886">Username</div>
+        <div class="uf-row">
+          <div class="at-prefix" style="color:#12B886">@</div>
+          <div class="uf-value">sourabh_k</div>
+          <div class="avail-chip">✓ Free</div>
+        </div>
+      </div>
+
+      <div class="section-lbl">Contact</div>
+
+      <div class="uf" style="border-color:#12B886">
+        <div class="uf-label" style="color:#12B886">Email</div>
+        <div class="uf-row">
+          <div class="uf-value">sourabh@gmail.com<span class="cursor">|</span></div>
+          <div class="send-btn">Send OTP</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+        <div class="uf-label" style="color:#2E3D36">Phone <span class="opt-tag">(optional)</span></div>
+        <div class="uf-row">
+          <div class="cc-pill">
+            <span class="cc-flag">🇮🇳</span>
+            <span class="cc-code">+91</span>
+            <span class="cc-arrow">▾</span>
+          </div>
+          <div class="uf-hint">phone number</div>
+          <div class="send-btn ghost">Send OTP</div>
+        </div>
+      </div>
+
+      <div class="section-lbl">Security</div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+        <div class="uf-label" style="color:#2E3D36">Password</div>
+        <div class="uf-row">
+          <div class="uf-hint">min. 8 characters</div>
+          <div class="eye">○</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+        <div class="uf-label" style="color:#2E3D36">Confirm password</div>
+        <div class="uf-row">
+          <div class="uf-hint">re-enter password</div>
+          <div class="eye">○</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="cta dim">Create account</div>
+    </div>
+  </div>
+</div>
+
+<!-- State 3: Email OTP sent (slots revealed inline), phone entered -->
+<div class="screen-wrap">
+  <div class="screen-label">3 — OTP slots revealed inline</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+
+    <div class="nav">
+      <div class="brand vf">Bli<span>stra</span></div>
+      <div class="sign-in-link">Sign in</div>
+    </div>
+
+    <div class="head">
+      <div class="h1 vf">Create your <em>account</em></div>
+      <div class="h2">Takes about 2 minutes.</div>
+    </div>
+
+    <div class="body">
+      <div class="section-lbl">Who are you?</div>
+      <div class="two-col">
+        <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+          <div class="uf-label" style="color:#12B886">First name</div>
+          <div class="uf-value">Sourabh</div>
+        </div>
+        <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+          <div class="uf-label" style="color:#12B886">Last name</div>
+          <div class="uf-value">Patel</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+        <div class="uf-label" style="color:#12B886">Username</div>
+        <div class="uf-row">
+          <div class="at-prefix" style="color:#12B886">@</div>
+          <div class="uf-value">sourabh_k</div>
+          <div class="avail-chip">✓ Free</div>
+        </div>
+      </div>
+
+      <div class="section-lbl">Contact</div>
+
+      <!-- Email locked + OTP slots revealed -->
+      <div class="uf" style="border-color:rgba(18,184,134,0.3);opacity:0.75;margin-bottom:14px">
+        <div class="uf-label" style="color:#12B886">Email</div>
+        <div class="uf-row">
+          <div class="uf-value" style="font-size:16px">sourabh@gmail.com</div>
+          <div class="sent-chip">✓ Sent</div>
+        </div>
+      </div>
+
+      <!-- OTP slots inline -->
+      <div class="otp-wrap">
+        <div class="otp-label">Email verification code</div>
+        <div class="otp-slots">
+          <div class="slot filled">8</div>
+          <div class="slot filled">3</div>
+          <div class="slot filled">4</div>
+          <div class="slot active"><span style="color:#12B886;font-weight:200">|</span></div>
+          <div class="slot"></div>
+          <div class="slot"></div>
+        </div>
+        <div class="resend">Didn't get it? <strong>Resend</strong></div>
+      </div>
+
+      <div class="uf" style="border-color:#12B886">
+        <div class="uf-label" style="color:#12B886">Phone <span class="opt-tag">(optional)</span></div>
+        <div class="uf-row">
+          <div class="cc-pill">
+            <span class="cc-flag">🇮🇳</span>
+            <span class="cc-code">+91</span>
+            <span class="cc-arrow">▾</span>
+          </div>
+          <div class="uf-value" style="font-size:16px">98765 43210<span class="cursor">|</span></div>
+          <div class="send-btn">Send OTP</div>
+        </div>
+      </div>
+
+      <div class="section-lbl">Security</div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+        <div class="uf-label" style="color:#2E3D36">Password</div>
+        <div class="uf-row">
+          <div class="uf-hint">min. 8 characters</div>
+          <div class="eye">○</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.1)">
+        <div class="uf-label" style="color:#2E3D36">Confirm password</div>
+        <div class="uf-row">
+          <div class="uf-hint">re-enter password</div>
+          <div class="eye">○</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="cta dim">Create account</div>
+    </div>
+  </div>
+</div>
+
+<!-- State 4: Everything complete — Create account active -->
+<div class="screen-wrap">
+  <div class="screen-label">4 — All done, CTA active</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+
+    <div class="nav">
+      <div class="brand vf">Bli<span>stra</span></div>
+      <div class="sign-in-link">Sign in</div>
+    </div>
+
+    <div class="head">
+      <div class="h1 vf">Create your <em>account</em></div>
+      <div class="h2">Takes about 2 minutes.</div>
+    </div>
+
+    <div class="body">
+      <div class="section-lbl">Who are you?</div>
+      <div class="two-col">
+        <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+          <div class="uf-label" style="color:#12B886">First name</div>
+          <div class="uf-value">Sourabh</div>
+        </div>
+        <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+          <div class="uf-label" style="color:#12B886">Last name</div>
+          <div class="uf-value">Patel</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+        <div class="uf-label" style="color:#12B886">Username</div>
+        <div class="uf-row">
+          <div class="at-prefix" style="color:#12B886">@</div>
+          <div class="uf-value">sourabh_k</div>
+          <div class="avail-chip">✓ Free</div>
+        </div>
+      </div>
+
+      <div class="section-lbl">Contact</div>
+
+      <div class="uf" style="border-color:rgba(18,184,134,0.4);margin-bottom:0">
+        <div class="uf-label" style="color:#12B886">Email</div>
+        <div class="uf-row">
+          <div class="uf-value" style="font-size:16px">sourabh@gmail.com</div>
+          <div class="avail-chip">✓ Verified</div>
+        </div>
+      </div>
+
+      <div class="otp-wrap" style="margin-bottom:20px">
+        <div class="otp-slots">
+          <div class="slot filled">8</div>
+          <div class="slot filled">3</div>
+          <div class="slot filled">4</div>
+          <div class="slot filled">1</div>
+          <div class="slot filled">7</div>
+          <div class="slot filled">2</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(18,184,134,0.4);margin-bottom:0">
+        <div class="uf-label" style="color:#12B886">Phone <span class="opt-tag">(optional)</span></div>
+        <div class="uf-row">
+          <div class="cc-pill">
+            <span class="cc-flag">🇮🇳</span>
+            <span class="cc-code">+91</span>
+          </div>
+          <div class="uf-value" style="font-size:16px">98765 43210</div>
+          <div class="avail-chip">✓ Verified</div>
+        </div>
+      </div>
+
+      <div class="otp-wrap" style="margin-bottom:20px">
+        <div class="otp-slots">
+          <div class="slot filled">9</div>
+          <div class="slot filled">2</div>
+          <div class="slot filled">4</div>
+          <div class="slot filled">5</div>
+          <div class="slot filled">3</div>
+          <div class="slot filled">8</div>
+        </div>
+      </div>
+
+      <div class="section-lbl">Security</div>
+
+      <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+        <div class="uf-label" style="color:#12B886">Password</div>
+        <div class="uf-row">
+          <div class="uf-value">••••••••••••</div>
+          <div class="eye" style="color:#12B886">✓</div>
+        </div>
+      </div>
+
+      <div class="strength">
+        <div class="seg-row">
+          <div class="seg on-strong"></div>
+          <div class="seg on-strong"></div>
+          <div class="seg on-strong"></div>
+        </div>
+        <div class="str-label strong">Strong password</div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+        <div class="uf-label" style="color:#12B886">Confirm password</div>
+        <div class="uf-row">
+          <div class="uf-value">••••••••••••</div>
+          <div class="eye" style="color:#12B886">✓</div>
+        </div>
+      </div>
+
+      <div class="match-row">
+        <div class="match-dot"></div>
+        <span style="font-size:13px;color:#12B886">Passwords match</span>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="cta active">Create account</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

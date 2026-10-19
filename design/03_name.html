@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blistra — Name (Step 1)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #06090F; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: -apple-system, 'Inter', sans-serif; }
+
+/* Claude serif placeholder — swap with Fraunces in Flutter */
+.vf { font-family: Georgia, serif; }
+
+.screen {
+  width: 390px;
+  min-height: 844px;
+  background: #06090F;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Glows */
+.glow-tr {
+  position: absolute;
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.17) 0%, transparent 70%);
+  top: -55px; right: -55px;
+  pointer-events: none;
+}
+.glow-bl {
+  position: absolute;
+  width: 130px; height: 130px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.08) 0%, transparent 70%);
+  bottom: 120px; left: -30px;
+  pointer-events: none;
+}
+
+/* Nav */
+.nav {
+  padding: 56px 24px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+}
+.back {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 0.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: #667; cursor: pointer;
+}
+.step-label {
+  font-size: 13px;
+  color: #2E3D36;
+}
+
+/* Progress bar */
+.progress {
+  padding: 10px 24px 0;
+  position: relative; z-index: 1;
+}
+.prog-bg {
+  height: 3px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.prog-fill {
+  height: 100%;
+  width: 12.5%;
+  background: #12B886;
+  border-radius: 3px;
+}
+
+/* Chat bubble */
+.bubble-wrap {
+  padding: 32px 24px 0;
+  position: relative; z-index: 1;
+}
+.bubble {
+  background: rgba(18,184,134,0.09);
+  border: 0.75px solid rgba(18,184,134,0.22);
+  border-radius: 18px 18px 18px 5px;
+  padding: 16px 18px;
+  display: inline-block;
+}
+.bubble-title {
+  font-size: 20px;
+  color: #EEF2F0;
+  letter-spacing: -0.4px;
+  margin-bottom: 6px;
+}
+.bubble-sub {
+  font-size: 13px;
+  color: #4D6B60;
+  line-height: 1.55;
+}
+
+/* Underline fields */
+.fields {
+  padding: 40px 24px 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  position: relative; z-index: 1;
+}
+.uf {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 12px;
+}
+.uf.active {
+  border-bottom-color: #12B886;
+}
+.uf-label {
+  font-size: 11px;
+  color: #2E3D36;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.uf.active .uf-label {
+  color: #12B886;
+}
+.uf-value {
+  font-size: 20px;
+  color: #EEF2F0;
+  letter-spacing: -0.3px;
+}
+.uf-hint {
+  font-size: 19px;
+  color: rgba(255,255,255,0.15);
+}
+
+/* Bottom CTA */
+.bottom {
+  padding: 0 24px 44px;
+  position: relative; z-index: 1;
+}
+.cta {
+  background: #12B886;
+  border-radius: 14px;
+  padding: 17px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  letter-spacing: 0.1px;
+}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="glow-tr"></div>
+  <div class="glow-bl"></div>
+
+  <div class="nav">
+    <div class="back">‹</div>
+    <span class="step-label">Step 1 of 8</span>
+  </div>
+
+  <div class="progress">
+    <div class="prog-bg"><div class="prog-fill"></div></div>
+  </div>
+
+  <div class="bubble-wrap">
+    <div class="bubble">
+      <div class="bubble-title vf">Hey there 👋</div>
+      <div class="bubble-sub">What should we call you?<br>We'll use this to personalise your experience.</div>
+    </div>
+  </div>
+
+  <div class="fields">
+    <div class="uf active">
+      <div class="uf-label">First name</div>
+      <div class="uf-value">Sourabh<span style="color:#12B886;font-weight:200">|</span></div>
+    </div>
+    <div class="uf">
+      <div class="uf-label">Last name</div>
+      <div class="uf-hint">Enter last name</div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="cta">Continue</div>
+  </div>
+</div>
+</body>
+</html>

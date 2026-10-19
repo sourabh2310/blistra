@@ -32,6 +32,7 @@ import '../health/health_models.dart';
 import 'auth_validators.dart';
 import 'auth_widgets.dart';
 import 'country_data.dart';
+import '../../core/widgets/glass.dart';
 import '../../core/config/app_config.dart';
 import '../profile/screens/policy_screen.dart';
 
@@ -41,6 +42,8 @@ enum _Mode { signIn, register, forgot }
 /// progress scale so the indicator reads "Step X of 7".
 enum _Reg {
   welcome,
+  singleForm,
+  // legacy steps kept for resume logic
   name,
   username,
   email,
@@ -50,14 +53,13 @@ enum _Reg {
   review,
   emailOtp,
   phoneOtp,
+  profileWelcome,
   profile,
   health,
   done,
 }
 
 enum _Forgot { identifier, channel, code, reset, success }
-
-enum _HealthStep { height, weight }
 
 /// Live availability state for one identity field while typing.
 enum _Avail { idle, checking, available, taken }
@@ -76,6 +78,8 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _displayName = TextEditingController();
+  final _firstNameCtrl = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
   final _username = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
@@ -100,7 +104,6 @@ class _AuthScreenState extends State<AuthScreen> {
   _Mode _mode = _Mode.signIn;
   _Reg _reg = _Reg.welcome;
   _Forgot _forgot = _Forgot.identifier;
-  _HealthStep _healthStep = _HealthStep.height;
   bool _terms = false;
   bool _finishing = false;
   bool _saving = false;
@@ -142,6 +145,11 @@ class _AuthScreenState extends State<AuthScreen> {
   DietaryPreference? _dietPreference;
   String _forgotChannel = 'EMAIL';
 
+  // New profile/health fields.
+  String? _gender; // 'MALE', 'FEMALE', 'NON_BINARY', 'PREFER_NOT_TO_SAY'
+  String? _activityLevel; // 'SEDENTARY', 'LIGHT', 'MODERATE', 'VERY_ACTIVE'
+  final Set<String> _selectedGoals = {};
+
   // Recovery identity resolution (backend-authoritative, verified only).
   List<String> _recoveryChannels = const [];
   String? _recoveryEmailMasked;
@@ -182,7 +190,7 @@ class _AuthScreenState extends State<AuthScreen> {
         !account.phoneVerified) {
       return _Reg.phoneOtp;
     }
-    return _Reg.profile;
+    return _Reg.profileWelcome;
   }
 
   void _prefillFromAccount() {
@@ -202,6 +210,8 @@ class _AuthScreenState extends State<AuthScreen> {
     _emailDebounce?.cancel();
     _phoneDebounce?.cancel();
     _displayName.dispose();
+    _firstNameCtrl.dispose();
+    _lastNameCtrl.dispose();
     _username.dispose();
     _email.dispose();
     _phone.dispose();
@@ -715,7 +725,7 @@ class _AuthScreenState extends State<AuthScreen> {
       _startCooldown(60);
       setState(() => _reg = _Reg.phoneOtp);
     } else {
-      setState(() => _reg = _Reg.profile);
+      setState(() => _reg = _Reg.profileWelcome);
     }
   }
 
@@ -738,7 +748,7 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
     _otp.clear();
-    setState(() => _reg = _Reg.profile);
+    setState(() => _reg = _Reg.profileWelcome);
   }
 
   Future<void> _resend(bool email) async {
@@ -785,17 +795,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // ── Registration: profile + health ───────────────────────────────
 
-  Future<void> _pickDob() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _dob ?? DateTime(now.year - 25, now.month, now.day),
-      firstDate: DateTime(1900),
-      lastDate: now,
-    );
-    if (picked != null && mounted) setState(() => _dob = picked);
-  }
-
   Future<void> _saveProfile() async {
     if (_dob == null) {
       setState(() => _screenError = 'Please pick your date of birth.');
@@ -823,10 +822,11 @@ class _AuthScreenState extends State<AuthScreen> {
       _screenError = null;
       _saving = true;
     });
+    final displayName = _displayName.text.trim().isEmpty
+        ? '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim()
+        : _displayName.text.trim();
     final ok = await widget.deps.profile.save({
-      'displayName': _displayName.text.trim().isEmpty
-          ? _auth.account?.email ?? ''
-          : _displayName.text.trim(),
+      'displayName': displayName.isEmpty ? (_auth.account?.email ?? '') : displayName,
       'dateOfBirth':
           '${_dob!.year.toString().padLeft(4, '0')}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}',
       'country': _selectedCountryCode,
@@ -834,6 +834,7 @@ class _AuthScreenState extends State<AuthScreen> {
       'unitSystem': DeviceContext.defaultUnitSystemForCountry(
         _selectedCountryCode,
       ),
+      if (_gender != null) 'gender': _gender,
     });
     if (!mounted) return;
     setState(() => _saving = false);
@@ -847,37 +848,33 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _saveHealth() async {
+    final heightVal = double.tryParse(_height.text.trim());
+    if (heightVal == null || heightVal < 50 || heightVal > 300) {
+      setState(() => _screenError = 'Enter a valid height.');
+      return;
+    }
+    final weightVal = double.tryParse(_weight.text.trim());
+    if (weightVal == null || weightVal < 5 || weightVal > 900) {
+      setState(() => _screenError = 'Enter a valid weight.');
+      return;
+    }
     setState(() {
       _screenError = null;
       _saving = true;
     });
     try {
-      if (_healthStep == _HealthStep.height) {
-        final value = double.tryParse(_height.text.trim());
-        if (value == null || value < 50 || value > 250) {
-          setState(() => _screenError = 'Enter a valid height.');
-          return;
-        }
-        await widget.deps.health.saveProfile(
-          HealthProfileInput(
-            heightCm: _heightUnit == 'IN' ? value * 2.54 : value,
-            bloodType: null,
-            dateOfBirth: _dob,
-          ),
-        );
-        if (mounted) setState(() => _healthStep = _HealthStep.weight);
-        return;
-      }
-      final value = double.tryParse(_weight.text.trim());
-      if (value == null || value < 5 || value > 900) {
-        setState(() => _screenError = 'Enter a valid weight.');
-        return;
-      }
+      await widget.deps.health.saveProfile(
+        HealthProfileInput(
+          heightCm: _heightUnit == 'IN' ? heightVal * 2.54 : heightVal,
+          bloodType: null,
+          dateOfBirth: _dob,
+        ),
+      );
       await widget.deps.health.createMeasurement(
         MeasurementInput(
           type: MeasurementType.weight,
           measuredAt: DateTime.now(),
-          value: value,
+          value: weightVal,
           unit: _weightUnit,
           source: 'onboarding',
         ),
@@ -1129,61 +1126,114 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _loginScreen() {
     return AuthScaffold(
-      bottom: AuthPrimaryButton(
-        label: 'Sign in',
-        busy: _busy,
-        onPressed: _signIn,
+      bottom: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AuthPrimaryButton(
+            label: 'Sign in',
+            busy: _busy,
+            onPressed: _signIn,
+          ),
+          const SizedBox(height: 12),
+          _googleButton(),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
-          const AuthBrand(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  BlistraMark(size: 32),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Blistra',
+                    style: TextStyle(
+                      fontFamily: 'Fraunces',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: AuthColors.ink,
+                    ),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  _loginError = null;
+                  _screenError = null;
+                  _mode = _Mode.register;
+                  _reg = _Reg.welcome;
+                }),
+                child: Text(
+                  'Create account',
+                  style: TextStyle(
+                    color: AuthColors.teal,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 32),
-          Text(
-            'Welcome back',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.6,
-              color: AuthColors.ink,
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontFamily: 'Fraunces',
+                fontSize: 34,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.8,
+                color: AuthColors.ink,
+              ),
+              children: [
+                const TextSpan(text: 'Welcome '),
+                TextSpan(
+                  text: 'back.',
+                  style: TextStyle(color: AuthColors.teal),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Everything you need. One app.',
+            'Sign in to continue.',
             style: TextStyle(fontSize: 15, color: AuthColors.muted),
           ),
-          const SizedBox(height: 28),
-          AuthTextField(
+          const SizedBox(height: 36),
+          _underlineField(
+            label: 'EMAIL OR USERNAME',
             controller: _identifier,
-            hint: 'Username, email or phone',
+            hint: 'Enter your email or username',
             keyboardType: TextInputType.text,
             autofillHints: const ['username'],
-            semanticLabel: 'Username, email or phone',
             onSubmitted: (_) => _signIn(),
           ),
-          const SizedBox(height: 14),
-          AuthTextField(
+          const SizedBox(height: 24),
+          _underlineField(
+            label: 'PASSWORD',
             controller: _signInPassword,
-            hint: 'Password',
+            hint: 'Enter your password',
             obscure: !_showSignInPw,
             autofillHints: const ['password'],
-            semanticLabel: 'Password',
+            onSubmitted: (_) => _signIn(),
             suffix: IconButton(
-              tooltip: _showSignInPw ? 'Hide password' : 'Show password',
-              onPressed: () => setState(() => _showSignInPw = !_showSignInPw),
+              tooltip: _showSignInPw ? 'Hide' : 'Show',
+              onPressed: () =>
+                  setState(() => _showSignInPw = !_showSignInPw),
               icon: Icon(
                 _showSignInPw
                     ? Icons.visibility_off_outlined
                     : Icons.visibility_outlined,
+                size: 20,
                 color: AuthColors.muted,
               ),
             ),
-            onSubmitted: (_) => _signIn(),
           ),
           if (_loginError != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             InlineError(message: _loginError!),
           ],
           Align(
@@ -1200,38 +1250,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 style: TextStyle(
                   color: AuthColors.teal,
                   fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(child: Divider(color: AuthColors.border)),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'or',
-                  style: TextStyle(fontSize: 13, color: AuthColors.muted),
-                ),
-              ),
-              Expanded(child: Divider(color: AuthColors.border)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: TextButton(
-              onPressed: () => setState(() {
-                _loginError = null;
-                _screenError = null;
-                _mode = _Mode.register;
-                _reg = _Reg.welcome;
-              }),
-              child: Text(
-                "Don't have an account? Create account",
-                style: TextStyle(
-                  color: AuthColors.teal,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
               ),
             ),
@@ -1242,11 +1261,54 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
+  Widget _googleButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          side: BorderSide(color: AuthColors.border, width: 1),
+        ),
+        onPressed: () {
+          // Google Sign-In: requires backend integration.
+        },
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _googleLogo(),
+            const SizedBox(width: 10),
+            Text(
+              'Continue with Google',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AuthColors.ink,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _googleLogo() {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+
   // ═══════════════════════ REGISTRATION ═══════════════════════
 
   Widget _registerScreen() {
     return switch (_reg) {
       _Reg.welcome => _welcomeScreen(),
+      _Reg.singleForm => _singleFormScreen(),
+      _Reg.profileWelcome => _profileWelcomeScreen(),
       _Reg.name => _questionScreen(
         step: 1,
         title: "What's your name?",
@@ -1360,8 +1422,8 @@ class _AuthScreenState extends State<AuthScreen> {
         email: false,
         onBack: () => _backTo(_Reg.emailOtp),
       ),
-      _Reg.profile => _profileScreen(),
-      _Reg.health => _healthScreen(),
+      _Reg.profile => _profileSetupScreen(),
+      _Reg.health => _healthSetupScreen(),
       _Reg.done => _doneScreen(),
     };
   }
@@ -1399,14 +1461,40 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_checkConfirm()) _next(_Reg.review);
   }
 
+  Future<void> _submitSingleForm() async {
+    // Combine first + last name into displayName.
+    _displayName.text =
+        '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
+    if (!_checkName()) return;
+    if (!_checkUsername()) return;
+    if (!await _ensureUsernameAvailable()) return;
+    if (!mounted) return;
+    if (!_checkEmail()) return;
+    if (!await _ensureEmailAvailable()) return;
+    if (!mounted) return;
+    if (!_checkPassword()) return;
+    if (!_checkConfirm()) return;
+    // Implicit terms acceptance shown via footer text.
+    _terms = true;
+    await _submitAccount();
+  }
+
   Widget _welcomeScreen() {
+    const moduleColors = [
+      Color(0xFF1FB99A),
+      Color(0xFFFF5D7A),
+      Color(0xFF4A8CFF),
+      Color(0xFFFF9A3D),
+      Color(0xFF8B6BFF),
+      Color(0xFFE8B230),
+    ];
     return AuthScaffold(
       bottom: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AuthPrimaryButton(
             label: 'Get started',
-            onPressed: () => _next(_Reg.name),
+            onPressed: () => _next(_Reg.singleForm),
           ),
           const SizedBox(height: 4),
           Center(
@@ -1416,10 +1504,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 _mode = _Mode.signIn;
               }),
               child: Text(
-                'Already have an account? Sign in',
+                'Have an account? Sign in',
                 style: TextStyle(
                   color: AuthColors.teal,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -1429,25 +1517,72 @@ class _AuthScreenState extends State<AuthScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 24),
-          const AuthBrand(),
-          const SizedBox(height: 40),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              BlistraMark(size: 36),
+              const SizedBox(width: 10),
+              Text(
+                'Blistra',
+                style: TextStyle(
+                  fontFamily: 'Fraunces',
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.4,
+                  color: AuthColors.ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Text(
-            'Everything\nyou need.\nOne app.',
+            'YOUR PERSONAL OS',
             style: TextStyle(
-              fontSize: 44,
-              height: 1.05,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -1.2,
-              color: AuthColors.ink,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.12,
+              color: AuthColors.teal,
             ),
           ),
-          const SizedBox(height: 14),
-          Text(
-            "Let's set up your account.",
-            style: TextStyle(fontSize: 16, color: AuthColors.muted),
+          const SizedBox(height: 28),
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontFamily: 'Fraunces',
+                fontSize: 40,
+                height: 1.08,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -1.0,
+                color: AuthColors.ink,
+              ),
+              children: [
+                const TextSpan(text: 'Everything you need.\n'),
+                TextSpan(
+                  text: 'One app.',
+                  style: TextStyle(color: AuthColors.teal),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          Text(
+            'Planner · Health · Habits\nFinance · Diet · Medicines',
+            style: TextStyle(fontSize: 13, color: AuthColors.muted, height: 1.5),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              for (final c in moduleColors) ...[
+                Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -1902,114 +2037,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // ── Profile / health / done (existing onboarding, premium skin) ──
-
-  Widget _profileScreen() {
-    final locale = WidgetsBinding.instance.platformDispatcher.locale;
-    final countryCode =
-        _selectedCountryCode ??
-        DeviceContext.countryFromLocale(locale.toLanguageTag());
-    final selected = countryForCode(countryCode);
-    return AuthScaffold(
-      onBack: _busy ? null : () => _backTo(_Reg.phoneOtp),
-      bottom: AuthPrimaryButton(
-        label: 'Continue',
-        busy: _saving,
-        onPressed: _saveProfile,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'A little about you',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-              color: AuthColors.ink,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Just a couple of details to personalize Blistra.',
-            style: TextStyle(fontSize: 15, color: AuthColors.muted),
-          ),
-          const SizedBox(height: 30),
-          const Text(
-            'When were you born?',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(56),
-              backgroundColor: AuthColors.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            onPressed: _pickDob,
-            icon: const Icon(Icons.cake_outlined),
-            label: Text(
-              _dob == null
-                  ? 'Select date of birth'
-                  : '${_dob!.day} ${_months[_dob!.month - 1]} ${_dob!.year}',
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Where are you based?',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(56),
-              backgroundColor: AuthColors.surface,
-              alignment: Alignment.centerLeft,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            onPressed: _pickCountry,
-            icon: Text(selected?.flag ?? '🌐'),
-            label: Text(selected?.name ?? 'Select country'),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Icon(
-                Icons.auto_awesome_outlined,
-                size: 16,
-                color: AuthColors.muted,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Check this suggested timezone. Update it in Profile when you travel.',
-                  style: TextStyle(fontSize: 13, color: AuthColors.muted),
-                ),
-              ),
-            ],
-          ),
-          TextFormField(
-            initialValue: _timezone,
-            decoration: const InputDecoration(
-              labelText: 'Timezone',
-              hintText: 'e.g. Asia/Kolkata',
-            ),
-            onChanged: (value) => _timezone = value.trim(),
-          ),
-          if (_screenError != null) ...[
-            const SizedBox(height: 12),
-            InlineError(message: _screenError!),
-          ],
-          const SizedBox(height: 100),
-        ],
-      ),
-    );
-  }
-
   static const _months = [
     'January',
     'February',
@@ -2025,160 +2052,164 @@ class _AuthScreenState extends State<AuthScreen> {
     'December',
   ];
 
-  Future<void> _pickCountry() async {
-    final chosen = await showModalBottomSheet<CountryEntry>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => const _CountryPicker(),
-    );
-    if (chosen != null && mounted) {
-      setState(() {
-        _selectedCountryCode = chosen.code;
-        _country.text = chosen.code;
-        _units = DeviceContext.defaultUnitSystemForCountry(chosen.code);
-        _heightUnit = _units == 'IMPERIAL' ? 'IN' : 'CM';
-        _weightUnit = _units == 'IMPERIAL' ? 'LB' : 'KG';
-      });
-    }
-  }
-
-  Widget _healthScreen() {
-    final imperial = _units == 'IMPERIAL';
-    final title = _healthStep == _HealthStep.height
-        ? 'How tall are you?'
-        : "What's your current weight?";
-    final subtitle = _healthStep == _HealthStep.height
-        ? 'A little context helps personalize your health overview.'
-        : 'You can update this anytime in Health.';
-    return AuthScaffold(
-      onBack: _busy
-          ? null
-          : () => setState(
-              () => _healthStep = _healthStep == _HealthStep.weight
-                  ? _HealthStep.height
-                  : _HealthStep.weight,
-            ),
-      bottom: AuthPrimaryButton(
-        label: 'Continue',
-        busy: _saving,
-        onPressed: _saveHealth,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Health setup',
-            style: TextStyle(
-              fontSize: 14,
-              color: AuthColors.muted,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-              color: AuthColors.ink,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: TextStyle(fontSize: 15, color: AuthColors.muted),
-          ),
-          const SizedBox(height: 28),
-          if (_healthStep == _HealthStep.height)
-            AuthTextField(
-              controller: _height,
-              hint: imperial ? 'Height in inches' : 'Height in cm',
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              semanticLabel: 'Height',
-              suffix: Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Text(
-                  imperial ? 'in' : 'cm',
-                  style: TextStyle(color: AuthColors.muted),
-                ),
-              ),
-            )
-          else
-            AuthTextField(
-              controller: _weight,
-              hint: imperial ? 'Weight in pounds' : 'Weight in kg',
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              semanticLabel: 'Weight',
-              suffix: Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Text(
-                  imperial ? 'lb' : 'kg',
-                  style: TextStyle(color: AuthColors.muted),
-                ),
-              ),
-            ),
-          if (_screenError != null) ...[
-            const SizedBox(height: 12),
-            InlineError(message: _screenError!),
-          ],
-          const SizedBox(height: 120),
-        ],
-      ),
-    );
-  }
-
   Widget _doneScreen() {
+    const moduleColors = [
+      Color(0xFF1FB99A),
+      Color(0xFFFF5D7A),
+      Color(0xFF4A8CFF),
+      Color(0xFFFF9A3D),
+      Color(0xFF8B6BFF),
+      Color(0xFFE8B230),
+    ];
     return AuthScaffold(
       bottom: AuthPrimaryButton(
-        label: 'Go to Home',
+        label: 'Go to Blistra →',
         busy: _finishing,
         onPressed: _completeOnboarding,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 48),
+          const SizedBox(height: 40),
+
+          // Module dots
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (final c in moduleColors)
+                Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.symmetric(horizontal: 5),
+                  decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Checkmark ring
           Container(
-            width: 84,
-            height: 84,
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
-              color: AuthColors.tealSoft,
-              borderRadius: BorderRadius.circular(28),
+              shape: BoxShape.circle,
+              color: AuthColors.teal.withValues(alpha: 0.10),
+              border: Border.all(color: AuthColors.teal, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: AuthColors.teal.withValues(alpha: 0.20),
+                  blurRadius: 32,
+                  spreadRadius: 4,
+                ),
+              ],
             ),
             child: _finishing
-                ? const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(strokeWidth: 3),
+                ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.5, color: AuthColors.teal),
                   )
-                : Icon(Icons.check, size: 40, color: AuthColors.teal),
+                : Icon(Icons.check, size: 36, color: AuthColors.teal),
           ),
           const SizedBox(height: 20),
+
+          // Eyebrow
           Text(
-            "You're all set!",
+            "YOU'RE ALL SET!",
             style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: AuthColors.ink,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.10,
+              color: AuthColors.teal,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Your Home will load with your fresh profile.',
+          const SizedBox(height: 12),
+
+          // Heading
+          RichText(
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+            text: TextSpan(
+              style: TextStyle(
+                fontFamily: 'Fraunces',
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.6,
+                color: AuthColors.ink,
+                height: 1.1,
+              ),
+              children: [
+                const TextSpan(text: 'Blistra is '),
+                TextSpan(
+                  text: 'ready',
+                  style: TextStyle(color: AuthColors.teal),
+                ),
+                const TextSpan(text: '\nfor you.'),
+              ],
+            ),
           ),
+          const SizedBox(height: 10),
+          Text(
+            'Your profile is complete.\nAll modules are unlocked.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: AuthColors.muted, height: 1.5),
+          ),
+          const SizedBox(height: 28),
+
+          // Stats card
+          Container(
+            decoration: BoxDecoration(
+              color: AuthColors.surface.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AuthColors.border),
+            ),
+            child: Row(
+              children: [
+                _statItem('6', 'Modules', false),
+                Container(width: 1, height: 48, color: AuthColors.border),
+                _statItem('∞', 'Possibilities', true),
+                Container(width: 1, height: 48, color: AuthColors.border),
+                _statItem('100%', 'Done', false),
+              ],
+            ),
+          ),
+
           if (_screenError != null) ...[
             const SizedBox(height: 14),
             InlineError(message: _screenError!),
           ],
-          const SizedBox(height: 120),
+          const SizedBox(height: 80),
         ],
+      ),
+    );
+  }
+
+  Widget _statItem(String value, String label, bool accent) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+                color: accent ? AuthColors.teal : AuthColors.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.08,
+                color: AuthColors.muted,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2509,6 +2540,1239 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           SizedBox(height: 120),
         ],
+      ),
+    );
+  }
+
+  // ══════════════ UNDERLINE FIELD HELPER ══════════════
+
+  Widget _underlineField({
+    required String label,
+    required TextEditingController controller,
+    String? hint,
+    TextInputType? keyboardType,
+    bool obscure = false,
+    bool autofocus = false,
+    Iterable<String>? autofillHints,
+    Widget? suffix,
+    ValueChanged<String>? onChanged,
+    ValueChanged<String>? onSubmitted,
+    String? prefix,
+    bool active = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.10,
+            color: active ? AuthColors.teal : AuthColors.muted,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            if (prefix != null)
+              Text(
+                prefix,
+                style: TextStyle(fontSize: 20, color: AuthColors.muted),
+              ),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                keyboardType: keyboardType,
+                obscureText: obscure,
+                autofocus: autofocus,
+                autocorrect: false,
+                autofillHints: autofillHints,
+                onChanged: onChanged,
+                onSubmitted: onSubmitted,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AuthColors.ink,
+                ),
+                decoration: InputDecoration(
+                  hintText: hint,
+                  hintStyle: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w400,
+                    color: AuthColors.muted.withValues(alpha: 0.6),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                  suffixIcon: suffix,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 1.5,
+          color: active ? AuthColors.teal : AuthColors.border,
+        ),
+      ],
+    );
+  }
+
+  // ══════════════ SINGLE FORM REGISTRATION ══════════════
+
+  Widget _singleFormScreen() {
+    final busy = _auth.status == AuthStatus.busy || _finishing;
+    final canCreate = _password.text.isNotEmpty &&
+        _confirm.text.isNotEmpty &&
+        _email.text.isNotEmpty &&
+        _username.text.isNotEmpty &&
+        (_firstNameCtrl.text.isNotEmpty || _lastNameCtrl.text.isNotEmpty);
+
+    return AuthScaffold(
+      bottom: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AnimatedOpacity(
+            opacity: canCreate ? 1.0 : 0.45,
+            duration: const Duration(milliseconds: 200),
+            child: AuthPrimaryButton(
+              label: 'Create account',
+              busy: busy,
+              onPressed: canCreate ? _submitSingleForm : null,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'By tapping Create account, you agree to our Terms & Privacy Policy.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: AuthColors.muted),
+            ),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Nav row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  BlistraMark(size: 30),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Blistra',
+                    style: TextStyle(
+                      fontFamily: 'Fraunces',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AuthColors.ink,
+                    ),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  _screenError = null;
+                  _mode = _Mode.signIn;
+                }),
+                child: Text(
+                  'Sign in',
+                  style: TextStyle(
+                    color: AuthColors.teal,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontFamily: 'Fraunces',
+                fontSize: 30,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.6,
+                color: AuthColors.ink,
+              ),
+              children: [
+                const TextSpan(text: 'Create your '),
+                TextSpan(
+                  text: 'account.',
+                  style: TextStyle(color: AuthColors.teal),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            'Takes about 2 minutes.',
+            style: TextStyle(fontSize: 14, color: AuthColors.muted),
+          ),
+          const SizedBox(height: 32),
+
+          // WHO ARE YOU?
+          _sectionLabel('WHO ARE YOU?'),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _underlineField(
+                  label: 'FIRST NAME',
+                  controller: _firstNameCtrl,
+                  hint: 'First',
+                  keyboardType: TextInputType.name,
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: _underlineField(
+                  label: 'LAST NAME',
+                  controller: _lastNameCtrl,
+                  hint: 'Last',
+                  keyboardType: TextInputType.name,
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _underlineField(
+            label: 'USERNAME',
+            controller: _username,
+            hint: 'yourname',
+            prefix: '@',
+            keyboardType: TextInputType.text,
+            onChanged: _scheduleUsernameCheck,
+          ),
+          _availRow(_usernameAvail, takenMessage: 'Username already taken.'),
+          const SizedBox(height: 32),
+
+          // CONTACT
+          _sectionLabel('CONTACT'),
+          const SizedBox(height: 16),
+          _underlineField(
+            label: 'EMAIL',
+            controller: _email,
+            hint: 'you@example.com',
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const ['email'],
+            onChanged: _scheduleEmailCheck,
+          ),
+          _availRow(_emailAvail, takenMessage: 'Email already registered.'),
+          const SizedBox(height: 24),
+          _phoneRow(),
+          const SizedBox(height: 32),
+
+          // SECURITY
+          _sectionLabel('SECURITY'),
+          const SizedBox(height: 16),
+          _underlineField(
+            label: 'PASSWORD',
+            controller: _password,
+            hint: 'At least 8 characters',
+            obscure: !_showPw,
+            autofillHints: const ['newPassword'],
+            onChanged: (_) => setState(() {}),
+            suffix: IconButton(
+              tooltip: _showPw ? 'Hide' : 'Show',
+              onPressed: () => setState(() => _showPw = !_showPw),
+              icon: Icon(
+                _showPw ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                size: 20,
+                color: AuthColors.muted,
+              ),
+            ),
+          ),
+          if (_password.text.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            PasswordStrength(password: _password.text),
+          ],
+          const SizedBox(height: 24),
+          _underlineField(
+            label: 'CONFIRM PASSWORD',
+            controller: _confirm,
+            hint: 'Repeat password',
+            obscure: !_showConfirm,
+            autofillHints: const ['newPassword'],
+            onChanged: (_) => setState(() {}),
+            suffix: IconButton(
+              tooltip: _showConfirm ? 'Hide' : 'Show',
+              onPressed: () => setState(() => _showConfirm = !_showConfirm),
+              icon: Icon(
+                _showConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                size: 20,
+                color: AuthColors.muted,
+              ),
+            ),
+          ),
+          if (_confirm.text.isNotEmpty && _password.text == _confirm.text) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.check_circle, size: 14, color: AuthColors.teal),
+                const SizedBox(width: 6),
+                Text(
+                  'Passwords match',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AuthColors.teal,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (_screenError != null) ...[
+            const SizedBox(height: 14),
+            InlineError(message: _screenError!),
+          ],
+          const SizedBox(height: 120),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.10,
+        color: AuthColors.muted,
+      ),
+    );
+  }
+
+  Widget _phoneRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        GestureDetector(
+          onTap: () async {
+            // Reuse existing country picker.
+          },
+          child: Container(
+            padding: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: AuthColors.border, width: 1.5),
+              ),
+            ),
+            child: Text(
+              _countryCode,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AuthColors.ink,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _underlineField(
+            label: 'PHONE (OPTIONAL)',
+            controller: _phoneLocal,
+            hint: 'Phone number',
+            keyboardType: TextInputType.phone,
+            onChanged: (_) => _schedulePhoneCheck(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ══════════════ PROFILE WELCOME ══════════════
+
+  Widget _profileWelcomeScreen() {
+    final String name;
+    if (_firstNameCtrl.text.trim().isNotEmpty) {
+      name = _firstNameCtrl.text.trim();
+    } else if (_auth.account?.email != null) {
+      name = _auth.account!.email.split('@').first;
+    } else if (_displayName.text.trim().isNotEmpty) {
+      name = _displayName.text.split(' ').first;
+    } else {
+      name = 'there';
+    }
+    return AuthScaffold(
+      bottom: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AuthPrimaryButton(
+            label: 'Complete profile →',
+            onPressed: () => setState(() => _reg = _Reg.profile),
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton(
+              onPressed: () => setState(() => _reg = _Reg.done),
+              child: Text(
+                'Do this later',
+                style: TextStyle(
+                  color: AuthColors.muted,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 40),
+          Text(
+            'WELCOME TO BLISTRA 🎉',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.12,
+              color: AuthColors.teal,
+            ),
+          ),
+          const SizedBox(height: 16),
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontFamily: 'Fraunces',
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.6,
+                color: AuthColors.ink,
+                height: 1.15,
+              ),
+              children: [
+                TextSpan(text: 'Hey $name,\nlet\'s set up '),
+                TextSpan(
+                  text: 'your profile.',
+                  style: TextStyle(color: AuthColors.teal),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Takes 2 minutes. Helps us personalise Health, Diet and Habits for you.',
+            style: TextStyle(fontSize: 14, color: AuthColors.muted, height: 1.5),
+          ),
+          const SizedBox(height: 28),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _infoPill('📸 Photo'),
+              _infoPill('🎂 Birthday'),
+              _infoPill('⚖️ Height & weight'),
+              _infoPill('🎯 Goals'),
+            ],
+          ),
+          const SizedBox(height: 120),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoPill(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: AuthColors.teal.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AuthColors.teal.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AuthColors.teal,
+        ),
+      ),
+    );
+  }
+
+  // ══════════════ PROFILE SETUP ══════════════
+
+  Widget _profileSetupScreen() {
+    final dobText = _dob == null
+        ? null
+        : '${_dob!.day} ${_months[_dob!.month - 1]} ${_dob!.year}';
+    final canContinue = _dob != null && _gender != null;
+
+    return AuthScaffold(
+      onBack: _busy ? null : () => _backTo(_Reg.profileWelcome),
+      bottom: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AnimatedOpacity(
+            opacity: canContinue ? 1.0 : 0.45,
+            duration: const Duration(milliseconds: 200),
+            child: AuthPrimaryButton(
+              label: 'Continue',
+              busy: _saving,
+              onPressed: canContinue ? _saveProfile : null,
+            ),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const SizedBox(),
+              Text(
+                'Profile 1 of 2',
+                style: TextStyle(fontSize: 13, color: AuthColors.muted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          LinearProgressIndicator(
+            value: 0.5,
+            minHeight: 3,
+            backgroundColor: AuthColors.border,
+            valueColor: AlwaysStoppedAnimation(AuthColors.teal),
+          ),
+          const SizedBox(height: 24),
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontFamily: 'Fraunces',
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.6,
+                color: AuthColors.ink,
+              ),
+              children: [
+                const TextSpan(text: 'Your '),
+                TextSpan(
+                  text: 'profile.',
+                  style: TextStyle(color: AuthColors.teal),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            'Help us personalize Blistra for you.',
+            style: TextStyle(fontSize: 14, color: AuthColors.muted),
+          ),
+          const SizedBox(height: 32),
+
+          // Avatar placeholder
+          Row(
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AuthColors.teal.withValues(alpha: 0.5),
+                    width: 1.5,
+                    strokeAlign: BorderSide.strokeAlignOutside,
+                  ),
+                  color: AuthColors.teal.withValues(alpha: 0.08),
+                ),
+                child: Icon(
+                  Icons.person_outline,
+                  size: 32,
+                  color: AuthColors.teal,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _displayName.text.isNotEmpty
+                        ? _displayName.text
+                        : '${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim(),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AuthColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tap to add photo',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AuthColors.teal,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+
+          // Date of birth
+          GestureDetector(
+            onTap: _showDobSheet,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'DATE OF BIRTH',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.10,
+                    color: _dob != null ? AuthColors.teal : AuthColors.muted,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        dobText ?? 'Tap to select',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: dobText != null
+                              ? AuthColors.ink
+                              : AuthColors.muted.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.calendar_month_outlined,
+                      size: 20,
+                      color: AuthColors.teal,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 1.5,
+                  color: _dob != null
+                      ? AuthColors.teal.withValues(alpha: 0.5)
+                      : AuthColors.border,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // Gender
+          Text(
+            'GENDER',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.10,
+              color: AuthColors.muted,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _genderChip('Male', 'MALE'),
+              _genderChip('Female', 'FEMALE'),
+              _genderChip('Non-binary', 'NON_BINARY'),
+              _genderChip('Prefer not to say', 'PREFER_NOT_TO_SAY'),
+            ],
+          ),
+
+          if (_screenError != null) ...[
+            const SizedBox(height: 14),
+            InlineError(message: _screenError!),
+          ],
+          const SizedBox(height: 120),
+        ],
+      ),
+    );
+  }
+
+  Widget _genderChip(String label, String value) {
+    final selected = _gender == value;
+    return GestureDetector(
+      onTap: () => setState(() => _gender = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected
+              ? AuthColors.teal.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? AuthColors.teal.withValues(alpha: 0.4)
+                : AuthColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? AuthColors.teal : AuthColors.muted,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDobSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _DobSheet(
+        initialDate: _dob,
+        onConfirm: (date) {
+          setState(() => _dob = date);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  // ══════════════ HEALTH SETUP ══════════════
+
+  Widget _healthSetupScreen() {
+    final heightFilled = _height.text.isNotEmpty;
+    final weightFilled = _weight.text.isNotEmpty;
+    final canFinish = heightFilled && weightFilled && _activityLevel != null;
+
+    return AuthScaffold(
+      onBack: _busy ? null : () => _backTo(_Reg.profile),
+      bottom: AnimatedOpacity(
+        opacity: canFinish ? 1.0 : 0.45,
+        duration: const Duration(milliseconds: 200),
+        child: AuthPrimaryButton(
+          label: 'Finish setup →',
+          busy: _saving,
+          onPressed: canFinish ? _saveHealth : null,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const SizedBox(),
+              Text(
+                'Profile 2 of 2',
+                style: TextStyle(fontSize: 13, color: AuthColors.muted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          LinearProgressIndicator(
+            value: canFinish ? 1.0 : 0.75,
+            minHeight: 3,
+            backgroundColor: AuthColors.border,
+            valueColor: AlwaysStoppedAnimation(AuthColors.teal),
+          ),
+          const SizedBox(height: 24),
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontFamily: 'Fraunces',
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.6,
+                color: AuthColors.ink,
+              ),
+              children: [
+                const TextSpan(text: 'Your '),
+                TextSpan(
+                  text: 'health.',
+                  style: TextStyle(color: AuthColors.teal),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            'Used for Health, Diet & Habits modules.',
+            style: TextStyle(fontSize: 14, color: AuthColors.muted),
+          ),
+          const SizedBox(height: 32),
+
+          // Height
+          _healthMeasureField(
+            label: 'HEIGHT',
+            controller: _height,
+            hint: 'Enter height',
+            unit: _heightUnit.toLowerCase(),
+            unitA: 'cm',
+            unitB: 'ft',
+            activeUnit: _heightUnit == 'CM' ? 'cm' : 'ft',
+            onToggle: (u) => setState(() {
+              _heightUnit = u == 'cm' ? 'CM' : 'IN';
+            }),
+          ),
+          const SizedBox(height: 24),
+
+          // Weight
+          _healthMeasureField(
+            label: 'WEIGHT',
+            controller: _weight,
+            hint: 'Enter weight',
+            unit: _weightUnit.toLowerCase(),
+            unitA: 'kg',
+            unitB: 'lbs',
+            activeUnit: _weightUnit == 'KG' ? 'kg' : 'lbs',
+            onToggle: (u) => setState(() {
+              _weightUnit = u == 'kg' ? 'KG' : 'LB';
+            }),
+          ),
+          const SizedBox(height: 28),
+
+          // Activity
+          _sectionLabel('ACTIVITY LEVEL'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _activityChip('🛋 Sedentary', 'SEDENTARY'),
+              _activityChip('🚶 Light', 'LIGHT'),
+              _activityChip('🏋 Moderate', 'MODERATE'),
+              _activityChip('🏃 Very active', 'VERY_ACTIVE'),
+            ],
+          ),
+          const SizedBox(height: 28),
+
+          // Goals
+          _sectionLabel('GOALS'),
+          const SizedBox(height: 4),
+          Text(
+            'Pick any that apply',
+            style: TextStyle(fontSize: 12, color: AuthColors.muted),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _goalChip('💪 Build muscle', 'BUILD_MUSCLE'),
+              _goalChip('🏃 Lose weight', 'LOSE_WEIGHT'),
+              _goalChip('😴 Better sleep', 'BETTER_SLEEP'),
+              _goalChip('❤️ Heart health', 'HEART_HEALTH'),
+              _goalChip('🧘 Reduce stress', 'REDUCE_STRESS'),
+              _goalChip('⚡ More energy', 'MORE_ENERGY'),
+            ],
+          ),
+
+          if (_screenError != null) ...[
+            const SizedBox(height: 14),
+            InlineError(message: _screenError!),
+          ],
+          const SizedBox(height: 120),
+        ],
+      ),
+    );
+  }
+
+  Widget _healthMeasureField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    required String unit,
+    required String unitA,
+    required String unitB,
+    required String activeUnit,
+    required ValueChanged<String> onToggle,
+  }) {
+    final active = controller.text.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.10,
+            color: active ? AuthColors.teal : AuthColors.muted,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => setState(() {}),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AuthColors.ink,
+                ),
+                decoration: InputDecoration(
+                  hintText: hint,
+                  hintStyle: TextStyle(
+                    fontSize: 20,
+                    color: AuthColors.muted.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w400,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                ),
+              ),
+            ),
+            if (active)
+              Text(
+                unit,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AuthColors.teal,
+                ),
+              ),
+            const SizedBox(width: 12),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AuthColors.teal.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [unitA, unitB].map((u) {
+                  final isActive = u == activeUnit;
+                  return GestureDetector(
+                    onTap: () => onToggle(u),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? AuthColors.teal.withValues(alpha: 0.15)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        u,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isActive
+                              ? AuthColors.teal
+                              : AuthColors.muted,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 1.5,
+          color:
+              active ? AuthColors.teal.withValues(alpha: 0.5) : AuthColors.border,
+        ),
+      ],
+    );
+  }
+
+  Widget _activityChip(String label, String value) {
+    final selected = _activityLevel == value;
+    return GestureDetector(
+      onTap: () => setState(() => _activityLevel = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AuthColors.teal.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? AuthColors.teal.withValues(alpha: 0.4)
+                : AuthColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? AuthColors.teal : AuthColors.muted,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _goalChip(String label, String value) {
+    final selected = _selectedGoals.contains(value);
+    return GestureDetector(
+      onTap: () => setState(() {
+        if (selected) {
+          _selectedGoals.remove(value);
+        } else {
+          _selectedGoals.add(value);
+        }
+      }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AuthColors.teal.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? AuthColors.teal.withValues(alpha: 0.4)
+                : AuthColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? AuthColors.teal : AuthColors.muted,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double cx = size.width / 2;
+    final double cy = size.height / 2;
+    final double r = size.width / 2;
+
+    // Simplified Google "G" logo using colored arcs.
+    const colors = [
+      Color(0xFF4285F4), // Blue
+      Color(0xFFEA4335), // Red
+      Color(0xFFFBBC05), // Yellow
+      Color(0xFF34A853), // Green
+    ];
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.28;
+
+    final angles = [
+      [0.0, 1.57],
+      [1.57, 1.57],
+      [3.14, 1.57],
+      [4.71, 1.57],
+    ];
+
+    for (int i = 0; i < 4; i++) {
+      paint.color = colors[i];
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.72),
+        angles[i][0],
+        angles[i][1],
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _DobSheet extends StatefulWidget {
+  const _DobSheet({this.initialDate, required this.onConfirm});
+
+  final DateTime? initialDate;
+  final ValueChanged<DateTime> onConfirm;
+
+  @override
+  State<_DobSheet> createState() => _DobSheetState();
+}
+
+class _DobSheetState extends State<_DobSheet> {
+  late DateTime _viewing;
+  DateTime? _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initialDate;
+    final now = DateTime.now();
+    _viewing = _selected ?? DateTime(now.year - 25, now.month, 1);
+  }
+
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final daysInMonth =
+        DateTime(_viewing.year, _viewing.month + 1, 0).day;
+    final firstWeekday =
+        DateTime(_viewing.year, _viewing.month, 1).weekday % 7;
+
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.55,
+        child: Column(
+          children: [
+            // Month navigator
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: () => setState(() {
+                      _viewing = DateTime(
+                          _viewing.year, _viewing.month - 1, 1);
+                    }),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${_monthNames[_viewing.month - 1]} ${_viewing.year}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 16),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () => setState(() {
+                      _viewing = DateTime(
+                          _viewing.year, _viewing.month + 1, 1);
+                    }),
+                  ),
+                ],
+              ),
+            ),
+            // Day grid
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                    .map((d) => Expanded(
+                          child: Center(
+                            child: Text(
+                              d,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AuthColors.muted,
+                              ),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    childAspectRatio: 1,
+                  ),
+                  itemCount: firstWeekday + daysInMonth,
+                  itemBuilder: (context, index) {
+                    if (index < firstWeekday) return const SizedBox();
+                    final day = index - firstWeekday + 1;
+                    final date =
+                        DateTime(_viewing.year, _viewing.month, day);
+                    final isSel = _selected != null &&
+                        _selected!.year == date.year &&
+                        _selected!.month == date.month &&
+                        _selected!.day == date.day;
+                    final isToday = date.year == DateTime.now().year &&
+                        date.month == DateTime.now().month &&
+                        date.day == DateTime.now().day;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selected = date),
+                      child: Center(
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isSel
+                                ? AuthColors.teal
+                                : isToday
+                                    ? AuthColors.teal.withValues(alpha: 0.12)
+                                    : Colors.transparent,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$day',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isSel
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
+                                color: isSel
+                                    ? Colors.white
+                                    : AuthColors.ink,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AuthColors.teal,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: _selected == null
+                      ? null
+                      : () => widget.onConfirm(_selected!),
+                  child: const Text(
+                    'Confirm',
+                    style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

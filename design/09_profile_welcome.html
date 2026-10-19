@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blistra — Profile Welcome</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #06090F;
+  display: flex; justify-content: center; align-items: center;
+  min-height: 100vh; padding: 48px 24px;
+  font-family: -apple-system, 'Inter', sans-serif;
+}
+
+.vf { font-family: Georgia, serif; }
+
+.screen {
+  width: 390px;
+  min-height: 844px;
+  background: #06090F;
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+
+/* Large central glow — celebratory feel */
+.glow-c {
+  position: absolute;
+  width: 340px; height: 340px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.18) 0%, transparent 65%);
+  top: 50%; left: 50%; transform: translate(-50%, -58%);
+  pointer-events: none;
+}
+.glow-bl {
+  position: absolute; width: 140px; height: 140px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.08) 0%, transparent 70%);
+  bottom: 100px; left: -35px; pointer-events: none;
+}
+
+/* top spacer (no nav on this screen) */
+.spacer { height: 72px; }
+
+/* body */
+.body {
+  flex: 1;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 0 24px;
+  position: relative; z-index: 1;
+}
+
+.eyebrow {
+  font-size: 12px; color: #12B886;
+  font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 14px;
+}
+
+.h1 {
+  font-size: 36px; color: #EEF2F0;
+  letter-spacing: -1px; line-height: 1.08;
+}
+.h1 em { color: #12B886; font-style: normal; }
+
+.sub {
+  font-size: 14px; color: #2E3D36;
+  margin-top: 14px; line-height: 1.65;
+}
+
+.pills {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 20px;
+}
+.pill {
+  font-size: 12px;
+  background: rgba(18,184,134,0.08);
+  border: 0.75px solid rgba(18,184,134,0.22);
+  border-radius: 20px; padding: 6px 14px;
+  color: #12B886;
+}
+
+/* bottom */
+.bottom {
+  padding: 0 24px 44px;
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.cta {
+  background: #12B886; border-radius: 14px; padding: 17px;
+  text-align: center; font-size: 16px; font-weight: 700;
+  color: white; cursor: pointer; letter-spacing: 0.1px;
+}
+.skip {
+  text-align: center; font-size: 13px;
+  color: #2E3D36; cursor: pointer;
+}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="glow-c"></div>
+  <div class="glow-bl"></div>
+
+  <div class="spacer"></div>
+
+  <div class="body">
+    <div class="eyebrow">Welcome to Blistra 🎉</div>
+    <div class="h1 vf">Hey Sourabh,<br>let's set up<br><em>your profile.</em></div>
+    <div class="sub">Takes 2 minutes. Helps us personalise<br>Health, Diet and Habits for you.</div>
+    <div class="pills">
+      <div class="pill">📸 Photo</div>
+      <div class="pill">🎂 Birthday</div>
+      <div class="pill">⚖️ Height &amp; weight</div>
+      <div class="pill">🎯 Goals</div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="cta">Complete profile →</div>
+    <div class="skip">Do this later</div>
+  </div>
+</div>
+</body>
+</html>

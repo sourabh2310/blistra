@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blistra — Profile Setup (Step 1 of 2)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #06090F;
+  display: flex; justify-content: center; align-items: flex-start;
+  min-height: 100vh; gap: 32px; padding: 48px 24px;
+  font-family: -apple-system, 'Inter', sans-serif;
+}
+
+.vf { font-family: Georgia, serif; }
+
+.screen-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.screen-label {
+  font-size: 11px; color: #2E3D36;
+  font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+.screen {
+  width: 390px;
+  min-height: 844px;
+  background: #06090F;
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+
+.glow-tr {
+  position: absolute; width: 220px; height: 220px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.17) 0%, transparent 70%);
+  top: -55px; right: -55px; pointer-events: none;
+}
+.glow-bl {
+  position: absolute; width: 130px; height: 130px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.08) 0%, transparent 70%);
+  bottom: 120px; left: -30px; pointer-events: none;
+}
+
+.nav {
+  padding: 56px 24px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+}
+.back {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 0.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: #667; cursor: pointer;
+}
+.step-label { font-size: 13px; color: #2E3D36; }
+
+.progress { padding: 10px 24px 0; position: relative; z-index: 1; }
+.prog-bg { height: 3px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; background: #12B886; border-radius: 3px; }
+
+/* Heading */
+.head { padding: 24px 24px 0; position: relative; z-index: 1; }
+.h1 { font-size: 28px; color: #EEF2F0; letter-spacing: -0.6px; }
+.h1 em { color: #12B886; font-style: normal; }
+.h2 { font-size: 13px; color: #2E3D36; margin-top: 6px; }
+
+/* Body */
+.body {
+  padding: 28px 24px 0; flex: 1;
+  display: flex; flex-direction: column; gap: 28px;
+  position: relative; z-index: 1;
+}
+
+/* Avatar row */
+.av-row { display: flex; align-items: center; gap: 16px; }
+.av {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(18,184,134,0.1);
+  border: 2px dashed rgba(18,184,134,0.35);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; flex-shrink: 0; cursor: pointer;
+}
+.av-init { font-size: 26px; color: #12B886; font-weight: 700; font-family: Georgia, serif; }
+.av-cam {
+  position: absolute; bottom: -3px; right: -3px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #12B886; border: 2px solid #06090F;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+}
+.av-info { display: flex; flex-direction: column; gap: 4px; }
+.av-name { font-size: 17px; color: #EEF2F0; font-weight: 600; }
+.av-hint { font-size: 12px; color: #12B886; cursor: pointer; }
+
+/* Underline field */
+.uf { display: flex; flex-direction: column; gap: 8px; border-bottom: 1.5px solid; padding-bottom: 12px; }
+.uf-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.uf-row { display: flex; align-items: center; justify-content: space-between; }
+.uf-value { font-size: 20px; color: #EEF2F0; flex: 1; }
+.uf-hint { font-size: 18px; color: rgba(255,255,255,0.18); flex: 1; }
+.cal-icon { font-size: 18px; cursor: pointer; }
+
+/* Gender */
+.gender-section { display: flex; flex-direction: column; gap: 10px; }
+.gender-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #2E3D36; }
+.gc-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.gc {
+  border-radius: 20px; padding: 7px 16px;
+  font-size: 13px; font-weight: 600; border: 0.75px solid; cursor: pointer;
+}
+.gc.sel {
+  background: rgba(18,184,134,0.12);
+  border-color: rgba(18,184,134,0.35);
+  color: #12B886;
+}
+.gc.un {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.09);
+  color: #2E3D36;
+}
+
+/* Bottom */
+.bottom { padding: 0 24px 44px; position: relative; z-index: 1; }
+.cta {
+  border-radius: 14px; padding: 17px;
+  text-align: center; font-size: 16px; font-weight: 700; color: white;
+  cursor: pointer; letter-spacing: 0.1px;
+}
+.cta.active { background: #12B886; }
+.cta.dim    { background: rgba(18,184,134,0.28); }
+
+/* ── Calendar / DOB Bottom Sheet ── */
+.overlay {
+  position: absolute; inset: 0;
+  background: rgba(6,9,15,0.6);
+  z-index: 5;
+}
+.sheet {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: #0C1520;
+  border-radius: 20px 20px 0 0;
+  border-top: 0.5px solid rgba(255,255,255,0.1);
+  z-index: 6;
+}
+.sheet-handle {
+  width: 36px; height: 4px;
+  background: rgba(255,255,255,0.15); border-radius: 4px;
+  margin: 10px auto 0;
+}
+.sheet-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px 10px;
+}
+.sh-title { font-size: 15px; color: #EEF2F0; font-weight: 700; }
+.sh-toggle { font-size: 13px; color: #12B886; font-weight: 600; cursor: pointer; }
+
+/* Month nav */
+.month-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px 10px;
+}
+.mnav-btn { font-size: 18px; color: #12B886; cursor: pointer; padding: 0 4px; }
+.mnav-lbl { font-size: 15px; color: #EEF2F0; font-weight: 700; }
+
+/* Day grid */
+.day-grid { padding: 0 14px; }
+.day-row { display: flex; justify-content: space-around; }
+.day-hdr {
+  width: 40px; text-align: center;
+  font-size: 11px; color: #2E3D36;
+  font-weight: 700; padding: 4px 0;
+}
+.day-cell {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #C8D8D0; cursor: pointer;
+}
+.day-cell.sel  { background: #12B886; color: white; font-weight: 700; }
+.day-cell.dim  { color: #1A2A22; }
+
+.sheet-cta {
+  margin: 12px 20px 20px;
+  background: #12B886; border-radius: 12px; padding: 15px;
+  text-align: center; font-size: 15px; font-weight: 700; color: white;
+  cursor: pointer;
+}
+
+/* Manual DOB boxes */
+.manual-row { display: flex; gap: 12px; padding: 8px 20px 0; }
+.m-box {
+  border-radius: 12px; padding: 12px 10px;
+  text-align: center; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+}
+.m-box.active { border-color: rgba(18,184,134,0.5); background: rgba(18,184,134,0.07); }
+.m-box-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #2E3D36; margin-bottom: 4px; }
+.m-box.active .m-box-label { color: #12B886; }
+.m-box-val { font-size: 22px; font-weight: 700; color: #EEF2F0; }
+.m-box-hint { font-size: 14px; color: rgba(255,255,255,0.18); }
+.cursor { color: #12B886; font-weight: 200; }
+.m-hint { font-size: 12px; color: #2E3D36; padding: 8px 20px 0; }
+.m-box-day  { flex: 0.8; }
+.m-box-mon  { flex: 1.4; }
+.m-box-yr   { flex: 1.4; }
+</style>
+</head>
+<body>
+
+<!-- State 1: Main screen (DOB not set) -->
+<div class="screen-wrap">
+  <div class="screen-label">1 — Main screen</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+
+    <div class="nav">
+      <div class="back">‹</div>
+      <span class="step-label">Profile 1 of 2</span>
+    </div>
+    <div class="progress">
+      <div class="prog-bg"><div class="prog-fill" style="width:50%"></div></div>
+    </div>
+
+    <div class="head">
+      <div class="h1 vf">Your <em>profile</em></div>
+      <div class="h2">Helps us personalise your experience.</div>
+    </div>
+
+    <div class="body">
+      <div class="av-row">
+        <div class="av">
+          <span class="av-init">S</span>
+          <div class="av-cam">📷</div>
+        </div>
+        <div class="av-info">
+          <div class="av-name">Sourabh Kumar Patel</div>
+          <div class="av-hint">Tap to add photo</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(255,255,255,0.12)">
+        <div class="uf-label" style="color:#2E3D36">Date of birth</div>
+        <div class="uf-row">
+          <div class="uf-hint">Tap to select</div>
+          <div class="cal-icon">📅</div>
+        </div>
+      </div>
+
+      <div class="gender-section">
+        <div class="gender-label">Gender</div>
+        <div class="gc-row">
+          <div class="gc un">Male</div>
+          <div class="gc un">Female</div>
+          <div class="gc un">Non-binary</div>
+          <div class="gc un">Prefer not to say</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="cta dim">Continue</div>
+    </div>
+  </div>
+</div>
+
+<!-- State 2: Calendar sheet open -->
+<div class="screen-wrap">
+  <div class="screen-label">2 — Calendar picker</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+
+    <div class="nav">
+      <div class="back">‹</div>
+      <span class="step-label">Profile 1 of 2</span>
+    </div>
+    <div class="progress">
+      <div class="prog-bg"><div class="prog-fill" style="width:50%"></div></div>
+    </div>
+
+    <div class="head">
+      <div class="h1 vf">Your <em>profile</em></div>
+      <div class="h2">Helps us personalise your experience.</div>
+    </div>
+
+    <div class="body">
+      <div class="av-row">
+        <div class="av">
+          <span class="av-init">S</span>
+          <div class="av-cam">📷</div>
+        </div>
+        <div class="av-info">
+          <div class="av-name">Sourabh Kumar Patel</div>
+          <div class="av-hint">Tap to add photo</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- dim overlay -->
+    <div class="overlay"></div>
+
+    <!-- calendar bottom sheet -->
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <span class="sh-title">Date of birth</span>
+        <span class="sh-toggle">Enter manually</span>
+      </div>
+      <div class="month-nav">
+        <span class="mnav-btn">‹</span>
+        <span class="mnav-lbl">March 1998</span>
+        <span class="mnav-btn">›</span>
+      </div>
+      <div class="day-grid">
+        <div class="day-row">
+          <div class="day-hdr">M</div><div class="day-hdr">T</div><div class="day-hdr">W</div>
+          <div class="day-hdr">T</div><div class="day-hdr">F</div><div class="day-hdr">S</div><div class="day-hdr">S</div>
+        </div>
+        <div class="day-row">
+          <div class="day-cell dim"></div><div class="day-cell dim"></div><div class="day-cell dim"></div>
+          <div class="day-cell dim"></div><div class="day-cell dim"></div><div class="day-cell">1</div><div class="day-cell">2</div>
+        </div>
+        <div class="day-row">
+          <div class="day-cell">3</div><div class="day-cell">4</div><div class="day-cell">5</div>
+          <div class="day-cell">6</div><div class="day-cell">7</div><div class="day-cell">8</div><div class="day-cell">9</div>
+        </div>
+        <div class="day-row">
+          <div class="day-cell">10</div><div class="day-cell">11</div><div class="day-cell">12</div>
+          <div class="day-cell">13</div><div class="day-cell">14</div><div class="day-cell sel">15</div><div class="day-cell">16</div>
+        </div>
+        <div class="day-row">
+          <div class="day-cell">17</div><div class="day-cell">18</div><div class="day-cell">19</div>
+          <div class="day-cell">20</div><div class="day-cell">21</div><div class="day-cell">22</div><div class="day-cell">23</div>
+        </div>
+        <div class="day-row">
+          <div class="day-cell">24</div><div class="day-cell">25</div><div class="day-cell">26</div>
+          <div class="day-cell">27</div><div class="day-cell">28</div><div class="day-cell">29</div><div class="day-cell">30</div>
+        </div>
+      </div>
+      <div class="sheet-cta">Confirm — 15 March 1998</div>
+    </div>
+  </div>
+</div>
+
+<!-- State 3: Manual entry mode -->
+<div class="screen-wrap">
+  <div class="screen-label">3 — Manual entry</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+
+    <div class="nav">
+      <div class="back">‹</div>
+      <span class="step-label">Profile 1 of 2</span>
+    </div>
+    <div class="progress">
+      <div class="prog-bg"><div class="prog-fill" style="width:50%"></div></div>
+    </div>
+
+    <div class="head">
+      <div class="h1 vf">Your <em>profile</em></div>
+      <div class="h2">Helps us personalise your experience.</div>
+    </div>
+
+    <div class="body">
+      <div class="av-row">
+        <div class="av">
+          <span class="av-init">S</span>
+          <div class="av-cam">📷</div>
+        </div>
+        <div class="av-info">
+          <div class="av-name">Sourabh Kumar Patel</div>
+          <div class="av-hint">Tap to add photo</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay"></div>
+
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <span class="sh-title">Date of birth</span>
+        <span class="sh-toggle" style="color:#2E3D36">Use calendar</span>
+      </div>
+      <div class="manual-row">
+        <div class="m-box m-box-day active">
+          <div class="m-box-label">Day</div>
+          <div class="m-box-val">15<span class="cursor">|</span></div>
+        </div>
+        <div class="m-box m-box-mon">
+          <div class="m-box-label">Month</div>
+          <div class="m-box-hint">MMM</div>
+        </div>
+        <div class="m-box m-box-yr">
+          <div class="m-box-label">Year</div>
+          <div class="m-box-hint">YYYY</div>
+        </div>
+      </div>
+      <div class="m-hint">Format: DD / MMM / YYYY — e.g. 15 / Mar / 1998</div>
+      <div class="sheet-cta" style="background:rgba(18,184,134,0.28)">Confirm</div>
+    </div>
+  </div>
+</div>
+
+<!-- State 4: DOB confirmed, gender selected — Continue active -->
+<div class="screen-wrap">
+  <div class="screen-label">4 — Complete, Continue active</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+
+    <div class="nav">
+      <div class="back">‹</div>
+      <span class="step-label">Profile 1 of 2</span>
+    </div>
+    <div class="progress">
+      <div class="prog-bg"><div class="prog-fill" style="width:50%"></div></div>
+    </div>
+
+    <div class="head">
+      <div class="h1 vf">Your <em>profile</em></div>
+      <div class="h2">Helps us personalise your experience.</div>
+    </div>
+
+    <div class="body">
+      <div class="av-row">
+        <div class="av" style="border-style:solid;border-color:rgba(18,184,134,0.5);background:rgba(18,184,134,0.07)">
+          <span class="av-init">S</span>
+          <div class="av-cam" style="background:#12B886">✓</div>
+        </div>
+        <div class="av-info">
+          <div class="av-name">Sourabh Kumar Patel</div>
+          <div class="av-hint">Photo added ✓</div>
+        </div>
+      </div>
+
+      <div class="uf" style="border-color:rgba(18,184,134,0.4)">
+        <div class="uf-label" style="color:#12B886">Date of birth</div>
+        <div class="uf-row">
+          <div class="uf-value">15 March 1998</div>
+          <div class="cal-icon" style="color:#12B886">✓</div>
+        </div>
+      </div>
+
+      <div class="gender-section">
+        <div class="gender-label" style="color:#12B886">Gender</div>
+        <div class="gc-row">
+          <div class="gc sel">Male</div>
+          <div class="gc un">Female</div>
+          <div class="gc un">Non-binary</div>
+          <div class="gc un">Prefer not to say</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="cta active">Continue</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

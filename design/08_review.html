@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blistra — Review (Step 6)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #06090F;
+  display: flex; justify-content: center; align-items: center;
+  min-height: 100vh; padding: 48px 24px;
+  font-family: -apple-system, 'Inter', sans-serif;
+}
+
+.vf { font-family: Georgia, serif; }
+
+.screen {
+  width: 390px;
+  min-height: 844px;
+  background: #06090F;
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+
+.glow-tr {
+  position: absolute; width: 220px; height: 220px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.17) 0%, transparent 70%);
+  top: -55px; right: -55px; pointer-events: none;
+}
+.glow-bl {
+  position: absolute; width: 130px; height: 130px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.08) 0%, transparent 70%);
+  bottom: 120px; left: -30px; pointer-events: none;
+}
+
+.nav {
+  padding: 56px 24px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+}
+.back {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 0.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: #667; cursor: pointer;
+}
+.step-label { font-size: 13px; color: #2E3D36; }
+
+.progress { padding: 10px 24px 0; position: relative; z-index: 1; }
+.prog-bg { height: 3px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; width: 75%; background: #12B886; border-radius: 3px; }
+
+.bubble-wrap { padding: 32px 24px 0; position: relative; z-index: 1; }
+.bubble {
+  background: rgba(18,184,134,0.09);
+  border: 0.75px solid rgba(18,184,134,0.22);
+  border-radius: 18px 18px 18px 5px;
+  padding: 16px 18px; display: inline-block;
+}
+.bubble-title { font-size: 20px; color: #EEF2F0; letter-spacing: -0.4px; margin-bottom: 6px; }
+.bubble-sub { font-size: 13px; color: #4D6B60; line-height: 1.55; }
+
+/* Open rows */
+.rows {
+  padding: 32px 24px 0; flex: 1;
+  display: flex; flex-direction: column;
+  position: relative; z-index: 1;
+}
+.row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 0;
+  border-bottom: 0.5px solid rgba(255,255,255,0.06);
+}
+.row:last-child { border-bottom: none; }
+.row-left { display: flex; flex-direction: column; gap: 4px; }
+.row-label {
+  font-size: 10px; color: #2E3D36;
+  font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.row-value { font-size: 15px; color: #EEF2F0; }
+.row-value.empty { color: #1A2A22; }
+.row-action { font-size: 13px; color: #12B886; font-weight: 600; cursor: pointer; }
+
+.bottom { padding: 0 24px 44px; position: relative; z-index: 1; }
+.cta {
+  background: #12B886; border-radius: 14px; padding: 17px;
+  text-align: center; font-size: 16px; font-weight: 700;
+  color: white; cursor: pointer; letter-spacing: 0.1px;
+}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="glow-tr"></div>
+  <div class="glow-bl"></div>
+
+  <div class="nav">
+    <div class="back">‹</div>
+    <span class="step-label">Step 6 of 8</span>
+  </div>
+
+  <div class="progress">
+    <div class="prog-bg"><div class="prog-fill"></div></div>
+  </div>
+
+  <div class="bubble-wrap">
+    <div class="bubble">
+      <div class="bubble-title vf">Almost there! 🎉</div>
+      <div class="bubble-sub">Review your details before<br>we create your account.</div>
+    </div>
+  </div>
+
+  <div class="rows">
+    <div class="row">
+      <div class="row-left">
+        <div class="row-label">Name</div>
+        <div class="row-value">Sourabh Kumar Patel</div>
+      </div>
+      <div class="row-action">Edit</div>
+    </div>
+    <div class="row">
+      <div class="row-left">
+        <div class="row-label">Username</div>
+        <div class="row-value">@sourabh_k</div>
+      </div>
+      <div class="row-action">Edit</div>
+    </div>
+    <div class="row">
+      <div class="row-left">
+        <div class="row-label">Email</div>
+        <div class="row-value">sourabh@gmail.com</div>
+      </div>
+      <div class="row-action">Edit</div>
+    </div>
+    <div class="row">
+      <div class="row-left">
+        <div class="row-label">Phone</div>
+        <div class="row-value empty">Not added</div>
+      </div>
+      <div class="row-action">Add</div>
+    </div>
+    <div class="row">
+      <div class="row-left">
+        <div class="row-label">Password</div>
+        <div class="row-value">••••••••••••</div>
+      </div>
+      <div class="row-action">Edit</div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="cta">Create account</div>
+  </div>
+</div>
+</body>
+</html>

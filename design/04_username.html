@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blistra — Username (Step 2)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #06090F; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; font-family: -apple-system, 'Inter', sans-serif; gap: 32px; padding: 48px 24px; }
+
+/* Claude serif placeholder — swap with Fraunces in Flutter */
+.vf { font-family: Georgia, serif; }
+
+/* three states side by side */
+.screen-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.screen-label { font-size: 11px; color: #2E3D36; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.screen {
+  width: 390px;
+  min-height: 844px;
+  background: #06090F;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Glows */
+.glow-tr {
+  position: absolute;
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.17) 0%, transparent 70%);
+  top: -55px; right: -55px;
+  pointer-events: none;
+}
+.glow-bl {
+  position: absolute;
+  width: 130px; height: 130px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.08) 0%, transparent 70%);
+  bottom: 120px; left: -30px;
+  pointer-events: none;
+}
+
+/* Nav */
+.nav {
+  padding: 56px 24px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+}
+.back {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 0.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: #667; cursor: pointer;
+}
+.step-label { font-size: 13px; color: #2E3D36; }
+
+/* Progress */
+.progress { padding: 10px 24px 0; position: relative; z-index: 1; }
+.prog-bg { height: 3px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; width: 25%; background: #12B886; border-radius: 3px; }
+
+/* Bubble */
+.bubble-wrap { padding: 32px 24px 0; position: relative; z-index: 1; }
+.bubble {
+  background: rgba(18,184,134,0.09);
+  border: 0.75px solid rgba(18,184,134,0.22);
+  border-radius: 18px 18px 18px 5px;
+  padding: 16px 18px;
+  display: inline-block;
+}
+.bubble-title { font-size: 20px; color: #EEF2F0; letter-spacing: -0.4px; margin-bottom: 6px; }
+.bubble-sub { font-size: 13px; color: #4D6B60; line-height: 1.55; }
+
+/* Field area */
+.body {
+  padding: 40px 24px 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative; z-index: 1;
+}
+
+.uf {
+  display: flex; flex-direction: column; gap: 7px;
+  border-bottom: 1.5px solid;
+  padding-bottom: 12px;
+}
+.uf-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.uf-row { display: flex; align-items: center; justify-content: space-between; }
+.uf-value { font-size: 20px; color: #EEF2F0; }
+.uf-prefix { color: #2E3D36; }
+.cursor { color: #12B886; font-weight: 200; }
+
+/* status chip */
+.chip-ok {
+  background: rgba(18,184,134,0.12);
+  border: 0.75px solid rgba(18,184,134,0.3);
+  border-radius: 20px; padding: 3px 10px;
+  font-size: 9px; color: #12B886; font-weight: 700;
+}
+
+/* status text */
+.status-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* spinner */
+.spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.08);
+  border-top-color: #12B886;
+  flex-shrink: 0;
+}
+
+.hint { font-size: 11px; color: #2E3D36; margin-top: 10px; }
+
+/* CTA */
+.bottom { padding: 0 24px 44px; position: relative; z-index: 1; }
+.cta {
+  border-radius: 14px; padding: 17px;
+  text-align: center; font-size: 16px; font-weight: 700; color: white;
+  cursor: pointer; letter-spacing: 0.1px;
+}
+.cta.active { background: #12B886; }
+.cta.dim { background: rgba(18,184,134,0.28); }
+</style>
+</head>
+<body>
+
+<!-- State 1: Available -->
+<div class="screen-wrap">
+  <div class="screen-label">Available</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+    <div class="nav"><div class="back">‹</div><span class="step-label">Step 2 of 8</span></div>
+    <div class="progress"><div class="prog-bg"><div class="prog-fill"></div></div></div>
+    <div class="bubble-wrap">
+      <div class="bubble">
+        <div class="bubble-title vf">Pick a username 🎯</div>
+        <div class="bubble-sub">This is how others will find you<br>on Blistra.</div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="uf" style="border-color:#12B886">
+        <div class="uf-label" style="color:#12B886">Username</div>
+        <div class="uf-row">
+          <div class="uf-value"><span class="uf-prefix">@</span>sourabh_k<span class="cursor">|</span></div>
+          <div class="chip-ok">✓ Free</div>
+        </div>
+      </div>
+      <div class="hint">Letters, numbers and underscores only.</div>
+    </div>
+    <div class="bottom"><div class="cta active">Continue</div></div>
+  </div>
+</div>
+
+<!-- State 2: Taken -->
+<div class="screen-wrap">
+  <div class="screen-label">Taken</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+    <div class="nav"><div class="back">‹</div><span class="step-label">Step 2 of 8</span></div>
+    <div class="progress"><div class="prog-bg"><div class="prog-fill"></div></div></div>
+    <div class="bubble-wrap">
+      <div class="bubble">
+        <div class="bubble-title vf">Pick a username 🎯</div>
+        <div class="bubble-sub">This is how others will find you<br>on Blistra.</div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="uf" style="border-color:rgba(255,93,122,0.6)">
+        <div class="uf-label" style="color:rgba(255,93,122,0.8)">Username</div>
+        <div class="uf-row">
+          <div class="uf-value"><span class="uf-prefix">@</span>sourabh<span class="cursor">|</span></div>
+        </div>
+      </div>
+      <div class="status-row">
+        <div class="status-dot" style="background:#FF5D7A"></div>
+        <span style="font-size:11px;color:#FF5D7A">@sourabh is already taken</span>
+      </div>
+    </div>
+    <div class="bottom"><div class="cta dim">Continue</div></div>
+  </div>
+</div>
+
+<!-- State 3: Checking -->
+<div class="screen-wrap">
+  <div class="screen-label">Checking</div>
+  <div class="screen">
+    <div class="glow-tr"></div><div class="glow-bl"></div>
+    <div class="nav"><div class="back">‹</div><span class="step-label">Step 2 of 8</span></div>
+    <div class="progress"><div class="prog-bg"><div class="prog-fill"></div></div></div>
+    <div class="bubble-wrap">
+      <div class="bubble">
+        <div class="bubble-title vf">Pick a username 🎯</div>
+        <div class="bubble-sub">This is how others will find you<br>on Blistra.</div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="uf" style="border-color:rgba(255,255,255,0.15)">
+        <div class="uf-label" style="color:#2E3D36">Username</div>
+        <div class="uf-row">
+          <div class="uf-value"><span class="uf-prefix">@</span>sourabh_kp<span class="cursor">|</span></div>
+          <div class="spinner"></div>
+        </div>
+      </div>
+      <div class="hint">Checking availability…</div>
+    </div>
+    <div class="bottom"><div class="cta dim">Continue</div></div>
+  </div>
+</div>
+
+</body>
+</html>

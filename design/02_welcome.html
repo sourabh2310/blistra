@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blistra — Welcome (Midnight Glass)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #06090F; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: -apple-system, 'Inter', sans-serif; }
+
+/* Claude serif placeholder — swap with Fraunces in Flutter */
+.vf { font-family: Georgia, serif; }
+
+.screen {
+  width: 390px;
+  min-height: 844px;
+  background: #06090F;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Teal glow accents */
+.glow-tr {
+  position: absolute;
+  width: 260px; height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.18) 0%, transparent 70%);
+  top: -60px; right: -60px;
+  pointer-events: none;
+}
+.glow-bl {
+  position: absolute;
+  width: 160px; height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(18,184,134,0.09) 0%, transparent 70%);
+  bottom: 120px; left: -40px;
+  pointer-events: none;
+}
+
+/* Top bar */
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 56px 20px 0;
+  position: relative; z-index: 1;
+}
+.mode-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 0.5px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: #666; cursor: pointer;
+}
+
+/* Brand */
+.brand {
+  padding: 28px 24px 0;
+  display: flex; align-items: center; gap: 10px;
+  position: relative; z-index: 1;
+}
+.mark {
+  width: 36px; height: 36px;
+  background: #12B886;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.mark svg {
+  width: 18px; height: 18px;
+  stroke: white; fill: none;
+  stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+}
+.brand-name {
+  font-size: 22px;
+  font-weight: 600;
+  color: #EEF2F0;
+  letter-spacing: -0.4px;
+}
+
+/* Hero */
+.hero {
+  padding: 0 24px;
+  position: relative; z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.eyebrow {
+  font-size: 11px;
+  color: #12B886;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.h1 {
+  font-size: 36px;
+  font-weight: 600;
+  color: #EEF2F0;
+  letter-spacing: -1px;
+  line-height: 1.08;
+}
+.h1 em {
+  color: #12B886;
+  font-style: normal;
+}
+
+.h2 {
+  font-size: 13px;
+  color: #2E3D36;
+  margin-top: 14px;
+  line-height: 1.6;
+}
+
+.dot-row {
+  display: flex;
+  gap: 7px;
+  margin-top: 18px;
+}
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+
+/* Bottom */
+.bottom {
+  padding: 0 20px 44px;
+  position: relative; z-index: 1;
+}
+
+.cta {
+  background: #12B886;
+  border-radius: 14px;
+  padding: 17px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  letter-spacing: 0.1px;
+}
+
+.signin {
+  text-align: center;
+  font-size: 14px;
+  color: #2E3D36;
+  margin-top: 14px;
+}
+.signin strong { color: #12B886; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="glow-tr"></div>
+  <div class="glow-bl"></div>
+
+  <div class="topbar">
+    <div class="mode-btn">☀</div>
+  </div>
+
+  <div class="brand">
+    <div class="mark">
+      <svg viewBox="0 0 18 18">
+        <polyline points="3,14 9,4 15,14"/>
+        <line x1="5.5" y1="10.5" x2="12.5" y2="10.5"/>
+      </svg>
+    </div>
+    <span class="brand-name vf">Blistra</span>
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">Your personal OS</div>
+    <div class="h1 vf">Everything<br>you need.<br><em>One app.</em></div>
+    <div class="h2">Planner · Health · Habits<br>Finance · Diet · Medicines</div>
+    <div class="dot-row">
+      <div class="dot" style="background:#1FB99A"></div>
+      <div class="dot" style="background:#FF5D7A"></div>
+      <div class="dot" style="background:#8B6BFF"></div>
+      <div class="dot" style="background:#E8B230"></div>
+      <div class="dot" style="background:#FF9A3D"></div>
+      <div class="dot" style="background:#4A8CFF"></div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="cta">Get started</div>
+    <div class="signin">Have an account? <strong>Sign in</strong></div>
+  </div>
+</div>
+</body>
+</html>
