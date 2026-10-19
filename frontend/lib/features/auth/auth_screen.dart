@@ -124,6 +124,8 @@ class _AuthScreenState extends State<AuthScreen> {
   Timer? _timer;
   bool _otpSubmitting = false;
   String _countryCode = '+91';
+  bool _emailOtpSent = false;
+  bool _phoneOtpSent = false;
 
   // Live availability while typing (debounced GET /availability).
   _Avail _usernameAvail = _Avail.idle;
@@ -176,6 +178,12 @@ class _AuthScreenState extends State<AuthScreen> {
     _heightUnit = _units == 'IMPERIAL' ? 'IN' : 'CM';
     _weightUnit = _units == 'IMPERIAL' ? 'LB' : 'KG';
     _password.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _identifier.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _signInPassword.addListener(() {
       if (mounted) setState(() {});
     });
   }
@@ -1125,17 +1133,67 @@ class _AuthScreenState extends State<AuthScreen> {
   // ═══════════════════════ LOGIN ═══════════════════════
 
   Widget _loginScreen() {
+    final canSignIn = _identifier.text.isNotEmpty && _signInPassword.text.isNotEmpty;
     return AuthScaffold(
       bottom: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AuthPrimaryButton(
-            label: 'Sign in',
-            busy: _busy,
-            onPressed: _signIn,
+          AnimatedOpacity(
+            opacity: canSignIn ? 1.0 : 0.45,
+            duration: const Duration(milliseconds: 200),
+            child: AuthPrimaryButton(
+              label: 'Sign in',
+              busy: _busy,
+              onPressed: canSignIn ? _signIn : null,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: Divider(color: AuthColors.border)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  'or',
+                  style: TextStyle(color: AuthColors.muted, fontSize: 13),
+                ),
+              ),
+              Expanded(child: Divider(color: AuthColors.border)),
+            ],
+          ),
+          const SizedBox(height: 16),
           _googleButton(),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'New here? ',
+                style: TextStyle(fontSize: 14, color: AuthColors.muted),
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  _loginError = null;
+                  _screenError = null;
+                  _mode = _Mode.register;
+                  _reg = _Reg.welcome;
+                }),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'Create account',
+                  style: TextStyle(
+                    color: AuthColors.teal,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       child: Column(
@@ -2603,6 +2661,12 @@ class _AuthScreenState extends State<AuthScreen> {
                     color: AuthColors.muted.withValues(alpha: 0.6),
                   ),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  filled: false,
                   contentPadding: EdgeInsets.zero,
                   isDense: true,
                   suffixIcon: suffix,
@@ -2757,13 +2821,29 @@ class _AuthScreenState extends State<AuthScreen> {
           // CONTACT
           _sectionLabel('CONTACT'),
           const SizedBox(height: 16),
-          _underlineField(
-            label: 'EMAIL',
-            controller: _email,
-            hint: 'you@example.com',
-            keyboardType: TextInputType.emailAddress,
-            autofillHints: const ['email'],
-            onChanged: _scheduleEmailCheck,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: _underlineField(
+                  label: 'EMAIL',
+                  controller: _email,
+                  hint: 'you@example.com',
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const ['email'],
+                  onChanged: (v) {
+                    _scheduleEmailCheck(v);
+                    setState(() {});
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              _sendOtpButton(
+                sent: _emailOtpSent,
+                enabled: !_emailOtpSent && validateEmail(_email.text) == null,
+                onTap: () => setState(() => _emailOtpSent = true),
+              ),
+            ],
           ),
           _availRow(_emailAvail, takenMessage: 'Email already registered.'),
           const SizedBox(height: 24),
@@ -2883,10 +2963,72 @@ class _AuthScreenState extends State<AuthScreen> {
             controller: _phoneLocal,
             hint: 'Phone number',
             keyboardType: TextInputType.phone,
-            onChanged: (_) => _schedulePhoneCheck(),
+            onChanged: (_) {
+              _schedulePhoneCheck();
+              setState(() {});
+            },
           ),
         ),
+        const SizedBox(width: 10),
+        _sendOtpButton(
+          sent: _phoneOtpSent,
+          enabled: !_phoneOtpSent && _phoneLocal.text.trim().isNotEmpty,
+          onTap: () => setState(() => _phoneOtpSent = true),
+        ),
       ],
+    );
+  }
+
+  Widget _sendOtpButton({
+    required bool sent,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    if (sent) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle, size: 14, color: AuthColors.teal),
+            const SizedBox(width: 4),
+            Text(
+              'Sent',
+              style: TextStyle(
+                fontSize: 12,
+                color: AuthColors.teal,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AnimatedOpacity(
+        opacity: enabled ? 1.0 : 0.4,
+        duration: const Duration(milliseconds: 150),
+        child: GestureDetector(
+          onTap: enabled ? onTap : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            decoration: BoxDecoration(
+              color: AuthColors.teal.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AuthColors.teal.withValues(alpha: 0.35)),
+            ),
+            child: Text(
+              'Send OTP',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AuthColors.teal,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -3073,23 +3215,49 @@ class _AuthScreenState extends State<AuthScreen> {
           // Avatar placeholder
           Row(
             children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AuthColors.teal.withValues(alpha: 0.5),
-                    width: 1.5,
-                    strokeAlign: BorderSide.strokeAlignOutside,
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AuthColors.teal.withValues(alpha: 0.5),
+                        width: 1.5,
+                        strokeAlign: BorderSide.strokeAlignOutside,
+                      ),
+                      color: AuthColors.teal.withValues(alpha: 0.08),
+                    ),
+                    child: Icon(
+                      Icons.person_outline,
+                      size: 32,
+                      color: AuthColors.teal,
+                    ),
                   ),
-                  color: AuthColors.teal.withValues(alpha: 0.08),
-                ),
-                child: Icon(
-                  Icons.person_outline,
-                  size: 32,
-                  color: AuthColors.teal,
-                ),
+                  Positioned(
+                    bottom: -2,
+                    right: -2,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AuthColors.teal,
+                        border: Border.all(
+                          color: AuthColors.surface,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt_outlined,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(width: 16),
               Column(
@@ -3431,6 +3599,12 @@ class _AuthScreenState extends State<AuthScreen> {
                     fontWeight: FontWeight.w400,
                   ),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  filled: false,
                   contentPadding: EdgeInsets.zero,
                   isDense: true,
                 ),
