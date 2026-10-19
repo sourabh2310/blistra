@@ -46,13 +46,14 @@ void main() {
         MaterialApp(home: AuthScreen(deps: deps)),
       );
 
-      final toggle = find.text("Don't have an account? Create account");
+      // New UI: sign-in screen has a "Create account" link in the nav bar
+      final toggle = find.text('Create account');
       await tester.ensureVisible(toggle);
       await tester.tap(toggle);
       await tester.pump();
 
-      expect(toggle, findsNothing);
-      expect(find.text('Sign in'), findsNothing);
+      // After tapping, we land on the welcome screen (register flow)
+      expect(find.text('Get started'), findsOneWidget);
     });
   });
 }
