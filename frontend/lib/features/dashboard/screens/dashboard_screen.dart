@@ -574,20 +574,29 @@ class _Greeting extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 16, 16, 0),
               child: Row(
                 children: [
-                  const BlistraMark(size: 24),
-                  const SizedBox(width: 7),
-                  Text(
-                    'Blistra',
-                    style: TextStyle(
-                      fontFamily: 'Fraunces',
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -.5,
-                      color: heroText,
-                      height: 1.1,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const BlistraMark(size: 24),
+                        const SizedBox(width: 7),
+                        Flexible(
+                          child: Text(
+                            'Blistra',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'Fraunces',
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -.5,
+                              color: heroText,
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
                   _DarkHeaderAction(
                     tooltip: 'Search',
                     icon: Icons.search_rounded,
