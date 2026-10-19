@@ -2632,6 +2632,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 6),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (prefix != null)
               Text(
@@ -2669,10 +2670,10 @@ class _AuthScreenState extends State<AuthScreen> {
                   filled: false,
                   contentPadding: EdgeInsets.zero,
                   isDense: true,
-                  suffixIcon: suffix,
                 ),
               ),
             ),
+            ?suffix,
           ],
         ),
         const SizedBox(height: 8),
