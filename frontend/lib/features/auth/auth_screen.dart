@@ -127,7 +127,9 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _otpSubmitting = false;
   String _countryCode = '+91';
   bool _emailOtpSent = false;
+  bool _emailOtpVerified = false;
   bool _phoneOtpSent = false;
+  bool _phoneOtpVerified = false;
 
   // Live availability while typing (debounced GET /availability).
   _Avail _usernameAvail = _Avail.idle;
@@ -2615,6 +2617,7 @@ class _AuthScreenState extends State<AuthScreen> {
     TextInputType? keyboardType,
     bool obscure = false,
     bool autofocus = false,
+    bool readOnly = false,
     Iterable<String>? autofillHints,
     Widget? suffix,
     ValueChanged<String>? onChanged,
@@ -2649,6 +2652,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 keyboardType: keyboardType,
                 obscureText: obscure,
                 autofocus: autofocus,
+                readOnly: readOnly,
                 autocorrect: false,
                 autofillHints: autofillHints,
                 onChanged: onChanged,
@@ -2836,6 +2840,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   hint: 'you@example.com',
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const ['email'],
+                  readOnly: _emailOtpSent,
+                  active: _emailOtpVerified,
                   onChanged: (v) {
                     _scheduleEmailCheck(v);
                     setState(() {});
@@ -2845,23 +2851,27 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(width: 10),
               _sendOtpButton(
                 sent: _emailOtpSent,
+                verified: _emailOtpVerified,
                 enabled: !_emailOtpSent && validateEmail(_email.text) == null,
                 onTap: () => setState(() => _emailOtpSent = true),
               ),
             ],
           ),
           _availRow(_emailAvail, takenMessage: 'Email already registered.'),
-          if (_emailOtpSent) ...[
+          if (_emailOtpSent && !_emailOtpVerified) ...[
             const SizedBox(height: 16),
             OtpInput(
               controller: _emailInlineOtp,
-              onCompleted: () => setState(() {}),
+              onCompleted: () => setState(() => _emailOtpVerified = true),
             ),
             const SizedBox(height: 6),
             Align(
               alignment: Alignment.centerRight,
               child: GestureDetector(
-                onTap: () {},
+                onTap: () => setState(() {
+                  _emailOtpSent = false;
+                  _emailInlineOtp.clear();
+                }),
                 child: Text(
                   "Didn't get it? Resend",
                   style: TextStyle(
@@ -2875,17 +2885,20 @@ class _AuthScreenState extends State<AuthScreen> {
           ],
           const SizedBox(height: 24),
           _phoneRow(),
-          if (_phoneOtpSent) ...[
+          if (_phoneOtpSent && !_phoneOtpVerified) ...[
             const SizedBox(height: 16),
             OtpInput(
               controller: _phoneInlineOtp,
-              onCompleted: () => setState(() {}),
+              onCompleted: () => setState(() => _phoneOtpVerified = true),
             ),
             const SizedBox(height: 6),
             Align(
               alignment: Alignment.centerRight,
               child: GestureDetector(
-                onTap: () {},
+                onTap: () => setState(() {
+                  _phoneOtpSent = false;
+                  _phoneInlineOtp.clear();
+                }),
                 child: Text(
                   "Didn't get it? Resend",
                   style: TextStyle(
@@ -3021,6 +3034,7 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(width: 10),
         _sendOtpButton(
           sent: _phoneOtpSent,
+          verified: _phoneOtpVerified,
           enabled: !_phoneOtpSent && _phoneLocal.text.trim().isNotEmpty,
           onTap: () => setState(() => _phoneOtpSent = true),
         ),
@@ -3032,7 +3046,28 @@ class _AuthScreenState extends State<AuthScreen> {
     required bool sent,
     required bool enabled,
     required VoidCallback onTap,
+    bool verified = false,
   }) {
+    if (verified) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.verified, size: 14, color: AuthColors.teal),
+            const SizedBox(width: 4),
+            Text(
+              'Verified',
+              style: TextStyle(
+                fontSize: 12,
+                color: AuthColors.teal,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     if (sent) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
