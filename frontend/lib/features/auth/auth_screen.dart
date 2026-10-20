@@ -183,6 +183,7 @@ class _AuthScreenState extends State<AuthScreen> {
   late final GoogleIdTokenProvider _google =
       widget.googleTokenProvider ?? googleIdTokenProvider;
   bool _googleBusy = false;
+  bool _googleRegistration = false;
 
   @override
   void initState() {
@@ -210,6 +211,27 @@ class _AuthScreenState extends State<AuthScreen> {
     _signInPassword.addListener(() {
       if (mounted) setState(() {});
     });
+  }
+
+  @override
+  void didUpdateWidget(AuthScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // AuthGate reuses the same State (same key) when transitioning from the
+    // sign-in screen to the post-registration wizard. initState is never
+    // re-called, so we handle the flip here.
+    if (!oldWidget.startWizard && widget.startWizard) {
+      final account = _auth.account;
+      _mode = _Mode.register;
+      if (account != null && account.username.isEmpty) {
+        // Google user — email already verified, no username chosen yet.
+        _googleRegistration = true;
+        _email.text = account.email;
+        _reg = _Reg.singleForm;
+      } else {
+        _reg = _resumeStep();
+        _prefillFromAccount();
+      }
+    }
   }
 
   _Reg _resumeStep() {
@@ -327,8 +349,18 @@ class _AuthScreenState extends State<AuthScreen> {
               ? 'Google sign-in is unavailable right now. Please try again later.'
               : error != null && error.code == 'RATE_LIMITED'
               ? _friendly(error)
-              : "Couldn't sign in with Google. Please try again.",
+              : "Blistra couldn't verify your Google sign-in. Please try again.",
         );
+        return;
+      }
+      if (_auth.justRegistered && _auth.needsOnboarding) {
+        // Brand-new Google user — route to registration wizard (no email/password).
+        setState(() {
+          _googleRegistration = true;
+          _email.text = account.email;
+          _mode = _Mode.register;
+          _reg = _Reg.singleForm;
+        });
         return;
       }
       setState(() => _finishing = true);
@@ -1647,6 +1679,10 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _submitSingleForm() async {
+    if (_googleRegistration) {
+      await _submitGoogleSingleForm();
+      return;
+    }
     // Combine first + last name into displayName.
     _displayName.text =
         '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
@@ -1662,6 +1698,39 @@ class _AuthScreenState extends State<AuthScreen> {
     // Implicit terms acceptance shown via footer text.
     _terms = true;
     await _submitAccount();
+  }
+
+  /// Registration path for Google sign-in: account already exists, email
+  /// already verified. We just collect name, username, and (optionally) phone,
+  /// then update the profile before moving to profile/health onboarding.
+  Future<void> _submitGoogleSingleForm() async {
+    _displayName.text =
+        '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
+    if (!_checkName()) return;
+    if (!_checkUsername()) return;
+    if (!await _ensureUsernameAvailable()) return;
+    if (!mounted) return;
+    _checkPhone(); // build _phone.text from _phoneLocal (allowEmpty = true)
+    setState(() {
+      _screenError = null;
+      _saving = true;
+    });
+    final ok = await widget.deps.profile.save({
+      'displayName': _displayName.text.trim(),
+      'username': _username.text.trim(),
+      if (_phone.text.trim().isNotEmpty) 'phone': _phone.text.trim(),
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (!ok) {
+      setState(
+        () => _screenError =
+            widget.deps.profile.error ?? 'Could not save. Please try again.',
+      );
+      return;
+    }
+    // Email is already verified by Google — skip OTP, go straight to profile.
+    setState(() => _reg = _Reg.profileWelcome);
   }
 
   Widget _welcomeScreen() {
@@ -2817,12 +2886,16 @@ class _AuthScreenState extends State<AuthScreen> {
   // ══════════════ SINGLE FORM REGISTRATION ══════════════
 
   Widget _singleFormScreen() {
-    final busy = _auth.status == AuthStatus.busy || _finishing;
-    final canCreate = _password.text.isNotEmpty &&
-        _confirm.text.isNotEmpty &&
-        _email.text.isNotEmpty &&
-        _username.text.isNotEmpty &&
-        (_firstNameCtrl.text.isNotEmpty || _lastNameCtrl.text.isNotEmpty);
+    final busy = _busy;
+    final canCreate = _googleRegistration
+        ? (_email.text.isNotEmpty &&
+            _username.text.isNotEmpty &&
+            (_firstNameCtrl.text.isNotEmpty || _lastNameCtrl.text.isNotEmpty))
+        : (_password.text.isNotEmpty &&
+            _confirm.text.isNotEmpty &&
+            _email.text.isNotEmpty &&
+            _username.text.isNotEmpty &&
+            (_firstNameCtrl.text.isNotEmpty || _lastNameCtrl.text.isNotEmpty));
 
     return AuthScaffold(
       stickyHeader: Column(
@@ -2848,20 +2921,21 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ],
               ),
-              TextButton(
-                onPressed: () => setState(() {
-                  _screenError = null;
-                  _mode = _Mode.signIn;
-                }),
-                child: Text(
-                  'Sign in',
-                  style: TextStyle(
-                    color: AuthColors.teal,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+              if (!_googleRegistration)
+                TextButton(
+                  onPressed: () => setState(() {
+                    _screenError = null;
+                    _mode = _Mode.signIn;
+                  }),
+                  child: Text(
+                    'Sign in',
+                    style: TextStyle(
+                      color: AuthColors.teal,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -2875,16 +2949,26 @@ class _AuthScreenState extends State<AuthScreen> {
                 color: AuthColors.ink,
               ),
               children: [
-                const TextSpan(text: 'Create your '),
-                TextSpan(
-                  text: 'account.',
-                  style: TextStyle(color: AuthColors.teal),
-                ),
+                if (_googleRegistration) ...[
+                  const TextSpan(text: 'Finish setting '),
+                  TextSpan(
+                    text: 'up.',
+                    style: TextStyle(color: AuthColors.teal),
+                  ),
+                ] else ...[
+                  const TextSpan(text: 'Create your '),
+                  TextSpan(
+                    text: 'account.',
+                    style: TextStyle(color: AuthColors.teal),
+                  ),
+                ],
               ],
             ),
           ),
           Text(
-            'Takes about 2 minutes.',
+            _googleRegistration
+                ? 'Just a few more details.'
+                : 'Takes about 2 minutes.',
             style: TextStyle(fontSize: 14, color: AuthColors.muted),
           ),
           const SizedBox(height: 16),
@@ -2897,19 +2981,20 @@ class _AuthScreenState extends State<AuthScreen> {
             opacity: canCreate ? 1.0 : 0.45,
             duration: const Duration(milliseconds: 200),
             child: AuthPrimaryButton(
-              label: 'Create account',
+              label: _googleRegistration ? 'Continue' : 'Create account',
               busy: busy,
               onPressed: canCreate ? _submitSingleForm : null,
             ),
           ),
           const SizedBox(height: 8),
-          Center(
-            child: Text(
-              'By tapping Create account, you agree to our Terms & Privacy Policy.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: AuthColors.muted),
+          if (!_googleRegistration)
+            Center(
+              child: Text(
+                'By tapping Create account, you agree to our Terms & Privacy Policy.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: AuthColors.muted),
+              ),
             ),
-          ),
         ],
       ),
       child: Column(
@@ -2956,143 +3041,155 @@ class _AuthScreenState extends State<AuthScreen> {
           // CONTACT
           _sectionLabel('CONTACT'),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: _underlineField(
-                  label: 'EMAIL',
-                  controller: _email,
-                  hint: 'you@example.com',
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const ['email'],
-                  readOnly: _emailOtpSent,
-                  active: _emailOtpVerified,
-                  onChanged: (v) {
-                    _scheduleEmailCheck(v);
-                    setState(() {});
-                  },
-                ),
-              ),
-              const SizedBox(width: 10),
-              _sendOtpButton(
-                sent: _emailOtpSent,
-                verified: _emailOtpVerified,
-                enabled: !_emailOtpSent && validateEmail(_email.text) == null,
-                onTap: _sendEmailOtpFromForm,
-              ),
-            ],
-          ),
-          _availRow(_emailAvail, takenMessage: 'Email already registered.'),
-          if (_emailOtpSent && !_emailOtpVerified) ...[
-            const SizedBox(height: 16),
-            OtpInput(
-              controller: _emailInlineOtp,
-              onCompleted: _verifyEmailOtpInline,
-            ),
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerRight,
-              child: GestureDetector(
-                onTap: _resendEmailOtpFromForm,
-                child: Text(
-                  "Didn't get it? Resend",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AuthColors.teal,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 24),
-          _phoneRow(),
-          if (_phoneOtpSent && !_phoneOtpVerified) ...[
-            const SizedBox(height: 16),
-            OtpInput(
-              controller: _phoneInlineOtp,
-              onCompleted: _verifyPhoneOtpInline,
-            ),
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerRight,
-              child: GestureDetector(
-                onTap: () => setState(() {
-                  _phoneOtpSent = false;
-                  _phoneInlineOtp.clear();
-                }),
-                child: Text(
-                  "Didn't get it? Resend",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AuthColors.teal,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 32),
-
-          // SECURITY
-          _sectionLabel('SECURITY'),
-          const SizedBox(height: 16),
-          _underlineField(
-            label: 'PASSWORD',
-            controller: _password,
-            hint: 'At least 8 characters',
-            obscure: !_showPw,
-            autofillHints: const ['newPassword'],
-            onChanged: (_) => setState(() {}),
-            suffix: IconButton(
-              tooltip: _showPw ? 'Hide' : 'Show',
-              onPressed: () => setState(() => _showPw = !_showPw),
-              icon: Icon(
-                _showPw ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                size: 20,
-                color: AuthColors.muted,
-              ),
-            ),
-          ),
-          if (_password.text.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            PasswordStrength(password: _password.text),
-          ],
-          const SizedBox(height: 24),
-          _underlineField(
-            label: 'CONFIRM PASSWORD',
-            controller: _confirm,
-            hint: 'Repeat password',
-            obscure: !_showConfirm,
-            autofillHints: const ['newPassword'],
-            onChanged: (_) => setState(() {}),
-            suffix: IconButton(
-              tooltip: _showConfirm ? 'Hide' : 'Show',
-              onPressed: () => setState(() => _showConfirm = !_showConfirm),
-              icon: Icon(
-                _showConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                size: 20,
-                color: AuthColors.muted,
-              ),
-            ),
-          ),
-          if (_confirm.text.isNotEmpty && _password.text == _confirm.text) ...[
-            const SizedBox(height: 8),
+          if (_googleRegistration) ...[
+            // Email is provided and verified by Google — show read-only badge.
+            _googleEmailRow(),
+            const SizedBox(height: 24),
+            _phoneRow(),
+          ] else ...[
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Icon(Icons.check_circle, size: 14, color: AuthColors.teal),
-                const SizedBox(width: 6),
-                Text(
-                  'Passwords match',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AuthColors.teal,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: _underlineField(
+                    label: 'EMAIL',
+                    controller: _email,
+                    hint: 'you@example.com',
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const ['email'],
+                    readOnly: _emailOtpSent,
+                    active: _emailOtpVerified,
+                    onChanged: (v) {
+                      _scheduleEmailCheck(v);
+                      setState(() {});
+                    },
                   ),
+                ),
+                const SizedBox(width: 10),
+                _sendOtpButton(
+                  sent: _emailOtpSent,
+                  verified: _emailOtpVerified,
+                  enabled: !_emailOtpSent && validateEmail(_email.text) == null,
+                  onTap: _sendEmailOtpFromForm,
                 ),
               ],
             ),
+            _availRow(_emailAvail, takenMessage: 'Email already registered.'),
+            if (_emailOtpSent && !_emailOtpVerified) ...[
+              const SizedBox(height: 16),
+              OtpInput(
+                controller: _emailInlineOtp,
+                onCompleted: _verifyEmailOtpInline,
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: _resendEmailOtpFromForm,
+                  child: Text(
+                    "Didn't get it? Resend",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AuthColors.teal,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            _phoneRow(),
+            if (_phoneOtpSent && !_phoneOtpVerified) ...[
+              const SizedBox(height: 16),
+              OtpInput(
+                controller: _phoneInlineOtp,
+                onCompleted: _verifyPhoneOtpInline,
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () => setState(() {
+                    _phoneOtpSent = false;
+                    _phoneInlineOtp.clear();
+                  }),
+                  child: Text(
+                    "Didn't get it? Resend",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AuthColors.teal,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 32),
+
+            // SECURITY — only for regular (non-Google) registration.
+            _sectionLabel('SECURITY'),
+            const SizedBox(height: 16),
+            _underlineField(
+              label: 'PASSWORD',
+              controller: _password,
+              hint: 'At least 8 characters',
+              obscure: !_showPw,
+              autofillHints: const ['newPassword'],
+              onChanged: (_) => setState(() {}),
+              suffix: IconButton(
+                tooltip: _showPw ? 'Hide' : 'Show',
+                onPressed: () => setState(() => _showPw = !_showPw),
+                icon: Icon(
+                  _showPw
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 20,
+                  color: AuthColors.muted,
+                ),
+              ),
+            ),
+            if (_password.text.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              PasswordStrength(password: _password.text),
+            ],
+            const SizedBox(height: 24),
+            _underlineField(
+              label: 'CONFIRM PASSWORD',
+              controller: _confirm,
+              hint: 'Repeat password',
+              obscure: !_showConfirm,
+              autofillHints: const ['newPassword'],
+              onChanged: (_) => setState(() {}),
+              suffix: IconButton(
+                tooltip: _showConfirm ? 'Hide' : 'Show',
+                onPressed: () => setState(() => _showConfirm = !_showConfirm),
+                icon: Icon(
+                  _showConfirm
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 20,
+                  color: AuthColors.muted,
+                ),
+              ),
+            ),
+            if (_confirm.text.isNotEmpty &&
+                _password.text == _confirm.text) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.check_circle, size: 14, color: AuthColors.teal),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Passwords match',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AuthColors.teal,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
           if (_screenError != null) ...[
             const SizedBox(height: 14),
@@ -3112,6 +3209,57 @@ class _AuthScreenState extends State<AuthScreen> {
         fontWeight: FontWeight.w700,
         letterSpacing: 0.10,
         color: AuthColors.muted,
+      ),
+    );
+  }
+
+  Widget _googleEmailRow() {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AuthColors.border, width: 1.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'EMAIL',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.10,
+              color: AuthColors.muted,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _email.text,
+                  style: TextStyle(fontSize: 16, color: AuthColors.ink),
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.verified, size: 14, color: AuthColors.teal),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Verified by Google',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AuthColors.teal,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

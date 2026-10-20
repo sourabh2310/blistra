@@ -52,8 +52,8 @@ class GoogleSignInService implements GoogleIdTokenProvider {
       return idToken;
     } on GoogleSignInException catch (error) {
       if (error.code == GoogleSignInExceptionCode.canceled) return null;
-      throw const GoogleSignInUnavailable(
-        "Couldn't sign in with Google. Please try again.",
+      throw GoogleSignInUnavailable(
+        "Google sign-in couldn't start (${error.code.name}). Please try again.",
       );
     } finally {
       // Don't keep a Google session; the app has its own. Lets the user pick

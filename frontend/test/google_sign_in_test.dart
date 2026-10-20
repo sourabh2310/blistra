@@ -178,7 +178,7 @@ void main() {
 
     await tapGoogle(tester);
 
-    expect(find.text("Couldn't sign in with Google. Please try again."),
+    expect(find.text("Blistra couldn't verify your Google sign-in. Please try again."),
         findsOneWidget);
     expect(deps.authState.isAuthenticated, isFalse);
   });
