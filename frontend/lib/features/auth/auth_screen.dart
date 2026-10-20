@@ -220,10 +220,13 @@ class _AuthScreenState extends State<AuthScreen> {
     // sign-in screen to the post-registration wizard. initState is never
     // re-called, so we handle the flip here.
     if (!oldWidget.startWizard && widget.startWizard) {
+      // _signInWithGoogle may have already set up the Google flow in this same
+      // frame. Don't overwrite its step/mode.
+      if (_googleRegistration) return;
       final account = _auth.account;
       _mode = _Mode.register;
       if (account != null && account.username.isEmpty) {
-        // Google user — email already verified, no username chosen yet.
+        // Google user resumed after an app restart — no username chosen yet.
         _googleRegistration = true;
         _email.text = account.email;
         _reg = _Reg.singleForm;
