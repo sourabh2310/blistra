@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/page_header.dart';
 import '../preferences_controller.dart';
 import '../shell_destinations.dart';
 
@@ -116,91 +121,79 @@ class _CustomizeHomeScreenState extends State<CustomizeHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<PreferencesController>();
-    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Customize Home'),
-        actions: [
-          TextButton(
-            onPressed: controller.saving ? null : _reset,
-            child: const Text('Reset'),
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      bottomNavigationBar: StickyActionBar(
+        label: 'Save',
+        busy: controller.saving,
+        onPressed: _save,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: Text(
-              'Choose the Home sections and modules you want to see.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            BlistraPageHeader(
+              eyebrow: 'Customize',
+              title: 'Home',
+              subtitle: 'Choose the Home sections and modules you want to see.',
+              showAvatar: false,
+              actions: [
+                GlassIconButton(
+                  icon: Icons.restart_alt_rounded,
+                  tooltip: 'Reset',
+                  onTap: controller.saving ? null : _reset,
+                ),
+              ],
+            ),
+            PagePad(top: 14, _Preview(selected: _selected)),
+            const SizedBox(height: 24),
+            const SectionHeader(title: 'Home sections'),
+            PagePad(
+              _ReorderCard(
+                itemCount: _sections.length,
+                onReorderItem: (oldIndex, newIndex) {
+                  setState(() {
+                    final value = _sections.removeAt(oldIndex);
+                    _sections.insert(newIndex, value);
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final id = _sections[index];
+                  return _ReorderTile(
+                    key: ValueKey('section-$id'),
+                    first: index == 0,
+                    label: HomeWidgets.label(id),
+                    visible: !_hiddenSections.contains(id),
+                    locked: id == HomeWidgets.yourLife &&
+                        _visibleModules.isNotEmpty,
+                    onToggle: () => setState(() {
+                      if (_hiddenSections.contains(id)) {
+                        _hiddenSections.remove(id);
+                      } else {
+                        _hiddenSections.add(id);
+                      }
+                    }),
+                  );
+                },
               ),
             ),
-          ),
-          SizedBox(
-            height: 96,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _Preview(selected: _selected),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text('HOME SECTIONS', style: theme.textTheme.labelLarge),
-          ),
-          Expanded(
-            child: ReorderableListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              itemCount: _sections.length,
-              onReorderItem: (oldIndex, newIndex) {
-                setState(() {
-                  final value = _sections.removeAt(oldIndex);
-                  _sections.insert(newIndex, value);
-                });
-              },
-              itemBuilder: (context, index) {
-                final id = _sections[index];
-                return _ReorderTile(
-                  key: ValueKey('section-$id'),
-                  label: HomeWidgets.label(id),
-                  visible: !_hiddenSections.contains(id),
-                  locked: id == HomeWidgets.yourLife &&
-                      _visibleModules.isNotEmpty,
-                  onToggle: () => setState(() {
-                    if (_hiddenSections.contains(id)) {
-                      _hiddenSections.remove(id);
-                    } else {
-                      _hiddenSections.add(id);
-                    }
-                  }),
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text('MODULES', style: theme.textTheme.labelLarge),
-          ),
-          SizedBox(
-            height: 132,
-            child: ReorderableListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _modules.length,
-              onReorderItem: (oldIndex, newIndex) {
-                setState(() {
-                  final value = _modules.removeAt(oldIndex);
-                  _modules.insert(newIndex, value);
-                });
-              },
-              itemBuilder: (context, index) {
-                final id = _modules[index];
-                return SizedBox(
-                  width: 190,
-                  child: _ReorderTile(
+            const SizedBox(height: 24),
+            const SectionHeader(title: 'Modules'),
+            PagePad(
+              _ReorderCard(
+                itemCount: _modules.length,
+                onReorderItem: (oldIndex, newIndex) {
+                  setState(() {
+                    final value = _modules.removeAt(oldIndex);
+                    _modules.insert(newIndex, value);
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final id = _modules[index];
+                  return _ReorderTile(
                     key: ValueKey('module-$id'),
+                    first: index == 0,
                     label: HomeWidgets.label(id),
                     visible: !_hiddenModules.contains(id),
                     onToggle: () => setState(() {
@@ -210,34 +203,12 @@ class _CustomizeHomeScreenState extends State<CustomizeHomeScreen> {
                         _hiddenModules.add(id);
                       }
                     }),
-                  ),
-                );
-              },
-            ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: controller.saving ? null : _save,
-                      child: const Text('Done'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: controller.saving ? null : _save,
-                      child: Text(controller.saving ? 'Saving…' : 'Save'),
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -249,32 +220,62 @@ class _Preview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 0),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(18),
-      ),
+    final colors = BlistraColors.resolve(context);
+    return GlassCard(
+      padding: const EdgeInsets.all(15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Live preview', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 8),
+          Text('LIVE PREVIEW', style: BlistraText.caption(colors.muted)),
+          const SizedBox(height: 10),
           if (selected.isEmpty)
             Text('Select something to see it on Home.',
-                style: theme.textTheme.bodySmall)
+                style: TextStyle(fontSize: 12, color: colors.muted))
           else
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
-                for (final id in selected)
-                  Chip(label: Text(HomeWidgets.label(id))),
+                for (final id in selected) Pill(HomeWidgets.label(id)),
               ],
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// A glass card holding a shrink-wrapped reorderable list of rows.
+class _ReorderCard extends StatelessWidget {
+  const _ReorderCard({
+    required this.itemCount,
+    required this.itemBuilder,
+    required this.onReorderItem,
+  });
+
+  final int itemCount;
+  final IndexedWidgetBuilder itemBuilder;
+  final void Function(int oldIndex, int newIndex) onReorderItem;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      radius: 22,
+      padding: EdgeInsets.zero,
+      child: ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: itemCount,
+        onReorderItem: onReorderItem,
+        itemBuilder: (context, index) {
+          final child = itemBuilder(context, index);
+          return ReorderableDelayedDragStartListener(
+            key: child.key,
+            index: index,
+            child: child,
+          );
+        },
       ),
     );
   }
@@ -287,22 +288,30 @@ class _ReorderTile extends StatelessWidget {
     required this.visible,
     required this.onToggle,
     this.locked = false,
+    this.first = false,
   });
 
   final String label;
   final bool visible;
   final VoidCallback onToggle;
   final bool locked;
+  final bool first;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        dense: true,
-        leading: const Icon(Icons.drag_handle),
-        title: Text(label),
+    final colors = BlistraColors.resolve(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: first
+            ? null
+            : Border(top: BorderSide(color: colors.inkAt(0.08))),
+      ),
+      child: GlassRow(
+        leading: Icon(Icons.drag_indicator_rounded, size: 20, color: colors.muted),
+        title: label,
+        subtitle: locked ? 'Shown while modules are visible' : null,
         trailing: locked
-            ? const Icon(Icons.lock_outline, size: 20)
+            ? Icon(Icons.lock_outline, size: 18, color: colors.muted)
             : Switch(value: visible, onChanged: (_) => onToggle()),
         onTap: locked ? null : onToggle,
       ),

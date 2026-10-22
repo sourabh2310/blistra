@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
+import '../widgets/profile_widgets.dart';
+
 /// Readable before registration and available again from Help.
 class PolicyScreen extends StatelessWidget {
   const PolicyScreen({super.key, required this.privacy});
@@ -7,16 +11,23 @@ class PolicyScreen extends StatelessWidget {
   static const version = '2026-10-17';
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(privacy ? 'Privacy Policy' : 'Terms')),
-    body: SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: SelectableText(
-        privacy ? _privacy : _terms,
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
-      ),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return ProfilePage(
+      eyebrow: 'Version $version',
+      title: privacy ? 'Privacy Policy' : 'Terms',
+      children: [
+        const SizedBox(height: 14),
+        GlassCard(
+          padding: const EdgeInsets.all(18),
+          child: SelectableText(
+            privacy ? _privacy : _terms,
+            style: TextStyle(fontSize: 14, height: 1.6, color: colors.text),
+          ),
+        ),
+      ],
+    );
+  }
 
   static const _privacy = '''Privacy Policy — version $version
 

@@ -1,16 +1,27 @@
+/// Hub: the map of the app. A 2-column grid of module tiles, each with one
+/// live line from the dashboard summary, then tools and recent activity.
+library;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
+import 'package:provider/provider.dart';
 
+import '../../core/api/api_client.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/blistra_ui.dart';
+import '../../core/widgets/design_system.dart';
+import '../../core/widgets/glass.dart';
 import '../../core/widgets/module_guard.dart';
+import '../../core/widgets/page_header.dart';
+import '../ai/ai_api.dart';
+import '../ai/ai_screen.dart';
 import '../app_scope.dart';
 import '../dashboard/models/dashboard_response.dart';
 import '../documents/documents_page.dart';
+import '../documents/upload_document_page.dart';
 import '../notifications/screens/notification_settings_screen.dart';
 import '../notifications/screens/reminders_screen.dart';
-import '../../core/theme/accent_palette.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/widgets/page_header.dart';
-import '../../core/widgets/glass.dart';
+import '../preferences/screens/customize_home_screen.dart';
 
 class HubScreen extends StatefulWidget {
   const HubScreen({
@@ -32,6 +43,7 @@ class _HubScreenState extends State<HubScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
   String _query = '';
+  bool _searching = false;
 
   @override
   void dispose() {
@@ -51,7 +63,7 @@ class _HubScreenState extends State<HubScreen> {
         final modules = _moduleData
             .where((module) => _matches(module.title, module.subtitle))
             .toList();
-        final tools = _toolData
+        final tools = _tools()
             .where((tool) => _matches(tool.title, tool.subtitle))
             .toList();
         final activities = _buildActivities(dashboard, now);
@@ -70,117 +82,123 @@ class _HubScreenState extends State<HubScreen> {
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 680),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          BlistraPageHeader(
-                            title: 'Hub',
-                            subtitle: 'All parts of your life, in one place.',
-                            padding: EdgeInsets.zero,
-                            actions: [
-                              GlassIconButton(
-                                tooltip: 'Search modules',
-                                icon: Icons.search_rounded,
-                                onTap: () => _searchFocus.requestFocus(),
-                              ),
-                              GlassIconButton(
-                                tooltip: 'Reminders',
-                                icon: Icons.notifications_none_rounded,
-                                onTap: () => _openReminders(context),
-                              ),
-                            ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        BlistraPageHeader(
+                          eyebrow: 'Hub',
+                          title: 'Everything',
+                          subtitle:
+                              "All your modules, with what's happening in each.",
+                          actions: [
+                            GlassIconButton(
+                              tooltip: 'Search modules',
+                              icon: _searching
+                                  ? Icons.close_rounded
+                                  : Icons.search_rounded,
+                              onTap: _toggleSearch,
+                            ),
+                          ],
+                        ),
+                        if (_searching)
+                          PagePad(
+                            top: 8,
+                            _SearchField(
+                              controller: _searchController,
+                              focusNode: _searchFocus,
+                              onChanged: (value) =>
+                                  setState(() => _query = value.trim()),
+                              onClear: () {
+                                _searchController.clear();
+                                setState(() => _query = '');
+                                _searchFocus.requestFocus();
+                              },
+                            ),
                           ),
-                          const SizedBox(height: 14),
-                          _SearchField(
-                            controller: _searchController,
-                            focusNode: _searchFocus,
-                            onChanged: (value) =>
-                                setState(() => _query = value.trim()),
-                            onClear: () {
-                              _searchController.clear();
-                              setState(() => _query = '');
-                              _searchFocus.requestFocus();
-                            },
-                          ),
-                          const SizedBox(height: 18),
-                          _SectionHeading(
-                            title: 'Your modules',
-                            actionLabel: 'Customize',
-                            actionIcon: Icons.tune,
-                            onAction: widget.onCustomizeNavigation,
-                          ),
-                          const SizedBox(height: 12),
-                          if (modules.isNotEmpty)
-                            LayoutBuilder(
-                              builder: (context, constraints) {
-                                final cardWidth = (constraints.maxWidth - 12) / 2;
-                                final cardHeight =
-                                    cardWidth.clamp(118.0, 150.0).toDouble();
-                                return GridView.builder(
+                        PagePad(
+                          top: 16,
+                          modules.isEmpty
+                              ? const EmptyCard(
+                                  message: 'No modules match your search.',
+                                )
+                              : GridView.builder(
                                   shrinkWrap: true,
+                                  padding: EdgeInsets.zero,
                                   physics: const NeverScrollableScrollPhysics(),
                                   itemCount: modules.length,
                                   gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: 2,
-                                    crossAxisSpacing: 12,
-                                    mainAxisSpacing: 12,
-                                    childAspectRatio: cardWidth / cardHeight,
+                                    crossAxisSpacing: 10,
+                                    mainAxisSpacing: 10,
+                                    mainAxisExtent: 124,
                                   ),
                                   itemBuilder: (context, index) {
                                     final module = modules[index];
-                                    return _ModuleCard(
+                                    return _ModuleTile(
                                       data: module,
-                                      onTap: () =>
-                                          widget.onDestination(module.id),
+                                      line: _liveLine(module, dashboard, now),
+                                      onTap: () => _openModule(context, module),
                                     );
                                   },
-                                );
-                              },
-                            )
-                          else
-                            const _NoMatches(),
-                          const SizedBox(height: 22),
-                          _ConnectedBanner(
-                            onTap: () => widget.onDestination('HOME'),
+                                ),
+                        ),
+                        if (tools.isNotEmpty) ...[
+                          const SizedBox(height: 24),
+                          const SectionHeader(title: 'Tools'),
+                          PagePad(
+                            GlassList(
+                              children: [
+                                for (final tool in tools)
+                                  GlassRow(
+                                    leading: IconWell(tool.icon),
+                                    title: tool.title,
+                                    subtitle: tool.subtitle,
+                                    trailing: const _Chevron(),
+                                    onTap: tool.onTap,
+                                  ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 26),
-                          _SectionHeading(
+                        ],
+                        if (_query.isEmpty) ...[
+                          const SizedBox(height: 24),
+                          SectionHeader(
                             title: 'Recent activity',
-                            actionLabel: activities.isEmpty ? null : 'See all',
-                            actionIcon: Icons.arrow_forward,
+                            actionLabel: activities.isEmpty ? null : 'Home ›',
                             onAction: activities.isEmpty
                                 ? null
                                 : () => widget.onDestination('HOME'),
                           ),
-                          const SizedBox(height: 10),
-                          _ActivityCard(
-                            activities: activities,
-                            onDestination: widget.onDestination,
+                          PagePad(
+                            activities.isEmpty
+                                ? const EmptyCard(
+                                    message:
+                                        'Your logged meals, health records, doses, habits and more will appear here.',
+                                  )
+                                : GlassList(
+                                    children: [
+                                      for (final activity in activities)
+                                        GlassRow(
+                                          leading: IconWell(
+                                            activity.icon,
+                                            color: onGlass(
+                                              context,
+                                              activity.accent,
+                                            ),
+                                          ),
+                                          title: activity.title,
+                                          subtitle: activity.subtitle,
+                                          trailing: RowMeta(activity.when),
+                                          onTap: () => widget.onDestination(
+                                            activity.destination,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                           ),
-                          const SizedBox(height: 26),
-                          if (tools.isNotEmpty) ...[
-                            Text(
-                              'More',
-                              style: TextStyle(
-                                color: BlistraColors.resolve(context).text,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            _ToolRow(
-                              tools: tools,
-                              onDocuments: () => _openDocuments(context),
-                              onReminders: () => _openReminders(context),
-                              onNotifications: () => _openNotifications(context),
-                            ),
-                          ],
                         ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -192,10 +210,98 @@ class _HubScreenState extends State<HubScreen> {
     );
   }
 
+  void _toggleSearch() {
+    setState(() {
+      _searching = !_searching;
+      if (!_searching) {
+        _searchController.clear();
+        _query = '';
+      }
+    });
+    if (_searching) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _searchFocus.requestFocus();
+      });
+    }
+  }
+
   bool _matches(String title, String subtitle) {
     if (_query.isEmpty) return true;
     final value = '$title $subtitle'.toLowerCase();
     return _query.toLowerCase().split(RegExp(r'\s+')).every(value.contains);
+  }
+
+  List<_ToolData> _tools() => [
+        _ToolData(
+          title: 'Blistra AI',
+          subtitle: 'Ask, plan, or add entries by chat',
+          icon: Icons.auto_awesome_rounded,
+          onTap: () => _openAi(context),
+        ),
+        _ToolData(
+          title: 'Customize Home',
+          subtitle: 'Choose which sections and modules show',
+          icon: Icons.dashboard_customize_outlined,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CustomizeHomeScreen()),
+          ),
+        ),
+        if (widget.onCustomizeNavigation != null)
+          _ToolData(
+            title: 'Customize navigation',
+            subtitle: 'Pick what sits in the bottom bar',
+            icon: Icons.tune_rounded,
+            onTap: widget.onCustomizeNavigation!,
+          ),
+        _ToolData(
+          title: 'Notifications',
+          subtitle: 'Preferences and devices',
+          icon: Icons.notifications_none_rounded,
+          onTap: () => _openNotifications(context),
+        ),
+      ];
+
+  void _openModule(BuildContext context, _ModuleData module) {
+    switch (module.id) {
+      case 'DOCUMENTS':
+        _openDocuments(context);
+      case 'REMINDERS':
+        _openReminders(context);
+      default:
+        widget.onDestination(module.id);
+    }
+  }
+
+  void _openAi(BuildContext context) {
+    final api = AiApi(context.read<ApiClient>());
+    final scope = AppScope.of(context);
+    final navigator = Navigator.of(context);
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => AiScreen(
+          api: api,
+          authState: scope.authState,
+          onUploadDocument: () => navigator.push(
+            MaterialPageRoute(builder: (_) => const UploadDocumentPage()),
+          ),
+          onEntrySaved: () {
+            final now = DateTime.now();
+            return scope.dashboard.refresh(
+              date: now,
+              offsetMinutes: now.timeZoneOffset.inMinutes,
+            );
+          },
+          onViewEntry: (module) {
+            navigator.pop();
+            if (module == 'Reminders') {
+              _openReminders(context);
+            } else {
+              widget.onDestination(module.toUpperCase());
+            }
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _openDocuments(BuildContext context) async {
@@ -243,431 +349,106 @@ class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    return TextField(
-      controller: controller,
-      focusNode: focusNode,
-      textInputAction: TextInputAction.search,
-      onChanged: onChanged,
-      style: TextStyle(color: colors.text, fontSize: 14.5),
-      decoration: InputDecoration(
-        hintText: 'Search modules, tasks, health and more…',
-        hintStyle: TextStyle(color: colors.muted, fontSize: 14),
-        prefixIcon: Icon(Icons.search_rounded, color: colors.muted, size: 22),
-        suffixIcon: controller.text.isEmpty
-            ? null
-            : IconButton(
-                tooltip: 'Clear search',
-                onPressed: onClear,
-                icon: const Icon(Icons.close_rounded),
-              ),
-        filled: true,
-        fillColor: colors.glassFill,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: colors.glassBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: colors.glassBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: colors.accent, width: 1.4),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({
-    required this.title,
-    required this.actionLabel,
-    required this.actionIcon,
-    required this.onAction,
-  });
-
-  final String title;
-  final String? actionLabel;
-  final IconData actionIcon;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(
-              color: colors.text,
-              fontFamily: 'Sora',
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        if (actionLabel != null)
-          InkWell(
-            onTap: onAction,
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-              child: Text(
-                actionLabel!,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: colors.accentText,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _ModuleCard extends StatelessWidget {
-  const _ModuleCard({required this.data, required this.onTap});
-
-  final _ModuleData data;
-  final VoidCallback onTap;
-
-  static Color colorFor(String id) => switch (id) {
-    'PLANNER' => ModuleColors.planner,
-    'HEALTH' => ModuleColors.health,
-    'MEDICINES' => ModuleColors.medicines,
-    'DIET' => ModuleColors.diet,
-    'HABITS' => ModuleColors.habits,
-    'FINANCE' => ModuleColors.finance,
-    _ => const Color(0xFF64748B),
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    final color = colorFor(data.id);
     return GlassCard(
-      padding: EdgeInsets.zero,
-      radius: 24,
-      tint: color,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Stack(
-          children: [
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Icon(Icons.chevron_right_rounded, color: colors.muted, size: 20),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(13),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: .45),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Icon(data.icon, color: Colors.white, size: 20),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      data.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.text,
-                        fontFamily: 'Sora',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      data.subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: colors.muted, fontSize: 12, height: 1.25),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ConnectedBanner extends StatelessWidget {
-  const _ConnectedBanner({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return GlassCard(
-      radius: 24,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      onTap: onTap,
+      radius: 16,
+      padding: const EdgeInsets.fromLTRB(14, 2, 4, 2),
       child: Row(
         children: [
-          Icon(Icons.auto_awesome_rounded, color: colors.accentText, size: 26),
-          const SizedBox(width: 12),
+          Icon(Icons.search_rounded, color: colors.muted, size: 20),
+          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Everything connected',
-                  style: TextStyle(
-                    color: colors.text,
-                    fontFamily: 'Sora',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Your tasks, health, habits, diet and finance work together for a clearer picture.',
-                  maxLines: 2,
-                  style: TextStyle(color: colors.muted, fontSize: 12, height: 1.3),
-                ),
-              ],
+            child: TextField(
+              controller: controller,
+              focusNode: focusNode,
+              textInputAction: TextInputAction.search,
+              onChanged: onChanged,
+              style: TextStyle(color: colors.text, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Search modules and tools',
+                hintStyle: TextStyle(color: colors.muted, fontSize: 14),
+                filled: false,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: colors.muted, size: 20),
+          if (controller.text.isNotEmpty)
+            IconButton(
+              tooltip: 'Clear search',
+              onPressed: onClear,
+              icon: Icon(Icons.close_rounded, color: colors.muted, size: 18),
+            ),
         ],
       ),
     );
   }
 }
 
-class _ActivityCard extends StatelessWidget {
-  const _ActivityCard({
-    required this.activities,
-    required this.onDestination,
-  });
-
-  final List<_ActivityItem> activities;
-  final void Function(String destinationId) onDestination;
+class _Chevron extends StatelessWidget {
+  const _Chevron();
 
   @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    if (activities.isEmpty) {
-      return GlassCard(
-        radius: 24,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
-        child: SizedBox(
-          width: double.infinity,
-          child: Text(
-            'Your logged meals, health records, doses, habits and more will appear here.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: colors.muted, height: 1.35),
-          ),
-        ),
+  Widget build(BuildContext context) => Icon(
+        Icons.chevron_right_rounded,
+        size: 20,
+        color: BlistraColors.resolve(context).muted,
       );
-    }
-    return GlassCard(
-      radius: 24,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Column(
-        children: [
-          for (var index = 0; index < activities.length; index++) ...[
-            _ActivityRow(
-              activity: activities[index],
-              onTap: () => onDestination(activities[index].destination),
-            ),
-            if (index != activities.length - 1)
-              Divider(height: 1, thickness: 1, indent: 62, color: colors.glassBorder),
-          ],
-        ],
-      ),
-    );
-  }
 }
 
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.activity, required this.onTap});
+/// Module icon colour from the design's per-module hue, readable on glass in
+/// both light and dark.
+Color _hueColor(BlistraColors colors, double hue) => HSLColor.fromAHSL(
+      1,
+      hue,
+      0.8,
+      colors.isDark ? 0.7 : 0.42,
+    ).toColor();
 
-  final _ActivityItem activity;
+class _ModuleTile extends StatelessWidget {
+  const _ModuleTile({
+    required this.data,
+    required this.line,
+    required this.onTap,
+  });
+
+  final _ModuleData data;
+  final String line;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
+    return Semantics(
+      button: true,
+      label: '${data.title}, $line',
+      excludeSemantics: true,
+      child: GlassCard(
+        radius: 22,
+        padding: const EdgeInsets.all(14),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: activity.accent.withValues(alpha: .22),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(activity.icon, color: onGlass(context, activity.accent), size: 18),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      activity.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.text,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      activity.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: colors.muted, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                activity.when,
-                style: TextStyle(color: colors.muted, fontSize: 11.5),
-              ),
-              const SizedBox(width: 3),
-              Icon(Icons.chevron_right_rounded, color: colors.muted, size: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ToolRow extends StatelessWidget {
-  const _ToolRow({
-    required this.tools,
-    required this.onDocuments,
-    required this.onReminders,
-    required this.onNotifications,
-  });
-
-  final List<_ToolData> tools;
-  final VoidCallback onDocuments;
-  final VoidCallback onReminders;
-  final VoidCallback onNotifications;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var index = 0; index < tools.length; index++) ...[
-          Expanded(
-            child: _ToolCard(
-              data: tools[index],
-              onTap: switch (tools[index].id) {
-                'DOCUMENTS' => onDocuments,
-                'REMINDERS' => onReminders,
-                _ => onNotifications,
-              },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            IconWell(data.icon, color: _hueColor(colors, data.hue)),
+            const Spacer(),
+            Text(
+              data.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: BlistraText.serif(16, colors.text),
             ),
-          ),
-          if (index != tools.length - 1) const SizedBox(width: 9),
-        ],
-      ],
-    );
-  }
-}
-
-class _ToolCard extends StatelessWidget {
-  const _ToolCard({required this.data, required this.onTap});
-
-  final _ToolData data;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: softBg(context, data.background),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 12),
-          child: Column(
-            children: [
-              Icon(data.icon, color: onGlass(context, data.accent), size: 25),
-              const SizedBox(height: 7),
-              Text(
-                data.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: BlistraColors.resolve(context).text,
-                  fontFamily: 'Sora',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
+            const SizedBox(height: 3),
+            Text(
+              line,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: colors.muted),
+            ),
+          ],
         ),
-      ),
-    );
-  }
-}
-
-class _NoMatches extends StatelessWidget {
-  const _NoMatches();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: softBg(context, Color(0xFFF5F3EF)),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.search_off_rounded, color: BlistraColors.resolve(context).muted),
-          SizedBox(height: 8),
-          Text(
-            'No modules match your search.',
-            style: TextStyle(color: BlistraColors.resolve(context).muted),
-          ),
-        ],
       ),
     );
   }
@@ -679,40 +460,190 @@ class _ModuleData {
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.background,
-    required this.iconBackground,
-    required this.accent,
-    required this.secondary,
-    required this.variant,
+    required this.hue,
   });
 
   final String id;
   final String title;
+
+  /// Static description, shown when there is no live data for the module.
   final String subtitle;
   final IconData icon;
-  final Color background;
-  final Color iconBackground;
-  final Color accent;
-  final Color secondary;
-  final int variant;
+  final double hue;
 }
 
 class _ToolData {
   const _ToolData({
-    required this.id,
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.background,
-    required this.accent,
+    required this.onTap,
   });
 
-  final String id;
   final String title;
   final String subtitle;
   final IconData icon;
-  final Color background;
-  final Color accent;
+  final VoidCallback onTap;
+}
+
+const List<_ModuleData> _moduleData = [
+  _ModuleData(
+    id: 'PLANNER',
+    title: 'Planner',
+    subtitle: 'Tasks, events and your schedule',
+    icon: Icons.calendar_month_rounded,
+    hue: 168,
+  ),
+  _ModuleData(
+    id: 'MEDICINES',
+    title: 'Medicines',
+    subtitle: 'Manage medicines and stay consistent',
+    icon: Icons.medication_rounded,
+    hue: 215,
+  ),
+  _ModuleData(
+    id: 'HABITS',
+    title: 'Habits',
+    subtitle: 'Build better habits for a better you',
+    icon: Icons.repeat_rounded,
+    hue: 40,
+  ),
+  _ModuleData(
+    id: 'DIET',
+    title: 'Diet',
+    subtitle: 'Log your meals and nutrition',
+    icon: Icons.restaurant_rounded,
+    hue: 22,
+  ),
+  _ModuleData(
+    id: 'HEALTH',
+    title: 'Health',
+    subtitle: 'Track your health and measurements',
+    icon: Icons.favorite_rounded,
+    hue: 335,
+  ),
+  _ModuleData(
+    id: 'FINANCE',
+    title: 'Finance',
+    subtitle: 'Track your spending and stay on top',
+    icon: Icons.account_balance_wallet_rounded,
+    hue: 146,
+  ),
+  _ModuleData(
+    id: 'DOCUMENTS',
+    title: 'Documents',
+    subtitle: 'Files, reports and PDFs',
+    icon: Icons.folder_copy_outlined,
+    hue: 262,
+  ),
+  _ModuleData(
+    id: 'REMINDERS',
+    title: 'Reminders',
+    subtitle: 'Alerts and schedules',
+    icon: Icons.notifications_active_outlined,
+    hue: 190,
+  ),
+];
+
+/// One live line for a module tile, from the dashboard summary the app
+/// already has. Falls back to the module description when there is no data.
+String _liveLine(_ModuleData module, DashboardResponse? d, DateTime now) {
+  if (d == null) return module.subtitle;
+  String plural(int n, String word) => '$n $word${n == 1 ? '' : 's'}';
+  switch (module.id) {
+    case 'PLANNER':
+      final p = d.planner;
+      if (p == null || p.unavailable) break;
+      bool open(TaskSummary t) {
+        final s = (t.status ?? '').toUpperCase();
+        return s != 'COMPLETED' && s != 'CANCELLED';
+      }
+      final overdue = p.overdueTasks.where(open).length;
+      final left = p.todayTasks.where(open).length + overdue;
+      if (overdue > 0) return '${plural(left, 'task')} left · $overdue overdue';
+      if (left > 0) return '${plural(left, 'task')} left';
+      if (p.todayEvents.isNotEmpty) {
+        return '${plural(p.todayEvents.length, 'event')} today';
+      }
+      return 'Nothing due today';
+    case 'MEDICINES':
+      final m = d.medicines;
+      if (m == null || m.unavailable) break;
+      final pending = m.dosesToday.where((dose) {
+        final s = dose.status.toUpperCase();
+        return s != 'TAKEN' && s != 'CANCELLED' && s != 'SKIPPED';
+      }).toList();
+      final upcoming = pending
+          .map((dose) => DateTime.tryParse(dose.scheduledAt)?.toLocal())
+          .whereType<DateTime>()
+          .where((at) => !at.isBefore(now))
+          .toList()
+        ..sort();
+      if (upcoming.isNotEmpty) {
+        return 'Next ${DateFormat.jm().format(upcoming.first)}';
+      }
+      if (pending.isNotEmpty) return '${plural(pending.length, 'dose')} due';
+      if (m.dosesToday.isNotEmpty) return 'All doses taken';
+      if (m.activeMedicineCount > 0) {
+        return '${m.activeMedicineCount} active';
+      }
+      return 'No medicines yet';
+    case 'HABITS':
+      final h = d.habits;
+      if (h == null || h.unavailable) break;
+      if (h.expectedToday > 0) {
+        return h.remainingToday > 0
+            ? '${h.remainingToday} left today'
+            : 'All done today';
+      }
+      if (h.activeHabitCount > 0) return '${h.activeHabitCount} active';
+      return 'No habits yet';
+    case 'DIET':
+      final diet = d.diet;
+      if (diet == null || diet.unavailable) break;
+      final kcal = double.tryParse(diet.nutrition?.caloriesKcal?.total ?? '');
+      if (kcal != null && kcal > 0) {
+        return '${NumberFormat.decimalPattern().format(kcal.round())} kcal today';
+      }
+      if (diet.mealCount > 0) return '${plural(diet.mealCount, 'meal')} today';
+      return 'Nothing logged today';
+    case 'HEALTH':
+      final health = d.health;
+      if (health == null || health.unavailable) break;
+      if (health.upcomingAppointments.isNotEmpty) {
+        final next = health.upcomingAppointments.first;
+        final at = DateTime.tryParse(next.scheduledAt)?.toLocal();
+        return at == null
+            ? next.title
+            : '${next.title} · ${DateFormat('EEE').format(at)}';
+      }
+      if (health.latestMeasurements.isNotEmpty) {
+        final m = health.latestMeasurements.first;
+        final value = [
+          m.valueDiastolic == null ? m.value : '${m.value}/${m.valueDiastolic}',
+          m.unit,
+        ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' ');
+        return value.isEmpty
+            ? _titleCase(m.type)
+            : '${_titleCase(m.type)} $value';
+      }
+      return 'No records yet';
+    case 'FINANCE':
+      final f = d.finance;
+      if (f == null || f.unavailable || f.currencies.isEmpty) break;
+      final c = f.currencies.first;
+      final spent = double.tryParse(c.expense) ?? 0;
+      if (spent <= 0) return 'Nothing spent yet';
+      String amount;
+      try {
+        amount = NumberFormat.compactSimpleCurrency(name: c.currency)
+            .format(spent);
+      } catch (_) {
+        amount = '${c.expense} ${c.currency}';
+      }
+      return '$amount spent';
+  }
+  return module.subtitle;
 }
 
 class _ActivityItem {
@@ -737,101 +668,6 @@ class _ActivityItem {
   final DateTime? timestamp;
 }
 
-List<_ModuleData> _moduleData = [
-  _ModuleData(
-    id: 'PLANNER',
-    title: 'Planner',
-    subtitle: 'Tasks, events and your schedule',
-    icon: Icons.calendar_month_rounded,
-    background: Color(0xFFE3F4EB),
-    iconBackground: Color(0xFFC9ECD9),
-    accent: Color(0xFF008B57),
-    secondary: Color(0xFFB9DCC8),
-    variant: 0,
-  ),
-  _ModuleData(
-    id: 'HEALTH',
-    title: 'Health',
-    subtitle: 'Track your health and measurements',
-    icon: Icons.favorite_rounded,
-    background: Color(0xFFFBE7EA),
-    iconBackground: Color(0xFFF8D5DA),
-    accent: Color(0xFFED3347),
-    secondary: Color(0xFFECAAB3),
-    variant: 1,
-  ),
-  _ModuleData(
-    id: 'MEDICINES',
-    title: 'Medicines',
-    subtitle: 'Manage medicines and stay consistent',
-    icon: Icons.medication_rounded,
-    background: Color(0xFFE3EFFB),
-    iconBackground: Color(0xFFD1E2F7),
-    accent: Color(0xFF1F78DC),
-    secondary: Color(0xFFAACDEB),
-    variant: 2,
-  ),
-  _ModuleData(
-    id: 'DIET',
-    title: 'Diet',
-    subtitle: 'Log your meals and nutrition',
-    icon: Icons.restaurant_rounded,
-    background: Color(0xFFFFF0DF),
-    iconBackground: Color(0xFFFFE0BD),
-    accent: Color(0xFFF16B14),
-    secondary: Color(0xFFE5A356),
-    variant: 3,
-  ),
-  _ModuleData(
-    id: 'HABITS',
-    title: 'Habits',
-    subtitle: 'Build better habits for a better you',
-    icon: Icons.fitness_center_rounded,
-    background: Color(0xFFF0E8FC),
-    iconBackground: Color(0xFFE2D2F8),
-    accent: Color(0xFF9B3CE3),
-    secondary: Color(0xFF9BC98A),
-    variant: 4,
-  ),
-  _ModuleData(
-    id: 'FINANCE',
-    title: 'Finance',
-    subtitle: 'Track your spending and stay on top',
-    icon: Icons.account_balance_wallet_rounded,
-    background: Color(0xFFFFF2D9),
-    iconBackground: Color(0xFFFFE3AD),
-    accent: Color(0xFFD68A18),
-    secondary: Color(0xFF2B9C73),
-    variant: 5,
-  ),
-];
-
-List<_ToolData> _toolData = [
-  _ToolData(
-    id: 'DOCUMENTS',
-    title: 'Documents',
-    subtitle: 'Files, reports and PDFs',
-    icon: Icons.folder_copy_outlined,
-    background: Color(0xFFFFF1D9),
-    accent: Color(0xFFD78113),
-  ),
-  _ToolData(
-    id: 'REMINDERS',
-    title: 'Reminders',
-    subtitle: 'Alerts and schedules',
-    icon: Icons.notifications_active_outlined,
-    background: Color(0xFFECEAF8),
-    accent: Color(0xFF6D58B5),
-  ),
-  _ToolData(
-    id: 'NOTIFICATIONS',
-    title: 'Notifications',
-    subtitle: 'Preferences and devices',
-    icon: Icons.tune_rounded,
-    background: Color(0xFFE1F2EE),
-    accent: Color(0xFF087A67),
-  ),
-];
 
 List<_ActivityItem> _buildActivities(
   DashboardResponse? dashboard,

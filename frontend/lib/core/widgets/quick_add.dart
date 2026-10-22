@@ -20,6 +20,7 @@ import '../../features/planner/planner_controller.dart';
 import '../../features/planner/screens/event_form_screen.dart';
 import '../../features/planner/screens/task_form_screen.dart';
 import '../theme/app_theme.dart';
+import 'blistra_ui.dart';
 import 'glass.dart';
 
 enum QuickAddKind {
@@ -312,7 +313,7 @@ Future<QuickAddAction?> showQuickAdd(BuildContext context) {
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Close quick add',
-    barrierColor: BlistraColors.resolve(context).text.withValues(alpha: 0.46),
+    barrierColor: Colors.black.withValues(alpha: 0.5),
     transitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (context, _, _) => const _QuickAddDialog(),
     transitionBuilder: (context, animation, _, child) {
@@ -362,75 +363,72 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
 
   @override
   Widget build(BuildContext context) {
-    final List<QuickAddAction> actions = quickAddActions;
+    final colors = BlistraColors.resolve(context);
+    final List<QuickAddAction> actions = [
+      ...quickAddActions,
+      quickAddMinimalAction,
+    ];
     final EdgeInsets insets = MediaQuery.viewInsetsOf(context);
     final double availableHeight = MediaQuery.sizeOf(context).height * 0.92;
-    return SafeArea(
-      top: false,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Material(
-          color: BlistraColors.resolve(context).sheet,
-          elevation: 16,
-          shadowColor: Colors.black.withValues(alpha: 0.24),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
-          clipBehavior: Clip.antiAlias,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 560,
-              maxHeight: availableHeight,
-            ),
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Material(
+        color: colors.sheet,
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          side: BorderSide(color: colors.glassBorder),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 560,
+            maxHeight: availableHeight,
+          ),
+          child: SafeArea(
+            top: false,
             child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(20, 10, 20, 18 + insets.bottom),
+              padding: EdgeInsets.fromLTRB(18, 12, 18, 24 + insets.bottom),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
                     child: Container(
-                      width: 44,
-                      height: 4,
+                      width: 40,
+                      height: 5,
                       decoration: BoxDecoration(
-                        color: BlistraColors.resolve(context).glassBorder,
-                        borderRadius: BorderRadius.circular(4),
+                        color: colors.inkAt(0.25),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   _staggered(
                     index: 0,
-                    child: Text(
-                      'What would you like to add?',
-                      style: TextStyle(
-                        color: BlistraColors.resolve(context).text,
-                        fontSize: 22,
-                        fontFamily: 'Sora',
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.4,
-                      ),
+                    child: Semantics(
+                      header: true,
+                      child: Text('Add', style: BlistraText.serif(20, colors.text)),
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   _staggered(
                     index: 1,
                     child: Text(
-                      'Choose a category to get started',
-                      style: TextStyle(
-                        color: BlistraColors.resolve(context).muted,
-                        fontSize: 15,
-                      ),
+                      'What would you like to log?',
+                      style: TextStyle(color: colors.muted, fontSize: 12.5),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                   _staggered(
                     index: 2,
                     child: GridView.count(
                       crossAxisCount: 4,
                       shrinkWrap: true,
+                      padding: EdgeInsets.zero,
                       physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 9,
-                      crossAxisSpacing: 9,
-                      childAspectRatio: 0.72,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 0.84,
                       children: [
                         for (final QuickAddAction action in actions)
                           _CategoryTile(
@@ -438,43 +436,6 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
                             onTap: () => Navigator.pop(context, action),
                           ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _staggered(
-                    index: 3,
-                    child: _MinimalRow(
-                      action: quickAddMinimalAction,
-                      onTap: () =>
-                          Navigator.pop(context, quickAddMinimalAction),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _staggered(
-                    index: 4,
-                    child: Semantics(
-                      button: true,
-                      child: InkWell(
-                        onTap: () => Navigator.pop(context),
-                        borderRadius: BorderRadius.circular(18),
-                        child: Container(
-                          width: double.infinity,
-                          height: 50,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: BlistraColors.resolve(context).accent.withValues(alpha: .14),
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: Text(
-                            'Cancel',
-                            style: TextStyle(
-                              color: BlistraColors.resolve(context).accentText,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
                     ),
                   ),
                 ],
@@ -507,6 +468,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog>
   }
 }
 
+/// One glass tile in the 4-column Add grid: tinted icon well and a label.
 class _CategoryTile extends StatelessWidget {
   const _CategoryTile({required this.action, required this.onTap});
 
@@ -515,120 +477,36 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     return Semantics(
       label: action.semanticLabel,
       button: true,
-      child: Material(
-        color: softBg(context, action.tint),
-        borderRadius: BorderRadius.circular(17),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(17),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(7, 11, 7, 8),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(action.icon, color: action.iconColor, size: 31),
-                const SizedBox(height: 7),
-                Text(
-                  action.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: BlistraColors.resolve(context).text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Expanded(
-                  child: Text(
-                    action.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: BlistraColors.resolve(context).muted,
-                      fontSize: 10.5,
-                      height: 1.08,
-                    ),
-                  ),
-                ),
-              ],
+      excludeSemantics: true,
+      child: GlassCard(
+        radius: 20,
+        padding: const EdgeInsets.fromLTRB(4, 12, 4, 10),
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconWell(
+              action.icon,
+              size: 38,
+              color: onGlass(context, action.iconColor),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MinimalRow extends StatelessWidget {
-  const _MinimalRow({required this.action, required this.onTap});
-
-  final QuickAddAction action;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: action.semanticLabel,
-      button: true,
-      child: Material(
-        color: BlistraColors.resolve(context).glassFill,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            height: 62,
-            padding: const EdgeInsets.symmetric(horizontal: 13),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: softBg(context, Color(0xFFEFF1EF))),
+            const SizedBox(height: 7),
+            Text(
+              action.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.text,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: action.tint,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(action.icon, color: action.iconColor, size: 23),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        action.label,
-                        style: const TextStyle(
-                          color: Color(0xFF3D424A),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        action.description,
-                        style: TextStyle(
-                          color: BlistraColors.resolve(context).muted,
-                          fontSize: 12.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right, color: BlistraColors.resolve(context).muted),
-              ],
-            ),
-          ),
+          ],
         ),
       ),
     );
@@ -739,7 +617,8 @@ class _HabitSheetHost extends StatelessWidget {
         padding: EdgeInsets.only(bottom: bottom),
         decoration: BoxDecoration(
           color: BlistraColors.resolve(context).sheet,
-          borderRadius: BorderRadius.all(Radius.circular(28)),
+          borderRadius: const BorderRadius.all(Radius.circular(28)),
+          border: Border.all(color: BlistraColors.resolve(context).glassBorder),
         ),
         child: const SingleChildScrollView(child: HabitFormScreen()),
       ),
@@ -809,23 +688,18 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     final double bottom = MediaQuery.viewInsetsOf(context).bottom;
     return SafeArea(
       top: false,
       child: Container(
         constraints: const BoxConstraints(maxWidth: 520),
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        padding: EdgeInsets.fromLTRB(20, 14, 20, 16 + bottom),
+        padding: EdgeInsets.fromLTRB(18, 12, 18, 16 + bottom),
         decoration: BoxDecoration(
-          color: BlistraColors.resolve(context).sheet,
+          color: colors.sheet,
           borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.16),
-              blurRadius: 32,
-              offset: const Offset(0, 12),
-            ),
-          ],
+          border: Border.all(color: colors.glassBorder),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -833,95 +707,59 @@ class _WaterQuickLogSheetState extends State<_WaterQuickLogSheet> {
           children: [
             Center(
               child: Container(
-                width: 44,
-                height: 4,
+                width: 40,
+                height: 5,
                 decoration: BoxDecoration(
-                  color: softBg(context, Color(0xFFE4E7EC)),
-                  borderRadius: BorderRadius.circular(4),
+                  color: colors.inkAt(0.25),
+                  borderRadius: BorderRadius.circular(5),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Log water',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-                color: BlistraColors.resolve(context).text,
-              ),
-            ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 14),
+            Text('Log water', style: BlistraText.serif(20, colors.text)),
+            const SizedBox(height: 4),
             Text(
               'Quickly record your water intake.',
-              style: TextStyle(fontSize: 14, color: BlistraColors.resolve(context).muted),
+              style: TextStyle(fontSize: 12.5, color: colors.muted),
             ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: Semantics(
-                    label: 'Water amount',
-                    textField: true,
-                    child: TextField(
-                      controller: _amount,
-                      enabled: !_saving,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Amount',
-                        filled: true,
-                        fillColor: BlistraColors.resolve(context).glassFill,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide:
-                              BorderSide(color: softBg(context, Color(0xFFF0EDE8))),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide:
-                              BorderSide(color: softBg(context, Color(0xFFF0EDE8))),
-                        ),
-                      ),
-                    ),
-                  ),
+            const SizedBox(height: 16),
+            Semantics(
+              label: 'Water amount',
+              textField: true,
+              child: GlassTextField(
+                label: 'Amount',
+                controller: _amount,
+                enabled: !_saving,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
-                const SizedBox(width: 10),
-                DropdownButton<WaterUnit>(
-                  value: _unit,
-                  items: const [
-                    DropdownMenuItem(value: WaterUnit.ml, child: Text('ml')),
-                    DropdownMenuItem(
-                      value: WaterUnit.L,
-                      child: Text('litres'),
-                    ),
-                    DropdownMenuItem(
-                      value: WaterUnit.glass,
-                      child: Text('glasses'),
-                    ),
-                    DropdownMenuItem(value: WaterUnit.cup, child: Text('cups')),
-                  ],
-                  onChanged: _saving
-                      ? null
-                      : (WaterUnit? unit) {
-                          if (unit != null) {
-                            setState(() => _unit = unit);
-                          }
-                        },
-                ),
+              ),
+            ),
+            GlassSegmented<WaterUnit>(
+              options: const [
+                (WaterUnit.ml, 'ml'),
+                (WaterUnit.L, 'litres'),
+                (WaterUnit.glass, 'glasses'),
+                (WaterUnit.cup, 'cups'),
               ],
+              selected: _unit,
+              onChanged: (WaterUnit unit) {
+                if (!_saving) setState(() => _unit = unit);
+              },
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: _saving ? null : _save,
                 icon: _saving
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colors.onAccent,
+                        ),
                       )
                     : const Icon(Icons.water_drop_outlined),
                 label: const Text('Log water'),

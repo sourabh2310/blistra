@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/auth/auth_state.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/blistra_ui.dart';
+import '../../core/widgets/glass.dart';
+import '../../core/widgets/page_header.dart';
 import 'ai_api.dart';
 import 'ai_draft.dart';
 import 'ai_draft_card.dart';
@@ -262,216 +266,448 @@ class _AiScreenState extends State<AiScreen> {
     }
   }
 
+  void _clearChat() => setState(() {
+    _turns.clear();
+    _error = null;
+    _input.clear();
+    _share = false;
+    _draft = null;
+    _uploadDocument = false;
+  });
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Blistra AI'),
-      actions: [
-        IconButton(
-          tooltip: 'Clear chat',
-          icon: const Icon(Icons.delete_outline),
-          onPressed: _busy || _approvalUncertain
-              ? null
-              : () => setState(() {
-                  _turns.clear();
-                  _error = null;
-                  _input.clear();
-                  _share = false;
-                  _draft = null;
-                  _uploadDocument = false;
-                }),
-        ),
-      ],
-    ),
-    body: SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Column(
-            children: [
-              if (MediaQuery.viewInsetsOf(context).bottom == 0)
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'AI replies can be inaccurate. Messages go to the configured AI provider. '
-                    'Entry details are sent for drafting and stored temporarily for review. Nothing is added until you approve.',
-                  ),
-                ),
-              if (MediaQuery.viewInsetsOf(context).bottom == 0)
-                SwitchListTile(
-                  title: const Text('Share my daily summary'),
-                  subtitle: const Text(
-                    'Today’s task, event, habit, dose and meal counts + water total. '
-                    'No record details. Changing this clears chat context.',
-                  ),
-                  value: _share,
-                  onChanged: _busy || _approvalUncertain
-                      ? null
-                      : (value) => setState(() {
-                          _share = value;
-                          _turns.clear();
-                          _error = null;
-                          _draft = null;
-                          _uploadDocument = false;
-                        }),
-                ),
-              Expanded(
-                child:
-                    _turns.isEmpty &&
-                        !_busy &&
-                        _draft == null &&
-                        !_uploadDocument
-                    ? ListView(
-                        padding: const EdgeInsets.all(20),
-                        children: [
-                          const Icon(Icons.auto_awesome, size: 42),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'How can I help you with Blistra?',
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          for (final prompt in [
-                            'What can I do in Blistra?',
-                            'Help me plan my day',
-                            'Help me build a habit',
-                          ])
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  _input.text = prompt;
-                                  _send();
-                                },
-                                child: Text(prompt),
-                              ),
-                            ),
-                        ],
-                      )
-                    : ListView.builder(
-                        controller: _scroll,
-                        padding: const EdgeInsets.all(16),
-                        itemCount:
-                            _turns.length +
-                            (_draft != null ? 1 : 0) +
-                            (_uploadDocument ? 1 : 0) +
-                            (_busy ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          if (_draft != null && index == _turns.length) {
-                            return AiDraftCard(
-                              key: ValueKey(_draft!.id),
-                              api: widget.api,
-                              draft: _draft!,
-                              busy: _busy,
-                              onApprove: _approve,
-                              onEdit: _edit,
-                              onCancel: _cancel,
-                              onView: widget.onViewEntry == null
-                                  ? null
-                                  : () => widget.onViewEntry!(_draft!.module),
-                            );
-                          }
-                          if (_uploadDocument &&
-                              index ==
-                                  _turns.length + (_draft != null ? 1 : 0)) {
-                            return FilledButton.icon(
-                              onPressed: _busy ? null : widget.onUploadDocument,
-                              icon: const Icon(Icons.upload_file),
-                              label: const Text('Select and review document'),
-                            );
-                          }
-                          if (index >= _turns.length) {
-                            return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Text(
-                                'Blistra AI is thinking…',
-                                semanticsLabel: 'Waiting for AI response',
-                              ),
-                            );
-                          }
-                          final turn = _turns[index];
-                          final user = turn['role'] == 'user';
-                          return Align(
-                            alignment: user
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Card(
-                              color: user
-                                  ? Theme.of(context)
-                                        .colorScheme
-                                        .primaryContainer
-                                  : null,
-                              child: Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      user ? 'You' : 'Blistra AI',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    SelectableText(turn['content']!),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-              if (_error != null)
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final canPop = Navigator.of(context).canPop();
+    final empty =
+        _turns.isEmpty && !_busy && _draft == null && !_uploadDocument;
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Compact header so the chat still fits with the keyboard open.
                 Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
+                  padding: const EdgeInsets.fromLTRB(
+                    kPageGutter,
+                    8,
+                    kPageGutter,
+                    6,
+                  ),
+                  child: Row(
                     children: [
-                      Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                      if (canPop) ...[
+                        GlassIconButton(
+                          icon: Icons.arrow_back_rounded,
+                          tooltip: 'Back',
+                          onTap: () => Navigator.of(context).maybePop(),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              const TextSpan(text: 'Blistra '),
+                              TextSpan(
+                                text: 'AI',
+                                style: TextStyle(color: colors.accentText),
+                              ),
+                            ],
+                          ),
+                          maxLines: 1,
+                          style: BlistraText.serif(24, colors.text),
                         ),
                       ),
-                      if (_draft != null)
-                        TextButton(
-                          onPressed: _busy ? null : _refreshDraft,
-                          child: const Text('Refresh draft'),
+                      IconButton(
+                        tooltip: 'Clear chat',
+                        style: IconButton.styleFrom(
+                          fixedSize: const Size(38, 38),
+                          minimumSize: const Size(38, 38),
+                          backgroundColor: colors.glassFill,
+                          side: BorderSide(color: colors.glassBorder),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
+                        icon: Icon(
+                          Icons.delete_outline,
+                          size: 19,
+                          color: colors.text,
+                        ),
+                        onPressed: _busy || _approvalUncertain
+                            ? null
+                            : _clearChat,
+                      ),
                     ],
                   ),
                 ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _input,
-                        enabled: !_busy,
-                        minLines: 1,
-                        maxLines: 4,
-                        maxLength: 2000,
-                        decoration: const InputDecoration(
-                          hintText: 'Ask about Blistra…',
-                          border: OutlineInputBorder(),
-                        ),
-                        onSubmitted: (_) => _send(),
+                if (!keyboardOpen)
+                  PagePad(
+                    top: 6,
+                    GlassCard(
+                      radius: 20,
+                      padding: const EdgeInsets.fromLTRB(15, 12, 6, 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: 9),
+                            child: Text(
+                              'AI replies can be inaccurate. Messages go to the configured AI provider. '
+                              'Entry details are sent for drafting and stored temporarily for review. Nothing is added until you approve.',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                height: 1.45,
+                                color: colors.muted,
+                              ),
+                            ),
+                          ),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            title: Text(
+                              'Share my daily summary',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: colors.text,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Today’s task, event, habit, dose and meal counts + water total. '
+                              'No record details. Changing this clears chat context.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colors.muted,
+                              ),
+                            ),
+                            value: _share,
+                            onChanged: _busy || _approvalUncertain
+                                ? null
+                                : (value) => setState(() {
+                                    _share = value;
+                                    _turns.clear();
+                                    _error = null;
+                                    _draft = null;
+                                    _uploadDocument = false;
+                                  }),
+                          ),
+                        ],
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Send message',
-                      onPressed: _busy ? null : _send,
-                      icon: const Icon(Icons.send),
-                    ),
-                  ],
+                  ),
+                Expanded(
+                  child: empty
+                      ? ListView(
+                          padding: const EdgeInsets.fromLTRB(
+                            kPageGutter,
+                            24,
+                            kPageGutter,
+                            16,
+                          ),
+                          children: [
+                            Center(
+                              child: IconWell(
+                                Icons.auto_awesome_rounded,
+                                size: 56,
+                                color: colors.accentText,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'How can I help you with Blistra?',
+                              textAlign: TextAlign.center,
+                              style: BlistraText.serif(19, colors.text),
+                            ),
+                            const SizedBox(height: 18),
+                            GlassList(
+                              children: [
+                                for (final prompt in [
+                                  'What can I do in Blistra?',
+                                  'Help me plan my day',
+                                  'Help me build a habit',
+                                ])
+                                  GlassRow(
+                                    leading: IconWell(
+                                      Icons.chat_bubble_outline_rounded,
+                                      size: 32,
+                                    ),
+                                    title: prompt,
+                                    trailing: Icon(
+                                      Icons.north_east_rounded,
+                                      size: 16,
+                                      color: colors.muted,
+                                    ),
+                                    onTap: () {
+                                      _input.text = prompt;
+                                      _send();
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          controller: _scroll,
+                          padding: const EdgeInsets.fromLTRB(
+                            kPageGutter,
+                            14,
+                            kPageGutter,
+                            12,
+                          ),
+                          itemCount:
+                              _turns.length +
+                              (_draft != null ? 1 : 0) +
+                              (_uploadDocument ? 1 : 0) +
+                              (_busy ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (_draft != null && index == _turns.length) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: AiDraftCard(
+                                  key: ValueKey(_draft!.id),
+                                  api: widget.api,
+                                  draft: _draft!,
+                                  busy: _busy,
+                                  onApprove: _approve,
+                                  onEdit: _edit,
+                                  onCancel: _cancel,
+                                  onView: widget.onViewEntry == null
+                                      ? null
+                                      : () =>
+                                            widget.onViewEntry!(_draft!.module),
+                                ),
+                              );
+                            }
+                            if (_uploadDocument &&
+                                index ==
+                                    _turns.length + (_draft != null ? 1 : 0)) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: FilledButton.icon(
+                                  onPressed: _busy
+                                      ? null
+                                      : widget.onUploadDocument,
+                                  icon: const Icon(Icons.upload_file),
+                                  label: const Text(
+                                    'Select and review document',
+                                  ),
+                                ),
+                              );
+                            }
+                            if (index >= _turns.length) {
+                              return const _Bubble(
+                                user: false,
+                                child: _Thinking(),
+                              );
+                            }
+                            final turn = _turns[index];
+                            final user = turn['role'] == 'user';
+                            return _Bubble(
+                              user: user,
+                              child: SelectableText(
+                                turn['content']!,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  height: 1.45,
+                                  color: colors.text,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                 ),
-              ),
-            ],
+                if (_error != null)
+                  PagePad(
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                      decoration: BoxDecoration(
+                        color: colors.danger.withValues(
+                          alpha: colors.isDark ? .16 : .1,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _error!,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: colors.danger,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          if (_draft != null)
+                            TextButton(
+                              onPressed: _busy ? null : _refreshDraft,
+                              child: const Text('Refresh draft'),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    kPageGutter,
+                    4,
+                    kPageGutter,
+                    10,
+                  ),
+                  child: GlassCard(
+                    radius: 26,
+                    padding: const EdgeInsets.fromLTRB(16, 4, 5, 5),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: TextField(
+                              controller: _input,
+                              enabled: !_busy,
+                              minLines: 1,
+                              maxLines: 4,
+                              maxLength: 2000,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: colors.text,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Ask about Blistra…',
+                                hintStyle: TextStyle(color: colors.muted),
+                                filled: false,
+                                isDense: true,
+                                counterText: '',
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
+                              ),
+                              onSubmitted: (_) => _send(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          tooltip: 'Send message',
+                          style: IconButton.styleFrom(
+                            fixedSize: const Size(40, 40),
+                            minimumSize: const Size(40, 40),
+                            backgroundColor: colors.accentText,
+                            disabledBackgroundColor: colors.accentText
+                                .withValues(alpha: .4),
+                            shape: const CircleBorder(),
+                          ),
+                          onPressed: _busy ? null : _send,
+                          icon: Icon(
+                            Icons.arrow_upward_rounded,
+                            size: 20,
+                            color: colors.onAccent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+/// One chat message: accent-tinted on the right for the user, frosted glass
+/// on the left for Blistra AI.
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.user, required this.child});
+
+  final bool user;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final radius = BorderRadius.only(
+      topLeft: const Radius.circular(20),
+      topRight: const Radius.circular(20),
+      bottomLeft: Radius.circular(user ? 20 : 6),
+      bottomRight: Radius.circular(user ? 6 : 20),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Align(
+        alignment: user ? Alignment.centerRight : Alignment.centerLeft,
+        child: FractionallySizedBox(
+          widthFactor: 0.86,
+          alignment: user ? Alignment.centerRight : Alignment.centerLeft,
+          child: Align(
+            alignment: user ? Alignment.centerRight : Alignment.centerLeft,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                color: user ? colors.accentSoft : null,
+                gradient: user
+                    ? null
+                    : LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [colors.glassFill, colors.glassFillEnd],
+                      ),
+                border: Border.all(
+                  color: user
+                      ? colors.accentText.withValues(alpha: .3)
+                      : colors.glassBorder,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 11),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!user) ...[
+                      Text(
+                        'BLISTRA AI',
+                        style: BlistraText.eyebrow(colors.accentText),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    child,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Thinking extends StatelessWidget {
+  const _Thinking();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return Text(
+      'Blistra AI is thinking…',
+      semanticsLabel: 'Waiting for AI response',
+      style: TextStyle(fontSize: 13, color: colors.muted),
+    );
+  }
 }

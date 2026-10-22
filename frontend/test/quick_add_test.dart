@@ -103,8 +103,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
 
-      expect(find.text('What would you like to add?'), findsOneWidget);
-      expect(find.text('Choose a category to get started'), findsOneWidget);
+      expect(find.text('Add'), findsOneWidget);
+      expect(find.text('What would you like to log?'), findsOneWidget);
       expect(find.text('Quick add'), findsOneWidget);
       expect(find.text('TODAY'), findsNothing);
       for (final label in [
@@ -119,7 +119,6 @@ void main() {
       ]) {
         expect(find.text(label), findsWidgets);
       }
-      expect(find.text('Cancel'), findsOneWidget);
       expect(find.byType(NavigationBar), findsNothing);
       expect(tester.takeException(), isNull);
     });

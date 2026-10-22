@@ -18,6 +18,7 @@ import 'package:frontend/app/app_dependencies.dart';
 import 'package:frontend/app/app_shell.dart';
 import 'package:frontend/features/finance/screens/expense_form_screen.dart';
 import 'package:frontend/features/profile/profile_screen.dart';
+import 'package:frontend/core/widgets/page_header.dart';
 
 Map<String, dynamic> _user(String id, String name) => {
   'id': id,
@@ -323,7 +324,7 @@ void main() {
       );
       await tester.tap(find.text(row));
       await _settle(tester);
-      expect(find.widgetWithText(AppBar, title), findsOneWidget, reason: row);
+      expect(find.widgetWithText(BlistraPageHeader, title), findsOneWidget, reason: row);
       if (row == 'Sign-in & security') {
         // A staged email change surfaces with a way to enter its code.
         expect(find.textContaining('new@example.test'), findsOneWidget);

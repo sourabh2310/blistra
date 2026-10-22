@@ -31,12 +31,14 @@ import '../../core/api/api_exception.dart';
 import '../../core/auth/auth_state.dart';
 import '../../core/auth/google_sign_in_service.dart';
 import '../../core/device/device_context.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_controller.dart';
 import '../diet/models/dietary_preference.dart';
 import '../health/health_models.dart';
 import 'auth_validators.dart';
 import 'auth_widgets.dart';
 import 'country_data.dart';
+import '../../core/widgets/blistra_ui.dart';
 import '../../core/widgets/glass.dart';
 import '../../core/config/app_config.dart';
 import '../profile/screens/policy_screen.dart';
@@ -1333,108 +1335,36 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _loginScreen() {
     final canSignIn = _identifier.text.isNotEmpty && _signInPassword.text.isNotEmpty;
+    final colors = BlistraColors.resolve(context);
     return AuthScaffold(
-      bottom: Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AnimatedOpacity(
-            opacity: canSignIn ? 1.0 : 0.45,
-            duration: const Duration(milliseconds: 200),
-            child: AuthPrimaryButton(
-              label: 'Sign in',
-              busy: _busy,
-              onPressed: _signIn,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: Divider(color: AuthColors.border)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'or',
-                  style: TextStyle(color: AuthColors.muted, fontSize: 13),
-                ),
-              ),
-              Expanded(child: Divider(color: AuthColors.border)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _googleButton(),
-          const SizedBox(height: 10),
-          Text(
-            'By continuing with Google you agree to the Terms and Privacy Policy.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AuthColors.muted, fontSize: 11.5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+          const SizedBox(height: 28),
+          const Center(child: BlistraMark(size: 64)),
+          const SizedBox(height: 18),
+          Center(
+            child: Text.rich(
+              TextSpan(
                 children: [
-                  BlistraMark(size: 32),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Blistra',
-                    style: TextStyle(
-                      fontFamily: 'Fraunces',
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      color: AuthColors.ink,
-                    ),
+                  const TextSpan(text: 'Welcome '),
+                  TextSpan(
+                    text: 'back.',
+                    style: TextStyle(color: colors.accentText),
                   ),
                 ],
               ),
-              TextButton(
-                onPressed: () => setState(() {
-                  _loginError = null;
-                  _screenError = null;
-                  _mode = _Mode.register;
-                  _reg = _Reg.welcome;
-                }),
-                child: Text(
-                  'Create account',
-                  style: TextStyle(
-                    color: AuthColors.teal,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          RichText(
-            text: TextSpan(
-              style: TextStyle(
-                fontFamily: 'Fraunces',
-                fontSize: 34,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.8,
-                color: AuthColors.ink,
-              ),
-              children: [
-                const TextSpan(text: 'Welcome '),
-                TextSpan(
-                  text: 'back.',
-                  style: TextStyle(color: AuthColors.teal),
-                ),
-              ],
+              textAlign: TextAlign.center,
+              style: BlistraText.serif(30, colors.text, height: 1.1),
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'Sign in to continue.',
-            style: TextStyle(fontSize: 15, color: AuthColors.muted),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, color: colors.muted),
           ),
-          const SizedBox(height: 36),
+          const SizedBox(height: 34),
           _underlineField(
             label: 'EMAIL OR USERNAME',
             controller: _identifier,
@@ -1443,7 +1373,7 @@ class _AuthScreenState extends State<AuthScreen> {
             autofillHints: const ['username'],
             onSubmitted: (_) => _signIn(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 10),
           _underlineField(
             label: 'PASSWORD',
             controller: _signInPassword,
@@ -1460,12 +1390,12 @@ class _AuthScreenState extends State<AuthScreen> {
                     ? Icons.visibility_off_outlined
                     : Icons.visibility_outlined,
                 size: 20,
-                color: AuthColors.muted,
+                color: colors.muted,
               ),
             ),
           ),
           if (_loginError != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             InlineError(message: _loginError!),
           ],
           Align(
@@ -1480,49 +1410,116 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Text(
                 'Forgot password?',
                 style: TextStyle(
-                  color: AuthColors.teal,
+                  color: colors.accentText,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontSize: 12,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 120),
+          const SizedBox(height: 8),
+          AnimatedOpacity(
+            opacity: canSignIn ? 1.0 : 0.45,
+            duration: const Duration(milliseconds: 200),
+            child: AuthPrimaryButton(
+              label: 'Sign in',
+              busy: _busy,
+              onPressed: _signIn,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(child: Container(height: 1, color: colors.inkAt(0.12))),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  'or',
+                  style: TextStyle(color: colors.muted, fontSize: 11),
+                ),
+              ),
+              Expanded(child: Container(height: 1, color: colors.inkAt(0.12))),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _googleButton(),
+          const SizedBox(height: 10),
+          Text(
+            'By continuing with Google you agree to the Terms and Privacy Policy.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: colors.muted, fontSize: 11),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'New here?',
+                style: TextStyle(fontSize: 12.5, color: colors.muted),
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  _loginError = null;
+                  _screenError = null;
+                  _mode = _Mode.register;
+                  _reg = _Reg.welcome;
+                }),
+                child: Text(
+                  'Create account',
+                  style: TextStyle(
+                    color: colors.accentText,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
   Widget _googleButton() {
+    final colors = BlistraColors.resolve(context);
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          side: BorderSide(color: AuthColors.border, width: 1),
+          shape: const StadiumBorder(),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          backgroundColor: colors.inkAt(0.08),
+          foregroundColor: colors.text,
+          side: BorderSide(color: colors.inkAt(0.14), width: 1),
         ),
         onPressed: _googleBusy || _busy ? null : _signInWithGoogle,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (_googleBusy)
-              const SizedBox(
+              SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colors.accentText,
+                ),
               )
             else
               _googleLogo(),
             const SizedBox(width: 10),
-            Text(
-              'Continue with Google',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AuthColors.ink,
+            Flexible(
+              child: Text(
+                'Continue with Google',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: colors.text,
+                ),
               ),
             ),
           ],
@@ -2823,6 +2820,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // ══════════════ UNDERLINE FIELD HELPER ══════════════
 
+  /// Glass form field from the design's form template: small caps label
+  /// above the input inside a frosted card. [active] marks a verified value.
   Widget _underlineField({
     required String label,
     required TextEditingController controller,
@@ -2838,71 +2837,77 @@ class _AuthScreenState extends State<AuthScreen> {
     String? prefix,
     bool active = false,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.10,
-            color: active ? AuthColors.teal : AuthColors.muted,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (prefix != null)
-              Text(
-                prefix,
-                style: TextStyle(fontSize: 20, color: AuthColors.muted),
-              ),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                keyboardType: keyboardType,
-                obscureText: obscure,
-                autofocus: autofocus,
-                readOnly: readOnly,
-                autocorrect: false,
-                autofillHints: autofillHints,
-                onChanged: onChanged,
-                onSubmitted: onSubmitted,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: AuthColors.ink,
-                ),
-                decoration: InputDecoration(
-                  hintText: hint,
-                  hintStyle: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w400,
-                    color: AuthColors.muted.withValues(alpha: 0.6),
-                  ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                  errorBorder: InputBorder.none,
-                  focusedErrorBorder: InputBorder.none,
-                  filled: false,
-                  contentPadding: EdgeInsets.zero,
-                  isDense: true,
-                ),
-              ),
+    final colors = BlistraColors.resolve(context);
+    return Container(
+      padding: EdgeInsets.fromLTRB(14, 10, suffix == null ? 14 : 4, 11),
+      decoration: authGlassField(
+        context,
+        borderColor: active ? colors.accentText.withValues(alpha: .6) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: BlistraText.caption(
+              active ? colors.accentText : colors.muted,
             ),
-            ?suffix,
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 1.5,
-          color: active ? AuthColors.teal : AuthColors.border,
-        ),
-      ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (prefix != null)
+                Text(
+                  prefix,
+                  style: TextStyle(fontSize: 15, color: colors.muted),
+                ),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: keyboardType,
+                  obscureText: obscure,
+                  autofocus: autofocus,
+                  readOnly: readOnly,
+                  autocorrect: false,
+                  autofillHints: autofillHints,
+                  onChanged: onChanged,
+                  onSubmitted: onSubmitted,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: colors.text,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    hintStyle: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: colors.muted.withValues(alpha: 0.7),
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    filled: false,
+                    contentPadding: EdgeInsets.zero,
+                    isDense: true,
+                  ),
+                ),
+              ),
+              if (suffix != null)
+                // Keep the field compact; the button's tap target overflows.
+                SizedBox(
+                  width: 40,
+                  height: 22,
+                  child: OverflowBox(maxWidth: 48, maxHeight: 48, child: suffix),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -2962,15 +2967,9 @@ class _AuthScreenState extends State<AuthScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          RichText(
-            text: TextSpan(
-              style: TextStyle(
-                fontFamily: 'Fraunces',
-                fontSize: 30,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.6,
-                color: AuthColors.ink,
-              ),
+          Text.rich(
+            style: BlistraText.serif(30, AuthColors.ink, height: 1.1),
+            TextSpan(
               children: [
                 if (_googleRegistration) ...[
                   const TextSpan(text: 'Finish setting '),
@@ -2988,11 +2987,12 @@ class _AuthScreenState extends State<AuthScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             _googleRegistration
                 ? 'Just a few more details.'
                 : 'Takes about 2 minutes.',
-            style: TextStyle(fontSize: 14, color: AuthColors.muted),
+            style: TextStyle(fontSize: 12.5, color: AuthColors.muted),
           ),
           const SizedBox(height: 16),
         ],
@@ -3025,7 +3025,7 @@ class _AuthScreenState extends State<AuthScreen> {
         children: [
           // WHO ARE YOU?
           _sectionLabel('WHO ARE YOU?'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -3037,7 +3037,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   onChanged: (_) => setState(() {}),
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 10),
               Expanded(
                 child: _underlineField(
                   label: 'LAST NAME',
@@ -3049,7 +3049,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 10),
           _underlineField(
             label: 'USERNAME',
             controller: _username,
@@ -3059,19 +3059,19 @@ class _AuthScreenState extends State<AuthScreen> {
             onChanged: _scheduleUsernameCheck,
           ),
           _availRow(_usernameAvail, takenMessage: 'Username already taken.'),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
           // CONTACT
           _sectionLabel('CONTACT'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           if (_googleRegistration) ...[
             // Email is provided and verified by Google — show read-only badge.
             _googleEmailRow(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 10),
             _phoneRow(),
           ] else ...[
             Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: _underlineField(
@@ -3120,7 +3120,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
               ),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 10),
             _phoneRow(),
             if (_phoneOtpSent && !_phoneOtpVerified) ...[
               const SizedBox(height: 16),
@@ -3147,11 +3147,11 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
               ),
             ],
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
             // SECURITY — only for regular (non-Google) registration.
             _sectionLabel('SECURITY'),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             _underlineField(
               label: 'PASSWORD',
               controller: _password,
@@ -3175,7 +3175,7 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(height: 10),
               PasswordStrength(password: _password.text),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 10),
             _underlineField(
               label: 'CONFIRM PASSWORD',
               controller: _confirm,
@@ -3227,42 +3227,27 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _sectionLabel(String text) {
     return Text(
       text,
-      style: TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.10,
-        color: AuthColors.muted,
-      ),
+      style: BlistraText.eyebrow(BlistraColors.resolve(context).accentText),
     );
   }
 
   Widget _googleEmailRow() {
     return Container(
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AuthColors.border, width: 1.5),
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 11),
+      decoration: authGlassField(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'EMAIL',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.10,
-              color: AuthColors.muted,
-            ),
-          ),
-          const SizedBox(height: 6),
+          Text('EMAIL', style: BlistraText.caption(AuthColors.muted)),
+          const SizedBox(height: 4),
           Row(
             children: [
               Expanded(
                 child: Text(
                   _email.text,
-                  style: TextStyle(fontSize: 16, color: AuthColors.ink),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 15, color: AuthColors.ink),
                 ),
               ),
               Row(
@@ -3289,30 +3274,34 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _phoneRow() {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         GestureDetector(
           onTap: () async {
             // Reuse existing country picker.
           },
           child: Container(
-            padding: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: AuthColors.border, width: 1.5),
-              ),
-            ),
-            child: Text(
-              _countryCode,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AuthColors.ink,
-              ),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 11),
+            decoration: authGlassField(context),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('CODE', style: BlistraText.caption(AuthColors.muted)),
+                const SizedBox(height: 4),
+                Text(
+                  _countryCode,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AuthColors.ink,
+                    height: 1.2,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: _underlineField(
             label: 'PHONE (OPTIONAL)',
@@ -3346,7 +3335,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }) {
     if (verified) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 10),
+        padding: EdgeInsets.zero,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3366,7 +3355,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
     if (sent) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 10),
+        padding: EdgeInsets.zero,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3385,7 +3374,7 @@ class _AuthScreenState extends State<AuthScreen> {
       );
     }
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.zero,
       child: AnimatedOpacity(
         opacity: enabled ? 1.0 : 0.4,
         duration: const Duration(milliseconds: 150),

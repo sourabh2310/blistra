@@ -6,7 +6,8 @@ import 'package:provider/provider.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/page_header.dart';
 import '../../auth/country_data.dart';
 import '../../dashboard/models/dashboard_response.dart';
 import '../profile_controller.dart';
@@ -29,10 +30,12 @@ String profileDisplayName(BuildContext context) {
   }
 }
 
-/// Circular profile photo with an initials fallback.
+/// Profile photo in a rounded square with an initials fallback on the theme
+/// gradient.
 class ProfileAvatar extends StatelessWidget {
   const ProfileAvatar({super.key, this.radius = 40, this.onTap, this.editable = false});
 
+  /// Half the avatar's side length.
   final double radius;
   final VoidCallback? onTap;
 
@@ -45,20 +48,14 @@ class ProfileAvatar extends StatelessWidget {
     final colors = BlistraColors.resolve(context);
     final bytes = controller.avatarBytes;
     final name = profileDisplayName(context);
+    final side = radius * 2;
+    final corner = BorderRadius.circular(side * 0.36);
     final avatar = Container(
-      width: radius * 2,
-      height: radius * 2,
+      width: side,
+      height: side,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: corner,
         gradient: bytes == null ? colors.gradient : null,
-        border: Border.all(color: Colors.white.withValues(alpha: .85), width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
         image: bytes == null
             ? null
             : DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover),
@@ -68,9 +65,9 @@ class ProfileAvatar extends StatelessWidget {
           ? Text(
               name.trim().isEmpty ? 'B' : initialsForName(name),
               style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: radius * 0.7,
+                color: colors.onAccent,
+                fontWeight: FontWeight.w700,
+                fontSize: radius * 0.64,
               ),
             )
           : null,
@@ -88,32 +85,32 @@ class ProfileAvatar extends StatelessWidget {
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.black.withValues(alpha: .35),
+                    borderRadius: corner,
+                    color: colors.background.withValues(alpha: .55),
                   ),
                   alignment: Alignment.center,
-                  child: const SizedBox(
-                    width: 24,
-                    height: 24,
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2.5, color: Colors.white),
+                        strokeWidth: 2.5, color: colors.accentText),
                   ),
                 ),
               ),
             if (editable)
               Positioned(
-                right: -2,
-                bottom: -2,
+                right: -4,
+                bottom: -4,
                 child: Container(
-                  width: radius * 0.62,
-                  height: radius * 0.62,
+                  width: 22,
+                  height: 22,
                   decoration: BoxDecoration(
-                    color: colors.accent,
+                    color: colors.sheet,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2.5),
+                    border: Border.all(color: colors.glassBorder),
                   ),
                   child: Icon(Icons.photo_camera_outlined,
-                      size: radius * 0.32, color: Colors.white),
+                      size: 12, color: colors.accentText),
                 ),
               ),
           ],
@@ -123,6 +120,8 @@ class ProfileAvatar extends StatelessWidget {
   }
 }
 
+/// A titled group of settings rows: serif heading, a [GlassList] and an
+/// optional muted footnote.
 class ProfileSection extends StatelessWidget {
   const ProfileSection({super.key, required this.title, required this.children, this.footer});
 
@@ -133,50 +132,29 @@ class ProfileSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    final rows = <Widget>[];
-    for (var i = 0; i < children.length; i++) {
-      if (i > 0) {
-        rows.add(Divider(
-            height: 1, indent: 68, endIndent: 16, color: colors.glassBorder));
-      }
-      rows.add(children[i]);
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(6, 22, 6, 8),
-          child: Text(title.toUpperCase(),
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: colors.muted,
-                  letterSpacing: 0.8)),
-        ),
-        Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: colors.glassFill,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.glassBorder),
-          ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: Column(children: rows),
+          padding: const EdgeInsets.fromLTRB(2, 24, 2, 10),
+          child: Semantics(
+            header: true,
+            child: Text(title, style: BlistraText.serif(17, colors.text)),
           ),
         ),
+        GlassList(children: children),
         if (footer != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
             child: Text(footer!,
-                style: TextStyle(fontSize: 12, color: colors.muted, height: 1.4)),
+                style: TextStyle(fontSize: 11.5, color: colors.muted, height: 1.45)),
           ),
       ],
     );
   }
 }
 
-/// One settings row: tinted icon, title, optional subtitle and trailing.
+/// One settings row: icon well, title, current value and a chevron.
 class ProfileTile extends StatelessWidget {
   const ProfileTile({
     super.key,
@@ -194,39 +172,23 @@ class ProfileTile extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
+
+  /// Kept for compatibility; rows use neutral icon wells like the design.
   final Color tint;
   final bool destructive;
 
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    const danger = Color(0xFFB42318);
-    final fg = destructive ? onGlass(context, danger) : colors.accentText;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: softBg(context, destructive ? const Color(0xFFFDECEC) : tint),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: fg, size: 20),
-      ),
-      title: Text(title,
-          style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: destructive ? fg : colors.text)),
-      subtitle: subtitle == null
-          ? null
-          : Text(subtitle!,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, color: colors.muted)),
+    final danger = destructive ? colors.danger : null;
+    return GlassRow(
+      leading: IconWell(icon, color: danger),
+      title: title,
+      titleColor: danger,
+      subtitle: subtitle,
       trailing: trailing ??
           (onTap != null
-              ? Icon(Icons.chevron_right, color: colors.muted)
+              ? Icon(Icons.chevron_right_rounded, size: 20, color: colors.muted)
               : null),
       onTap: onTap,
     );
@@ -243,46 +205,49 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: positive
-            ? softBg(context, const Color(0xFFE6F6F3))
-            : softBg(context, const Color(0xFFFFF4E5)),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: positive
-              ? colors.accentText
-              : onGlass(context, const Color(0xFFB54708)),
-        ),
-      ),
-    );
+    return Pill(label, color: positive ? colors.accentText : colors.warning);
   }
 }
 
-/// Scaffold used by every Profile sub-screen.
+/// Page used by every Profile sub-screen, following the form template:
+/// back button, serif title, then glass sections. [bottom] pins the page's
+/// one primary action (see [StickyActionBar]).
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key, required this.title, required this.children});
+  const ProfilePage({
+    super.key,
+    required this.title,
+    required this.children,
+    this.eyebrow = 'Settings',
+    this.subtitle,
+    this.bottom,
+  });
 
   final String title;
+  final String eyebrow;
+  final String? subtitle;
   final List<Widget> children;
+  final Widget? bottom;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.transparent,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 48),
-        children: children,
+      bottomNavigationBar: bottom,
+      body: SafeArea(
+        bottom: bottom == null,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 48),
+          children: [
+            BlistraPageHeader(
+              eyebrow: eyebrow,
+              title: title,
+              subtitle: subtitle,
+              showAvatar: false,
+              padding: const EdgeInsets.only(top: 8, bottom: 6),
+            ),
+            ...children,
+          ],
+        ),
       ),
     );
   }
