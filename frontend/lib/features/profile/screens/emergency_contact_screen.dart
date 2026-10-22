@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
 import '../profile_controller.dart';
 import '../widgets/profile_widgets.dart';
 
@@ -75,51 +76,47 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
     final colors = BlistraColors.resolve(context);
     final hasContact = controller.profile?.hasEmergencyContact ?? false;
     return ProfilePage(
+      eyebrow: 'Safety',
       title: 'Emergency contact',
-      children: [
-        const SizedBox(height: 8),
-        Text(
-          'Someone we can point you or a helper to in an emergency. '
+      subtitle: 'Someone we can point you or a helper to in an emergency. '
           'Stored privately on your account; Blistra never contacts them.',
-          style: TextStyle(color: colors.muted, height: 1.4),
-        ),
-        const SizedBox(height: 20),
+      bottom: StickyActionBar(
+        label: 'Save contact',
+        busy: controller.saving,
+        onPressed: _save,
+        secondary: hasContact
+            ? TextButton(
+                onPressed: controller.saving ? null : _remove,
+                style: TextButton.styleFrom(foregroundColor: colors.danger),
+                child: const Text('Remove contact'),
+              )
+            : null,
+      ),
+      children: [
+        const SizedBox(height: 16),
         Form(
           key: _form,
           child: Column(
             children: [
-              TextFormField(
+              GlassTextField(
+                label: 'Name',
                 controller: _name,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(),
-                ),
+                hint: 'Their full name',
+                textInputAction: TextInputAction.next,
                 validator: (v) =>
                     (v ?? '').trim().isEmpty ? 'Enter their name' : null,
               ),
-              const SizedBox(height: 14),
-              TextFormField(
+              GlassTextField(
+                label: 'Relationship (optional)',
                 controller: _relation,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Relationship (optional)',
-                  hintText: 'e.g. Mother, Partner, Friend',
-                  prefixIcon: Icon(Icons.favorite_border),
-                  border: OutlineInputBorder(),
-                ),
+                hint: 'e.g. Mother, Partner, Friend',
+                textInputAction: TextInputAction.next,
               ),
-              const SizedBox(height: 14),
-              TextFormField(
+              GlassTextField(
+                label: 'Phone',
                 controller: _phone,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone',
-                  hintText: '+919876543210',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                  border: OutlineInputBorder(),
-                ),
+                hint: '+919876543210',
                 validator: (v) {
                   final digits = (v ?? '').replaceAll(RegExp(r'[\s()-]'), '');
                   if (digits.isEmpty) return 'Enter their phone number';
@@ -132,22 +129,6 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: controller.saving ? null : _save,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-          child: controller.saving
-              ? const SizedBox(
-                  width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Save contact'),
-        ),
-        if (hasContact) ...[
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: controller.saving ? null : _remove,
-            child: const Text('Remove contact'),
-          ),
-        ],
       ],
     );
   }

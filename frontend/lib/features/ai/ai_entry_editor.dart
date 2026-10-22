@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api/api_exception.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/blistra_ui.dart';
+import '../../core/widgets/page_header.dart';
 import 'ai_api.dart';
 import 'ai_draft.dart';
 
@@ -76,50 +79,60 @@ class _AiEntryEditorState extends State<AiEntryEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('Edit ${widget.draft.label.toLowerCase()}')),
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            'Required fields are marked *. Optional fields may be left blank. Date/time pickers use your device timezone; your Blistra timezone is ${widget.draft.timezone}.',
-          ),
-          const SizedBox(height: 16),
-          for (final field in widget.draft.fields)
-            EntryField(
-              key: ValueKey(field['name']),
-              api: widget.api,
-              field: field,
-              contextValues: _data,
-              value: _data[field['name']],
-              enabled: !_busy,
-              onChanged: (value) {
-                setState(() {
-                  if (value == null) {
-                    _data.remove(field['name']);
-                  } else {
-                    _data[field['name'] as String] = value;
-                  }
-                });
-              },
-            ),
-          if (_error != null)
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          FilledButton(
-            onPressed: _busy ? null : _review,
-            child: Text(_busy ? 'Validating…' : 'Validate and review'),
-          ),
-          const Text(
-            'This checks the draft. Nothing is saved until you approve the review card.',
-          ),
-        ],
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      bottomNavigationBar: StickyActionBar(
+        label: _busy ? 'Validating…' : 'Validate and review',
+        onPressed: _busy ? null : _review,
       ),
-    ),
-  );
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 24),
+          children: [
+            BlistraPageHeader(
+              eyebrow: 'Blistra AI · ${widget.draft.module}',
+              title: 'Edit ${widget.draft.label.toLowerCase()}',
+              subtitle:
+                  'Required fields are marked *. Optional fields may be left blank. Date/time pickers use your device timezone; your Blistra timezone is ${widget.draft.timezone}.',
+              showAvatar: false,
+              padding: const EdgeInsets.only(top: 8, bottom: 6),
+            ),
+            const SizedBox(height: 16),
+            for (final field in widget.draft.fields)
+              EntryField(
+                key: ValueKey(field['name']),
+                api: widget.api,
+                field: field,
+                contextValues: _data,
+                value: _data[field['name']],
+                enabled: !_busy,
+                onChanged: (value) {
+                  setState(() {
+                    if (value == null) {
+                      _data.remove(field['name']);
+                    } else {
+                      _data[field['name'] as String] = value;
+                    }
+                  });
+                },
+              ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(_error!, style: TextStyle(color: colors.danger)),
+              ),
+            Text(
+              'This checks the draft. Nothing is saved until you approve the review card.',
+              style: TextStyle(fontSize: 11.5, color: colors.muted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class EntryField extends StatefulWidget {

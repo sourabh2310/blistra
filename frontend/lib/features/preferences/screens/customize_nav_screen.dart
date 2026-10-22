@@ -10,6 +10,10 @@ import 'package:provider/provider.dart';
 import '../preferences_controller.dart';
 import '../shell_destinations.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/page_header.dart';
 
 class CustomizeNavScreen extends StatefulWidget {
   const CustomizeNavScreen({super.key});
@@ -90,40 +94,40 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     final saving = context.watch<PreferencesController>().saving;
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Customize Navigation'),
-        backgroundColor: Colors.transparent,
-        actions: [
-          TextButton(onPressed: saving ? null : _reset, child: const Text('Reset')),
-        ],
+      bottomNavigationBar: StickyActionBar(
+        label: 'Save',
+        busy: saving,
+        onPressed: _save,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
-            child: Text(
-              'Choose what appears in your navigation. Drag to reorder.',
-              style: TextStyle(fontSize: 14, color: BlistraColors.resolve(context).muted),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            BlistraPageHeader(
+              eyebrow: 'Customize',
+              title: 'Navigation',
+              subtitle: 'Choose what appears in your navigation. Drag to reorder.',
+              showAvatar: false,
+              actions: [
+                GlassIconButton(
+                  icon: Icons.restart_alt_rounded,
+                  tooltip: 'Reset',
+                  onTap: saving ? null : _reset,
+                ),
+              ],
             ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text('PINNED',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                    color: BlistraColors.resolve(context).muted)),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              children: [
-                ReorderableListView.builder(
+            const SizedBox(height: 16),
+            const SectionHeader(title: 'Pinned'),
+            PagePad(
+              GlassCard(
+                radius: 22,
+                padding: EdgeInsets.zero,
+                child: ReorderableListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _pinned.length,
@@ -145,23 +149,26 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
                     final id = _pinned[index];
                     final locked = id == ShellDestinations.home ||
                         id == ShellDestinations.add;
-                    return Card(
+                    return DecoratedBox(
                       key: ValueKey(id),
-                      child: ListTile(
-                        leading: Icon(
+                      decoration: BoxDecoration(
+                        border: index == 0
+                            ? null
+                            : Border(top: BorderSide(color: colors.inkAt(0.08))),
+                      ),
+                      child: GlassRow(
+                        leading: IconWell(
                           ShellDestinations.icon(id),
-                          color: BlistraColors.resolve(context).accentText,
+                          color: colors.accentText,
                         ),
-                        title: Text(
-                            '${index + 1}. ${ShellDestinations.label(id)}'),
-                        subtitle: locked
-                            ? const Text('Locked')
-                            : null,
+                        title: '${index + 1}. ${ShellDestinations.label(id)}',
+                        subtitle: locked ? 'Locked' : null,
                         trailing: locked
-                            ? const Icon(Icons.lock_outline, size: 20)
+                            ? Icon(Icons.lock_outline, size: 18, color: colors.muted)
                             : IconButton(
                                 tooltip: 'Remove',
-                                icon: const Icon(Icons.remove_circle_outline),
+                                icon: Icon(Icons.remove_circle_outline,
+                                    color: colors.muted),
                                 onPressed: () => setState(
                                     () => _pinned.remove(id)),
                               ),
@@ -169,62 +176,44 @@ class _CustomizeNavScreenState extends State<CustomizeNavScreen> {
                     );
                   },
                 ),
-                Padding(
-                  padding: EdgeInsets.only(top: 12, bottom: 4),
-                  child: Text('AVAILABLE',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                          color: BlistraColors.resolve(context).muted)),
-                ),
-                if (_available.isEmpty)
-                  const Card(
-                    child: ListTile(
-                      title: Text('Everything is pinned'),
-                      subtitle: Text(
-                          'Remove a destination to add a different one.'),
-                    ),
-                  ),
-                for (final id in _available)
-                  Card(
-                    child: ListTile(
-                      leading: Icon(ShellDestinations.icon(id)),
-                      title: Text(ShellDestinations.label(id)),
-                      trailing: IconButton(
-                        tooltip: 'Add',
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed: _full
-                            ? null
-                            : () => setState(() => _pinned.add(id)),
-                      ),
-                    ),
-                  ),
-                if (_full)
-                  Padding(
-                    padding: EdgeInsets.only(top: 8),
-                    child: Text(
-                      'Maximum 5 destinations. Remove one to add another.',
-                      style: TextStyle(
-                          fontSize: 13, color: BlistraColors.resolve(context).muted),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: saving ? null : _save,
-                  child: Text(saving ? 'Saving…' : 'Save'),
-                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            const SectionHeader(title: 'Available'),
+            PagePad(
+              _available.isEmpty
+                  ? const EmptyCard(
+                      message: 'Everything is pinned. Remove a destination '
+                          'to add a different one.',
+                    )
+                  : GlassList(
+                      children: [
+                        for (final id in _available)
+                          GlassRow(
+                            leading: IconWell(ShellDestinations.icon(id)),
+                            title: ShellDestinations.label(id),
+                            trailing: IconButton(
+                              tooltip: 'Add',
+                              icon: Icon(Icons.add_circle_outline,
+                                  color: _full ? colors.muted : colors.accentText),
+                              onPressed: _full
+                                  ? null
+                                  : () => setState(() => _pinned.add(id)),
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+            if (_full)
+              PagePad(
+                top: 10,
+                Text(
+                  'Maximum 5 destinations. Remove one to add another.',
+                  style: TextStyle(fontSize: 12, color: colors.muted),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

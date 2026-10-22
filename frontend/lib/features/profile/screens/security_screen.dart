@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../app/app_scope.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/design_system.dart';
 import '../profile_controller.dart';
 import '../widgets/profile_widgets.dart';
@@ -343,26 +344,25 @@ class _PendingBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-      decoration: BoxDecoration(
-        color: colors.glassFill,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.accent.withValues(alpha: .5)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.mark_email_unread_outlined, color: colors.accentText),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 13, color: colors.text),
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: GlassCard(
+        radius: 18,
+        tint: colors.accent,
+        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+        child: Row(
+          children: [
+            Icon(Icons.mark_email_unread_outlined, color: colors.accentText),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(fontSize: 13, color: colors.text),
+              ),
             ),
-          ),
-          TextButton(onPressed: onConfirm, child: const Text('Enter code')),
-        ],
+            TextButton(onPressed: onConfirm, child: const Text('Enter code')),
+          ],
+        ),
       ),
     );
   }

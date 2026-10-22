@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/blistra_ui.dart';
+import '../../core/widgets/glass.dart';
 import 'ai_api.dart';
 import 'ai_draft.dart';
 import 'ai_entry_editor.dart';
@@ -153,19 +156,29 @@ class _AiDraftCardState extends State<AiDraftCard> {
     final resolved = draft.fields.every(
       (f) => _resolved(draft.data[f['name']], f),
     );
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    final colors = BlistraColors.resolve(context);
+    final body = TextStyle(fontSize: 13, height: 1.45, color: colors.text);
+    final note = TextStyle(fontSize: 11.5, height: 1.45, color: colors.muted);
+    return GlassCard(
+      radius: 22,
+      tint: colors.accent,
+      padding: const EdgeInsets.all(16),
+      child: DefaultTextStyle.merge(
+        style: body,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${draft.state == 'APPLIED' ? 'Saved' : 'Review'}: ${draft.label}',
-              style: Theme.of(context).textTheme.titleLarge,
+              'DESTINATION · ${draft.module}'.toUpperCase(),
+              style: BlistraText.eyebrow(colors.accentText),
             ),
-            Text('Destination: ${draft.module}'),
-            const SizedBox(height: 8),
-            Text(draft.effect),
+            const SizedBox(height: 6),
+            Text(
+              '${draft.state == 'APPLIED' ? 'Saved' : 'Review'}: ${draft.label}',
+              style: BlistraText.serif(19, colors.text),
+            ),
+            const SizedBox(height: 6),
+            Text(draft.effect, style: note),
             const SizedBox(height: 12),
             for (final f in draft.fields)
               Padding(
@@ -175,13 +188,17 @@ class _AiDraftCardState extends State<AiDraftCard> {
                 ),
               ),
             for (final error in draft.errors.values)
-              Text(
-                error.toString(),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+              Text(error.toString(), style: TextStyle(color: colors.danger)),
             if (draft.state == 'APPLIED')
-              const Text(
-                'Saved successfully. This approval cannot create another copy.',
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Saved successfully. This approval cannot create another copy.',
+                  style: TextStyle(
+                    color: colors.accentText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             if (draft.state == 'APPLIED' && widget.onView != null)
               OutlinedButton(
@@ -189,12 +206,14 @@ class _AiDraftCardState extends State<AiDraftCard> {
                 child: Text('View in ${draft.module}'),
               ),
             if (draft.state == 'PENDING' && draft.expired)
-              const Text(
+              Text(
                 'This draft expired. Ask Blistra AI to prepare a new one.',
+                style: TextStyle(color: colors.warning),
               ),
             if (draft.pending) ...[
               Text(
                 'Blistra timezone: ${draft.timezone}. Review user-provided values and any module defaults. Live business rules are checked again when saving.',
+                style: note,
               ),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -208,6 +227,7 @@ class _AiDraftCardState extends State<AiDraftCard> {
               ),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: [
                   FilledButton(
                     onPressed:

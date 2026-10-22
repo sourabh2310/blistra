@@ -15,7 +15,9 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/widgets/appearance_sheet.dart';
+import '../../core/widgets/blistra_ui.dart';
 import '../../core/widgets/glass.dart';
+import '../../core/widgets/page_header.dart';
 import '../notifications/screens/notification_settings_screen.dart';
 import '../notifications/state/settings_controller.dart';
 import '../preferences/screens/customize_home_screen.dart';
@@ -58,18 +60,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.transparent,
-      ),
-      body: RefreshIndicator(
-        onRefresh: controller.load,
-        child: controller.loading && profile == null
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
-                children: [
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: controller.load,
+          // Not lazy: the page is short and every row stays reachable by
+          // ensureVisible in both directions.
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const BlistraPageHeader(
+                  eyebrow: 'Profile',
+                  title: 'Settings',
+                  showAvatar: false,
+                  padding: EdgeInsets.only(top: 8, bottom: 6),
+                ),
+                const SizedBox(height: 8),
+                if (controller.loading && profile == null)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else ...[
                   _Header(
                     profile: profile,
                     onPhoto: () => _photoOptions(context, controller),
@@ -95,54 +110,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         subtitle: _personalSummary(profile),
                         onTap: () => _open(const PersonalInfoScreen()),
                       ),
-                      ProfileTile(
-                        icon: Icons.contact_emergency_outlined,
-                        title: 'Emergency contact',
-                        tint: const Color(0xFFFDECEC),
-                        subtitle: profile?.hasEmergencyContact == true
-                            ? [
-                                profile!.emergencyContactName,
-                                profile.emergencyContactRelation,
-                              ].whereType<String>().join(' · ')
-                            : 'Add someone to reach in an emergency',
-                        onTap: () => _open(const EmergencyContactScreen()),
-                      ),
-                      ProfileTile(
-                        icon: Icons.verified_user_outlined,
-                        title: 'Sign-in & security',
-                        subtitle: _securitySummary(profile),
-                        trailing: _needsSecurityAttention(profile)
-                            ? Row(mainAxisSize: MainAxisSize.min, children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                      color: Color(0xFFF79009),
-                                      shape: BoxShape.circle),
-                                ),
-                                Icon(Icons.chevron_right, color: colors.muted),
-                              ])
-                            : null,
-                        onTap: () => _open(const SecurityScreen()),
-                      ),
                     ],
                   ),
                   ProfileSection(
-                    title: 'Settings',
+                    title: 'Preferences',
                     children: [
                       ProfileTile(
                         icon: Icons.palette_outlined,
                         title: 'Appearance',
                         subtitle: _appearanceSummary(context.watch<ThemeController>()),
-                        tint: const Color(0xFFF1ECFE),
                         onTap: () => showAppearanceSheet(context),
-                      ),
-                      ProfileTile(
-                        icon: Icons.dashboard_customize_outlined,
-                        title: 'Home & navigation',
-                        subtitle: 'Sections, modules and bottom bar',
-                        tint: const Color(0xFFF1ECFE),
-                        onTap: () => _showCustomization(context),
                       ),
                       const _NotificationsTile(),
                       ProfileTile(
@@ -154,21 +131,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           if (profile?.unitSystem != null)
                             profile!.unitSystem == 'IMPERIAL' ? 'Imperial' : 'Metric',
                         ].whereType<String>().join(' · '),
-                        tint: const Color(0xFFF1ECFE),
                         onTap: () => _open(const RegionScreen()),
+                      ),
+                      ProfileTile(
+                        icon: Icons.dashboard_customize_outlined,
+                        title: 'Home & navigation',
+                        subtitle: 'Sections, modules and bottom bar',
+                        onTap: () => _showCustomization(context),
                       ),
                     ],
                   ),
                   ProfileSection(
-                    title: 'Privacy',
+                    title: 'Safety',
                     children: [
+                      ProfileTile(
+                        icon: Icons.verified_user_outlined,
+                        title: 'Sign-in & security',
+                        subtitle: _securitySummary(profile),
+                        trailing: _needsSecurityAttention(profile)
+                            ? Row(mainAxisSize: MainAxisSize.min, children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                      color: colors.warning,
+                                      shape: BoxShape.circle),
+                                ),
+                                Icon(Icons.chevron_right_rounded,
+                                    size: 20, color: colors.muted),
+                              ])
+                            : null,
+                        onTap: () => _open(const SecurityScreen()),
+                      ),
+                      ProfileTile(
+                        icon: Icons.contact_emergency_outlined,
+                        title: 'Emergency contact',
+                        subtitle: profile?.hasEmergencyContact == true
+                            ? [
+                                profile!.emergencyContactName,
+                                profile.emergencyContactRelation,
+                              ].whereType<String>().join(' · ')
+                            : 'Add someone to reach in an emergency',
+                        onTap: () => _open(const EmergencyContactScreen()),
+                      ),
                       ProfileTile(
                         icon: Icons.lock_outline,
                         title: 'Privacy & data',
                         subtitle: (profile?.allowFriendRequests ?? true)
                             ? 'Friend requests on · Delete account'
                             : 'Friend requests off · Delete account',
-                        tint: const Color(0xFFFFF4E5),
                         onTap: () => _open(const PrivacyScreen()),
                       ),
                     ],
@@ -180,37 +191,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.help_outline,
                         title: 'Help & support',
                         subtitle: 'FAQ, report a problem, about',
-                        tint: const Color(0xFFE8F1FD),
                         onTap: () => _open(const HelpScreen()),
+                      ),
+                      ProfileTile(
+                        icon: Icons.logout_rounded,
+                        title: 'Sign out',
+                        destructive: true,
+                        trailing: const SizedBox.shrink(),
+                        onTap: () => confirmSignOut(context),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  OutlinedButton.icon(
-                    onPressed: () => confirmSignOut(context),
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Sign out'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: onGlassDanger(context),
-                      side: BorderSide(color: onGlassDanger(context).withValues(alpha: .4)),
-                      minimumSize: const Size.fromHeight(50),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   Center(
                     child: Text('Blistra ${AppConfig.appVersion}',
-                        style: TextStyle(fontSize: 12, color: colors.muted)),
+                        style: TextStyle(fontSize: 11, color: colors.muted)),
                   ),
                 ],
-              ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
   static Color onGlassDanger(BuildContext context) =>
-      onGlass(context, const Color(0xFFB42318));
+      BlistraColors.resolve(context).danger;
 
   static String _personalSummary(UserProfileDto? p) {
     if (p == null) return 'Name, bio, birthday';
@@ -245,7 +252,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ThemeMode.light => 'Light',
       ThemeMode.dark => 'Dark',
     };
-    return '$mode · ${c.accent.label}';
+    return '${c.accent.label} · $mode';
   }
 
   Future<void> _photoOptions(BuildContext context, ProfileController controller) async {
@@ -350,102 +357,69 @@ class _Header extends StatelessWidget {
     final colors = BlistraColors.resolve(context);
     final name = profileDisplayName(context);
     final p = profile;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      decoration: BoxDecoration(
-        gradient: colors.gradient,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: colors.accent.withValues(alpha: .3),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+    return GlassCard(
+      padding: const EdgeInsets.all(15),
+      onTap: onEdit,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ProfileAvatar(radius: 46, editable: true, onTap: onPhoto),
-          const SizedBox(height: 14),
-          Text(
-            name.isEmpty ? 'Your profile' : name,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
-          ),
-          if (p != null) ...[
-            const SizedBox(height: 2),
-            Text('@${p.username}',
-                style: const TextStyle(color: Colors.white70, fontSize: 14)),
-          ],
-          if ((p?.bio ?? '').isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(p!.bio!,
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.35)),
-          ],
-          const SizedBox(height: 14),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
+          Row(
             children: [
-              if (p?.memberSince != null)
-                _HeaderChip(
-                    icon: Icons.calendar_month_outlined,
-                    label: 'Since ${formatMonthYear(p!.memberSince!)}'),
-              if (p != null)
-                _HeaderChip(
-                  icon: p.emailVerified
-                      ? Icons.verified_outlined
-                      : Icons.error_outline,
-                  label: p.emailVerified ? 'Verified' : 'Email unverified',
+              ProfileAvatar(radius: 28, editable: true, onTap: onPhoto),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isEmpty ? 'Your profile' : name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: BlistraText.serif(19, colors.text),
+                    ),
+                    if (p != null) ...[
+                      const SizedBox(height: 3),
+                      Text('@${p.username}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12.5, color: colors.muted)),
+                      Text(p.email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12.5, color: colors.muted)),
+                    ],
+                  ],
                 ),
+              ),
+              Tooltip(
+                message: 'Edit profile',
+                child: Icon(Icons.chevron_right_rounded, color: colors.muted),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          FilledButton.tonalIcon(
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Edit profile'),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white.withValues(alpha: .22),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          if ((p?.bio ?? '').isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(p!.bio!,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colors.text, fontSize: 13, height: 1.4)),
+          ],
+          if (p != null) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (p.memberSince != null)
+                  Pill('Since ${formatMonthYear(p.memberSince!)}',
+                      color: colors.muted),
+                StatusPill(
+                  label: p.emailVerified ? 'Verified' : 'Email unverified',
+                  positive: p.emailVerified,
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderChip extends StatelessWidget {
-  const _HeaderChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .18),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: 5),
-          Text(label,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
         ],
       ),
     );
@@ -483,54 +457,36 @@ class _CompletenessCard extends StatelessWidget {
     final done = steps.where((s) => s.$2).length;
     if (done == steps.length) return const SizedBox.shrink();
     final progress = done / steps.length;
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.glassFill,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.glassBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text('Finish your profile',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w800, color: colors.text)),
-              ),
-              Text('${(progress * 100).round()}%',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w800, color: colors.accentText)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: colors.glassBorder,
-              color: colors.accent,
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: GlassCard(
+        padding: const EdgeInsets.all(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Finish your profile',
+                      style: BlistraText.serif(16, colors.text)),
+                ),
+                Text('${(progress * 100).round()}%',
+                    style: BlistraText.serif(16, colors.accentText)),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final (label, complete, onTap) in steps)
-                if (!complete)
-                  ActionChip(
-                    avatar: Icon(Icons.add, size: 16, color: colors.accentText),
-                    label: Text(label),
-                    onPressed: onTap,
-                  ),
-            ],
-          ),
-        ],
+            const SizedBox(height: 10),
+            ProgressLine(value: progress),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final (label, complete, onTap) in steps)
+                  if (!complete) Pill('+ $label', onTap: onTap),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -579,12 +535,9 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: softBg(context, const Color(0xFFFDECEC)),
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return GlassCard(
+      radius: 16,
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
       child: Row(
         children: [
           Expanded(

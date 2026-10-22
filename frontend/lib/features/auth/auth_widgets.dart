@@ -1,7 +1,6 @@
-/// Premium, reusable authentication components in the Blistra design language.
-///
-/// Warm off-white surfaces, deep ink type, teal primary actions, soft borders,
-/// generous whitespace. No generic Material form look, no heavy shadows.
+/// Reusable authentication components in the Blistra design language:
+/// frosted glass on the theme glow, Fraunces headings, Inter body, stadium
+/// accent buttons. Matches the "Sign in" phone in design/app-pages.html.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,7 +10,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/theme/accent_palette.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/blistra_ui.dart';
 import '../../core/widgets/glass.dart';
+import '../../core/widgets/page_header.dart';
 import '../../core/api/api_client.dart';
 
 /// Auth screen colours. Backed by the active [BlistraColors] (kept in sync by
@@ -31,9 +32,9 @@ class AuthColors {
   static Color get teal => _c.accent;
   static Color get tealSoft => _c.accent.withValues(alpha: .14);
   static Color get border => _c.glassBorder;
-  static Color get surface => _c.isDark ? const Color(0xFF1B2330) : Colors.white;
-  static Color get error => _c.isDark ? const Color(0xFFFF8A80) : const Color(0xFFB42318);
-  static Color get errorBg => _c.isDark ? const Color(0x33FF5A4F) : const Color(0xFFFDECEC);
+  static Color get surface => _c.glassFill;
+  static Color get error => _c.danger;
+  static Color get errorBg => _c.danger.withValues(alpha: _c.isDark ? .16 : .1);
 }
 
 /// Minimal auth page chrome: safe area, keyboard-aware scroll, optional back.
@@ -57,17 +58,14 @@ class AuthScaffold extends StatelessWidget {
   Widget _themeToggle(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     return Consumer<ThemeController>(
-      builder: (context, controller, _) => IconButton(
+      builder: (context, controller, _) => GlassIconButton(
         tooltip: controller.isDark(brightness)
             ? 'Switch to light mode'
             : 'Switch to dark mode',
-        onPressed: () => controller.toggle(brightness),
-        icon: Icon(
-          controller.isDark(brightness)
-              ? Icons.light_mode_outlined
-              : Icons.dark_mode_outlined,
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
+        onTap: () => controller.toggle(brightness),
+        icon: controller.isDark(brightness)
+            ? Icons.light_mode_outlined
+            : Icons.dark_mode_outlined,
       ),
     );
   }
@@ -75,24 +73,22 @@ class AuthScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      // The theme glow (BlistraBackdrop) sits above the Navigator.
+      backgroundColor: Colors.transparent,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 4),
               child: Row(
                 children: [
                   if (onBack != null)
-                    IconButton(
+                    GlassIconButton(
+                      icon: Icons.arrow_back_rounded,
                       tooltip: 'Back',
-                      onPressed: onBack,
-                      icon: Icon(Icons.arrow_back,
-                          color: Theme.of(context).colorScheme.onSurface),
-                    )
-                  else
-                    const SizedBox(width: 48),
+                      onTap: onBack,
+                    ),
                   const Spacer(),
                   _themeToggle(context),
                 ],
@@ -101,7 +97,7 @@ class AuthScaffold extends StatelessWidget {
             const _WakingBanner(),
             if (stickyHeader != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
                 child: stickyHeader!,
               ),
             Expanded(
@@ -109,9 +105,9 @@ class AuthScaffold extends StatelessWidget {
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
-                  24,
-                  stickyHeader != null ? 0 : (onBack == null ? 32 : 4),
-                  24,
+                  22,
+                  stickyHeader != null ? 0 : (onBack == null ? 24 : 8),
+                  22,
                   16,
                 ),
                 child: child,
@@ -121,12 +117,7 @@ class AuthScaffold extends StatelessWidget {
               SafeArea(
                 top: false,
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    8,
-                    24,
-                    16,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
                   child: bottom!,
                 ),
               ),
@@ -157,24 +148,30 @@ class _WakingBanner extends StatelessWidget {
         child: slow
             ? Container(
                 width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(24, 4, 24, 4),
+                margin: const EdgeInsets.fromLTRB(22, 4, 22, 4),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AuthColors.tealSoft,
-                  borderRadius: BorderRadius.circular(12),
+                  color: BlistraColors.resolve(context).accentSoft,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: BlistraColors.resolve(context).accentText,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Waking up the server. This can take up to a minute the first time.',
-                        style: TextStyle(fontSize: 12.5, color: AuthColors.ink),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: BlistraColors.resolve(context).text,
+                        ),
                       ),
                     ),
                   ],
@@ -205,16 +202,7 @@ class AuthProgress extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: AuthColors.muted)),
         const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: total == 0 ? 0 : step / total,
-            minHeight: 5,
-            backgroundColor: softBg(context, Color(0xFFEDE9E2)),
-            valueColor:
-                AlwaysStoppedAnimation(AuthColors.teal),
-          ),
-        ),
+        ProgressLine(value: total == 0 ? 0 : step / total, height: 5),
       ],
     );
   }
@@ -266,17 +254,13 @@ class AuthTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-           decoration: BoxDecoration(
-             color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: hasError
-                  ? AuthColors.error
-                  : success
-                      ? BlistraColors.resolve(context).accent
-                      : BlistraColors.resolve(context).glassBorder,
-              width: hasError || success ? 1.4 : 1,
-            ),
+          decoration: authGlassField(
+            context,
+            borderColor: hasError
+                ? AuthColors.error
+                : success
+                    ? BlistraColors.resolve(context).accentText
+                    : null,
           ),
           child: Semantics(
             label: semanticLabel ?? label ?? hint,
@@ -291,13 +275,15 @@ class AuthTextField extends StatelessWidget {
               autofillHints: autofillHints,
               maxLength: maxLength,
               inputFormatters: inputFormatters,
-               style: TextStyle(
-                   fontSize: 17,
-                   color: Theme.of(context).colorScheme.onSurface),
+              style: TextStyle(
+                  fontSize: 16, color: BlistraColors.resolve(context).text),
               decoration: InputDecoration(
                 hintText: hint,
                 labelText: label,
+                filled: false,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 counterText: '',
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 18, vertical: 17),
@@ -333,31 +319,50 @@ class AuthPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: 52,
       child: FilledButton(
         style: FilledButton.styleFrom(
-          backgroundColor: BlistraColors.resolve(context).accent,
-          disabledBackgroundColor:
-              BlistraColors.resolve(context).accent.withValues(alpha: 0.45),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: colors.accentText,
+          foregroundColor: colors.onAccent,
+          disabledBackgroundColor: colors.accentText.withValues(alpha: 0.45),
+          disabledForegroundColor: colors.onAccent.withValues(alpha: 0.8),
+          shape: const StadiumBorder(),
           textStyle: const TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w700),
+              fontSize: 15, fontWeight: FontWeight.w700),
         ),
         onPressed: busy ? null : onPressed,
         child: busy
-            ? const SizedBox(
+            ? SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.4, color: Colors.white),
+                    strokeWidth: 2.4, color: colors.onAccent),
               )
             : Text(label),
       ),
     );
   }
+}
+
+/// Frosted field surface shared by every auth input: translucent glass
+/// gradient, hairline border (or [borderColor] for error/success/focus).
+BoxDecoration authGlassField(BuildContext context, {Color? borderColor}) {
+  final colors = BlistraColors.resolve(context);
+  return BoxDecoration(
+    borderRadius: BorderRadius.circular(16),
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [colors.glassFill, colors.glassFillEnd],
+    ),
+    border: Border.all(
+      color: borderColor ?? colors.glassBorder,
+      width: borderColor == null ? 1 : 1.4,
+    ),
+  );
 }
 
 /// Inline, human-readable error associated with the field/screen.
@@ -373,7 +378,7 @@ class InlineError extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AuthColors.errorBg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Text(message,
           style: TextStyle(
@@ -540,27 +545,29 @@ class _OtpInputState extends State<OtpInput> {
                       FilteringTextInputFormatter.digitsOnly,
                     ],
                     style: TextStyle(
+                        fontFamily: 'Fraunces',
                         fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface),
+                        fontWeight: FontWeight.w600,
+                        color: BlistraColors.resolve(context).text),
                     decoration: InputDecoration(
                       counterText: '',
                       filled: true,
-                       fillColor: Theme.of(context).colorScheme.surface,
+                      fillColor: BlistraColors.resolve(context).glassFill,
                       contentPadding:
                           const EdgeInsets.symmetric(vertical: 14),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                         borderSide:
                             BorderSide(color: AuthColors.border),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                            color: AuthColors.teal, width: 1.6),
+                            color: BlistraColors.resolve(context).accentText,
+                            width: 1.6),
                       ),
                       disabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                         borderSide:
                             BorderSide(color: AuthColors.border),
                       ),
@@ -593,10 +600,11 @@ class PasswordStrength extends StatelessWidget {
       _ => 'Strong',
     };
     if (label.isEmpty) return const SizedBox.shrink();
+    final colors = BlistraColors.resolve(context);
     final color = switch (score) {
-      1 => AuthColors.error,
-      2 => const Color(0xFFB54708),
-      _ => BlistraColors.resolve(context).accent,
+      1 => colors.danger,
+      2 => colors.warning,
+      _ => colors.accentText,
     };
     return Row(
       children: [
@@ -606,7 +614,7 @@ class PasswordStrength extends StatelessWidget {
               height: 5,
               margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
               decoration: BoxDecoration(
-                color: i < score ? color : softBg(context, Color(0xFFEDE9E2)),
+                color: i < score ? color : colors.inkAt(0.12),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
