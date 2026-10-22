@@ -5,10 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/auth/auth_state.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/page_header.dart';
 import '../data/medicines_api_client.dart';
 import '../models/medicine.dart';
 import '../models/medicine_enums.dart';
 import '../state/medicine_form_controller.dart';
+import '../widgets/medicine_widgets.dart';
 
 class MedicineFormPage extends StatefulWidget {
   const MedicineFormPage({super.key, this.medicine});
@@ -26,6 +30,13 @@ class _MedicineFormPageState extends State<MedicineFormPage> {
 
   bool _initialized = false;
 
+  late final TextEditingController _name;
+  late final TextEditingController _genericName;
+  late final TextEditingController _form;
+  late final TextEditingController _strength;
+  late final TextEditingController _strengthUnit;
+  late final TextEditingController _notes;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -37,135 +48,168 @@ class _MedicineFormPageState extends State<MedicineFormPage> {
       );
       _controller =
           MedicineFormController(api, medicine: widget.medicine);
+      _name = TextEditingController(text: _controller.name);
+      _genericName = TextEditingController(text: _controller.genericName);
+      _form = TextEditingController(text: _controller.form);
+      _strength = TextEditingController(text: _controller.strength);
+      _strengthUnit = TextEditingController(text: _controller.strengthUnit);
+      _notes = TextEditingController(text: _controller.notes);
       _initialized = true;
     }
   }
 
   @override
+  void dispose() {
+    if (_initialized) {
+      for (final c in [_name, _genericName, _form, _strength, _strengthUnit, _notes]) {
+        c.dispose();
+      }
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isEdit = widget.medicine != null;
+    final colors = BlistraColors.resolve(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEdit ? 'Edit Medicine' : 'Add Medicine'),
+      backgroundColor: Colors.transparent,
+      bottomNavigationBar: StickyActionBar(
+        label: isEdit ? 'Save changes' : 'Add medicine',
+        busy: _saving,
+        onPressed: _save,
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _TextFormField(
-              label: 'Name *',
-              initialValue: _controller.name,
-              onChanged: _controller.setName,
-              validator: (v) => _controller.errorFor('name'),
-              maxLength: 100,
-            ),
-            const SizedBox(height: 16),
-            _TextFormField(
-              label: 'Generic name',
-              initialValue: _controller.genericName,
-              onChanged: _controller.setGenericName,
-              validator: (v) => _controller.errorFor('genericName'),
-              maxLength: 100,
-            ),
-            const SizedBox(height: 16),
-            _TextFormField(
-              label: 'Form (tablet, capsule, syrup, etc.)',
-              initialValue: _controller.form,
-              onChanged: _controller.setForm,
-              validator: (v) => _controller.errorFor('form'),
-              maxLength: 50,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _TextFormField(
-                    label: 'Strength',
-                    initialValue: _controller.strength,
-                    onChanged: _controller.setStrength,
-                    validator: (v) => _controller.errorFor('strength'),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _TextFormField(
-                    label: 'Unit (mg, ml, etc.)',
-                    initialValue: _controller.strengthUnit,
-                    onChanged: _controller.setStrengthUnit,
-                    validator: (v) => _controller.errorFor('strengthUnit'),
-                    maxLength: 25,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _DropdownFormField<MedicineStatus>(
-              label: 'Status',
-              value: _controller.status,
-              items: MedicineStatus.values
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s.name.toUpperCase())))
-                  .toList(),
-              onChanged: (v) => _controller.setStatus(v!),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _DateFormField(
-                    label: 'Start date',
-                    value: _controller.startDate,
-                    onChanged: _controller.setStartDate,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _DateFormField(
-                    label: 'End date',
-                    value: _controller.endDate,
-                    onChanged: _controller.setEndDate,
-                    validator: (v) => _controller.errorFor('endDate'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _TextFormField(
-              label: 'Notes',
-              initialValue: _controller.notes,
-              onChanged: _controller.setNotes,
-              validator: (v) => _controller.errorFor('notes'),
-              maxLines: 3,
-              maxLength: 1000,
-            ),
-            const SizedBox(height: 24),
-            if (_controller.hasErrors)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  'Please fix the highlighted fields',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+      body: SafeArea(
+        bottom: false,
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 24),
+            children: [
+              BlistraPageHeader(
+                eyebrow: isEdit ? 'Edit medicine' : 'New medicine',
+                title: isEdit ? 'Update the details' : 'What are you taking?',
+                showAvatar: false,
+              ),
+              const SizedBox(height: 10),
+              PagePad(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GlassTextField(
+                      label: 'Name *',
+                      controller: _name,
+                      hint: 'e.g. Metformin',
+                      onChanged: _controller.setName,
+                      validator: (v) => _controller.errorFor('name'),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    GlassTextField(
+                      label: 'Generic name',
+                      controller: _genericName,
+                      onChanged: _controller.setGenericName,
+                      validator: (v) => _controller.errorFor('genericName'),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    GlassTextField(
+                      label: 'Form',
+                      controller: _form,
+                      hint: 'Tablet, capsule, syrup…',
+                      onChanged: _controller.setForm,
+                      validator: (v) => _controller.errorFor('form'),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: GlassTextField(
+                            label: 'Strength',
+                            controller: _strength,
+                            hint: '500',
+                            onChanged: _controller.setStrength,
+                            validator: (v) => _controller.errorFor('strength'),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: GlassTextField(
+                            label: 'Unit',
+                            controller: _strengthUnit,
+                            hint: 'mg, ml…',
+                            onChanged: _controller.setStrengthUnit,
+                            validator: (v) => _controller.errorFor('strengthUnit'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const FormLabel('Status'),
+                    GlassSegmented<MedicineStatus>(
+                      options: const [
+                        (MedicineStatus.active, 'Active'),
+                        (MedicineStatus.paused, 'Paused'),
+                        (MedicineStatus.completed, 'Completed'),
+                        (MedicineStatus.archived, 'Archived'),
+                      ],
+                      selected: _controller.status,
+                      onChanged: (v) => setState(() => _controller.setStatus(v)),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: DateFieldCard(
+                            label: 'Start date',
+                            value: _controller.startDate,
+                            onChanged: (d) => setState(() => _controller.setStartDate(d)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DateFieldCard(
+                            label: 'End date',
+                            value: _controller.endDate,
+                            error: _controller.errorFor('endDate'),
+                            onChanged: (d) => setState(() => _controller.setEndDate(d)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    GlassTextField(
+                      label: 'Notes',
+                      controller: _notes,
+                      hint: 'Take after meals…',
+                      onChanged: _controller.setNotes,
+                      validator: (v) => _controller.errorFor('notes'),
+                      maxLines: 3,
+                    ),
+                    if (_controller.hasErrors)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                        child: Text(
+                          'Please fix the highlighted fields',
+                          style: TextStyle(color: colors.danger, fontSize: 12.5),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(isEdit ? 'Save Changes' : 'Create Medicine'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Future<void> _save() async {
+    if (!_controller.validate()) {
+      setState(() {});
+      _formKey.currentState!.validate();
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
@@ -181,107 +225,4 @@ class _MedicineFormPageState extends State<MedicineFormPage> {
       if (mounted) setState(() => _saving = false);
     }
   }
-}
-
-class _TextFormField extends StatelessWidget {
-  const _TextFormField({
-    required this.label,
-    this.initialValue = '',
-    required this.onChanged,
-    this.validator,
-    this.keyboardType,
-    this.maxLines = 1,
-    this.maxLength,
-  });
-
-  final String label;
-  final String initialValue;
-  final ValueChanged<String> onChanged;
-  final FormFieldValidator<String>? validator;
-  final TextInputType? keyboardType;
-  final int maxLines;
-  final int? maxLength;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      initialValue: initialValue,
-      onChanged: onChanged,
-      validator: validator,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      maxLength: maxLength,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-    );
-  }
-}
-
-class _DropdownFormField<T> extends StatelessWidget {
-  const _DropdownFormField({
-    required this.label,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  final String label;
-  final T value;
-  final List<DropdownMenuItem<T>> items;
-  final ValueChanged<T?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<T>(
-      initialValue: value,
-      items: items,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-    );
-  }
-}
-
-class _DateFormField extends StatelessWidget {
-  const _DateFormField({
-    required this.label,
-    this.value,
-    required this.onChanged,
-    this.validator,
-  });
-
-  final String label;
-  final DateTime? value;
-  final ValueChanged<DateTime?> onChanged;
-  final FormFieldValidator<DateTime?>? validator;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: value ?? DateTime.now(),
-          firstDate: DateTime(2000),
-          lastDate: DateTime(2100),
-        );
-        if (picked != null) onChanged(picked);
-      },
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-          suffixIcon: const Icon(Icons.calendar_today),
-        ),
-        child: Text(value == null ? 'Select date' : _formatDate(value!)),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }

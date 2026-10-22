@@ -53,7 +53,13 @@ class MedicineTodayController extends ChangeNotifier {
   /// sent as scheduledAt (with its schedule id) so the backend matches the
   /// record to this occurrence and rejects accidental duplicates with 409.
   /// Viewing details never records; only this explicit action does.
-  Future<bool> takeDose(ExpectedDose dose) async {
+  Future<bool> takeDose(ExpectedDose dose) => _record(dose, DoseStatus.taken);
+
+  /// Records an explicit skip for a due slot, matched the same way as
+  /// [takeDose].
+  Future<bool> skipDose(ExpectedDose dose) => _record(dose, DoseStatus.skipped);
+
+  Future<bool> _record(ExpectedDose dose, DoseStatus status) async {
     if (!dose.isPending || dose.scheduledAt.isAfter(DateTime.now())) {
       return false;
     }
@@ -64,7 +70,7 @@ class MedicineTodayController extends ChangeNotifier {
     notifyListeners();
     try {
       await _api.recordDose(dose.medicineId, {
-        'status': DoseStatus.taken.name.toUpperCase(),
+        'status': status.name.toUpperCase(),
         'scheduledAt': toOffsetIso(dose.scheduledAt),
         if (dose.scheduleId != null) 'scheduleId': dose.scheduleId,
       });

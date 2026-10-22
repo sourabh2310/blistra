@@ -5,10 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/auth/auth_state.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/page_header.dart';
 import '../data/medicines_api_client.dart';
 import '../models/medicine_enums.dart';
-import '../models/schedule.dart' show Schedule, scheduleTypeLabel;
+import '../models/schedule.dart' show Schedule;
 import '../state/schedule_form_controller.dart';
+import '../util/insights.dart';
+import '../widgets/medicine_widgets.dart';
 
 class ScheduleFormPage extends StatefulWidget {
   const ScheduleFormPage({
@@ -29,6 +34,8 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   late ScheduleFormController _controller;
   MedicinesApiClient? _api;
   bool _saving = false;
+  late final TextEditingController _doseAmount;
+  late final TextEditingController _doseUnit;
 
   @override
   void didChangeDependencies() {
@@ -44,11 +51,17 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
         medicineId: widget.medicineId,
         schedule: widget.schedule,
       );
+      _doseAmount = TextEditingController(text: _controller.doseAmount);
+      _doseUnit = TextEditingController(text: _controller.doseUnit);
     }
   }
 
   @override
   void dispose() {
+    if (_api != null) {
+      _doseAmount.dispose();
+      _doseUnit.dispose();
+    }
     _api?.close();
     super.dispose();
   }
@@ -56,102 +69,145 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.schedule != null;
+    final colors = BlistraColors.resolve(context);
+    final type = _controller.scheduleType;
 
     return Scaffold(
-      appBar: AppBar(title: Text(isEdit ? 'Edit Schedule' : 'Add Schedule')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _DropdownFormField<ScheduleType>(
-              label: 'Schedule type *',
-              value: _controller.scheduleType,
-              items: ScheduleType.values
-                  .map((s) => DropdownMenuItem(value: s, child: Text(scheduleTypeLabel(s))))
-                  .toList(),
-              onChanged: (v) => _controller.setScheduleType(v!),
-            ),
-            const SizedBox(height: 16),
-            if (_controller.scheduleType != ScheduleType.asNeeded) ...[
-              _TimesField(controller: _controller),
-              const SizedBox(height: 16),
-            ],
-            if (_controller.scheduleType == ScheduleType.weekly ||
-                _controller.scheduleType == ScheduleType.customDays) ...[
-              _DaysField(controller: _controller),
-              const SizedBox(height: 16),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: _TextFormField(
-                    label: 'Dose amount',
-                    initialValue: _controller.doseAmount,
-                    onChanged: _controller.setDoseAmount,
-                    validator: (v) => _controller.errorFor('doseAmount'),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _TextFormField(
-                    label: 'Unit',
-                    initialValue: _controller.doseUnit,
-                    onChanged: _controller.setDoseUnit,
-                    validator: (v) => _controller.errorFor('doseUnit'),
-                    maxLength: 25,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _DateFormField(
-                    label: 'Start date',
-                    value: _controller.startDate,
-                    onChanged: _controller.setStartDate,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _DateFormField(
-                    label: 'End date',
-                    value: _controller.endDate,
-                    onChanged: _controller.setEndDate,
-                    validator: (v) => _controller.errorFor('endDate'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: const Text('Active'),
-              value: _controller.active,
-              onChanged: _controller.setActive,
-            ),
-            const SizedBox(height: 24),
-            if (_controller.hasErrors)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  'Please fix the highlighted fields',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+      backgroundColor: Colors.transparent,
+      bottomNavigationBar: StickyActionBar(
+        label: isEdit ? 'Save changes' : 'Add schedule',
+        busy: _saving,
+        onPressed: _save,
+      ),
+      body: SafeArea(
+        bottom: false,
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 24),
+            children: [
+              BlistraPageHeader(
+                eyebrow: isEdit ? 'Edit schedule' : 'New schedule',
+                title: 'When do you take it?',
+                showAvatar: false,
+              ),
+              const SizedBox(height: 10),
+              PagePad(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const FormLabel('Repeats *'),
+                    GlassSegmented<ScheduleType>(
+                      options: const [
+                        (ScheduleType.daily, 'Daily'),
+                        (ScheduleType.weekly, 'Weekly'),
+                        (ScheduleType.customDays, 'Custom'),
+                        (ScheduleType.asNeeded, 'As needed'),
+                      ],
+                      selected: type,
+                      onChanged: (v) =>
+                          setState(() => _controller.setScheduleType(v)),
+                    ),
+                    const SizedBox(height: 12),
+                    if (type != ScheduleType.asNeeded)
+                      _TimesField(
+                        controller: _controller,
+                        onChanged: () => setState(() {}),
+                      ),
+                    if (type == ScheduleType.weekly ||
+                        type == ScheduleType.customDays)
+                      _DaysField(
+                        controller: _controller,
+                        onChanged: () => setState(() {}),
+                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: GlassTextField(
+                            label: 'Dose amount',
+                            controller: _doseAmount,
+                            hint: '1',
+                            onChanged: _controller.setDoseAmount,
+                            validator: (v) => _controller.errorFor('doseAmount'),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: GlassTextField(
+                            label: 'Unit',
+                            controller: _doseUnit,
+                            hint: 'tablet',
+                            onChanged: _controller.setDoseUnit,
+                            validator: (v) => _controller.errorFor('doseUnit'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: DateFieldCard(
+                            label: 'Start date',
+                            value: _controller.startDate,
+                            onChanged: (d) =>
+                                setState(() => _controller.setStartDate(d)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DateFieldCard(
+                            label: 'End date',
+                            value: _controller.endDate,
+                            error: _controller.errorFor('endDate'),
+                            onChanged: (d) =>
+                                setState(() => _controller.setEndDate(d)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    FieldCard(
+                      label: 'Active',
+                      onTap: () => setState(
+                        () => _controller.setActive(!_controller.active),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _controller.active
+                                  ? "Counted in today's doses"
+                                  : 'Paused, not counted today',
+                              style: TextStyle(fontSize: 13, color: colors.muted),
+                            ),
+                          ),
+                          Switch(
+                            value: _controller.active,
+                            onChanged: (v) =>
+                                setState(() => _controller.setActive(v)),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_controller.hasErrors)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                        child: Text(
+                          'Please fix the highlighted fields',
+                          style: TextStyle(color: colors.danger, fontSize: 12.5),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(isEdit ? 'Save Changes' : 'Create Schedule'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -160,6 +216,7 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   Future<void> _save() async {
     if (!_controller.validate()) {
       setState(() {});
+      _formKey.currentState!.validate();
       return;
     }
     if (!_formKey.currentState!.validate()) return;
@@ -179,103 +236,52 @@ class _ScheduleFormPageState extends State<ScheduleFormPage> {
   }
 }
 
-class _TextFormField extends StatelessWidget {
-  const _TextFormField({
-    required this.label,
-    this.initialValue = '',
-    required this.onChanged,
-    this.validator,
-    this.keyboardType,
-    this.maxLength,
-  });
-
-  final String label;
-  final String initialValue;
-  final ValueChanged<String> onChanged;
-  final FormFieldValidator<String>? validator;
-  final TextInputType? keyboardType;
-  final int? maxLength;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      initialValue: initialValue,
-      onChanged: onChanged,
-      validator: validator,
-      keyboardType: keyboardType,
-      maxLength: maxLength,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-    );
-  }
-}
-
-class _DropdownFormField<T> extends StatelessWidget {
-  const _DropdownFormField({
-    required this.label,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  final String label;
-  final T value;
-  final List<DropdownMenuItem<T>> items;
-  final ValueChanged<T?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<T>(
-      initialValue: value,
-      items: items,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-    );
-  }
-}
-
 class _TimesField extends StatelessWidget {
-  const _TimesField({required this.controller});
+  const _TimesField({required this.controller, required this.onChanged});
 
   final ScheduleFormController controller;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final error = controller.errorFor('times');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Times *', style: Theme.of(context).textTheme.titleSmall),
-            TextButton.icon(
-              onPressed: () => _pickTime(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Add'),
+        FieldCard(
+          label: 'Times *',
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.only(top: 4),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (final t in controller.times)
+                  _TimeChip(
+                    label: timeLabel(t),
+                    onRemove: () {
+                      controller.setTimes(
+                        controller.times.where((e) => e != t).toList(),
+                      );
+                      onChanged();
+                    },
+                  ),
+                Pill('+ Add time', onTap: () => _pickTime(context)),
+              ],
             ),
-          ],
-        ),
-        if (controller.times.isEmpty && controller.errorFor('times') != null)
-          Text(
-            controller.errorFor('times')!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
           ),
-        Wrap(
-          spacing: 8,
-          children: controller.times
-              .map((t) => Chip(
-                    label: Text(t),
-                    onDeleted: () => controller.setTimes(
-                          controller.times.where((e) => e != t).toList(),
-                        ),
-                  ))
-              .toList(),
         ),
+        if (controller.times.isEmpty && error != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+            child: Text(
+              error,
+              style: TextStyle(color: colors.danger, fontSize: 11.5),
+            ),
+          ),
       ],
     );
   }
@@ -289,95 +295,132 @@ class _TimesField extends StatelessWidget {
       final str =
           '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
       controller.setTimes([...controller.times, str]);
+      onChanged();
     }
   }
 }
 
-class _DaysField extends StatelessWidget {
-  const _DaysField({required this.controller});
+class _TimeChip extends StatelessWidget {
+  const _TimeChip({required this.label, required this.onRemove});
 
-  final ScheduleFormController controller;
+  final String label;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Days *', style: Theme.of(context).textTheme.titleSmall),
-            if (controller.errorFor('daysOfWeek') != null)
-              Text(
-                controller.errorFor('daysOfWeek')!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+    final colors = BlistraColors.resolve(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: colors.inkAt(0.08),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: colors.inkAt(0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: colors.text,
+              fontFeatures: BlistraText.tabular,
+            ),
+          ),
+          Semantics(
+            button: true,
+            label: 'Remove $label',
+            child: InkResponse(
+              onTap: onRemove,
+              radius: 14,
+              child: Padding(
+                padding: const EdgeInsets.all(3),
+                child: Icon(Icons.close_rounded, size: 14, color: colors.muted),
               ),
-          ],
-        ),
-        Wrap(
-          spacing: 8,
-          children: List.generate(7, (i) {
-            final index = i + 1;
-            final selected = controller.daysOfWeek.contains(index);
-            return FilterChip(
-              label: Text(dayNames[i]),
-              selected: selected,
-              onSelected: (v) {
-                final newList = List<int>.from(controller.daysOfWeek);
-                if (v) {
-                  newList.add(index);
-                } else {
-                  newList.remove(index);
-                }
-                controller.setDaysOfWeek(newList);
-              },
-            );
-          }),
-        ),
-      ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _DateFormField extends StatelessWidget {
-  const _DateFormField({
-    required this.label,
-    this.value,
-    required this.onChanged,
-    this.validator,
-  });
+class _DaysField extends StatelessWidget {
+  const _DaysField({required this.controller, required this.onChanged});
 
-  final String label;
-  final DateTime? value;
-  final ValueChanged<DateTime?> onChanged;
-  final FormFieldValidator<DateTime?>? validator;
+  final ScheduleFormController controller;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: value ?? DateTime.now(),
-          firstDate: DateTime(2000),
-          lastDate: DateTime(2100),
-        );
-        if (picked != null) onChanged(picked);
-      },
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-          suffixIcon: const Icon(Icons.calendar_today),
-          errorText: validator?.call(value),
+    final colors = BlistraColors.resolve(context);
+    final error = controller.errorFor('daysOfWeek');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FieldCard(
+          label: 'Days *',
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(7, (i) {
+                final index = i + 1;
+                final selected = controller.daysOfWeek.contains(index);
+                return Semantics(
+                  button: true,
+                  selected: selected,
+                  label: dayShort(index),
+                  child: GestureDetector(
+                    onTap: () {
+                      final newList = List<int>.from(controller.daysOfWeek);
+                      if (selected) {
+                        newList.remove(index);
+                      } else {
+                        newList.add(index);
+                      }
+                      controller.setDaysOfWeek(newList);
+                      onChanged();
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      width: 36,
+                      height: 36,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: selected ? colors.accentText : colors.inkAt(0.06),
+                        border: Border.all(
+                          color: selected
+                              ? colors.accentText
+                              : colors.inkAt(0.14),
+                        ),
+                      ),
+                      child: Text(
+                        dayShort(index).substring(0, 2),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: selected ? colors.onAccent : colors.muted,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
         ),
-        child: Text(value == null ? 'Select date' : _formatDate(value!)),
-      ),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+            child: Text(
+              error,
+              style: TextStyle(color: colors.danger, fontSize: 11.5),
+            ),
+          ),
+      ],
     );
   }
-
-  String _formatDate(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
