@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import 'event_form_screen.dart';
@@ -14,47 +15,35 @@ class EventsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return RecordListScreen<HealthEvent>(
       title: 'Health events',
-      emptyMessage: 'No events yet.\nTap + to record one.',
+      noun: 'event',
+      emptyMessage: 'No events yet. Record a check-up, vaccination or test.',
       load: repository.loadEvents,
       delete: (event) => repository.deleteEvent(event.id),
-      itemBuilder: (context, event) => _EventTile(event),
+      itemBuilder: _row,
       formBuilder: (context, edited) =>
           EventFormScreen(repository: repository, initial: edited),
     );
   }
+
+  static HealthRow _row(BuildContext context, HealthEvent event) =>
+      eventRow(BlistraColors.resolve(context), event, DateTime.now());
 }
 
-class _EventTile extends StatelessWidget {
-  const _EventTile(this.event);
-
-  final HealthEvent event;
-
-  @override
-  Widget build(BuildContext context) {
-    final List<String> parts = [
+/// Row for a health event, shared with the Health home.
+HealthRow eventRow(BlistraColors colors, HealthEvent event, DateTime now) {
+  return HealthRow(
+    icon: switch (event.type) {
+      EventType.checkup => Icons.medical_services_outlined,
+      EventType.vaccination => Icons.vaccines_outlined,
+      EventType.medicalVisit => Icons.local_hospital_outlined,
+      EventType.labTest => Icons.science_outlined,
+      EventType.other => Icons.event_note_outlined,
+    },
+    color: colors.data[0],
+    title: event.title,
+    subtitle: [
       eventTypeLabels[event.type] ?? event.type.wire,
-      formatDateTime(event.occurredAt),
-    ];
-    return Row(
-      children: [
-        const Icon(Icons.event_note_outlined),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                event.title,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              Text(
-                parts.join(' · '),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+      relativeDay(event.occurredAt, now),
+    ].join(' · '),
+  );
 }

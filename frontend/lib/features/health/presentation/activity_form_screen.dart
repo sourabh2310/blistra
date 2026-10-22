@@ -147,12 +147,13 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
   Widget build(BuildContext context) {
     return FormScaffold(
       title: widget.initial == null ? 'Add activity' : 'Edit activity',
+      heading: 'What did you do?',
       saving: _saving,
       onSave: _save,
       child: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: formPadding,
           children: [
             LabeledDropdown<ActivityType>(
               label: 'Type',
@@ -170,52 +171,48 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
                 }
               },
             ),
-            const SizedBox(height: 16),
             DateTimeField(
               label: 'Performed at',
               value: _performedAt,
               onChanged: (value) => setState(() => _performedAt = value),
             ),
-            const SizedBox(height: 16),
-            TextFormField(
+            HealthField(
               controller: _durationController,
               enabled: !_saving,
+              label: 'Duration (minutes) *',
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: 'Duration (minutes) *',
-                border: OutlineInputBorder(),
-              ),
               validator: _validateRequiredDuration,
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _distanceController,
-              enabled: !_saving,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: HealthField(
+                    controller: _distanceController,
+                    enabled: !_saving,
+                    label: 'Distance (km)',
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
+                    validator: _validateOptionalDouble,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: HealthField(
+                    controller: _caloriesController,
+                    enabled: !_saving,
+                    label: 'Calories burned',
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: _validateOptionalInt,
+                  ),
+                ),
               ],
-              decoration: const InputDecoration(
-                labelText: 'Distance (km)',
-                border: OutlineInputBorder(),
-              ),
-              validator: _validateOptionalDouble,
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _caloriesController,
-              enabled: !_saving,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: 'Calories burned',
-                border: OutlineInputBorder(),
-              ),
-              validator: _validateOptionalInt,
-            ),
-            const SizedBox(height: 16),
             noteField(controller: _notesController, label: 'Notes (optional)'),
           ],
         ),

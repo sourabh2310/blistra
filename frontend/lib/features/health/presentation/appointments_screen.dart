@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import 'appointment_form_screen.dart';
@@ -22,50 +23,35 @@ class AppointmentsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return RecordListScreen<HealthAppointment>(
       title: 'Appointments',
-      emptyMessage: 'No appointments yet.\nTap + to schedule one.',
+      noun: 'appointment',
+      emptyMessage: 'No appointments yet. Schedule one.',
       load: repository.loadAppointments,
       delete: (appointment) => repository.deleteAppointment(appointment.id),
-      itemBuilder: (context, appointment) => _AppointmentTile(appointment),
+      itemBuilder: _row,
       formBuilder: (context, edited) =>
           AppointmentFormScreen(repository: repository, initial: edited),
       onChanged: onChanged,
     );
   }
-}
 
-class _AppointmentTile extends StatelessWidget {
-  const _AppointmentTile(this.appointment);
-
-  final HealthAppointment appointment;
-
-  @override
-  Widget build(BuildContext context) {
-    final List<String> parts = [
-      appointmentStatusLabels[appointment.status] ?? appointment.status?.wire ?? 'Scheduled',
-      formatDateTime(appointment.scheduledAt),
-      if (appointment.location != null && appointment.location!.isNotEmpty)
-        appointment.location!,
-    ];
-    return Row(
-      children: [
-        const Icon(Icons.calendar_month_outlined),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                appointment.title,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              Text(
-                parts.join(' · '),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-        ),
-      ],
+  static HealthRow _row(BuildContext context, HealthAppointment appointment) {
+    final BlistraColors colors = BlistraColors.resolve(context);
+    final String location = appointment.location?.trim() ?? '';
+    final AppointmentStatus status =
+        appointment.status ?? AppointmentStatus.scheduled;
+    return HealthRow(
+      icon: Icons.calendar_month_outlined,
+      color: switch (status) {
+        AppointmentStatus.cancelled || AppointmentStatus.missed => colors.danger,
+        AppointmentStatus.completed => colors.muted,
+        _ => colors.accentText,
+      },
+      title: appointment.title,
+      subtitle: [
+        friendlyDateTime(appointment.scheduledAt),
+        if (location.isNotEmpty) location,
+      ].join(' · '),
+      meta: appointmentStatusLabels[status] ?? status.wire,
     );
   }
 }

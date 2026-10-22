@@ -3,12 +3,19 @@
 /// Keeps the per-resource screens small: a generic [RecordListScreen] handles
 /// load / empty / error / retry / create/edit/delete navigation for every
 /// owned resource, and [FormScaffold] provides a consistent form layout with
-/// date pickers, dropdowns and a single save action.
+/// date pickers, dropdowns and a single save action. Both follow the glass
+/// templates in design/app-pages.html.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/page_header.dart';
 import '../health_models.dart';
 
 // ---------------------------------------------------------------------------
@@ -158,13 +165,149 @@ void showError(BuildContext context, Object error) {
 }
 
 // ---------------------------------------------------------------------------
+// Friendly display helpers (UI only)
+// ---------------------------------------------------------------------------
+
+/// `Fri, 24 Oct · 5:00 PM` in local time.
+String friendlyDateTime(DateTime value) =>
+    DateFormat('EEE, d MMM · h:mm a').format(value.toLocal());
+
+/// `Fri, 24 Oct 1990` in local time.
+String friendlyDate(DateTime value) =>
+    DateFormat('EEE, d MMM y').format(value.toLocal());
+
+/// `Today`, `Yesterday`, `Tue` within the last week, otherwise `12 Oct`.
+String relativeDay(DateTime value, DateTime now) {
+  final DateTime local = value.toLocal();
+  final int days = DateTime(now.year, now.month, now.day)
+      .difference(DateTime(local.year, local.month, local.day))
+      .inDays;
+  if (days == 0) {
+    return 'Today';
+  }
+  if (days == 1) {
+    return 'Yesterday';
+  }
+  if (days > 1 && days < 7) {
+    return DateFormat('EEE').format(local);
+  }
+  return DateFormat(local.year == now.year ? 'd MMM' : 'd MMM y').format(local);
+}
+
+/// Readable unit for a backend unit code (`MMHG` → `mmHg`).
+String displayUnit(String unit) => switch (unit.toUpperCase()) {
+      'KG' => 'kg',
+      'LB' => 'lb',
+      'CM' => 'cm',
+      'IN' => 'in',
+      'BPM' => 'bpm',
+      'C' => '°C',
+      'F' => '°F',
+      'MMHG' => 'mmHg',
+      _ => unit,
+    };
+
+/// `72.4` or `118/76`, without the unit.
+String measurementNumber(HealthMeasurement m) =>
+    m.type == MeasurementType.bloodPressure && m.valueDiastolic != null
+        ? '${formatDouble(m.value)}/${formatDouble(m.valueDiastolic)}'
+        : formatDouble(m.value);
+
+/// Compact change from [previous] to [latest]: `▼ 0.7`, `▲ 2/▼ 1` or
+/// `No change`; with [signs], `-0.7` and `+2/-1` instead of arrows (for
+/// serif numbers, which have no arrow glyphs). Null without a previous
+/// reading. Plain arithmetic only.
+String? shortChange(
+  HealthMeasurement latest,
+  HealthMeasurement? previous, {
+  bool signs = false,
+}) {
+  if (previous == null) {
+    return null;
+  }
+  String part(double diff) {
+    final double rounded = (diff * 10).round() / 10;
+    if (rounded == 0) {
+      return '0';
+    }
+    if (signs) {
+      return '${rounded > 0 ? '+' : '-'}${formatDouble(rounded.abs())}';
+    }
+    return '${rounded > 0 ? '▲' : '▼'} ${formatDouble(rounded.abs())}';
+  }
+
+  if (latest.type == MeasurementType.bloodPressure &&
+      latest.valueDiastolic != null &&
+      previous.valueDiastolic != null) {
+    final String sys = part(latest.value - previous.value);
+    final String dia = part(latest.valueDiastolic! - previous.valueDiastolic!);
+    return sys == '0' && dia == '0' ? 'No change' : '$sys/$dia';
+  }
+  final String diff = part(latest.value - previous.value);
+  return diff == '0' ? 'No change' : diff;
+}
+
+/// Row colour for each measurement type, from the theme's colours.
+Color measurementColor(BlistraColors colors, MeasurementType type) =>
+    switch (type) {
+      MeasurementType.weight => colors.accentText,
+      MeasurementType.bloodPressure => colors.danger,
+      MeasurementType.heartRate => colors.data[2],
+      MeasurementType.temperature => colors.warning,
+      MeasurementType.height => colors.data[0],
+    };
+
+/// Duration in minutes as `7h 12m`, `45m` or `2h`.
+String durationText(int minutes) {
+  final int hours = minutes ~/ 60;
+  final int remainder = minutes % 60;
+  if (hours == 0) {
+    return '${remainder}m';
+  }
+  if (remainder == 0) {
+    return '${hours}h';
+  }
+  return '${hours}h ${remainder}m';
+}
+
+/// Recorded duration, or the span between start and end when absent.
+int sleepMinutes(HealthSleepRecord record) {
+  if (record.durationMinutes != null) {
+    return record.durationMinutes!;
+  }
+  final int minutes = record.endedAt.difference(record.startedAt).inMinutes;
+  return minutes < 0 ? 0 : minutes;
+}
+
+// ---------------------------------------------------------------------------
 // Generic record list screen
 // ---------------------------------------------------------------------------
+
+/// What one record shows as a [GlassRow].
+class HealthRow {
+  const HealthRow({
+    required this.title,
+    required this.icon,
+    this.subtitle,
+    this.color,
+    this.meta,
+  });
+
+  final String title;
+  final String? subtitle;
+  final IconData icon;
+
+  /// Tints the icon well; neutral when null.
+  final Color? color;
+
+  /// Short trailing text, e.g. the value or time.
+  final String? meta;
+}
 
 /// Generic CRUD list screen used by every owned Health resource.
 ///
 /// [load] refetches the whole list, [delete] removes one record, [itemBuilder]
-/// renders the tile content and [formBuilder] is pushed from the add / edit
+/// describes each row and [formBuilder] is pushed from the add / edit
 /// actions; it should pop with `true` when the list must refresh.
 class RecordListScreen<T> extends StatefulWidget {
   const RecordListScreen({
@@ -176,18 +319,22 @@ class RecordListScreen<T> extends StatefulWidget {
     required this.itemBuilder,
     required this.formBuilder,
     this.onChanged,
+    this.noun = 'record',
   });
 
   final String title;
   final String emptyMessage;
   final Future<List<T>> Function() load;
   final Future<void> Function(T item) delete;
-  final Widget Function(BuildContext context, T item) itemBuilder;
+  final HealthRow Function(BuildContext context, T item) itemBuilder;
   final Widget Function(BuildContext context, T? edited) formBuilder;
 
   /// Invoked after a successful create/edit/delete so owners (e.g. the Health
   /// overview) can refresh dependent state such as the Home dashboard.
   final Future<void> Function()? onChanged;
+
+  /// Singular name for the count line ("3 records").
+  final String noun;
 
   @override
   State<RecordListScreen<T>> createState() => _RecordListScreenState<T>();
@@ -242,24 +389,12 @@ class _RecordListScreenState<T> extends State<RecordListScreen<T>> {
   }
 
   Future<void> _confirmDelete(T item) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete record'),
-        content: const Text('This record will be permanently removed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final bool confirmed = await confirmAction(
+      context,
+      title: 'Delete record',
+      message: 'This record will be permanently removed.',
     );
-    if (confirmed != true || !mounted) {
+    if (!confirmed || !mounted) {
       return;
     }
     try {
@@ -278,109 +413,124 @@ class _RecordListScreenState<T> extends State<RecordListScreen<T>> {
 
   @override
   Widget build(BuildContext context) {
+    final List<T>? items = _items;
+    final String? count = items == null
+        ? null
+        : items.isEmpty
+            ? 'Nothing recorded yet'
+            : '${items.length} ${widget.noun}${items.length == 1 ? '' : 's'}';
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _loading ? null : () => _openForm(null),
-        tooltip: 'Add',
-        child: const Icon(Icons.add),
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 32),
+            children: [
+              BlistraPageHeader(
+                eyebrow: 'Health',
+                title: widget.title,
+                subtitle: count,
+                showAvatar: false,
+                actions: [
+                  GlassIconButton(
+                    icon: Icons.add_rounded,
+                    tooltip: 'Add',
+                    onTap: _loading ? null : () => _openForm(null),
+                  ),
+                ],
+              ),
+              PagePad(_buildBody(), top: 14),
+            ],
+          ),
+        ),
       ),
-      body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
     if (_loading && _items == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonLoader(rows: 4);
     }
     if (_error != null && _items == null) {
-      return _LoadError(message: errorMessage(_error!), onRetry: _load);
+      return _LoadError(
+        name: widget.title,
+        message: errorMessage(_error!),
+        onRetry: _load,
+      );
     }
     final List<T> items = _items ?? const [];
     if (items.isEmpty) {
-      return _EmptyRecords(message: widget.emptyMessage, onRefresh: _load);
+      return EmptyCard(
+        message: widget.emptyMessage,
+        action: 'Add',
+        onAction: () => _openForm(null),
+      );
     }
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final T item = items[index];
-          return ListTile(
-            onTap: () => _openForm(item),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            title: widget.itemBuilder(context, item),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete',
-              onPressed: () => _confirmDelete(item),
-            ),
-          );
-        },
-      ),
+    final BlistraColors colors = BlistraColors.resolve(context);
+    return GlassList(
+      children: [
+        for (final T item in items)
+          Builder(
+            builder: (context) {
+              final HealthRow row = widget.itemBuilder(context, item);
+              return GlassRow(
+                onTap: () => _openForm(item),
+                leading: IconWell(row.icon, color: row.color),
+                title: row.title,
+                subtitle: row.subtitle,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (row.meta != null) RowMeta(row.meta!),
+                    IconButton(
+                      icon: Icon(
+                        Icons.delete_outline_rounded,
+                        size: 19,
+                        color: colors.muted,
+                      ),
+                      tooltip: 'Delete',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _confirmDelete(item),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+      ],
     );
   }
 }
 
 class _LoadError extends StatelessWidget {
-  const _LoadError({required this.message, required this.onRetry});
+  const _LoadError({
+    required this.name,
+    required this.message,
+    required this.onRetry,
+  });
 
+  final String name;
   final String message;
   final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_outlined, size: 48),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyRecords extends StatelessWidget {
-  const _EmptyRecords({required this.message, required this.onRefresh});
-
-  final String message;
-  final Future<void> Function() onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          const SizedBox(height: 96),
-          Icon(
-            Icons.inbox_outlined,
-            size: 56,
-            color: Theme.of(context).colorScheme.outline,
-          ),
-          const SizedBox(height: 16),
-          Text(
+    final BlistraColors colors = BlistraColors.resolve(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        UnavailableCard(name: name, onRetry: onRetry),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
             message,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: TextStyle(fontSize: 11, color: colors.muted),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -389,18 +539,26 @@ class _EmptyRecords extends StatelessWidget {
 // Form helpers
 // ---------------------------------------------------------------------------
 
-/// Standard layout for health forms: an AppBar, scrollable form fields and a
-/// primary save button pinned at the bottom.
+/// Standard layout for health forms (the Form page template): back button,
+/// small eyebrow, a question-style serif heading, glass fields and Save
+/// pinned to the bottom.
 class FormScaffold extends StatelessWidget {
   const FormScaffold({
     super.key,
     required this.title,
     required this.child,
     required this.onSave,
+    this.heading,
     this.saving = false,
   });
 
+  /// Short page name shown as the eyebrow ("Add measurement").
   final String title;
+
+  /// Question-style heading ("What did you measure?"); defaults to [title].
+  final String? heading;
+
+  /// The form body; usually a [ListView] padded with [formPadding].
   final Widget child;
   final VoidCallback onSave;
   final bool saving;
@@ -408,21 +566,171 @@ class FormScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: child,
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: FilledButton(
-            onPressed: saving ? null : onSave,
-            child: saving
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Save'),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            BlistraPageHeader(
+              eyebrow: title,
+              title: heading ?? title,
+              showAvatar: false,
+            ),
+            Expanded(child: child),
+          ],
+        ),
+      ),
+      bottomNavigationBar: StickyActionBar(
+        label: 'Save',
+        busy: saving,
+        onPressed: onSave,
+      ),
+    );
+  }
+}
+
+/// Padding for the scrolling body inside a [FormScaffold].
+const EdgeInsets formPadding =
+    EdgeInsets.fromLTRB(kPageGutter, 14, kPageGutter, 24);
+
+/// Small uppercase label above a [GlassSegmented] in forms.
+class FormLabel extends StatelessWidget {
+  const FormLabel(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final BlistraColors colors = BlistraColors.resolve(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 6, 0, 8),
+      child: Text(text.toUpperCase(), style: BlistraText.caption(colors.muted)),
+    );
+  }
+}
+
+/// [GlassSegmented] with a [FormLabel] and the standard field spacing.
+class FormSegmented<T> extends StatelessWidget {
+  const FormSegmented({
+    super.key,
+    required this.label,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final String label;
+  final List<(T, String)> options;
+  final T selected;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FormLabel(label),
+          GlassSegmented<T>(
+            options: options,
+            selected: selected,
+            onChanged: onChanged,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Glass text field that also supports input formatters and a length limit
+/// ([GlassTextField] has neither).
+class HealthField extends StatelessWidget {
+  const HealthField({
+    super.key,
+    required this.label,
+    required this.controller,
+    this.hint,
+    this.keyboardType,
+    this.inputFormatters,
+    this.maxLength,
+    this.maxLines = 1,
+    this.validator,
+    this.enabled = true,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final String? hint;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final int? maxLength;
+  final int maxLines;
+  final FormFieldValidator<String>? validator;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final BlistraColors colors = BlistraColors.resolve(context);
+    return FieldCard(
+      label: label,
+      child: TextFormField(
+        controller: controller,
+        enabled: enabled,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        maxLength: maxLength,
+        maxLines: maxLines,
+        minLines: 1,
+        validator: validator,
+        style: TextStyle(fontSize: 14, color: colors.text),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: false,
+          hintText: hint,
+          hintStyle: TextStyle(fontSize: 14, color: colors.muted),
+          counterText: '',
+          contentPadding: EdgeInsets.zero,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          errorStyle: TextStyle(fontSize: 11, color: colors.danger),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tappable glass field showing a value and a trailing icon.
+class _PickerField extends StatelessWidget {
+  const _PickerField({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final BlistraColors colors = BlistraColors.resolve(context);
+    return Semantics(
+      button: true,
+      label: label,
+      child: FieldCard(
+        label: label,
+        onTap: onTap,
+        child: Row(
+          children: [
+            Expanded(child: Text(value)),
+            Icon(icon, size: 18, color: colors.accentText),
+          ],
         ),
       ),
     );
@@ -466,12 +774,10 @@ class DateTimeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.event_outlined),
-      title: Text(label),
-      subtitle: Text(value == null ? 'Not set' : formatDateTime(value)),
-      trailing: const Icon(Icons.edit_outlined),
+    return _PickerField(
+      label: label,
+      value: value == null ? 'Not set' : friendlyDateTime(value!),
+      icon: Icons.event_outlined,
       onTap: () => _pick(context),
     );
   }
@@ -505,20 +811,18 @@ class DateField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.cake_outlined),
-      title: Text(label),
-      subtitle: Text(value == null ? 'Not set' : formatDate(value)),
-      trailing: const Icon(Icons.edit_outlined),
+    return _PickerField(
+      label: label,
+      value: value == null ? 'Not set' : friendlyDate(value!),
+      icon: Icons.cake_outlined,
       onTap: () => _pick(context),
     );
   }
 }
 
-/// Controlled dropdown wrapped in a material decoration. Uses a plain
-/// [DropdownButton] so the selection can be reset programmatically (avoiding
-/// the deprecated `value` parameter of `DropdownButtonFormField`).
+/// Glass field holding a plain [DropdownButton], so the selection can be
+/// reset programmatically (avoiding the deprecated `value` parameter of
+/// `DropdownButtonFormField`). Prefer [FormSegmented] for 2–4 short options.
 class LabeledDropdown<T> extends StatelessWidget {
   const LabeledDropdown({
     super.key,
@@ -535,17 +839,18 @@ class LabeledDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
+    final BlistraColors colors = BlistraColors.resolve(context);
+    return FieldCard(
+      label: label,
       child: DropdownButton<T>(
         value: value,
         isExpanded: true,
         isDense: true,
         underline: const SizedBox.shrink(),
+        dropdownColor: colors.sheet,
+        borderRadius: BorderRadius.circular(16),
+        icon: Icon(Icons.expand_more_rounded, size: 20, color: colors.accentText),
+        style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: colors.text),
         items: items,
         onChanged: onChanged,
       ),
@@ -553,20 +858,18 @@ class LabeledDropdown<T> extends StatelessWidget {
   }
 }
 
-/// Shared text field helpers.
-TextFormField noteField({
+/// Shared multi-line notes field.
+Widget noteField({
   required TextEditingController controller,
   required String label,
   int maxLines = 3,
   int maxLength = 1000,
 }) {
-  return TextFormField(
+  return HealthField(
     controller: controller,
+    label: label,
     maxLines: maxLines,
     maxLength: maxLength,
-    decoration: InputDecoration(
-      labelText: label,
-      border: const OutlineInputBorder(),
-    ),
+    keyboardType: TextInputType.multiline,
   );
 }

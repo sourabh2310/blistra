@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
+import '../../../core/theme/app_theme.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import 'sleep_form_screen.dart';
@@ -14,53 +16,30 @@ class SleepScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return RecordListScreen<HealthSleepRecord>(
       title: 'Sleep',
-      emptyMessage: 'No sleep records yet.\nTap + to record one.',
+      noun: 'night',
+      emptyMessage: 'No sleep records yet. Log last night.',
       load: repository.loadSleepRecords,
       delete: (record) => repository.deleteSleep(record.id),
-      itemBuilder: (context, record) => _SleepTile(record),
+      itemBuilder: _row,
       formBuilder: (context, edited) =>
           SleepFormScreen(repository: repository, initial: edited),
     );
   }
-}
 
-class _SleepTile extends StatelessWidget {
-  const _SleepTile(this.record);
-
-  final HealthSleepRecord record;
-
-  @override
-  Widget build(BuildContext context) {
-    final List<String> parts = [
-      if (record.durationMinutes != null) formatMinutes(record.durationMinutes),
-      '${formatDateTime(record.startedAt)} → ${formatDateTime(record.endedAt)}',
-      if (record.rating != null) 'Rating ${record.rating}/5',
-    ];
-    return Row(
-      children: [
-        const Icon(Icons.bedtime_outlined),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                parts.join(' · '),
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              if (record.notes != null && record.notes!.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  record.notes!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
+  static HealthRow _row(BuildContext context, HealthSleepRecord record) {
+    final DateFormat time = DateFormat('h:mm a');
+    final String notes = record.notes?.trim() ?? '';
+    return HealthRow(
+      icon: Icons.bedtime_outlined,
+      color: BlistraColors.resolve(context).data[0],
+      title: '${relativeDay(record.endedAt, DateTime.now())} · '
+          '${durationText(sleepMinutes(record))}',
+      subtitle: [
+        '${time.format(record.startedAt.toLocal())} → '
+            '${time.format(record.endedAt.toLocal())}',
+        if (record.rating != null) 'Feeling ${record.rating}/5',
+        if (notes.isNotEmpty) notes,
+      ].join(' · '),
     );
   }
 }
