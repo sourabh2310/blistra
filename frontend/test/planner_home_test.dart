@@ -60,11 +60,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Planner'), findsOneWidget);
-    for (final label in ['Today', 'Tasks', 'Lists', 'Events']) {
+    for (final label in ['Today', 'Upcoming', 'Lists', 'Calendar']) {
       expect(find.text(label), findsWidgets);
     }
     expect(find.byTooltip('Search Planner'), findsOneWidget);
-    expect(find.byTooltip('Choose date'), findsOneWidget);
     expect(find.byTooltip('More Planner actions'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
     expect(find.byType(FloatingActionButton), findsNothing);
@@ -73,6 +72,7 @@ void main() {
 
     await tester.tap(find.byTooltip('More Planner actions'));
     await tester.pumpAndSettle();
+    expect(find.text('Choose date'), findsOneWidget);
     expect(find.text('Jump to today'), findsOneWidget);
     expect(find.textContaining('Logout'), findsNothing);
   });

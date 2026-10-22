@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
 import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/page_header.dart';
 import '../formats.dart';
 import '../models/task.dart';
+import '../models/task_priority.dart';
 import '../models/task_reminder_mode.dart';
 import '../models/task_status.dart';
 import '../planner_controller.dart';
+import '../widgets/planner_parts.dart';
 import '../widgets/status_views.dart';
 import 'task_form_screen.dart';
 
@@ -116,135 +121,160 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final task = _task;
+    final settled = task != null && !task.status.isActive;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Task details'),
-        actions: [
-          TextButton(
-            onPressed: task == null || _loading ? null : _openEdit,
-            child: const Text('Edit'),
-          ),
-        ],
-      ),
-      body: _loading && task == null
-          ? const SkeletonLoader(rows: 4)
-          : _error != null && task == null
-              ? ErrorRetry(message: _error!, onRetry: _load)
-              : task == null
-                  ? const SizedBox.shrink()
-                  : _body(context, task),
-    );
-  }
-
-  Widget _body(BuildContext context, PlannerTask task) {
-    final theme = Theme.of(context);
-    final done = task.status == TaskStatus.completed;
-    final cancelled = task.status == TaskStatus.cancelled;
-    final settled = done || cancelled;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
-      children: [
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      task.title,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        decoration: cancelled ? TextDecoration.lineThrough : null,
-                      ),
+      bottomNavigationBar: task == null
+          ? null
+          : StickyActionBar(
+              label: settled ? 'Reopen task' : 'Complete task',
+              busy: _working,
+              onPressed: _toggle,
+            ),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            BlistraPageHeader(
+              eyebrow: 'Task',
+              title: task?.title ?? 'Task details',
+              subtitle: task == null ? null : _summary(task),
+              showAvatar: false,
+              actions: [
+                GlassIconButton(
+                  icon: Icons.edit_outlined,
+                  tooltip: 'Edit task',
+                  onTap: task == null || _loading ? null : _openEdit,
+                ),
+                PopupMenuButton<_TaskAction>(
+                  tooltip: 'More task actions',
+                  enabled: task != null && !_working,
+                  onSelected: (action) => action == _TaskAction.cancel ? _cancel() : _delete(),
+                  itemBuilder: (context) => [
+                    if (task?.status.isActive ?? false)
+                      const PopupMenuItem(value: _TaskAction.cancel, child: Text('Cancel task')),
+                    PopupMenuItem(
+                      value: _TaskAction.delete,
+                      child: Text('Delete task', style: TextStyle(color: BlistraColors.resolve(context).danger)),
                     ),
+                  ],
+                  child: const IgnorePointer(
+                    child: GlassIconButton(icon: Icons.more_horiz, tooltip: null, onTap: null),
                   ),
-                  const SizedBox(width: 12),
-                  StatusChip(
-                    label: done
-                        ? 'Completed'
-                        : cancelled
-                            ? 'Cancelled'
-                            : task.overdue
-                                ? 'Overdue'
-                                : 'Open',
-                    color: done
-                        ? theme.colorScheme.primary
-                        : cancelled || task.overdue
-                            ? theme.colorScheme.error
-                            : theme.colorScheme.primary,
-                    icon: done ? Icons.check : Icons.circle_outlined,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              _DetailLine(icon: Icons.schedule, label: 'Schedule', value: Formats.taskScheduleLabel(task)),
-              if (Formats.taskDurationLabel(task).isNotEmpty)
-                _DetailLine(icon: Icons.timelapse, label: 'Duration', value: Formats.taskDurationLabel(task)),
-              if (task.taskListName?.isNotEmpty == true)
-                _DetailLine(icon: Icons.checklist_outlined, label: 'List', value: task.taskListName!),
-              if (task.reminderMode != TaskReminderMode.none)
-                _DetailLine(icon: Icons.notifications_none, label: 'Reminder', value: task.reminderMode.label),
-              if (task.description?.isNotEmpty == true) ...[
-                const Divider(height: AppSpacing.xxl),
-                Text(task.description!, style: theme.textTheme.bodyLarge),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        FilledButton.icon(
-          onPressed: _working ? null : _toggle,
-          icon: _working
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : Icon(settled ? Icons.replay : Icons.check),
-          label: Text(settled ? 'Reopen task' : 'Complete task'),
-        ),
-        if (task.status.isActive)
-          TextButton.icon(
-            onPressed: _working ? null : _cancel,
-            icon: const Icon(Icons.block),
-            label: const Text('Cancel task'),
-          ),
-        TextButton.icon(
-          onPressed: _working ? null : _delete,
-          style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-          icon: const Icon(Icons.delete_outline),
-          label: const Text('Delete task'),
-        ),
-      ],
-    );
-  }
-}
-
-class _DetailLine extends StatelessWidget {
-  const _DetailLine({required this.icon, required this.label, required this.value});
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: Theme.of(context).textTheme.labelMedium),
-                Text(value, style: Theme.of(context).textTheme.bodyLarge),
+                ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            if (_loading && task == null)
+              const SkeletonLoader(rows: 4, rowHeight: 64)
+            else if (_error != null && task == null)
+              ErrorRetry(message: _error!, onRetry: _load)
+            else if (task != null)
+              ..._body(context, task),
+          ],
+        ),
       ),
     );
   }
+
+  String _summary(PlannerTask task) {
+    final status = switch (task.status) {
+      TaskStatus.completed => 'Completed',
+      TaskStatus.cancelled => 'Cancelled',
+      TaskStatus.inProgress => 'In progress',
+      TaskStatus.todo => task.overdue ? 'Overdue' : 'Open',
+    };
+    return [status, if (task.taskListName?.isNotEmpty == true) task.taskListName!].join(' · ');
+  }
+
+  List<Widget> _body(BuildContext context, PlannerTask task) {
+    final colors = BlistraColors.resolve(context);
+    final overdue = task.overdue && task.status.isActive;
+    final schedule = Formats.taskScheduleLabel(task);
+    final duration = Formats.taskDurationLabel(task);
+    final when = task.startAt ?? task.dueDate;
+    final time = task.startAt != null
+        ? Formats.timeOfDay(task.startAt!.toLocal())
+        : Formats.timeOfDay(task.dueTime);
+    return [
+      StatStrip(stats: [
+        StatData(
+          label: 'Status',
+          value: switch (task.status) {
+            TaskStatus.completed => 'Done',
+            TaskStatus.cancelled => 'Cancelled',
+            TaskStatus.inProgress => 'Started',
+            TaskStatus.todo => 'Open',
+          },
+          sub: task.completedAt == null ? '' : 'on ${PlannerDates.short(task.completedAt!.toLocal())}',
+          badge: overdue ? 'OVERDUE' : null,
+          color: overdue ? colors.danger : null,
+          icon: task.status == TaskStatus.completed ? Icons.check_rounded : Icons.radio_button_unchecked,
+        ),
+        StatData(
+          label: 'Priority',
+          value: switch (task.priority) {
+            TaskPriority.high => 'High',
+            TaskPriority.medium => 'Medium',
+            TaskPriority.low => 'Low',
+          },
+          icon: Icons.flag_outlined,
+        ),
+        StatData(
+          label: 'Due',
+          value: when == null ? 'No date' : PlannerDates.relative(when.toLocal()),
+          sub: time.isNotEmpty ? time : (when == null ? 'Any time' : 'No time set'),
+          icon: Icons.event_outlined,
+        ),
+      ]),
+      const SizedBox(height: 22),
+      const SectionHeader(title: 'Details'),
+      PagePad(
+        GlassList(children: [
+          GlassRow(
+            leading: IconWell(Icons.schedule_rounded, color: overdue ? colors.danger : colors.accentText),
+            title: schedule.isEmpty ? 'No date' : schedule,
+            titleColor: overdue ? colors.danger : null,
+            subtitle: 'Schedule',
+          ),
+          if (duration.isNotEmpty)
+            GlassRow(
+              leading: const IconWell(Icons.timelapse_rounded),
+              title: duration,
+              subtitle: 'Duration',
+            ),
+          if (task.taskListName?.isNotEmpty == true)
+            GlassRow(
+              leading: const IconWell(Icons.checklist_rtl_rounded),
+              title: task.taskListName!,
+              subtitle: 'List',
+            ),
+          if (task.reminderMode != TaskReminderMode.none)
+            GlassRow(
+              leading: const IconWell(Icons.notifications_none_rounded),
+              title: task.reminderMode.label,
+              subtitle: 'Reminder',
+            ),
+        ]),
+      ),
+      if (task.description?.isNotEmpty == true) ...[
+        const SizedBox(height: 22),
+        const SectionHeader(title: 'Notes'),
+        PagePad(
+          GlassCard(
+            padding: const EdgeInsets.all(15),
+            child: SizedBox(
+              width: double.infinity,
+              child: Text(
+                task.description!,
+                style: TextStyle(fontSize: 13.5, height: 1.45, color: colors.text),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ];
+  }
 }
+
+enum _TaskAction { cancel, delete }

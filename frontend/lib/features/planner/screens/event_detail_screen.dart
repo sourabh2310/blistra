@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
 import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/page_header.dart';
 import '../formats.dart';
 import '../models/event_status.dart';
 import '../models/planner_event.dart';
 import '../planner_controller.dart';
+import '../widgets/event_card.dart';
+import '../widgets/planner_parts.dart';
 import '../widgets/status_views.dart';
 import 'event_form_screen.dart';
 
@@ -113,113 +118,145 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final event = _event;
+    final settled = event != null && event.status != EventStatus.scheduled;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Event details'),
-        actions: [
-          TextButton(
-            onPressed: event == null || _loading ? null : _openEdit,
-            child: const Text('Edit'),
-          ),
-        ],
-      ),
-      body: _loading && event == null
-          ? const SkeletonLoader(rows: 4)
-          : _error != null && event == null
-              ? ErrorRetry(message: _error!, onRetry: _load)
-              : event == null
-                  ? const SizedBox.shrink()
-                  : _body(context, event),
-    );
-  }
-
-  Widget _body(BuildContext context, PlannerEvent event) {
-    final theme = Theme.of(context);
-    final status = switch (event.status) {
-      EventStatus.completed => 'Completed',
-      EventStatus.cancelled => 'Cancelled',
-      EventStatus.scheduled => 'Scheduled',
-    };
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
-      children: [
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      event.title,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        decoration: event.status == EventStatus.cancelled
-                            ? TextDecoration.lineThrough
-                            : null,
-                      ),
+      bottomNavigationBar: event == null
+          ? null
+          : StickyActionBar(
+              label: settled ? 'Reopen event' : 'Complete event',
+              busy: _working,
+              onPressed: _setStatus,
+            ),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            BlistraPageHeader(
+              eyebrow: 'Event',
+              title: event?.title ?? 'Event details',
+              subtitle: event == null ? null : 'Scheduled activity · ${_status(event)}',
+              showAvatar: false,
+              actions: [
+                GlassIconButton(
+                  icon: Icons.edit_outlined,
+                  tooltip: 'Edit event',
+                  onTap: event == null || _loading ? null : _openEdit,
+                ),
+                PopupMenuButton<_EventAction>(
+                  tooltip: 'More event actions',
+                  enabled: event != null && !_working,
+                  onSelected: (action) => action == _EventAction.cancel ? _cancel() : _delete(),
+                  itemBuilder: (context) => [
+                    if (event?.status == EventStatus.scheduled)
+                      const PopupMenuItem(value: _EventAction.cancel, child: Text('Cancel event')),
+                    PopupMenuItem(
+                      value: _EventAction.delete,
+                      child: Text('Delete event', style: TextStyle(color: BlistraColors.resolve(context).danger)),
                     ),
+                  ],
+                  child: const IgnorePointer(
+                    child: GlassIconButton(icon: Icons.more_horiz, tooltip: null, onTap: null),
                   ),
-                  const SizedBox(width: 12),
-                  StatusChip(label: status, color: theme.colorScheme.primary, icon: Icons.event),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (_loading && event == null)
+              const SkeletonLoader(rows: 4, rowHeight: 64)
+            else if (_error != null && event == null)
+              ErrorRetry(message: _error!, onRetry: _load)
+            else if (event != null)
+              ..._body(context, event),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _status(PlannerEvent event) => switch (event.status) {
+        EventStatus.completed => 'Completed',
+        EventStatus.cancelled => 'Cancelled',
+        EventStatus.scheduled => 'Scheduled',
+      };
+
+  String _length(DateTime start, DateTime end) {
+    final minutes = end.difference(start).inMinutes;
+    if (minutes <= 0) return '—';
+    final hours = minutes ~/ 60;
+    final rest = minutes.remainder(60);
+    if (hours == 0) return '${rest}m';
+    if (rest == 0) return '${hours}h';
+    return '${hours}h ${rest}m';
+  }
+
+  List<Widget> _body(BuildContext context, PlannerEvent event) {
+    final colors = BlistraColors.resolve(context);
+    final start = event.startAt.toLocal();
+    final end = event.endAt.toLocal();
+    return [
+      StatStrip(stats: [
+        StatData(
+          label: 'Starts',
+          value: Formats.timeOfDay(start),
+          sub: PlannerDates.relative(start),
+          icon: Icons.play_arrow_rounded,
+        ),
+        StatData(
+          label: 'Ends',
+          value: Formats.timeOfDay(end),
+          sub: PlannerDates.relative(end),
+          icon: Icons.stop_rounded,
+        ),
+        StatData(
+          label: 'Length',
+          value: _length(start, end),
+          icon: Icons.timelapse_rounded,
+        ),
+      ]),
+      const SizedBox(height: 22),
+      const SectionHeader(title: 'Details'),
+      PagePad(
+        GlassList(children: [
+          GlassRow(
+            leading: IconWell(Icons.event_outlined, color: plannerEventColor(colors)),
+            title: Formats.eventRangeLabel(event),
+            subtitle: 'When',
+          ),
+          if (event.location?.isNotEmpty == true)
+            GlassRow(
+              leading: const IconWell(Icons.location_on_outlined),
+              title: event.location!,
+              subtitle: 'Location',
+            ),
+          GlassRow(
+            leading: IconWell(
+              event.status == EventStatus.scheduled ? Icons.schedule_rounded : Icons.event_available_outlined,
+              color: event.status == EventStatus.cancelled ? colors.danger : colors.accentText,
+            ),
+            title: _status(event),
+            subtitle: 'Status',
+          ),
+        ]),
+      ),
+      if (event.description?.isNotEmpty == true) ...[
+        const SizedBox(height: 22),
+        const SectionHeader(title: 'Notes'),
+        PagePad(
+          GlassCard(
+            padding: const EdgeInsets.all(15),
+            child: SizedBox(
+              width: double.infinity,
+              child: Text(
+                event.description!,
+                style: TextStyle(fontSize: 13.5, height: 1.45, color: colors.text),
               ),
-              const SizedBox(height: AppSpacing.xl),
-              Text(Formats.eventRangeLabel(event), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: AppSpacing.xs),
-              Text('Scheduled activity', style: theme.textTheme.bodyMedium),
-              if (event.location?.isNotEmpty == true) ...[
-                const SizedBox(height: AppSpacing.lg),
-                _EventLine(icon: Icons.location_on_outlined, value: event.location!),
-              ],
-              if (event.description?.isNotEmpty == true) ...[
-                const Divider(height: AppSpacing.xxl),
-                Text(event.description!, style: theme.textTheme.bodyLarge),
-              ],
-            ],
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        FilledButton.icon(
-          onPressed: _working ? null : _setStatus,
-          icon: _working
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : Icon(event.status == EventStatus.completed || event.status == EventStatus.cancelled ? Icons.replay : Icons.check),
-          label: Text(event.status == EventStatus.completed || event.status == EventStatus.cancelled ? 'Reopen event' : 'Complete event'),
-        ),
-        if (event.status == EventStatus.scheduled)
-          TextButton.icon(
-            onPressed: _working ? null : _cancel,
-            icon: const Icon(Icons.block),
-            label: const Text('Cancel event'),
-          ),
-        TextButton.icon(
-          onPressed: _working ? null : _delete,
-          style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-          icon: const Icon(Icons.delete_outline),
-          label: const Text('Delete event'),
         ),
       ],
-    );
+    ];
   }
 }
 
-class _EventLine extends StatelessWidget {
-  const _EventLine({required this.icon, required this.value});
-
-  final IconData icon;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(child: Text(value)),
-      ],
-    );
-  }
-}
+enum _EventAction { cancel, delete }

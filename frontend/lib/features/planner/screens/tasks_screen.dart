@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
 import '../../../core/widgets/design_system.dart';
 import '../../../features/app_scope.dart';
+import '../models/event_status.dart';
+import '../models/planner_event.dart';
 import '../models/task.dart';
 import '../models/task_status.dart';
 import '../models/task_view.dart';
 import '../planner_controller.dart';
 import '../today_helpers.dart';
+import '../widgets/planner_parts.dart';
 import '../widgets/status_views.dart';
 import '../widgets/task_card.dart';
+import 'events_screen.dart';
 import 'task_detail_screen.dart';
 import 'task_form_screen.dart';
 
+/// Planner "Upcoming" tab: tasks (and, for date lenses, events) grouped by
+/// day, with All / Today / Upcoming / Overdue / Completed lenses.
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
 
@@ -21,160 +27,121 @@ class TasksScreen extends StatefulWidget {
 }
 
 class _TasksScreenState extends State<TasksScreen> {
+  static const _views = [
+    TaskView.all,
+    TaskView.today,
+    TaskView.upcoming,
+    TaskView.overdue,
+    TaskView.completed,
+  ];
+
   @override
   Widget build(BuildContext context) {
     final planner = AppScope.of(context).planner;
     return ListenableBuilder(
       listenable: planner,
       builder: (context, _) => RefreshIndicator(
-        onRefresh: planner.loadTasks,
-        child: CustomScrollView(
+        onRefresh: () => Future.wait([planner.loadTasks(), planner.loadEvents()]),
+        child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: _header(planner)),
-            SliverToBoxAdapter(child: _filters(planner)),
+          padding: const EdgeInsets.fromLTRB(0, 4, 0, 110),
+          children: [
+            ChipRow(
+              labels: [for (final view in _views) _label(view)],
+              selected: _views.contains(planner.taskView) ? _views.indexOf(planner.taskView) : null,
+              onSelected: (index) => planner.setTaskView(_views[index]),
+            ),
+            const SizedBox(height: 18),
             ..._body(context, planner),
-            const SliverToBoxAdapter(child: SizedBox(height: 110)),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _header(PlannerController planner) {
-    final visible = _visibleTasks(planner);
-    final count = planner.taskView == TaskView.completed
-        ? visible.length
-        : visible.where((task) => task.status != TaskStatus.completed).length;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('What do you need to get done?', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.xs),
-          Text('$count ${count == 1 ? 'task' : 'tasks'}', style: Theme.of(context).textTheme.bodyMedium),
-        ],
-      ),
-    );
-  }
-
-  Widget _filters(PlannerController planner) {
-    const views = [
-      TaskView.all,
-      TaskView.today,
-      TaskView.upcoming,
-      TaskView.overdue,
-      TaskView.completed,
-    ];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final view in views)
-            ChoiceChip(
-              label: Text(_label(view)),
-              selected: planner.taskView == view,
-              onSelected: (_) => planner.setTaskView(view),
-            ),
-        ],
       ),
     );
   }
 
   List<Widget> _body(BuildContext context, PlannerController planner) {
     if (planner.loading && planner.tasks.isEmpty) {
-      return const [SliverToBoxAdapter(child: SkeletonLoader(rows: 5, rowHeight: 76))];
+      return const [SkeletonLoader(rows: 5, rowHeight: 64)];
     }
     if (planner.error != null && planner.tasks.isEmpty) {
       return [
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: ErrorRetry(
-            message: "Couldn't load your tasks.",
-            onRetry: planner.loadTasks,
-          ),
+        ErrorRetry(
+          message: "Couldn't load your tasks.",
+          onRetry: planner.loadTasks,
         ),
       ];
     }
-    final visible = _visibleTasks(planner);
-    if (visible.isEmpty) {
-      return [
-        SliverToBoxAdapter(
-          child: _emptyState(
-            title: planner.searchQuery.trim().isNotEmpty
-                ? 'No matching tasks'
-                : _emptyTitle(planner.taskView),
-            message: planner.searchQuery.trim().isNotEmpty
-                ? 'Try a different Planner search.'
-                : _emptyMessage(planner.taskView),
-          ),
-        ),
-      ];
-    }
+    final tasks = _visibleTasks(planner);
     if (planner.taskView == TaskView.completed) {
+      if (tasks.isEmpty) return [_empty(planner)];
       return [
-        _groupHeader('Completed', visible.length),
-        _taskList(context, planner, visible),
+        SectionHeader(title: 'Completed', actionLabel: '${tasks.length}'),
+        PagePad(GlassList(children: [for (final task in tasks) taskRow(context, planner, task)])),
       ];
     }
-    final groups = groupTasksByDate(visible, DateTime.now());
+    final groups = _groups(planner, tasks, _visibleEvents(planner));
+    if (groups.isEmpty) return [_empty(planner)];
     return [
       for (final group in groups) ...[
-        _groupHeader(group.label, group.tasks.length),
-        _taskList(context, planner, group.tasks),
+        SectionHeader(title: group.label, actionLabel: '${group.items.length}'),
+        PagePad(
+          GlassList(children: [
+            for (final item in group.items)
+              if (item.task != null)
+                taskRow(context, planner, item.task!)
+              else
+                eventRow(context, planner, item.event!),
+          ]),
+        ),
+        const SizedBox(height: 22),
       ],
     ];
   }
 
-  Widget _groupHeader(String label, int count) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
-        child: Row(
-          children: [
-            Text(label, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-            const Spacer(),
-            Text('$count', style: Theme.of(context).textTheme.labelLarge),
-          ],
-        ),
+  Widget _empty(PlannerController planner) {
+    final searching = planner.searchQuery.trim().isNotEmpty;
+    return PagePad(
+      EmptyCard(
+        message: searching
+            ? 'No matching tasks. Try a different Planner search.'
+            : '${_emptyTitle(planner.taskView)}. ${_emptyMessage(planner.taskView)}',
       ),
     );
   }
 
-  Widget _taskList(BuildContext context, PlannerController planner, List<PlannerTask> tasks) {
-    return SliverList.builder(
-      itemCount: tasks.length,
-      itemBuilder: (context, index) {
-        final task = tasks[index];
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: TaskCard(
-            task: task,
-            onOpen: () => _openDetail(context, planner, task),
-            onToggle: () => _runAction(
-              context,
-              () => task.status.isActive
-                  ? planner.completeTask(task.id)
-                  : planner.reopenTask(task.id),
-            ),
-            onEdit: () => _openForm(context, planner, task: task),
-            onCancel: task.status.isActive
-                ? () => _confirm(context, 'Cancel this task?', () => planner.cancelTask(task.id))
-                : null,
-            onDelete: () => _confirm(context, 'Delete this task?', () => planner.deleteTask(task.id)),
-          ),
-        );
-      },
-    );
+  /// Overdue first, then one group per day in date order, then undated.
+  List<_Group> _groups(PlannerController planner, List<PlannerTask> tasks, List<PlannerEvent> events) {
+    final overdue = <_Item>[];
+    final undated = <_Item>[];
+    final days = <DateTime, List<_Item>>{};
+    for (final task in tasks.where((task) => task.status != TaskStatus.completed)) {
+      final day = taskScheduleDay(task);
+      if (task.overdue) {
+        overdue.add(_Item.task(task));
+      } else if (day == null) {
+        undated.add(_Item.task(task));
+      } else {
+        days.putIfAbsent(day, () => []).add(_Item.task(task));
+      }
+    }
+    for (final event in events) {
+      days.putIfAbsent(PlannerDates.dateOnly(event.startAt.toLocal()), () => []).add(_Item.event(event));
+    }
+    final ordered = days.keys.toList()..sort();
+    return [
+      if (overdue.isNotEmpty) _Group('Overdue', overdue),
+      for (final day in ordered) _Group(PlannerDates.relative(day), days[day]!..sort(_byTime)),
+      if (undated.isNotEmpty) _Group('No date', undated),
+    ];
   }
 
-  Future<void> _openDetail(BuildContext context, PlannerController planner, PlannerTask task) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => TaskDetailScreen(planner: planner, taskId: task.id)),
-    );
+  static int _byTime(_Item a, _Item b) {
+    final ta = a.time;
+    final tb = b.time;
+    if (ta == null && tb == null) return a.title.compareTo(b.title);
+    if (ta == null) return 1;
+    if (tb == null) return -1;
+    return ta.compareTo(tb);
   }
 
   List<PlannerTask> _visibleTasks(PlannerController planner) {
@@ -188,45 +155,26 @@ class _TasksScreenState extends State<TasksScreen> {
     }).toList();
   }
 
-  Widget _emptyState({required String title, required String message}) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-      child: AppCard(
-        child: Column(
-          children: [
-            Icon(Icons.task_alt, size: 48, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: AppSpacing.md),
-            Text(title, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.sm),
-            Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: AppSpacing.md),
-            const Text('Use the global Add button to create a task.'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openForm(BuildContext context, PlannerController planner, {PlannerTask? task}) async {
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => TaskFormScreen(planner: planner, task: task)),
-    );
-    if (saved == true && context.mounted) {
-      showAppMessage(context, task == null ? 'Task created' : 'Task updated');
-    }
-  }
-
-  Future<void> _confirm(BuildContext context, String title, Future<void> Function() action) async {
-    final confirmed = await confirmAction(context, title: title, message: 'This action cannot be undone.');
-    if (confirmed && context.mounted) await _runAction(context, action);
-  }
-
-  Future<void> _runAction(BuildContext context, Future<void> Function() action) async {
-    try {
-      await action();
-    } catch (_) {
-      if (context.mounted) showAppMessage(context, "Couldn't update this task.", error: true);
-    }
+  /// Events join the date lenses only: All and Upcoming from today on,
+  /// Today for today. Cancelled events stay on the Calendar tab.
+  List<PlannerEvent> _visibleEvents(PlannerController planner) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final query = planner.searchQuery.trim().toLowerCase();
+    bool inLens(DateTime day) => switch (planner.taskView) {
+          TaskView.all || TaskView.active => !day.isBefore(today),
+          TaskView.today => day == today,
+          TaskView.upcoming => day.isAfter(today),
+          _ => false,
+        };
+    return planner.events.where((event) {
+      if (event.status == EventStatus.cancelled) return false;
+      if (!inLens(PlannerDates.dateOnly(event.startAt.toLocal()))) return false;
+      if (query.isEmpty) return true;
+      return event.title.toLowerCase().contains(query) ||
+          (event.description?.toLowerCase().contains(query) ?? false) ||
+          (event.location?.toLowerCase().contains(query) ?? false);
+    }).toList();
   }
 
   static String _label(TaskView view) => switch (view) {
@@ -253,4 +201,70 @@ class _TasksScreenState extends State<TasksScreen> {
         TaskView.completed => 'Completed tasks will stay available here.',
         _ => 'Use the global Add button when there is something to get done.',
       };
+}
+
+/// A task row with open, toggle, edit, cancel and delete wired to [planner].
+Widget taskRow(BuildContext context, PlannerController planner, PlannerTask task) {
+  return TaskCard(
+    task: task,
+    onOpen: () => Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => TaskDetailScreen(planner: planner, taskId: task.id)),
+    ),
+    onToggle: () => _runTaskAction(
+      context,
+      () => task.status.isActive ? planner.completeTask(task.id) : planner.reopenTask(task.id),
+    ),
+    onEdit: () => _openTaskForm(context, planner, task: task),
+    onCancel: task.status.isActive
+        ? () => _confirmTask(context, 'Cancel this task?', () => planner.cancelTask(task.id))
+        : null,
+    onDelete: () => _confirmTask(context, 'Delete this task?', () => planner.deleteTask(task.id)),
+  );
+}
+
+Future<void> _openTaskForm(BuildContext context, PlannerController planner, {PlannerTask? task}) async {
+  final saved = await Navigator.of(context).push<bool>(
+    MaterialPageRoute(builder: (_) => TaskFormScreen(planner: planner, task: task)),
+  );
+  if (saved == true && context.mounted) {
+    showAppMessage(context, task == null ? 'Task created' : 'Task updated');
+  }
+}
+
+Future<void> _confirmTask(BuildContext context, String title, Future<void> Function() action) async {
+  final confirmed = await confirmAction(context, title: title, message: 'This action cannot be undone.');
+  if (confirmed && context.mounted) await _runTaskAction(context, action);
+}
+
+Future<void> _runTaskAction(BuildContext context, Future<void> Function() action) async {
+  try {
+    await action();
+  } catch (_) {
+    if (context.mounted) showAppMessage(context, "Couldn't update this task.", error: true);
+  }
+}
+
+class _Item {
+  _Item.task(PlannerTask this.task) : event = null;
+  _Item.event(PlannerEvent this.event) : task = null;
+
+  final PlannerTask? task;
+  final PlannerEvent? event;
+
+  String get title => task?.title ?? event!.title;
+
+  DateTime? get time {
+    final t = task;
+    if (t == null) return event!.startAt;
+    if (t.startAt != null) return t.startAt;
+    if (taskHasExplicitTime(t)) return t.dueAt;
+    return null;
+  }
+}
+
+class _Group {
+  const _Group(this.label, this.items);
+
+  final String label;
+  final List<_Item> items;
 }

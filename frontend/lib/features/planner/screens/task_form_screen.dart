@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/page_header.dart';
 import '../formats.dart';
 import '../models/task.dart';
 import '../models/task_list.dart';
 import '../models/task_priority.dart';
 import '../models/task_reminder_mode.dart';
 import '../planner_controller.dart';
+import '../widgets/planner_parts.dart';
 
 class TaskFormScreen extends StatefulWidget {
   const TaskFormScreen({
@@ -35,8 +39,6 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   TimeOfDay? _start;
   TimeOfDay? _end;
   TimeOfDay? _dueTime;
-  bool _showMore = false;
-  bool _showDetails = false;
   bool _saving = false;
 
   bool get _isEditing => widget.task != null;
@@ -45,7 +47,8 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   void initState() {
     super.initState();
     final task = widget.task;
-    _title = TextEditingController(text: task?.title ?? '');
+    _title = TextEditingController(text: task?.title ?? '')
+      ..addListener(() => setState(() {}));
     _details = TextEditingController(text: task?.description ?? '');
     _listId = task?.taskListId ?? widget.initialListId;
     _priority = task?.priority ?? TaskPriority.medium;
@@ -60,8 +63,6 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     _dueTime = task?.dueTime == null
         ? null
         : TimeOfDay.fromDateTime(task!.dueTime!);
-    _showDetails = (task?.description?.isNotEmpty ?? false);
-    _showMore = _listId != null || _showDetails || _reminderMode != TaskReminderMode.none;
     if (widget.planner.taskLists.isEmpty) {
       WidgetsBinding.instance
           .addPostFrameCallback((_) => widget.planner.loadTaskLists());
@@ -256,206 +257,203 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   @override
   Widget build(BuildContext context) {
     final planner = widget.planner;
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Back',
-          onPressed: _saving ? null : () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back),
+    final colors = BlistraColors.resolve(context);
+    final now = DateTime.now();
+    final quickDates = [
+      ('Today', now),
+      ('Tomorrow', now.add(const Duration(days: 1))),
+      ('This weekend', _nextWeekend()),
+      ('Next week', _nextWeek()),
+    ];
+    final quickIndex = quickDates.indexWhere((entry) => _isSameDay(_date, entry.$2));
+    final reminderModes = [
+      TaskReminderMode.none,
+      if (_start != null) TaskReminderMode.atStart,
+      if (_end != null) TaskReminderMode.atEnd,
+      if (_start != null && _end != null) TaskReminderMode.atStartAndEnd,
+    ];
+    return PopScope(
+      canPop: !_saving,
+      child: Scaffold(
+        bottomNavigationBar: StickyActionBar(
+          label: _isEditing ? 'Save changes' : 'Create task',
+          busy: _saving,
+          onPressed: _title.text.trim().isEmpty ? null : _save,
         ),
-        title: Text(_isEditing ? 'Edit task' : 'Create a task'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: Text(_isEditing ? 'Save' : 'Create'),
-          ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-          children: [
-            const _SectionLabel('What needs to get done?'),
-            TextFormField(
-              controller: _title,
-              autofocus: !_isEditing,
-              textCapitalization: TextCapitalization.sentences,
-              textInputAction: TextInputAction.next,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-              decoration: const InputDecoration(
-                hintText: 'Finish project report',
-                filled: true,
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Give your task a name.'
-                  : null,
-            ),
-            const SizedBox(height: 28),
-            const _SectionLabel('When?'),
-            _SelectionCard(
-              icon: Icons.calendar_today_outlined,
-              label: _whenLabel,
-              onTap: _pickDate,
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
+        body: SafeArea(
+          bottom: false,
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 24),
               children: [
-                _QuickDateChip(
-                  label: 'Today',
-                  selected: _isSameDay(_date, DateTime.now()),
-                  onTap: () => _setQuickDate(DateTime.now()),
+                BlistraPageHeader(
+                  eyebrow: _isEditing ? 'Edit task' : 'New task',
+                  title: _isEditing ? 'Update this task' : 'What needs doing?',
+                  showAvatar: false,
                 ),
-                _QuickDateChip(
-                  label: 'Tomorrow',
-                  selected: _isSameDay(
-                      _date, DateTime.now().add(const Duration(days: 1))),
-                  onTap: () => _setQuickDate(
-                      DateTime.now().add(const Duration(days: 1))),
+                PagePad(
+                  PlannerTextField(
+                    label: 'Title',
+                    controller: _title,
+                    hint: 'Finish project report',
+                    autofocus: !_isEditing,
+                    large: true,
+                    textInputAction: TextInputAction.next,
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Give your task a name.'
+                        : null,
+                  ),
+                  top: 14,
                 ),
-                _QuickDateChip(
-                  label: 'This weekend',
-                  selected: _isSameDay(_date, _nextWeekend()),
-                  onTap: () => _setQuickDate(_nextWeekend()),
-                ),
-                _QuickDateChip(
-                  label: 'Next week',
-                  selected: _isSameDay(_date, _nextWeek()),
-                  onTap: () => _setQuickDate(_nextWeek()),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _date == null ? null : () => _pickTime(start: true),
-                    icon: const Icon(Icons.play_arrow_outlined),
-                    label: Text(_start?.format(context) ?? 'Start time'),
+                PagePad(
+                  PickerField(
+                    label: 'When',
+                    value: _whenLabel,
+                    placeholder: _date == null,
+                    onTap: _saving ? null : _pickDate,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _date == null || _start == null
-                        ? null
-                        : () => _pickTime(start: false),
-                    icon: const Icon(Icons.flag_outlined),
-                    label: Text(_end?.format(context) ?? 'End time'),
-                  ),
+                ChipRow(
+                  labels: [for (final entry in quickDates) entry.$1],
+                  selected: quickIndex < 0 ? null : quickIndex,
+                  onSelected: (index) => _setQuickDate(quickDates[index].$2),
                 ),
-              ],
-            ),
-            if (_start == null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: _date == null ? null : _pickDueTime,
-                  icon: const Icon(Icons.schedule),
-                  label: Text(_dueTime?.format(context) ?? 'Set due time'),
-                ),
-              ),
-            if (_durationLabel.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8, left: 4),
-                child: Text('Duration  $_durationLabel'),
-              ),
-            if (_start != null && _end != null && _duration == null)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text(
-                  'End time must be after the start time.',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            if (_date != null)
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _saving
-                      ? null
-                      : () => setState(() {
-                             _date = null;
-                             _start = null;
-                             _end = null;
-                             _dueTime = null;
-                          }),
-                  child: const Text('No date'),
-                ),
-              ),
-            const SizedBox(height: 20),
-            const _SectionLabel('Priority'),
-            _PriorityPicker(
-              value: _priority,
-              onChanged: (value) => setState(() => _priority = value),
-            ),
-            const SizedBox(height: 20),
-            _MoreOptions(
-              expanded: _showMore,
-              onToggle: () => setState(() => _showMore = !_showMore),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ExpandableRow(
-                    icon: Icons.notes_outlined,
-                    label: 'Details',
-                    value: _showDetails ? 'Added' : 'Add details',
-                    onTap: () => setState(() => _showDetails = !_showDetails),
-                  ),
-                  if (_showDetails)
-                    TextFormField(
-                      controller: _details,
-                      minLines: 3,
-                      maxLines: 6,
-                      maxLength: 2000,
-                      decoration: const InputDecoration(
-                        hintText: 'Add any context, notes or instructions...',
-                        alignLabelWithHint: true,
+                const SizedBox(height: 12),
+                PagePad(
+                  Row(
+                    children: [
+                      Expanded(
+                        child: PickerField(
+                          label: 'Start',
+                          value: _start?.format(context) ?? 'Start time',
+                          placeholder: _start == null,
+                          onTap: _date == null ? null : () => _pickTime(start: true),
+                        ),
                       ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: PickerField(
+                          label: 'End',
+                          value: _end?.format(context) ?? 'End time',
+                          placeholder: _end == null,
+                          onTap: _date == null || _start == null ? null : () => _pickTime(start: false),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_start == null)
+                  PagePad(
+                    PickerField(
+                      label: 'Due time',
+                      value: _dueTime?.format(context) ?? 'Set due time',
+                      placeholder: _dueTime == null,
+                      onTap: _date == null ? null : _pickDueTime,
                     ),
-                  const SizedBox(height: 12),
-                  ListenableBuilder(
-                    listenable: planner,
-                    builder: (context, _) => DropdownButtonFormField<String?>(
-                      initialValue: _listId,
-                      decoration: const InputDecoration(labelText: 'Organization'),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                            value: null, child: Text('No list')),
-                        for (final list in _lists(planner.taskLists))
-                          DropdownMenuItem<String?>(
-                              value: list.id, child: Text(list.name)),
+                  ),
+                if (_durationLabel.isNotEmpty ||
+                    (_start != null && _end != null && _duration == null) ||
+                    _date != null)
+                  PagePad(
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _start != null && _end != null && _duration == null
+                              ? Text(
+                                  'End time must be after the start time.',
+                                  style: TextStyle(fontSize: 12, color: colors.danger),
+                                )
+                              : Text(
+                                  _durationLabel.isEmpty ? '' : 'Duration  $_durationLabel',
+                                  style: TextStyle(fontSize: 12, color: colors.muted),
+                                ),
+                        ),
+                        if (_date != null)
+                          Pill(
+                            'No date',
+                            color: colors.muted,
+                            onTap: _saving
+                                ? null
+                                : () => setState(() {
+                                      _date = null;
+                                      _start = null;
+                                      _end = null;
+                                      _dueTime = null;
+                                    }),
+                          ),
                       ],
-                      onChanged: (value) => setState(() => _listId = value),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  const _SectionLabel('Reminder'),
-                  _ReminderPicker(
-                    value: _effectiveReminderMode,
-                    hasStart: _start != null,
-                    hasEnd: _end != null,
-                    onChanged: (value) => setState(() => _reminderMode = value),
+                const SizedBox(height: 8),
+                PagePad(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const FormCaption('Priority'),
+                      GlassSegmented<TaskPriority>(
+                        options: const [
+                          (TaskPriority.low, 'Low'),
+                          (TaskPriority.medium, 'Medium'),
+                          (TaskPriority.high, 'High'),
+                        ],
+                        selected: _priority,
+                        onChanged: (value) => setState(() => _priority = value),
+                      ),
+                      const SizedBox(height: 14),
+                      ListenableBuilder(
+                        listenable: planner,
+                        builder: (context, _) => FieldCard(
+                          label: 'List',
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String?>(
+                              value: _listId,
+                              isDense: true,
+                              isExpanded: true,
+                              dropdownColor: colors.sheet,
+                              icon: Icon(Icons.expand_more_rounded, color: colors.muted),
+                              style: TextStyle(fontSize: 14, color: colors.text),
+                              items: [
+                                const DropdownMenuItem<String?>(value: null, child: Text('No list')),
+                                for (final list in _lists(planner.taskLists))
+                                  DropdownMenuItem<String?>(value: list.id, child: Text(list.name)),
+                              ],
+                              onChanged: (value) => setState(() => _listId = value),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const FormCaption('Reminder'),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                if (reminderModes.length == 1)
+                  PagePad(
+                    Text(
+                      'Add a start time to set a reminder.',
+                      style: TextStyle(fontSize: 12, color: colors.muted),
+                    ),
+                  )
+                else
+                  ChipRow(
+                    labels: [for (final mode in reminderModes) mode.label],
+                    selected: reminderModes.indexOf(_effectiveReminderMode),
+                    onSelected: (index) => setState(() => _reminderMode = reminderModes[index]),
+                  ),
+                const SizedBox(height: 14),
+                PagePad(
+                  PlannerTextField(
+                    label: 'Notes',
+                    controller: _details,
+                    hint: 'Add any context, notes or instructions...',
+                    minLines: 3,
+                    maxLines: 6,
+                    maxLength: 2000,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 28),
-            FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check),
-              label: Text(_isEditing ? 'Save changes' : 'Create task'),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -472,177 +470,3 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   }
 }
 
-class _QuickDateChip extends StatelessWidget {
-  const _QuickDateChip({required this.label, required this.selected, required this.onTap});
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onTap(),
-      );
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.label);
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(label,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-      );
-}
-
-class _SelectionCard extends StatelessWidget {
-  const _SelectionCard({required this.icon, required this.label, required this.onTap});
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: Row(
-            children: [
-              Icon(icon),
-              const SizedBox(width: 12),
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 16))),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
-        ),
-      );
-}
-
-class _PriorityPicker extends StatelessWidget {
-  const _PriorityPicker({required this.value, required this.onChanged});
-  final TaskPriority value;
-  final ValueChanged<TaskPriority> onChanged;
-
-  @override
-  Widget build(BuildContext context) => Row(
-        children: TaskPriority.values.map((priority) {
-          final selected = priority == value;
-          return Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                  right: priority == TaskPriority.high ? 0 : 8),
-              child: InkWell(
-                onTap: () => onChanged(priority),
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? Theme.of(context).colorScheme.primaryContainer
-                        : Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: selected
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).dividerColor,
-                      width: selected ? 1.5 : 1,
-                    ),
-                  ),
-                  child: Text(priority.wireName[0] + priority.wireName.substring(1).toLowerCase()),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      );
-}
-
-class _MoreOptions extends StatelessWidget {
-  const _MoreOptions({required this.expanded, required this.onToggle, required this.child});
-  final bool expanded;
-  final VoidCallback onToggle;
-  final Widget child;
-
-  @override
-  // A Material (not a colored Container) so the ListTile's ink is visible.
-  Widget build(BuildContext context) => Material(
-        color: Theme.of(context).colorScheme.surface,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: Theme.of(context).dividerColor),
-        ),
-        child: Column(
-          children: [
-            ListTile(
-              onTap: onToggle,
-              leading: const Icon(Icons.tune_outlined),
-              title: const Text('More options'),
-              trailing: Icon(expanded ? Icons.expand_less : Icons.expand_more),
-            ),
-            if (expanded)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: child,
-              ),
-          ],
-        ),
-      );
-}
-
-class _ExpandableRow extends StatelessWidget {
-  const _ExpandableRow({required this.icon, required this.label, required this.value, required this.onTap});
-  final IconData icon;
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => ListTile(
-        contentPadding: EdgeInsets.zero,
-        onTap: onTap,
-        leading: Icon(icon),
-        title: Text(label),
-        trailing: Text(value),
-      );
-}
-
-class _ReminderPicker extends StatelessWidget {
-  const _ReminderPicker({required this.value, required this.hasStart, required this.hasEnd, required this.onChanged});
-  final TaskReminderMode value;
-  final bool hasStart;
-  final bool hasEnd;
-  final ValueChanged<TaskReminderMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final modes = [
-      TaskReminderMode.none,
-      if (hasStart) TaskReminderMode.atStart,
-      if (hasEnd) TaskReminderMode.atEnd,
-      if (hasStart && hasEnd) TaskReminderMode.atStartAndEnd,
-    ];
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: modes.map((mode) {
-        final selected = mode == value;
-        return ChoiceChip(
-          label: Text(mode.label),
-          selected: selected,
-          onSelected: (_) => onChanged(mode),
-        );
-      }).toList(),
-    );
-  }
-}

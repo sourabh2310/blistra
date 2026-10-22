@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/page_header.dart';
 import '../formats.dart';
 import '../models/planner_event.dart';
 import '../planner_controller.dart';
+import '../widgets/planner_parts.dart';
 
 /// Create or edit a simple time-blocked event. Editing re-submits every field
 /// (the backend PUT is a full replacement).
@@ -32,7 +35,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
   void initState() {
     super.initState();
     final event = widget.event;
-    _title = TextEditingController(text: event?.title ?? '');
+    _title = TextEditingController(text: event?.title ?? '')
+      ..addListener(() => setState(() {}));
     _description = TextEditingController(text: event?.description ?? '');
     _location = TextEditingController(text: event?.location ?? '');
     final now = DateTime.now().toLocal();
@@ -122,96 +126,81 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Back',
-          onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back),
+    return PopScope(
+      canPop: !_saving,
+      child: Scaffold(
+        bottomNavigationBar: StickyActionBar(
+          label: _isEditing ? 'Save changes' : 'Create event',
+          busy: _saving,
+          onPressed: _title.text.trim().isEmpty ? null : _save,
         ),
-        title: Text(_isEditing ? 'Edit event' : 'New event'),
-        actions: [
-          TextButton(onPressed: _saving ? null : _save, child: const Text('Save')),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _title,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'Title is required' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _location,
-              textInputAction: TextInputAction.next,
-              maxLength: 255,
-              decoration: const InputDecoration(
-                labelText: 'Location (optional)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _description,
-              minLines: 2,
-              maxLines: 4,
-              maxLength: 2000,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
+        body: SafeArea(
+          bottom: false,
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 24),
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickStart(context),
-                    icon: const Icon(Icons.play_arrow, size: 18),
-                    label: Text('Start ${Formats.dateTime(_start)}'),
-                  ),
+                BlistraPageHeader(
+                  eyebrow: _isEditing ? 'Edit event' : 'New event',
+                  title: _isEditing ? 'Update this event' : "What's happening?",
+                  showAvatar: false,
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 14),
+                ),
+                PlannerTextField(
+                  label: 'Title',
+                  controller: _title,
+                  hint: 'Team sync',
+                  large: true,
+                  autofocus: !_isEditing,
+                  textInputAction: TextInputAction.next,
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Title is required' : null,
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: PickerField(
+                        label: 'Starts',
+                        value: _pickerLabel(_start),
+                        onTap: _saving ? null : () => _pickStart(context),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: PickerField(
+                        label: 'Ends',
+                        value: _pickerLabel(_end),
+                        onTap: _saving ? null : () => _pickEnd(context),
+                      ),
+                    ),
+                  ],
+                ),
+                PlannerTextField(
+                  label: 'Location',
+                  controller: _location,
+                  hint: 'Optional',
+                  maxLength: 255,
+                  textInputAction: TextInputAction.next,
+                ),
+                PlannerTextField(
+                  label: 'Notes',
+                  controller: _description,
+                  hint: 'Optional',
+                  minLines: 3,
+                  maxLines: 5,
+                  maxLength: 2000,
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickEnd(context),
-                    icon: const Icon(Icons.stop, size: 18),
-                    label: Text('End ${Formats.dateTime(_end)}'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check),
-              label: Text(_isEditing ? 'Save changes' : 'Create event'),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  String _pickerLabel(DateTime value) =>
+      '${PlannerDates.relative(value)} · ${Formats.timeOfDay(value)}';
 
   Future<void> _pickStart(BuildContext context) async {
     final picked = await _pickDateTime(context, _start);

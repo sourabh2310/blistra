@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/page_header.dart';
 import '../../../features/app_scope.dart';
 import '../models/schedule_view.dart';
 import '../planner_controller.dart';
+import '../widgets/event_card.dart';
 import 'event_detail_screen.dart';
 import 'events_screen.dart';
 import 'list_detail_screen.dart';
@@ -14,6 +17,8 @@ import 'task_detail_screen.dart';
 import 'tasks_screen.dart';
 import 'today_screen.dart';
 
+/// Planner tabs. Names are kept for deep links: [tasks] is the Upcoming tab
+/// and [events] is the Calendar tab.
 enum PlannerSection { today, tasks, lists, events }
 
 class HomeScreen extends StatefulWidget {
@@ -29,7 +34,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late final TabController _tabs;
   final _searchController = TextEditingController();
   bool _searching = false;
-
 
   @override
   void initState() {
@@ -72,16 +76,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     switch (section) {
       case PlannerSection.today:
-        await Future.wait([planner.loadSchedule(), planner.loadToday()]);
+        await Future.wait([planner.loadSchedule(), planner.loadToday(), planner.loadTaskLists()]);
         return;
       case PlannerSection.tasks:
-        await Future.wait([planner.loadTasks(), planner.loadTaskLists()]);
+        await Future.wait([planner.loadTasks(), planner.loadTaskLists(), planner.loadEvents()]);
         return;
       case PlannerSection.lists:
         await planner.loadTaskLists();
         return;
       case PlannerSection.events:
-        await planner.loadEvents();
+        await Future.wait([planner.loadEvents(), planner.loadTasks()]);
         return;
     }
   }
@@ -99,18 +103,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             if (_searching) _searchField(planner),
             Expanded(
               child: _searching
-                  ? _searchResults(context, planner)
+                  ? ListenableBuilder(
+                      listenable: planner,
+                      builder: (context, _) => _searchResults(context, planner),
+                    )
                   : Column(
                       children: [
-                        _sectionTabs(),
+                        AnimatedBuilder(
+                          animation: _tabs,
+                          builder: (context, _) => BlistraSegmentedTabs(
+                            labels: const ['Today', 'Upcoming', 'Lists', 'Calendar'],
+                            selected: _tabs.index,
+                            onSelected: (index) => _showSection(PlannerSection.values[index]),
+                          ),
+                        ),
                         Expanded(
                           child: TabBarView(
                             controller: _tabs,
-                            children: const [
-                              TodayScreen(),
-                              TasksScreen(),
-                              ListsScreen(),
-                              EventsScreen(),
+                            children: [
+                              TodayScreen(onShowLists: () => _showSection(PlannerSection.lists)),
+                              const TasksScreen(),
+                              const ListsScreen(),
+                              const EventsScreen(),
                             ],
                           ),
                         ),
@@ -126,26 +140,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _header(BuildContext context, PlannerController planner) {
     return BlistraPageHeader(
       title: 'Planner',
-      subtitle: DateFormat('MMMM yyyy').format(planner.selectedDate),
       actions: [
         GlassIconButton(
           tooltip: _searching ? 'Close Planner search' : 'Search Planner',
-          icon: _searching ? Icons.close : Icons.search_rounded,
+          icon: _searching ? Icons.close_rounded : Icons.search_rounded,
           onTap: () => _toggleSearch(context, planner),
-        ),
-        const SizedBox(width: 0),
-        GlassIconButton(
-          tooltip: 'Choose date',
-          icon: Icons.calendar_today_outlined,
-          onTap: () => _pickDate(context, planner),
         ),
         PopupMenuButton<_MoreAction>(
           tooltip: 'More Planner actions',
-          onSelected: (action) => _handleMore(planner, action),
-          itemBuilder: (context) => const [
-            PopupMenuItem(value: _MoreAction.today, child: Text('Jump to today')),
-            PopupMenuItem(value: _MoreAction.toggleScope, child: Text('Switch day or week')),
-            PopupMenuItem(value: _MoreAction.clearSearch, child: Text('Clear Planner search')),
+          onSelected: (action) => _handleMore(context, planner, action),
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: _MoreAction.chooseDate, child: Text('Choose date')),
+            const PopupMenuItem(value: _MoreAction.today, child: Text('Jump to today')),
+            PopupMenuItem(
+              value: _MoreAction.toggleScope,
+              child: Text(planner.scope == ScheduleScope.week ? 'Show one day' : 'Show the week'),
+            ),
+            const PopupMenuItem(value: _MoreAction.clearSearch, child: Text('Clear Planner search')),
           ],
           child: const IgnorePointer(
             child: GlassIconButton(
@@ -175,139 +186,101 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _searchField(PlannerController planner) {
+    final colors = BlistraColors.resolve(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-      child: TextField(
-        controller: _searchController,
-        autofocus: true,
-        textInputAction: TextInputAction.search,
-        decoration: const InputDecoration(
-          hintText: 'Search Planner tasks, events and lists',
-          prefixIcon: Icon(Icons.search),
-        ),
-        onChanged: planner.setSearchQuery,
-      ),
-    );
-  }
-
-  Widget _sectionTabs() {
-    const tabs = [
-      (Icons.today_outlined, 'Today'),
-      (Icons.check_circle_outline, 'Tasks'),
-      (Icons.checklist_outlined, 'Lists'),
-      (Icons.event_outlined, 'Events'),
-    ];
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: BlistraColors.resolve(context).glassFill,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: BlistraColors.resolve(context).glassBorder),
-        ),
-        child: AnimatedBuilder(
-          animation: _tabs,
-          builder: (context, _) => Row(
-            children: [
-              for (var index = 0; index < tabs.length; index++)
-                Expanded(
-                  child: Semantics(
-                    button: true,
-                    selected: _tabs.index == index,
-                    label: tabs[index].$2,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => _showSection(PlannerSection.values[index]),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: _tabs.index == index ? BlistraColors.resolve(context).accent.withValues(alpha: .2) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              tabs[index].$1,
-                              size: 15,
-                              color: _tabs.index == index ? BlistraColors.resolve(context).accentText : scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                tabs[index].$2,
-                                maxLines: 1,
-                                overflow: TextOverflow.fade,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: _tabs.index == index ? BlistraColors.resolve(context).accentText : scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+      padding: const EdgeInsets.fromLTRB(kPageGutter, 8, kPageGutter, 0),
+      child: GlassCard(
+        radius: 16,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        child: TextField(
+          controller: _searchController,
+          autofocus: true,
+          textInputAction: TextInputAction.search,
+          style: TextStyle(fontSize: 14, color: colors.text),
+          decoration: InputDecoration(
+            hintText: 'Search tasks, events and lists',
+            hintStyle: TextStyle(color: colors.muted),
+            filled: false,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            icon: Icon(Icons.search_rounded, size: 19, color: colors.muted),
           ),
+          onChanged: planner.setSearchQuery,
         ),
       ),
     );
   }
 
   Widget _searchResults(BuildContext context, PlannerController planner) {
+    final colors = BlistraColors.resolve(context);
     final query = planner.searchQuery.trim().toLowerCase();
     if (query.isEmpty) {
-      return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Search only within Planner-owned tasks, events and lists.')));
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(kPageGutter, 16, kPageGutter, 110),
+        children: const [EmptyCard(message: 'Search only within Planner-owned tasks, events and lists.')],
+      );
     }
     final tasks = planner.tasks.where((task) => _matches(task.title, task.description, task.taskListName, query)).toList();
     final events = planner.events.where((event) => _matches(event.title, event.description, event.location, query)).toList();
     final lists = planner.taskLists.where((list) => _matches(list.name, list.description, null, query)).toList();
     if (tasks.isEmpty && events.isEmpty && lists.isEmpty) {
-      return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No Planner items match your search.')));
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(kPageGutter, 16, kPageGutter, 110),
+        children: const [EmptyCard(message: 'No Planner items match your search.')],
+      );
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 110),
+      padding: const EdgeInsets.fromLTRB(0, 18, 0, 110),
       children: [
-        if (tasks.isNotEmpty) _searchSection('Tasks', tasks.length),
-        for (final task in tasks)
-          _SearchResult(
-            icon: Icons.task_alt,
-            title: task.title,
-            subtitle: 'Task',
-            onTap: () => _openTask(context, planner, task.id),
+        if (tasks.isNotEmpty) ...[
+          SectionHeader(title: 'Tasks · ${tasks.length}'),
+          PagePad(
+            GlassList(children: [
+              for (final task in tasks)
+                GlassRow(
+                  leading: IconWell(Icons.task_alt_rounded, color: colors.accentText),
+                  title: task.title,
+                  subtitle: 'Task',
+                  trailing: const RowMeta('›'),
+                  onTap: () => _openTask(context, planner, task.id),
+                ),
+            ]),
           ),
-        if (events.isNotEmpty) _searchSection('Events', events.length),
-        for (final event in events)
-          _SearchResult(
-            icon: Icons.event,
-            title: event.title,
-            subtitle: 'Event',
-            onTap: () => _openEvent(context, planner, event.id),
+          const SizedBox(height: 22),
+        ],
+        if (events.isNotEmpty) ...[
+          SectionHeader(title: 'Events · ${events.length}'),
+          PagePad(
+            GlassList(children: [
+              for (final event in events)
+                GlassRow(
+                  leading: IconWell(Icons.event_outlined, color: plannerEventColor(colors)),
+                  title: event.title,
+                  subtitle: 'Event',
+                  trailing: const RowMeta('›'),
+                  onTap: () => _openEvent(context, planner, event.id),
+                ),
+            ]),
           ),
-        if (lists.isNotEmpty) _searchSection('Lists', lists.length),
-        for (final list in lists)
-          _SearchResult(
-            icon: Icons.checklist_rtl,
-            title: list.name,
-            subtitle: 'List',
-            onTap: () => _openList(context, planner, list.id),
+          const SizedBox(height: 22),
+        ],
+        if (lists.isNotEmpty) ...[
+          SectionHeader(title: 'Lists · ${lists.length}'),
+          PagePad(
+            GlassList(children: [
+              for (final list in lists)
+                GlassRow(
+                  leading: const IconWell(Icons.checklist_rtl_rounded),
+                  title: list.name,
+                  subtitle: 'List',
+                  trailing: const RowMeta('›'),
+                  onTap: () => _openList(context, planner, list.id),
+                ),
+            ]),
           ),
+        ],
       ],
-    );
-  }
-
-  Widget _searchSection(String label, int count) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
-      child: Text('$label · $count', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
     );
   }
 
@@ -353,14 +326,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _showSection(PlannerSection.today);
   }
 
-  void _handleMore(PlannerController planner, _MoreAction action) {
+  void _handleMore(BuildContext context, PlannerController planner, _MoreAction action) {
     switch (action) {
+      case _MoreAction.chooseDate:
+        _pickDate(context, planner);
+        return;
       case _MoreAction.today:
         planner.goToToday();
         _showSection(PlannerSection.today);
         return;
       case _MoreAction.toggleScope:
-        final week = planner.scope.name == 'week';
+        final week = planner.scope == ScheduleScope.week;
         planner.setScope(week ? ScheduleScope.day : ScheduleScope.week);
         _showSection(PlannerSection.today);
         return;
@@ -372,31 +348,4 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 }
 
-
-
-class _SearchResult extends StatelessWidget {
-  const _SearchResult({required this.icon, required this.title, required this.subtitle, required this.onTap});
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Card(
-        child: ListTile(
-          onTap: onTap,
-          leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-          title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(subtitle),
-          trailing: const Icon(Icons.chevron_right),
-        ),
-      ),
-    );
-  }
-}
-
-enum _MoreAction { today, toggleScope, clearSearch }
+enum _MoreAction { chooseDate, today, toggleScope, clearSearch }

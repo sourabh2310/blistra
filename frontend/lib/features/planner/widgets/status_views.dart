@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Centered error panel with a retry button.
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/glass.dart';
+
+/// Glass error panel with a retry pill.
 class ErrorRetry extends StatelessWidget {
   const ErrorRetry({super.key, required this.message, required this.onRetry});
 
@@ -9,21 +13,26 @@ class ErrorRetry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    final colors = BlistraColors.resolve(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(kPageGutter, 16, kPageGutter, 0),
+      child: GlassCard(
+        padding: const EdgeInsets.all(15),
+        child: Row(
           children: [
-            Icon(Icons.cloud_off, size: 48, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+            IconWell(Icons.cloud_off_rounded, color: colors.danger),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.text,
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
-            FilledButton.tonal(onPressed: onRetry, child: const Text('Retry')),
+            Pill('Retry', onTap: onRetry),
           ],
         ),
       ),
@@ -31,7 +40,7 @@ class ErrorRetry extends StatelessWidget {
   }
 }
 
-/// Simple empty-state placeholder with an icon and a message.
+/// Glass empty-state card with an icon and a message.
 class EmptyState extends StatelessWidget {
   const EmptyState({super.key, required this.icon, required this.message});
 
@@ -40,21 +49,17 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 48, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ),
+    final colors = BlistraColors.resolve(context);
+    return GlassCard(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        children: [
+          IconWell(icon),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(message, style: TextStyle(fontSize: 13, color: colors.muted)),
+          ),
+        ],
       ),
     );
   }

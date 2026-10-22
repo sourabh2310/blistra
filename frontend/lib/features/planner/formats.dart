@@ -48,7 +48,19 @@ class Formats {
     if (day == today.subtract(const Duration(days: 1))) {
       return 'Yesterday';
     }
-    return date(value);
+    return shortDate(local);
+  }
+
+  static const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  /// "Fri, 24 Oct", with the year added when it isn't the current one.
+  static String shortDate(DateTime value) {
+    final label = '${_weekdays[value.weekday - 1]}, ${value.day} ${_months[value.month - 1]}';
+    return value.year == DateTime.now().year ? label : '$label ${value.year}';
   }
 
   static String taskScheduleLabel(PlannerTask task) {
