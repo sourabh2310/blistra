@@ -469,4 +469,3 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     return lists;
   }
 }
-

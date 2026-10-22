@@ -41,7 +41,12 @@ class AppTheme {
       letterSpacing: -0.2,
       color: colors.text,
     );
-    final baseText = ThemeData(brightness: brightness).textTheme;
+    // Start with Inter so supplied body/title styles do not override the
+    // app font with Material's platform default when merged into ThemeData.
+    final baseText = ThemeData(
+      brightness: brightness,
+      fontFamily: 'Inter',
+    ).textTheme;
     final textTheme = baseText.copyWith(
       headlineLarge: baseText.headlineLarge?.merge(serif),
       headlineMedium: baseText.headlineMedium?.merge(serif),
