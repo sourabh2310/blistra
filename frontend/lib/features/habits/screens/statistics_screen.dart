@@ -1,12 +1,17 @@
-/// Statistics screen showing streak and completion data for a habit.
+/// Statistics screen showing streak and completion data for each habit.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/glass.dart';
+import '../habit_insights.dart';
 import '../habits_controller.dart';
 import '../habits_scope.dart';
 import '../models.dart';
+import 'habit_detail_screen.dart';
 import 'habit_form_screen.dart';
 
 class StatisticsScreen extends StatelessWidget {
@@ -17,37 +22,41 @@ class StatisticsScreen extends StatelessWidget {
     final HabitsController controller = HabitsScope.of(context);
 
     if (controller.activeHabits.isEmpty) {
-      return _EmptyState(
-        message: 'No active habits to show statistics for.',
-        onAdd: () => _showCreateHabitSheet(context),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(0, 6, 0, 28),
+        children: [
+          PagePad(
+            EmptyCard(
+              message: 'No active habits to show statistics for.',
+              action: 'Create habit',
+              onAction: () => showHabitFormSheet(context),
+            ),
+          ),
+        ],
       );
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(kPageGutter, 6, kPageGutter, 28),
       itemCount: controller.activeHabits.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (BuildContext context, int index) {
         final Habit habit = controller.activeHabits[index];
-        return _StatisticsCard(habitId: habit.id, habitName: habit.name);
+        return _StatisticsCard(
+          key: ValueKey(habit.id),
+          habit: habit,
+        );
       },
-    );
-  }
-
-  void _showCreateHabitSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => const HabitFormScreen(),
     );
   }
 }
 
 class _StatisticsCard extends StatefulWidget {
-  const _StatisticsCard({required this.habitId, required this.habitName});
+  const _StatisticsCard({super.key, required this.habit});
 
-  final String habitId;
-  final String habitName;
+  final Habit habit;
 
   @override
   State<_StatisticsCard> createState() => _StatisticsCardState();
@@ -65,10 +74,18 @@ class _StatisticsCardState extends State<_StatisticsCard> {
   }
 
   Future<void> _load() async {
-    final HabitsController controller = HabitsScope.of(context);
+    // Read without subscribing: _load first runs from initState.
+    final HabitsController controller =
+        context.getInheritedWidgetOfExactType<HabitsScope>()!.notifier!;
+    if (!_loading) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final HabitStatisticsResponse stats =
-          await controller.fetchStatistics(widget.habitId);
+          await controller.fetchStatistics(widget.habit.id);
       if (mounted) {
         setState(() {
           _stats = stats;
@@ -87,154 +104,118 @@ class _StatisticsCardState extends State<_StatisticsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
+    final colors = BlistraColors.resolve(context);
+    final HabitStatisticsResponse? stats = _stats;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.habitName,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-            if (_loading)
-              const Center(child: CircularProgressIndicator())
-            else if (_error != null)
-              Text('Error: $_error', style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.error,
-              ))
-            else if (_stats != null) ...[
-              _StatRow(
-                label: 'Current Streak',
-                value: '${_stats!.currentStreak}',
-                icon: Icons.local_fire_department,
-                color: Colors.orange,
-              ),
-              const SizedBox(height: 8),
-              _StatRow(
-                label: 'Best Streak',
-                value: '${_stats!.bestStreak}',
-                icon: Icons.emoji_events,
-                color: Colors.amber,
-              ),
-              const SizedBox(height: 8),
-              _StatRow(
-                label: 'Total Completions',
-                value: '${_stats!.totalCompletions}',
-                icon: Icons.check_circle_outline,
-                color: Colors.green,
-              ),
-              if (_stats!.completionRateLabel != null) ...[
-                const SizedBox(height: 8),
-                _StatRow(
-                  label: 'Completion Rate',
-                  value: _stats!.completionRateLabel!,
-                  icon: Icons.percent,
-                  color: Colors.teal,
-                ),
-              ],
-              if (_stats!.occurrencesLabel != null) ...[
-                const SizedBox(height: 8),
-                _StatRow(
-                  label: 'Completed',
-                  value: _stats!.occurrencesLabel!,
-                  icon: Icons.fact_check_outlined,
-                  color: Colors.blueGrey,
-                ),
-              ],
-              const SizedBox(height: 8),
-              _StatRow(
-                label: 'Last Completed',
-                value: _stats!.lastCompletedOn != null
-                    ? DateFormat('MMM d, yyyy').format(
-                        _stats!.lastCompletedOn!.toLocal())
-                    : 'Never',
-                icon: Icons.calendar_today,
-                color: theme.colorScheme.primary,
-              ),
-            ],
-          ],
+    return GlassCard(
+      padding: const EdgeInsets.all(15),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => HabitDetailScreen(habitId: widget.habit.id),
         ),
       ),
-    );
-  }
-}
-
-class _StatRow extends StatelessWidget {
-  const _StatRow({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            label,
-            style: theme.textTheme.bodyLarge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              IconWell(habitTypeIcon(widget.habit.type),
+                  color: colors.accentText, size: 32),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.habit.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: BlistraText.serif(17, colors.text),
+                ),
+              ),
+              if (stats != null && stats.currentStreak > 0)
+                Pill('🔥 ${pluralDays(stats.currentStreak)}'),
+            ],
           ),
-        ),
-        Text(
-          value,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.message, required this.onAdd});
-
-  final String message;
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.show_chart_outlined,
-              size: 64,
-              color: Theme.of(context).colorScheme.primary,
+          const SizedBox(height: 14),
+          if (_loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_error != null)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "Statistics couldn't load",
+                    style: TextStyle(fontSize: 12.5, color: colors.danger),
+                  ),
+                ),
+                Pill('Retry', onTap: _load),
+              ],
+            )
+          else if (stats != null) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Figure(
+                    label: 'Current',
+                    value: pluralDays(stats.currentStreak),
+                  ),
+                ),
+                Expanded(
+                  child: Figure(
+                    label: 'Best',
+                    value: pluralDays(stats.bestStreak),
+                  ),
+                ),
+                Expanded(
+                  child: Figure(
+                    label: 'Total',
+                    value: '${stats.totalCompletions}',
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            if (stats.completionRate != null) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Text(
+                    'COMPLETION RATE',
+                    style: BlistraText.caption(colors.muted),
+                  ),
+                  const Spacer(),
+                  Text(
+                    stats.completionRateLabel!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: colors.text,
+                      fontFeatures: BlistraText.tabular,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ProgressLine(value: stats.completionRate!),
+            ],
+            const SizedBox(height: 10),
             Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add),
-              label: const Text('Create Habit'),
+              [
+                ?stats.occurrencesLabel,
+                stats.lastCompletedOn != null
+                    ? 'Last completed ${DateFormat('MMM d, yyyy').format(stats.lastCompletedOn!.toLocal())}'
+                    : 'Never completed',
+              ].join(' · '),
+              style: TextStyle(fontSize: 11, color: colors.muted),
             ),
           ],
-        ),
+        ],
       ),
     );
   }

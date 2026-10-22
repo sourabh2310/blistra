@@ -3,9 +3,21 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../habit_insights.dart';
 import '../habits_controller.dart';
 import '../habits_scope.dart';
 import '../models.dart';
+
+/// Opens the habit form as a bottom sheet; edits [existingHabit] when set.
+Future<void> showHabitFormSheet(BuildContext context, {Habit? existingHabit}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => HabitFormScreen(existingHabit: existingHabit),
+  );
+}
 
 class HabitFormScreen extends StatefulWidget {
   const HabitFormScreen({super.key, this.existingHabit});
@@ -66,229 +78,220 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isEdit = widget.existingHabit != null;
-    final ThemeData theme = Theme.of(context);
+    final colors = BlistraColors.resolve(context);
+
+    final Widget fields = Padding(
+      padding: const EdgeInsets.fromLTRB(kPageGutter, 12, kPageGutter, 0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: colors.inkAt(0.25),
+                borderRadius: BorderRadius.circular(5),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            isEdit ? 'EDIT HABIT' : 'NEW HABIT',
+            style: BlistraText.eyebrow(colors.accentText),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isEdit ? 'Fine-tune this habit' : 'What do you want to build?',
+            style: BlistraText.serif(26, colors.text, height: 1.1),
+          ),
+          const SizedBox(height: 16),
+          GlassTextField(
+            label: 'Name',
+            controller: _nameController,
+            hint: 'e.g. Drink water',
+            textInputAction: TextInputAction.next,
+            validator: (String? value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Name is required';
+              }
+              if (value.length > 100) {
+                return 'Name must be 100 characters or less';
+              }
+              return null;
+            },
+          ),
+          FieldCard(
+            label: 'Description (optional)',
+            child: TextFormField(
+              controller: _descriptionController,
+              maxLines: 3,
+              minLines: 1,
+              maxLength: 500,
+              style: TextStyle(fontSize: 14, color: colors.text),
+              decoration: InputDecoration(
+                isDense: true,
+                filled: false,
+                hintText: 'Add details...',
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                counterStyle: TextStyle(fontSize: 10, color: colors.muted),
+              ),
+            ),
+          ),
+          if (!isEdit) ...[
+            _Label('Schedule'),
+            GlassSegmented<HabitFrequency>(
+              options: const [
+                (HabitFrequency.daily, 'Daily'),
+                (HabitFrequency.weekly, 'Weekly'),
+              ],
+              selected: _frequency,
+              onChanged: (value) => setState(() => _frequency = value),
+            ),
+            if (_frequency == HabitFrequency.weekly) ...[
+              const SizedBox(height: 10),
+              _DayToggles(
+                selected: _daysOfWeek,
+                onChanged: (day, on) => setState(() {
+                  if (on) {
+                    _daysOfWeek.add(day);
+                  } else {
+                    _daysOfWeek.remove(day);
+                  }
+                }),
+              ),
+              if (_daysOfWeek.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Choose at least one day',
+                    style: TextStyle(fontSize: 12, color: colors.danger),
+                  ),
+                ),
+            ],
+            const SizedBox(height: 12),
+          ],
+          _Label('Type'),
+          GlassSegmented<HabitType>(
+            options: [
+              for (final HabitType t in HabitType.values) (t, habitTypeLabel(t)),
+            ],
+            selected: _type,
+            onChanged: (HabitType value) {
+              setState(() {
+                _type = value;
+                // Clear hidden type-specific fields so stale values are
+                // never sent (backend rejects inconsistent targets).
+                if (value != HabitType.count) {
+                  _targetValueController.clear();
+                  _targetUnitController.clear();
+                }
+                if (value != HabitType.duration) {
+                  _targetMinutesController.clear();
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          if (_type == HabitType.count)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: GlassTextField(
+                    label: 'Target value *',
+                    controller: _targetValueController,
+                    hint: '8',
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: (v) {
+                      if (_type != HabitType.count) return null;
+                      final t = (v ?? '').trim();
+                      if (t.isEmpty) return 'Target value is required';
+                      final n = double.tryParse(t);
+                      if (n == null || n <= 0) {
+                        return 'Enter a number greater than 0';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GlassTextField(
+                    label: 'Unit',
+                    controller: _targetUnitController,
+                    hint: 'glasses',
+                  ),
+                ),
+              ],
+            ),
+          if (_type == HabitType.duration)
+            GlassTextField(
+              label: 'Target minutes *',
+              controller: _targetMinutesController,
+              hint: '20',
+              keyboardType: TextInputType.number,
+              validator: (v) {
+                if (_type != HabitType.duration) return null;
+                final t = (v ?? '').trim();
+                if (t.isEmpty) return 'Target minutes is required';
+                final n = int.tryParse(t);
+                if (n == null || n <= 0) {
+                  return 'Enter whole minutes greater than 0';
+                }
+                return null;
+              },
+            ),
+          _Label('Status'),
+          GlassSegmented<HabitStatus>(
+            options: [
+              for (final HabitStatus s in HabitStatus.values)
+                (s, habitStatusLabel(s)),
+            ],
+            selected: _status,
+            onChanged: (HabitStatus value) => setState(() => _status = value),
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+
+    final Widget saveBar = _SaveBar(
+      label: isEdit ? 'Save changes' : 'Create habit',
+      busy: _submitting,
+      onPressed: _submit,
+    );
 
     return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                isEdit ? 'Edit Habit' : 'Create Habit',
-                style: theme.textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  hintText: 'e.g. Drink water',
-                ),
-                validator: (String? value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Name is required';
-                  }
-                  if (value.length > 100) {
-                    return 'Name must be 100 characters or less';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
-                  hintText: 'Add details...',
-                ),
-                maxLines: 3,
-                maxLength: 500,
-              ),
-              if (!isEdit) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Schedule',
-                  style: theme.textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                SegmentedButton<HabitFrequency>(
-                  segments: const [
-                    ButtonSegment(
-                      value: HabitFrequency.daily,
-                      label: Text('Daily'),
-                      icon: Icon(Icons.today_outlined),
-                    ),
-                    ButtonSegment(
-                      value: HabitFrequency.weekly,
-                      label: Text('Weekly'),
-                      icon: Icon(Icons.date_range_outlined),
-                    ),
-                  ],
-                  selected: {_frequency},
-                  onSelectionChanged: (selection) {
-                    setState(() => _frequency = selection.first);
-                  },
-                ),
-                if (_frequency == HabitFrequency.weekly) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final entry in const [
-                        ('MONDAY', 'Mon'),
-                        ('TUESDAY', 'Tue'),
-                        ('WEDNESDAY', 'Wed'),
-                        ('THURSDAY', 'Thu'),
-                        ('FRIDAY', 'Fri'),
-                        ('SATURDAY', 'Sat'),
-                        ('SUNDAY', 'Sun'),
-                      ])
-                        FilterChip(
-                          label: Text(entry.$2),
-                          selected: _daysOfWeek.contains(entry.$1),
-                          onSelected: (selected) {
-                            setState(() {
-                              if (selected) {
-                                _daysOfWeek.add(entry.$1);
-                              } else {
-                                _daysOfWeek.remove(entry.$1);
-                              }
-                            });
-                          },
-                        ),
-                    ],
-                  ),
-                  if (_daysOfWeek.isEmpty)
-                    Text(
-                      'Choose at least one day',
-                      style: TextStyle(color: theme.colorScheme.error),
-                    ),
-                ],
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            // In a height-bounded sheet the fields scroll above a pinned Save;
+            // inside a parent scroll view (Quick add) Save follows the fields.
+            if (!constraints.maxHeight.isFinite) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [fields, saveBar],
+              );
+            }
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Flexible(child: SingleChildScrollView(child: fields)),
+                saveBar,
               ],
-              const SizedBox(height: 12),
-              DropdownButtonFormField<HabitType>(
-                initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Type'),
-                items: HabitType.values.map((HabitType t) {
-                  return DropdownMenuItem(
-                    value: t,
-                    child: Text(t.name.toUpperCase()),
-                  );
-                }).toList(),
-                onChanged: (HabitType? value) {
-                  if (value != null) {
-                    setState(() {
-                      _type = value;
-                      // Clear hidden type-specific fields so stale values are
-                      // never sent (backend rejects inconsistent targets).
-                      if (value != HabitType.count) {
-                        _targetValueController.clear();
-                        _targetUnitController.clear();
-                      }
-                      if (value != HabitType.duration) {
-                        _targetMinutesController.clear();
-                      }
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              if (_type == HabitType.count) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _targetValueController,
-                        decoration: const InputDecoration(
-                          labelText: 'Target Value *',
-                          hintText: '8',
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        validator: (v) {
-                          if (_type != HabitType.count) return null;
-                          final t = (v ?? '').trim();
-                          if (t.isEmpty) return 'Target value is required';
-                          final n = double.tryParse(t);
-                          if (n == null || n <= 0) {
-                            return 'Enter a number greater than 0';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _targetUnitController,
-                        decoration: const InputDecoration(
-                          labelText: 'Unit',
-                          hintText: 'glasses',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (_type == HabitType.duration) ...[
-                TextFormField(
-                  controller: _targetMinutesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Target Minutes *',
-                    hintText: '20',
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (_type != HabitType.duration) return null;
-                    final t = (v ?? '').trim();
-                    if (t.isEmpty) return 'Target minutes is required';
-                    final n = int.tryParse(t);
-                    if (n == null || n <= 0) {
-                      return 'Enter whole minutes greater than 0';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-              ],
-              DropdownButtonFormField<HabitStatus>(
-                initialValue: _status,
-                decoration: const InputDecoration(labelText: 'Status'),
-                items: HabitStatus.values.map((HabitStatus s) {
-                  return DropdownMenuItem(
-                    value: s,
-                    child: Text(s.name.toUpperCase()),
-                  );
-                }).toList(),
-                onChanged: (HabitStatus? value) {
-                  if (value != null) setState(() => _status = value);
-                },
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _submitting ? null : _submit,
-                child: _submitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(isEdit ? 'Save Changes' : 'Create Habit'),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -371,5 +374,123 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+}
+
+/// Small caps label above a non-text control.
+class _Label extends StatelessWidget {
+  const _Label(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 4, 0, 8),
+      child: Text(text.toUpperCase(), style: BlistraText.caption(colors.muted)),
+    );
+  }
+}
+
+/// Seven round day toggles for a weekly schedule.
+class _DayToggles extends StatelessWidget {
+  const _DayToggles({required this.selected, required this.onChanged});
+
+  final Set<String> selected;
+  final void Function(String day, bool on) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        for (final String day in kHabitWeekdays)
+          Semantics(
+            button: true,
+            selected: selected.contains(day),
+            label: day[0] + day.substring(1).toLowerCase(),
+            child: GestureDetector(
+              onTap: () => onChanged(day, !selected.contains(day)),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected.contains(day)
+                      ? colors.accentText
+                      : colors.glassFill,
+                  border: Border.all(
+                    color: selected.contains(day)
+                        ? colors.accentText
+                        : colors.glassBorder,
+                  ),
+                ),
+                child: Text(
+                  day[0] + day.substring(1, 2).toLowerCase(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: selected.contains(day)
+                        ? colors.onAccent
+                        : colors.muted,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Save pinned under the scrolling fields. Like [StickyActionBar], but it
+/// fades into the sheet colour instead of the page background.
+class _SaveBar extends StatelessWidget {
+  const _SaveBar({
+    required this.label,
+    required this.busy,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool busy;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [colors.sheet.withValues(alpha: 0), colors.sheet],
+          stops: const [0, 0.35],
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(kPageGutter, 14, kPageGutter, 14),
+          child: FilledButton(
+            onPressed: busy ? null : onPressed,
+            child: busy
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colors.onAccent,
+                    ),
+                  )
+                : Text(label),
+          ),
+        ),
+      ),
+    );
   }
 }
