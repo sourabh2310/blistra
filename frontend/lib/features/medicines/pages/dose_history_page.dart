@@ -10,6 +10,12 @@ import '../data/medicines_api_client.dart';
 import '../models/dose_record.dart';
 import '../models/medicine_enums.dart';
 import '../util/home_refresh.dart';
+import '../util/insights.dart';
+import '../widgets/medicine_widgets.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/page_header.dart';
 
 class DoseHistoryPage extends StatefulWidget {
   const DoseHistoryPage({super.key, required this.medicineId});
@@ -82,56 +88,108 @@ class _DoseHistoryPageState extends State<DoseHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dose History')),
-      body: _buildBody(),
+      backgroundColor: Colors.transparent,
+      body: SafeArea(bottom: false, child: _buildBody()),
+    );
+  }
+
+  Widget _header() {
+    final taken = _doses.where((d) => d.status == DoseStatus.taken).length;
+    final adherence = adherenceOf(_doses);
+    return BlistraPageHeader(
+      eyebrow: 'Medicine',
+      title: 'Dose history',
+      showAvatar: false,
+      subtitle: _doses.isEmpty
+          ? 'Every recorded dose, newest first'
+          : '$taken of ${_doses.length}${_hasMore ? '+' : ''} taken'
+              '${adherence == null ? '' : ' · ${(adherence * 100).round()}%'}',
     );
   }
 
   Widget _buildBody() {
     if (_loading && _doses.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null && _doses.isEmpty) {
-      return _ErrorRetry(
-        message: _error.toString(),
-        onRetry: _loadFirstPage,
+      return Column(
+        children: [
+          _header(),
+          const Expanded(child: Center(child: CircularProgressIndicator())),
+        ],
       );
     }
+    if (_error != null && _doses.isEmpty) {
+      return ListView(
+        children: [
+          _header(),
+          const SizedBox(height: 16),
+          PagePad(UnavailableCard(name: 'Dose history', onRetry: _loadFirstPage)),
+        ],
+      );
+    }
+
+    // Consecutive doses on the same day share one glass list.
+    final days = <List<DoseRecord>>[];
+    for (final dose in _doses) {
+      if (days.isEmpty || !_sameDay(days.last.first.scheduledAt, dose.scheduledAt)) {
+        days.add([dose]);
+      } else {
+        days.last.add(dose);
+      }
+    }
+
     return RefreshIndicator(
       onRefresh: _loadFirstPage,
       child: ListView.builder(
-        itemCount: _doses.length + (_hasMore ? 1 : 0),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 40),
+        itemCount: days.length + 2,
         itemBuilder: (context, index) {
-          if (index == _doses.length) {
-            if (_hasMore) {
-              _loadMore();
-              return const Center(
+          if (index == 0) {
+            return Column(
+              children: [
+                _header(),
+                if (_doses.isEmpty)
+                  const PagePad(
+                    EmptyCard(message: 'No doses recorded yet.'),
+                    top: 16,
+                  ),
+              ],
+            );
+          }
+          if (index == days.length + 1) {
+            if (_hasMore && _doses.isNotEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) => _loadMore());
+              return Center(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(),
+                  padding: const EdgeInsets.all(16),
+                  child: CircularProgressIndicator(
+                    color: BlistraColors.resolve(context).accentText,
+                  ),
                 ),
               );
             }
             return const SizedBox.shrink();
           }
-          final dose = _doses[index];
-          final bool showHeader = index == 0 ||
-              !_sameDay(_doses[index - 1].scheduledAt, dose.scheduledAt);
+          final day = days[index - 1];
+          final taken = day.where((d) => d.status == DoseStatus.taken).length;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (showHeader)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Text(
-                    _dayLabel(dose.scheduledAt),
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
+              MedSection(
+                title: _dayLabel(day.first.scheduledAt),
+                actionLabel: '$taken of ${day.length} taken',
+              ),
+              PagePad(
+                GlassList(
+                  children: [
+                    for (final dose in day)
+                      DoseRecordRow(
+                        dose: dose,
+                        timeOnly: true,
+                        onEdit: () => _editDose(dose),
+                        onDelete: () => _deleteDose(dose),
+                      ),
+                  ],
                 ),
-              _DoseTile(
-                dose: dose,
-                onEdit: () => _editDose(dose),
-                onDelete: () => _deleteDose(dose),
               ),
             ],
           );
@@ -159,7 +217,7 @@ class _DoseHistoryPageState extends State<DoseHistoryPage> {
   Future<void> _editDose(DoseRecord dose) async {
     final status = await showDialog<DoseStatus>(
           context: context,
-          builder: (_) => _DoseStatusDialog(initialStatus: dose.status),
+          builder: (_) => DoseStatusDialog(initialStatus: dose.status),
         );
     if (status != null && mounted && _api != null) {
       try {
@@ -179,23 +237,11 @@ class _DoseHistoryPageState extends State<DoseHistoryPage> {
   }
 
   Future<void> _deleteDose(DoseRecord dose) async {
-    final ok = await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Delete dose record?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    final ok = await confirmAction(
+      context,
+      title: 'Delete dose record?',
+      message: '${doseStatusLabel(dose.status)} · ${relativeDateTime(dose.scheduledAt)}',
+    );
     if (ok && mounted && _api != null) {
       try {
         await _api!.deleteDose(widget.medicineId, dose.id);
@@ -211,164 +257,5 @@ class _DoseHistoryPageState extends State<DoseHistoryPage> {
         }
       }
     }
-  }
-}
-
-class _DoseTile extends StatelessWidget {
-  const _DoseTile({
-    required this.dose,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final DoseRecord dose;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: ListTile(
-        leading: Icon(
-          _doseStatusIcon(dose.status),
-          color: _doseStatusColor(dose.status),
-        ),
-        title: Text(_doseStatusLabel(dose.status)),
-        subtitle: Text(_fmtDateTime(dose.scheduledAt)),
-        trailing: PopupMenuButton<String>(
-          onSelected: (v) {
-            if (v == 'edit') onEdit();
-            if (v == 'delete') onDelete();
-          },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'edit', child: Text('Edit status')),
-            PopupMenuItem(value: 'delete', child: Text('Delete')),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _fmtDateTime(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')} '
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-}
-
-class _ErrorRetry extends StatelessWidget {
-  const _ErrorRetry({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
-            const SizedBox(height: 16),
-            Text('Failed to load', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DoseStatusDialog extends StatefulWidget {
-  const _DoseStatusDialog({required this.initialStatus});
-
-  final DoseStatus initialStatus;
-
-  @override
-  State<_DoseStatusDialog> createState() => _DoseStatusDialogState();
-}
-
-class _DoseStatusDialogState extends State<_DoseStatusDialog> {
-  late DoseStatus _selected;
-
-  @override
-  void initState() {
-    super.initState();
-    _selected = widget.initialStatus;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Change dose status'),
-      content: RadioGroup<DoseStatus>(
-        groupValue: _selected,
-        onChanged: (v) {
-          if (v != null) setState(() => _selected = v);
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: DoseStatus.values
-              .map(
-                (s) => RadioListTile<DoseStatus>(
-                  title: Text(s.name.toUpperCase()),
-                  value: s,
-                ),
-              )
-              .toList(),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _selected),
-          child: const Text('Save'),
-        ),
-      ],
-    );
-  }
-}
-
-Color _doseStatusColor(DoseStatus status) {
-  switch (status) {
-    case DoseStatus.taken:
-      return Colors.green;
-    case DoseStatus.missed:
-      return Colors.red;
-    case DoseStatus.skipped:
-      return Colors.orange;
-  }
-}
-
-IconData _doseStatusIcon(DoseStatus status) {
-  switch (status) {
-    case DoseStatus.taken:
-      return Icons.check_circle;
-    case DoseStatus.missed:
-      return Icons.remove_circle_outline;
-    case DoseStatus.skipped:
-      return Icons.help_outline;
-  }
-}
-
-String _doseStatusLabel(DoseStatus status) {
-  switch (status) {
-    case DoseStatus.taken:
-      return 'Taken';
-    case DoseStatus.missed:
-      return 'Missed';
-    case DoseStatus.skipped:
-      return 'Skipped';
   }
 }
