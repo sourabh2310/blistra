@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/money/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/page_header.dart';
 import '../finance_controller.dart';
@@ -99,7 +102,9 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: oweColor),
+            style: FilledButton.styleFrom(
+              backgroundColor: BlistraColors.resolve(context).danger,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete'),
           ),
@@ -124,13 +129,19 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
     final colors = BlistraColors.resolve(context);
     final e = _expense;
     final meId = context.watch<FinanceController>().me?.id;
+    String money(Money m) => m.display(currencyCode: e!.currency);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [
             BlistraPageHeader(
-              title: 'Expense',
+              eyebrow: e == null ? 'Expense' : e.category.label,
+              title: e?.description ?? 'Expense',
+              subtitle: e == null
+                  ? null
+                  : '${DateFormat('EEE, d MMM yyyy').format(e.spentOn)} · '
+                        '${e.isShared ? '${e.paidBy.id == meId ? 'You' : e.paidBy.displayName} paid · split ${e.splitType.label.toLowerCase()}' : 'Personal expense'}',
               showAvatar: false,
               actions: [
                 if (e != null && e.editable) ...[
@@ -158,103 +169,62 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
                             ),
                     )
                   : ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      padding: const EdgeInsets.fromLTRB(0, 10, 0, 24),
                       children: [
-                        GlassCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  CategoryAvatar(e.category, size: 48),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          e.description,
-                                          style: TextStyle(
-                                            fontSize: 19,
-                                            fontWeight: FontWeight.w700,
-                                            color: colors.text,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${e.category.label} · ${DateFormat('d MMM yyyy').format(e.spentOn)}',
-                                          style: TextStyle(color: colors.muted),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                        StatStrip(
+                          stats: [
+                            StatData(
+                              label: 'Total',
+                              value: money(e.amount),
+                              sub: e.currency,
+                              icon: e.category.icon,
+                            ),
+                            if (e.isShared)
+                              StatData(
+                                label: 'Your share',
+                                value: money(e.myShare),
+                                sub: '${e.shares.length} in the split',
                               ),
-                              const SizedBox(height: 18),
-                              Text(
-                                e.amount.display(currencyCode: e.currency),
-                                style: TextStyle(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w800,
-                                  color: colors.text,
-                                ),
+                            if (e.isShared && !e.myBalance.isZero)
+                              StatData(
+                                label: e.myBalance.isNegative
+                                    ? 'You borrowed'
+                                    : 'You lent',
+                                value: money(e.myBalance.abs()),
+                                sub: e.myBalance.isNegative
+                                    ? 'You owe this back'
+                                    : 'Owed back to you',
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                e.isShared
-                                    ? '${e.paidBy.id == meId ? 'You' : e.paidBy.displayName} paid · split ${e.splitType.label.toLowerCase()}'
-                                    : 'Personal expense',
-                                style: TextStyle(color: colors.muted),
-                              ),
-                              if (e.isShared && !e.myBalance.isZero) ...[
-                                const SizedBox(height: 10),
-                                Text(
-                                  e.myBalance.isNegative
-                                      ? 'You borrowed ${e.myBalance.abs().display(currencyCode: e.currency)}'
-                                      : 'You lent ${e.myBalance.display(currencyCode: e.currency)}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: e.myBalance.isNegative
-                                        ? oweColor
-                                        : owedColor,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
+                          ],
                         ),
                         if (e.isShared) ...[
-                          const SectionLabel('Shares'),
-                          GlassCard(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Column(
+                          const SizedBox(height: 24),
+                          const SectionHeader(title: 'Shares'),
+                          PagePad(
+                            GlassList(
                               children: [
                                 for (final s in e.shares)
-                                  ListTile(
+                                  GlassRow(
                                     leading: UserAvatar(s.user),
-                                    title: Text(
-                                      s.user.id == meId
-                                          ? 'You'
-                                          : s.user.displayName,
-                                    ),
-                                    subtitle: Text(
-                                      [
-                                        if (s.user.id == e.paidBy.id)
-                                          'paid ${e.amount.display(currencyCode: e.currency)}',
-                                        if (e.splitType == SplitType.percent &&
-                                            s.value != null)
-                                          '${s.value}%',
-                                        if (e.splitType == SplitType.shares &&
-                                            s.value != null)
-                                          '${s.value} share(s)',
-                                      ].join(' · '),
-                                    ),
+                                    title: s.user.id == meId
+                                        ? 'You'
+                                        : s.user.displayName,
+                                    subtitle: [
+                                      if (s.user.id == e.paidBy.id)
+                                        'paid ${money(e.amount)}',
+                                      if (e.splitType == SplitType.percent &&
+                                          s.value != null)
+                                        '${s.value}%',
+                                      if (e.splitType == SplitType.shares &&
+                                          s.value != null)
+                                        '${s.value} share(s)',
+                                    ].join(' · '),
                                     trailing: Text(
-                                      s.amount.display(
-                                        currencyCode: e.currency,
-                                      ),
+                                      money(s.amount),
                                       style: TextStyle(
-                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                        fontFeatures: BlistraText.tabular,
                                         color: colors.text,
                                       ),
                                     ),
@@ -262,41 +232,42 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
                                 if (!e.shares.any(
                                   (s) => s.user.id == e.paidBy.id,
                                 ))
-                                  ListTile(
+                                  GlassRow(
                                     leading: UserAvatar(e.paidBy),
-                                    title: Text(
-                                      e.paidBy.id == meId
-                                          ? 'You'
-                                          : e.paidBy.displayName,
-                                    ),
-                                    subtitle: Text(
-                                      'paid ${e.amount.display(currencyCode: e.currency)}',
-                                    ),
-                                    trailing: Text(
-                                      '—',
-                                      style: TextStyle(color: colors.muted),
-                                    ),
+                                    title: e.paidBy.id == meId
+                                        ? 'You'
+                                        : e.paidBy.displayName,
+                                    subtitle: 'paid ${money(e.amount)}',
+                                    trailing: const RowMeta('—'),
                                   ),
                               ],
                             ),
                           ),
                         ],
                         if (e.notes != null && e.notes!.isNotEmpty) ...[
-                          const SectionLabel('Notes'),
-                          GlassCard(
-                            child: Text(
-                              e.notes!,
-                              style: TextStyle(color: colors.text),
+                          const SizedBox(height: 24),
+                          const SectionHeader(title: 'Notes'),
+                          PagePad(
+                            GlassCard(
+                              padding: const EdgeInsets.all(15),
+                              child: Text(
+                                e.notes!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.45,
+                                  color: colors.text,
+                                ),
+                              ),
                             ),
                           ),
                         ],
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 18),
                         Text(
                           e.createdBy.id == meId
                               ? 'Added by you'
                               : 'Added by ${e.createdBy.displayName}',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: colors.muted, fontSize: 12),
+                          style: TextStyle(color: colors.muted, fontSize: 11.5),
                         ),
                       ],
                     ),

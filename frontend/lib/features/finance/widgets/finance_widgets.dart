@@ -1,5 +1,5 @@
-/// Shared Finance building blocks: avatars, amount text, balance wording,
-/// and the settle-up and budget sheets.
+/// Shared Finance building blocks: avatars, expense rows, balance wording,
+/// amount fields, and the settle-up and budget sheets.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,11 +10,15 @@ import 'package:provider/provider.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/money/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
 import '../finance_controller.dart';
 import '../models.dart';
 
-const Color owedColor = Color(0xFF22A861);
-const Color oweColor = Color(0xFFE5484D);
+/// Colour for money coming back to you (owed to you, you lent).
+Color owedTone(BlistraColors colors) => colors.accentText;
+
+/// Colour for money you owe (you owe, you borrowed).
+Color oweTone(BlistraColors colors) => colors.warning;
 
 /// Digits with at most two decimals.
 final List<TextInputFormatter> amountFormatters = [
@@ -72,31 +76,24 @@ String balanceSentence(List<CurrencyAmount> balances, {String name = ''}) {
 Color balanceColor(List<CurrencyAmount> balances, BlistraColors colors) {
   final open = balances.where((b) => !b.amount.isZero).toList();
   if (open.isEmpty) return colors.muted;
-  return open.every((b) => b.amount.isNegative) ? oweColor : owedColor;
+  return open.every((b) => b.amount.isNegative)
+      ? oweTone(colors)
+      : owedTone(colors);
 }
 
-class CategoryAvatar extends StatelessWidget {
-  const CategoryAvatar(this.category, {super.key, this.size = 42});
+/// Neutral icon well for an expense category.
+class CategoryWell extends StatelessWidget {
+  const CategoryWell(this.category, {super.key, this.size = 36});
 
   final ExpenseCategory category;
   final double size;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: category.color.withValues(alpha: .16),
-        borderRadius: BorderRadius.circular(size * .32),
-      ),
-      child: Icon(category.icon, color: category.color, size: size * .5),
-    );
-  }
+  Widget build(BuildContext context) => IconWell(category.icon, size: size);
 }
 
 class UserAvatar extends StatelessWidget {
-  const UserAvatar(this.user, {super.key, this.size = 40});
+  const UserAvatar(this.user, {super.key, this.size = 36});
 
   final UserSummary user;
   final double size;
@@ -104,16 +101,15 @@ class UserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    final hue = (user.id.hashCode % 360).abs().toDouble();
-    final tint = HSLColor.fromAHSL(
-      1,
-      hue,
-      .55,
-      colors.isDark ? .6 : .45,
-    ).toColor();
-    return CircleAvatar(
-      radius: size / 2,
-      backgroundColor: tint.withValues(alpha: .18),
+    final tint = colors.data[user.id.hashCode.abs() % colors.data.length];
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.18),
+        shape: BoxShape.circle,
+      ),
       child: Text(
         user.initials,
         style: TextStyle(
@@ -126,149 +122,295 @@ class UserAvatar extends StatelessWidget {
   }
 }
 
-class SectionLabel extends StatelessWidget {
-  const SectionLabel(this.text, {super.key, this.trailing});
+/// Muted footnote under a section ("Currencies stay separate.").
+class FinanceNote extends StatelessWidget {
+  const FinanceNote(this.text, {super.key});
 
   final String text;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 11.5, height: 1.4, color: colors.muted),
+      ),
+    );
+  }
+}
+
+/// Inline error line for forms and sheets.
+class FinanceError extends StatelessWidget {
+  const FinanceError(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: colors.danger,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// Glass amount input: currency prefix, decimal keyboard, amount filter.
+class AmountField extends StatelessWidget {
+  const AmountField({
+    super.key,
+    required this.label,
+    required this.controller,
+    required this.currency,
+    this.autofocus = false,
+    this.large = false,
+    this.onChanged,
+    this.currencyPicker,
+    this.inputKey,
+  });
+
+  final String label;
+  final TextEditingController controller;
+
+  /// Key for the inner [TextField], for tests.
+  final Key? inputKey;
+  final String currency;
+  final bool autofocus;
+
+  /// Big serif figure for the main amount of a form.
+  final bool large;
+  final ValueChanged<String>? onChanged;
+
+  /// Replaces the plain currency prefix with a picker.
+  final Widget? currencyPicker;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final style = large
+        ? BlistraText.serif(30, colors.text)
+        : TextStyle(fontSize: 14, color: colors.text);
+    return FieldCard(
+      label: label,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          currencyPicker ??
+              Text(
+                '$currency ',
+                style: style.copyWith(color: colors.muted),
+              ),
+          if (currencyPicker != null) const SizedBox(width: 6),
           Expanded(
-            child: Text(
-              text.toUpperCase(),
-              style: TextStyle(
-                fontSize: 12,
-                letterSpacing: 1.1,
-                fontWeight: FontWeight.w700,
-                color: colors.muted,
+            child: TextField(
+              key: inputKey,
+              controller: controller,
+              autofocus: autofocus,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: amountFormatters,
+              style: style,
+              onChanged: onChanged,
+              decoration: InputDecoration(
+                isDense: true,
+                filled: false,
+                hintText: '0',
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                hintStyle: style.copyWith(color: colors.muted),
               ),
             ),
           ),
-          ?trailing,
         ],
       ),
     );
   }
 }
 
-/// One line in an expense list: category, description, who paid, your effect.
+/// Compact currency picker shown inside an [AmountField].
+class CurrencyPicker extends StatelessWidget {
+  const CurrencyPicker({
+    super.key,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String value;
+  final Iterable<String> options;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return PopupMenuButton<String>(
+      tooltip: 'Currency',
+      onSelected: onChanged,
+      itemBuilder: (_) => [
+        for (final c in options)
+          CheckedPopupMenuItem(value: c, checked: c == value, child: Text(c)),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: colors.accentSoft,
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: colors.accentText,
+              ),
+            ),
+            Icon(Icons.expand_more_rounded, size: 16, color: colors.accentText),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Your effect of an expense, right-aligned: the amount for personal
+/// expenses, or what you lent or borrowed for shared ones.
+class ExpenseAmount extends StatelessWidget {
+  const ExpenseAmount({super.key, required this.expense});
+
+  final Expense expense;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final amountStyle = TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: 13.5,
+      fontFeatures: BlistraText.tabular,
+      color: colors.text,
+    );
+    if (!expense.isShared) {
+      return Text(
+        expense.amount.display(currencyCode: expense.currency),
+        style: amountStyle,
+      );
+    }
+    final lent = !expense.myBalance.isNegative;
+    final none = expense.myBalance.isZero;
+    final tone = none ? colors.muted : (lent ? owedTone(colors) : oweTone(colors));
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          none ? 'not involved' : (lent ? 'you lent' : 'you borrowed'),
+          style: TextStyle(fontSize: 10.5, color: tone),
+        ),
+        if (!none)
+          Text(
+            expense.myBalance.abs().display(currencyCode: expense.currency),
+            style: amountStyle.copyWith(color: tone),
+          ),
+      ],
+    );
+  }
+}
+
+/// One row of an expense list (inside a [GlassList]): category well,
+/// description, who paid, and your effect on the right.
 class ExpenseTile extends StatelessWidget {
   const ExpenseTile({
     super.key,
     required this.expense,
     required this.meId,
     this.onTap,
+    this.showDate = false,
   });
 
   final Expense expense;
   final String? meId;
   final VoidCallback? onTap;
 
+  /// Appends the day ("Today", "Mon, 12 Oct") to the subtitle.
+  final bool showDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final paidByMe = expense.paidBy.id == meId;
+    final String who;
+    if (!expense.isShared) {
+      who = expense.category.label;
+    } else if (paidByMe) {
+      who =
+          'You paid ${expense.amount.display(currencyCode: expense.currency)}';
+    } else {
+      who =
+          '${expense.paidBy.displayName} paid ${expense.amount.display(currencyCode: expense.currency)}';
+    }
+    return GlassRow(
+      leading: CategoryWell(expense.category),
+      title: expense.description,
+      subtitle: [
+        if (expense.isShared) 'Shared',
+        who,
+        if (showDate) dayLabel(expense.spentOn),
+      ].join(' · '),
+      trailing: ExpenseAmount(expense: expense),
+      onTap: onTap,
+    );
+  }
+}
+
+/// Grabber-less sheet body: serif title, optional subtitle, then content.
+class _SheetBody extends StatelessWidget {
+  const _SheetBody({
+    required this.title,
+    this.subtitle,
+    required this.children,
+  });
+
+  final String title;
+  final String? subtitle;
+  final List<Widget> children;
+
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    final paidByMe = expense.paidBy.id == meId;
-    final String subtitle;
-    if (!expense.isShared) {
-      subtitle = expense.category.label;
-    } else if (paidByMe) {
-      subtitle =
-          'You paid ${expense.amount.display(currencyCode: expense.currency)}';
-    } else {
-      subtitle =
-          '${expense.paidBy.displayName} paid ${expense.amount.display(currencyCode: expense.currency)}';
-    }
-    Widget trailing;
-    if (!expense.isShared) {
-      trailing = Text(
-        expense.amount.display(currencyCode: expense.currency),
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 15,
-          color: colors.text,
-        ),
-      );
-    } else {
-      final lent = !expense.myBalance.isNegative;
-      final none = expense.myBalance.isZero;
-      trailing = Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            none ? 'not involved' : (lent ? 'you lent' : 'you borrowed'),
-            style: TextStyle(
-              fontSize: 11,
-              color: none ? colors.muted : (lent ? owedColor : oweColor),
-            ),
-          ),
-          if (!none)
-            Text(
-              expense.myBalance.abs().display(currencyCode: expense.currency),
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: lent ? owedColor : oweColor,
-              ),
-            ),
-        ],
-      );
-    }
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        child: Row(
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        kPageGutter,
+        0,
+        kPageGutter,
+        MediaQuery.viewInsetsOf(context).bottom + 20,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            CategoryAvatar(expense.category),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          expense.description,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: colors.text,
-                          ),
-                        ),
-                      ),
-                      if (expense.isShared) ...[
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.people_alt_rounded,
-                          size: 14,
-                          color: colors.muted,
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12.5, color: colors.muted),
-                  ),
-                ],
+            Text(title, style: BlistraText.serif(22, colors.text)),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle!,
+                style: TextStyle(fontSize: 12.5, height: 1.45, color: colors.muted),
               ),
-            ),
-            const SizedBox(width: 8),
-            trailing,
+            ],
+            const SizedBox(height: 16),
+            ...children,
           ],
         ),
       ),
@@ -393,110 +535,71 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
           .map((b) => b.currency),
       _currency,
     }.toList();
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        0,
-        20,
-        MediaQuery.viewInsetsOf(context).bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Settle up with $name',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: colors.text,
-            ),
+    return _SheetBody(
+      title: 'Settle up with $name',
+      subtitle:
+          'The other participant must confirm. Your balance changes only after confirmation.',
+      children: [
+        Text(
+          balanceSentence(widget.friend.balances, name: name),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: balanceColor(widget.friend.balances, colors),
           ),
-          const Text(
-            'The other participant must confirm. Your balance changes only after confirmation.',
-          ),
-          const SizedBox(height: 6),
-          Text(
-            balanceSentence(widget.friend.balances, name: name),
-            style: TextStyle(
-              color: balanceColor(widget.friend.balances, colors),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SegmentedButton<bool>(
-            segments: [
-              const ButtonSegment(
-                value: true,
-                label: Text('I paid them'),
-                icon: Icon(Icons.north_east_rounded),
-              ),
-              ButtonSegment(
-                value: false,
-                label: Text('$name paid me', overflow: TextOverflow.ellipsis),
-                icon: const Icon(Icons.south_west_rounded),
-              ),
-            ],
-            selected: {_iPaid},
-            onSelectionChanged: (s) => setState(() => _iPaid = s.first),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              if (currencies.length > 1)
-                Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: DropdownButton<String>(
-                    value: _currency,
-                    items: [
-                      for (final c in currencies)
-                        DropdownMenuItem(value: c, child: Text(c)),
-                    ],
-                    onChanged: (c) => c == null ? null : _pickCurrency(c),
-                  ),
-                ),
-              Expanded(
-                child: TextField(
-                  controller: _amount,
-                  autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: amountFormatters,
-                  decoration: InputDecoration(
-                    labelText: 'Amount',
-                    prefixText: '$_currency ',
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TextField(
+        ),
+        const SizedBox(height: 14),
+        GlassSegmented<bool>(
+          options: [(true, 'I paid them'), (false, '$name paid me')],
+          selected: _iPaid,
+          onChanged: (v) => setState(() => _iPaid = v),
+        ),
+        const SizedBox(height: 12),
+        AmountField(
+          label: 'Amount',
+          controller: _amount,
+          currency: _currency,
+          autofocus: true,
+          currencyPicker: currencies.length > 1
+              ? CurrencyPicker(
+                  value: _currency,
+                  options: currencies,
+                  onChanged: _pickCurrency,
+                )
+              : null,
+        ),
+        FieldCard(
+          label: 'Note (optional)',
+          child: TextField(
             controller: _note,
             maxLength: 255,
+            style: TextStyle(fontSize: 14, color: colors.text),
             decoration: const InputDecoration(
-              labelText: 'Note (optional)',
+              isDense: true,
+              filled: false,
               counterText: '',
+              contentPadding: EdgeInsets.zero,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
             ),
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: oweColor)),
-          ],
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check_rounded),
-            label: const Text('Record payment'),
-          ),
-        ],
-      ),
+        ),
+        if (_error != null) FinanceError(_error!),
+        const SizedBox(height: 6),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colors.onAccent,
+                  ),
+                )
+              : const Text('Record payment'),
+        ),
+      ],
     );
   }
 }
@@ -577,109 +680,77 @@ class _BudgetSheetState extends State<_BudgetSheet> {
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
     final controller = context.read<FinanceController>();
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        0,
-        20,
-        MediaQuery.viewInsetsOf(context).bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.existing == null ? 'Set a monthly budget' : 'Edit budget',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: colors.text,
+    return _SheetBody(
+      title: widget.existing == null ? 'Set a monthly budget' : 'Edit budget',
+      children: [
+        FieldCard(
+          label: 'Applies to',
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<ExpenseCategory?>(
+              value: _category,
+              isDense: true,
+              isExpanded: true,
+              style: TextStyle(fontSize: 14, color: colors.text),
+              dropdownColor: colors.sheet,
+              items: [
+                const DropdownMenuItem(
+                  value: null,
+                  child: Text('All spending'),
+                ),
+                for (final c in ExpenseCategory.values)
+                  DropdownMenuItem(value: c, child: Text(c.label)),
+              ],
+              onChanged: widget.existing != null
+                  ? null
+                  : (c) => setState(() => _category = c),
             ),
           ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<ExpenseCategory?>(
-            initialValue: _category,
-            decoration: const InputDecoration(labelText: 'Applies to'),
-            items: [
-              const DropdownMenuItem(value: null, child: Text('All spending')),
-              for (final c in ExpenseCategory.values)
-                DropdownMenuItem(value: c, child: Text(c.label)),
-            ],
-            onChanged: widget.existing != null
-                ? null
-                : (c) => setState(() => _category = c),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _limit,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: amountFormatters,
-            decoration: InputDecoration(
-              labelText: 'Monthly limit',
-              prefixText: '$_currency ',
-            ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: oweColor)),
-          ],
-          const SizedBox(height: 16),
-          FilledButton(
+        ),
+        AmountField(
+          label: 'Monthly limit',
+          controller: _limit,
+          currency: _currency,
+          autofocus: true,
+        ),
+        if (_error != null) FinanceError(_error!),
+        const SizedBox(height: 6),
+        FilledButton(
+          onPressed: _saving
+              ? null
+              : () {
+                  final limit = normalizeAmount(_limit.text);
+                  if (limit == null) {
+                    setState(() => _error = 'Enter a limit above zero');
+                    return;
+                  }
+                  _run(
+                    () => controller.saveBudget(
+                      category: _category,
+                      currency: _currency,
+                      limit: limit,
+                    ),
+                  );
+                },
+          child: const Text('Save budget'),
+        ),
+        if (widget.existing != null)
+          TextButton(
             onPressed: _saving
                 ? null
-                : () {
-                    final limit = normalizeAmount(_limit.text);
-                    if (limit == null) {
-                      setState(() => _error = 'Enter a limit above zero');
-                      return;
-                    }
-                    _run(
-                      () => controller.saveBudget(
-                        category: _category,
-                        currency: _currency,
-                        limit: limit,
-                      ),
-                    );
-                  },
-            child: const Text('Save budget'),
-          ),
-          if (widget.existing != null)
-            TextButton(
-              onPressed: _saving
-                  ? null
-                  : () => _run(() => controller.deleteBudget(widget.existing!)),
-              child: const Text(
-                'Remove budget',
-                style: TextStyle(color: oweColor),
-              ),
+                : () => _run(() => controller.deleteBudget(widget.existing!)),
+            child: Text(
+              'Remove budget',
+              style: TextStyle(color: colors.danger),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Thin horizontal progress bar used for budgets and categories.
-class ProgressLine extends StatelessWidget {
-  const ProgressLine({super.key, required this.value, required this.color});
-
-  final double value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: LinearProgressIndicator(
-        value: value.clamp(0, 1),
-        minHeight: 7,
-        color: color,
-        backgroundColor: color.withValues(alpha: .14),
-      ),
+          ),
+      ],
     );
   }
 }
 
 Money sumMoney(Iterable<Money> values) =>
     values.fold(Money.zero(), (a, b) => a + b);
+
+/// Formats a computed (non-negative) double as money in [currency].
+String displayDouble(double value, String currency) =>
+    Money.parse(value.toStringAsFixed(2)).display(currencyCode: currency);

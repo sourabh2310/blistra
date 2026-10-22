@@ -1,11 +1,14 @@
 /// Finance home: log expenses, track monthly spending, and split costs with
-/// friends. Tabs: Overview, Expenses, Friends.
+/// friends. Tabs: Overview, Expenses, Friends, Groups.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/money/money.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/blistra_ui.dart';
 import '../../core/widgets/page_header.dart';
 import 'finance_controller.dart';
 import 'models.dart';
@@ -58,11 +61,24 @@ class _FinanceHomeState extends State<FinanceHome> {
 
   void _addExpense() => _push(const ExpenseFormScreen());
 
+  void _openExpense(Expense e) => _push(ExpenseDetailScreen(expense: e));
+
+  /// The month's spending in the primary currency, as the page title.
+  String _title(FinanceController controller) {
+    final section = controller.primaryOverview;
+    if (controller.overview == null) return 'Finance';
+    final spent = (section?.spent ?? Money.zero())
+        .display(currencyCode: section?.currency ?? controller.currency);
+    return '$spent spent';
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<FinanceController>();
     final pending = controller.friends.incoming.length;
-    final monthLabel = DateFormat('MMMM yyyy').format(controller.month);
+    final monthName = DateFormat(
+      controller.month.year == DateTime.now().year ? 'MMMM' : 'MMMM yyyy',
+    ).format(controller.month);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -71,11 +87,10 @@ class _FinanceHomeState extends State<FinanceHome> {
         child: Column(
           children: [
             BlistraPageHeader(
-              title: 'Finance',
-              subtitle: _tab == 2
-                  ? 'Split costs with friends'
-                  : 'Track spending and split costs',
+              eyebrow: 'Finance · $monthName',
+              title: _title(controller),
               actions: [
+                _CurrencyButton(controller: controller),
                 GlassIconButton(
                   key: const Key('finance-add-expense'),
                   tooltip: 'Add expense',
@@ -94,7 +109,7 @@ class _FinanceHomeState extends State<FinanceHome> {
               selected: _tab,
               onSelected: (i) => setState(() => _tab = i),
             ),
-            if (_tab < 2) _MonthBar(controller: controller, label: monthLabel),
+            if (_tab < 2) _MonthBar(controller: controller),
             Expanded(child: _body(controller)),
           ],
         ),
@@ -103,6 +118,7 @@ class _FinanceHomeState extends State<FinanceHome> {
   }
 
   Widget _body(FinanceController controller) {
+    final colors = BlistraColors.resolve(context);
     if (controller.status == FinanceLoadStatus.error &&
         controller.overview == null) {
       return Center(
@@ -111,11 +127,12 @@ class _FinanceHomeState extends State<FinanceHome> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_outlined, size: 44),
+              Icon(Icons.cloud_off_outlined, size: 40, color: colors.muted),
               const SizedBox(height: 10),
               Text(
                 controller.errorMessage ?? 'Could not load Finance',
                 textAlign: TextAlign.center,
+                style: TextStyle(color: colors.muted),
               ),
               const SizedBox(height: 14),
               FilledButton.icon(
@@ -140,10 +157,10 @@ class _FinanceHomeState extends State<FinanceHome> {
           OverviewTab(
             onOpenFriends: () => setState(() => _tab = 2),
             onAddExpense: _addExpense,
+            onOpenExpenses: () => setState(() => _tab = 1),
+            onOpenExpense: _openExpense,
           ),
-          ExpensesTab(
-            onOpen: (Expense e) => _push(ExpenseDetailScreen(expense: e)),
-          ),
+          ExpensesTab(onOpen: _openExpense),
           FriendsTab(
             onOpen: (UserSummary u) =>
                 _push(FriendDetailScreen(userId: u.id, initial: u)),
@@ -155,50 +172,78 @@ class _FinanceHomeState extends State<FinanceHome> {
   }
 }
 
-/// Month switcher and default-currency picker for the Overview and Expenses tabs.
-class _MonthBar extends StatelessWidget {
-  const _MonthBar({required this.controller, required this.label});
+/// Default-currency picker in the header.
+class _CurrencyButton extends StatelessWidget {
+  const _CurrencyButton({required this.controller});
 
   final FinanceController controller;
-  final String label;
 
   @override
   Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'Default currency',
+      onSelected: controller.setCurrency,
+      itemBuilder: (_) => [
+        for (final c in FinanceController.commonCurrencies)
+          CheckedPopupMenuItem(
+            value: c,
+            checked: c == controller.currency,
+            child: Text(c),
+          ),
+      ],
+      child: const IgnorePointer(
+        child: GlassIconButton(
+          tooltip: null,
+          icon: Icons.currency_exchange_rounded,
+          onTap: null,
+        ),
+      ),
+    );
+  }
+}
+
+/// Month switcher for the Overview and Expenses tabs.
+class _MonthBar extends StatelessWidget {
+  const _MonthBar({required this.controller});
+
+  final FinanceController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final label = DateFormat('MMMM yyyy').format(controller.month);
+    Widget arrow(IconData icon, String tip, VoidCallback? onTap) => IconButton(
+          tooltip: tip,
+          visualDensity: VisualDensity.compact,
+          icon: Icon(icon, size: 20),
+          color: colors.text,
+          disabledColor: colors.inkAt(0.25),
+          onPressed: onTap,
+        );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 16, 4),
+      padding: const EdgeInsets.fromLTRB(8, 0, kPageGutter, 2),
       child: Row(
         children: [
-          IconButton(
-            tooltip: 'Previous month',
-            icon: const Icon(Icons.chevron_left_rounded),
-            onPressed: () => controller.shiftMonth(-1),
+          arrow(
+            Icons.chevron_left_rounded,
+            'Previous month',
+            () => controller.shiftMonth(-1),
           ),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-          IconButton(
-            tooltip: 'Next month',
-            icon: const Icon(Icons.chevron_right_rounded),
-            onPressed: controller.isCurrentMonth
-                ? null
-                : () => controller.shiftMonth(1),
-          ),
-          const Spacer(),
-          PopupMenuButton<String>(
-            tooltip: 'Default currency',
-            onSelected: controller.setCurrency,
-            itemBuilder: (_) => [
-              for (final c in FinanceController.commonCurrencies)
-                CheckedPopupMenuItem(
-                  value: c,
-                  checked: c == controller.currency,
-                  child: Text(c),
-                ),
-            ],
-            child: Chip(
-              avatar: const Icon(Icons.currency_exchange_rounded, size: 16),
-              label: Text(controller.currency),
-              visualDensity: VisualDensity.compact,
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colors.text,
             ),
           ),
+          arrow(
+            Icons.chevron_right_rounded,
+            'Next month',
+            controller.isCurrentMonth ? null : () => controller.shiftMonth(1),
+          ),
+          const Spacer(),
+          Pill(controller.currency),
         ],
       ),
     );

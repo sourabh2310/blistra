@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
 import '../../../core/widgets/glass.dart';
 import '../finance_controller.dart';
 import '../models.dart';
@@ -52,60 +53,58 @@ class _ExpensesTabState extends State<ExpensesTab> {
         return false;
       },
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
+        padding: const EdgeInsets.fromLTRB(0, 4, 0, 120),
         children: [
-          TextField(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search_rounded),
-              hintText: 'Search this month',
-              isDense: true,
+          PagePad(
+            GlassCard(
+              radius: 16,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              child: TextField(
+                style: TextStyle(fontSize: 14, color: colors.text),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.search_rounded, size: 19, color: colors.muted),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 30),
+                  hintText: 'Search this month',
+                  isDense: true,
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                ),
+                onChanged: (v) => setState(() => _query = v),
+              ),
             ),
-            onChanged: (v) => setState(() => _query = v),
           ),
           const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                FilterChip(
-                  label: const Text('Shared'),
-                  avatar: const Icon(Icons.people_alt_rounded, size: 16),
-                  selected: _sharedOnly,
-                  onSelected: (v) => setState(() => _sharedOnly = v),
-                ),
-                for (final c in ExpenseCategory.values.where(used.contains)) ...[
-                  const SizedBox(width: 6),
-                  FilterChip(
-                    label: Text(c.label),
-                    avatar: Icon(c.icon, size: 16, color: c.color),
-                    selected: _category == c,
-                    onSelected: (v) => setState(() => _category = v ? c : null),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          if (filtered.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 40),
-              child: Text(
-                controller.expenses.isEmpty ? 'No expenses this month.' : 'Nothing matches your filters.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.muted),
+          _FilterChips(
+            chips: [
+              (
+                label: 'Shared',
+                icon: Icons.people_alt_rounded,
+                on: _sharedOnly,
+                onTap: () => setState(() => _sharedOnly = !_sharedOnly),
               ),
+              for (final c in ExpenseCategory.values.where(used.contains))
+                (
+                  label: c.label,
+                  icon: c.icon,
+                  on: _category == c,
+                  onTap: () => setState(() => _category = _category == c ? null : c),
+                ),
+            ],
+          ),
+          if (filtered.isEmpty)
+            PagePad(
+              EmptyCard(
+                message: controller.expenses.isEmpty ? 'No expenses this month.' : 'Nothing matches your filters.',
+              ),
+              top: 16,
             ),
           for (final entry in groups.entries) ...[
-            SectionLabel(
-              dayLabel(entry.key),
-              trailing: Text(
-                _dayTotal(entry.value, meId),
-                style: TextStyle(fontSize: 12, color: colors.muted, fontWeight: FontWeight.w600),
-              ),
-            ),
-            GlassCard(
-              padding: const EdgeInsets.all(6),
-              child: Column(
+            const SizedBox(height: 20),
+            _DayHeader(label: dayLabel(entry.key), total: _dayTotal(entry.value, meId)),
+            PagePad(
+              GlassList(
                 children: [
                   for (final e in entry.value)
                     ExpenseTile(expense: e, meId: meId, onTap: () => widget.onOpen(e)),
@@ -132,5 +131,103 @@ class _ExpensesTabState extends State<ExpensesTab> {
     return totals.entries
         .map((t) => sumMoney(t.value.map((e) => e.myShare)).display(currencyCode: t.key))
         .join(' + ');
+  }
+}
+
+/// Serif day heading with your share for the day on the right.
+class _DayHeader extends StatelessWidget {
+  const _DayHeader({required this.label, required this.total});
+
+  final String label;
+  final String total;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return PagePad(
+      Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text(label, style: BlistraText.serif(17, colors.text)),
+              ),
+            ),
+            Text(
+              total,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                fontFeatures: BlistraText.tabular,
+                color: colors.muted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+typedef _Chip = ({String label, IconData icon, bool on, VoidCallback onTap});
+
+/// Toggle chips styled like [ChipRow], but each one toggles on its own so
+/// "Shared" combines with a category.
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({required this.chips});
+
+  final List<_Chip> chips;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: kPageGutter),
+        clipBehavior: Clip.none,
+        itemCount: chips.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final chip = chips[i];
+          final tone = chip.on ? colors.accentText : colors.muted;
+          return Semantics(
+            button: true,
+            selected: chip.on,
+            label: chip.label,
+            child: GestureDetector(
+              onTap: chip.onTap,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(99),
+                  color: chip.on ? colors.accentSoft : colors.glassFill,
+                  border: Border.all(
+                    color: chip.on ? colors.accentText.withValues(alpha: 0.45) : colors.glassBorder,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(chip.icon, size: 15, color: tone),
+                    const SizedBox(width: 6),
+                    Text(
+                      chip.label,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: tone),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
