@@ -4,6 +4,9 @@ import 'package:frontend/features/notifications/models/reminder_type.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/page_header.dart';
 import '../state/reminders_controller.dart';
 
 /// Create or edit a GENERAL reminder. Editing a domain reminder is not
@@ -145,93 +148,115 @@ class _ReminderFormScreenState extends State<ReminderFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     final isDomain = _isEditing && widget.existing!.type.isDomainType;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Edit reminder' : 'New reminder'),
-      ),
+      backgroundColor: Colors.transparent,
       body: SafeArea(
+        bottom: false,
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.only(bottom: 24),
             children: [
+              BlistraPageHeader(
+                eyebrow: _isEditing ? 'Edit reminder' : 'New reminder',
+                title: 'What should we remind you about?',
+                showAvatar: false,
+              ),
+              const SizedBox(height: 16),
               if (isDomain)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    'This reminder is managed by ${_domainName(widget.existing!.type)} and cannot be edited here.',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                PagePad(EmptyCard(
+                  message:
+                      'This reminder is managed by ${_domainName(widget.existing!.type)} and cannot be edited here.',
+                ))
+              else
+                PagePad(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      GlassTextField(
+                        label: 'Title',
+                        controller: _titleController,
+                        hint: 'e.g. Call the bank',
+                        textInputAction: TextInputAction.next,
+                        validator: (value) {
+                          final v = value?.trim() ?? '';
+                          if (v.isEmpty) return 'Title is required';
+                          if (v.length > 160) {
+                            return 'Keep the title under 160 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FieldCard(
+                              label: 'Date',
+                              onTap: _pickDateTime,
+                              child: Text(
+                                DateFormat('EEE, d MMM yyyy')
+                                    .format(_scheduledAt),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FieldCard(
+                              label: 'Time',
+                              onTap: _pickDateTime,
+                              child: Text(
+                                DateFormat('HH:mm').format(_scheduledAt),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      FieldCard(
+                        label: 'Timezone',
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _timezone,
+                            isDense: true,
+                            isExpanded: true,
+                            dropdownColor: colors.sheet,
+                            icon: Icon(Icons.expand_more_rounded,
+                                color: colors.muted),
+                            style: TextStyle(fontSize: 14, color: colors.text),
+                            items: _timezones
+                                .map((tz) =>
+                                    DropdownMenuItem(value: tz, child: Text(tz)))
+                                .toList(),
+                            onChanged: (value) =>
+                                setState(() => _timezone = value ?? 'UTC'),
+                          ),
+                        ),
+                      ),
+                      GlassTextField(
+                        label: 'Note (optional)',
+                        controller: _bodyController,
+                        hint: 'Anything to add?',
+                        maxLines: 3,
+                        validator: (value) => (value?.length ?? 0) > 500
+                            ? 'Keep the note under 500 characters'
+                            : null,
+                      ),
+                    ],
                   ),
-                )
-              else ...[
-                TextFormField(
-                  controller: _titleController,
-                  enabled: !isDomain,
-                  maxLength: 160,
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    final v = value?.trim() ?? '';
-                    if (v.isEmpty) return 'Title is required';
-                    return null;
-                  },
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _bodyController,
-                  enabled: !isDomain,
-                  maxLines: 3,
-                  maxLength: 500,
-                  decoration: const InputDecoration(
-                    labelText: 'Note (optional)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.schedule),
-                  title: const Text('When'),
-                  subtitle: Text(DateFormat('EEE, MMM d, yyyy · HH:mm')
-                      .format(_scheduledAt)),
-                  onTap: isDomain ? null : _pickDateTime,
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: _timezone,
-                  decoration: const InputDecoration(
-                    labelText: 'Timezone',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _timezones
-                      .map((tz) => DropdownMenuItem(value: tz, child: Text(tz)))
-                      .toList(),
-                  onChanged: isDomain
-                      ? null
-                      : (value) => setState(() => _timezone = value ?? 'UTC'),
-                ),
-                const SizedBox(height: 32),
-                FilledButton(
-                  onPressed: _saving || isDomain ? null : _save,
-                  child: _saving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(_isEditing ? 'Save changes' : 'Create reminder'),
-                ),
-              ],
             ],
           ),
         ),
       ),
+      bottomNavigationBar: isDomain
+          ? null
+          : StickyActionBar(
+              label: _isEditing ? 'Save changes' : 'Create reminder',
+              busy: _saving,
+              onPressed: _save,
+            ),
     );
   }
 
