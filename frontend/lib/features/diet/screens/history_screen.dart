@@ -3,10 +3,15 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../diet_controller.dart';
+import '../models/meal.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/error_state.dart';
 import '../widgets/meal_tile.dart';
 import 'meal_detail_screen.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/page_header.dart';
 
 /// Paginated history of all meals with pull-to-refresh and infinite scroll.
 class HistoryScreen extends StatefulWidget {
@@ -63,73 +68,103 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return DateFormat('EEE d MMM yyyy').format(day);
   }
 
+  void _open(MealSummary meal) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        // MealDetailScreen loads the full meal when initial is null.
+        builder: (_) => MealDetailScreen(mealId: meal.id),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     final controller = context.watch<DietController>();
     final history = controller.history;
+    final total = history?.totalElements ?? 0;
+
+    // Consecutive meals grouped by local day.
+    final groups = <List<MealSummary>>[];
+    for (final meal in history?.content ?? const <MealSummary>[]) {
+      if (groups.isEmpty ||
+          !_sameDay(groups.last.first.consumedAt, meal.consumedAt)) {
+        groups.add([meal]);
+      } else {
+        groups.last.add(meal);
+      }
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Meal History')),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: ListView(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-          children: [
-            if (controller.historyLoading && history == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (controller.historyError != null && history == null)
-              ErrorState(
-                message: controller.historyError!,
-                onRetry: _refresh,
-              )
-            else if (history == null || history.content.isEmpty)
-              const EmptyState(
-                icon: Icons.history_outlined,
-                title: 'No meals yet',
-                subtitle: 'Your meal history will appear here.',
-              )
-            else ...[
-              for (int i = 0; i < history.content.length; i++) ...[
-                if (i == 0 ||
-                    !_sameDay(history.content[i - 1].consumedAt,
-                        history.content[i].consumedAt))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12, bottom: 4),
-                    child: Text(
-                      _dayLabel(history.content[i].consumedAt),
-                      style: Theme.of(context).textTheme.titleSmall,
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(top: 6, bottom: 40),
+            children: [
+              BlistraPageHeader(
+                eyebrow: 'Diet',
+                title: 'Meal history',
+                subtitle: history == null
+                    ? null
+                    : '$total ${total == 1 ? 'meal' : 'meals'} logged',
+              ),
+              if (controller.historyLoading && history == null)
+                const PagePad(SkeletonLoader(rows: 4), top: 14)
+              else if (controller.historyError != null && history == null)
+                PagePad(
+                  ErrorState(
+                    message: controller.historyError!,
+                    onRetry: _refresh,
+                  ),
+                  top: 14,
+                )
+              else if (history == null || history.content.isEmpty)
+                const PagePad(
+                  EmptyState(
+                    icon: Icons.history_outlined,
+                    title: 'No meals yet',
+                    subtitle: 'Your meal history will appear here.',
+                  ),
+                  top: 14,
+                )
+              else ...[
+                for (final group in groups) ...[
+                  const SizedBox(height: 22),
+                  SectionHeader(
+                    title: _dayLabel(group.first.consumedAt),
+                    actionLabel:
+                        '${group.length} ${group.length == 1 ? 'meal' : 'meals'}',
+                  ),
+                  PagePad(
+                    GlassList(
+                      children: [
+                        for (final meal in group)
+                          MealTile(
+                            label: meal.mealType.label,
+                            title: meal.title,
+                            mealType: meal.mealType,
+                            consumedAt: meal.consumedAt,
+                            itemCount: meal.itemCount,
+                            onTap: () => _open(meal),
+                          ),
+                      ],
                     ),
                   ),
-                MealTile(
-                  label: history.content[i].mealType.label,
-                  title: history.content[i].title,
-                  consumedAt: history.content[i].consumedAt,
-                  itemCount: history.content[i].itemCount,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MealDetailScreen(
-                          mealId: history.content[i].id,
-                          // We could fetch the full meal, but MealDetailScreen
-                          // will load it when initial is null.
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                ],
+                if (history.hasMore)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: CircularProgressIndicator(color: colors.accentText),
+                    ),
+                  ),
               ],
-              if (history.hasMore)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
             ],
-          ],
+          ),
         ),
       ),
     );

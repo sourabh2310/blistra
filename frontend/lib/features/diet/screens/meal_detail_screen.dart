@@ -7,8 +7,13 @@ import '../models/item_draft.dart';
 import '../models/meal.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/error_state.dart';
+import '../widgets/diet_ui.dart';
 import '../widgets/item_editor_sheet.dart';
 import 'add_edit_meal_screen.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/page_header.dart';
 
 /// Shows a meal with its items; allows editing the meal or its items.
 class MealDetailScreen extends StatefulWidget {
@@ -58,131 +63,173 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     await _load();
   }
 
+  Widget _shell({
+    required String title,
+    String? eyebrow,
+    String? subtitle,
+    List<Widget> actions = const [],
+    required List<Widget> children,
+    Widget? bottom,
+  }) {
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(top: 6, bottom: 24),
+            children: [
+              BlistraPageHeader(
+                eyebrow: eyebrow ?? 'Meal',
+                title: title,
+                subtitle: subtitle,
+                actions: actions,
+                showAvatar: false,
+              ),
+              ...children,
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: bottom,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-
     if (_loading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Meal')),
-        body: const Center(child: CircularProgressIndicator()),
+      return _shell(
+        title: 'Meal',
+        children: const [PagePad(SkeletonLoader(rows: 3), top: 14)],
       );
     }
     if (_error != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Meal')),
-        body: ErrorState(message: _error!, onRetry: _refresh),
+      return _shell(
+        title: 'Meal',
+        children: [
+          PagePad(ErrorState(message: _error!, onRetry: _refresh), top: 14),
+        ],
       );
     }
     if (_meal == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Meal')),
-        body: const ErrorState(message: 'Meal not found.'),
+      return _shell(
+        title: 'Meal',
+        children: const [
+          PagePad(ErrorState(message: 'Meal not found.'), top: 14),
+        ],
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_meal!.title),
-        actions: [
-          IconButton(
-            tooltip: 'Edit meal',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: _editMeal,
+    final meal = _meal!;
+    final count = meal.items.length;
+    final stats = _stats(meal);
+    return _shell(
+      eyebrow: '${meal.mealType.label} · ${DateFormat('EEE d MMM').format(meal.consumedAt)}',
+      title: meal.title,
+      subtitle: '${DateFormat('h:mm a').format(meal.consumedAt)}'
+          ' · $count ${count == 1 ? 'item' : 'items'}',
+      actions: [
+        GlassIconButton(
+          tooltip: 'Edit meal',
+          icon: Icons.edit_outlined,
+          onTap: _editMeal,
+        ),
+        PopupMenuButton<String>(
+          tooltip: 'More',
+          onSelected: (value) {
+            if (value == 'delete') {
+              _confirmDeleteMeal();
+            }
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: 'delete', child: Text('Delete meal')),
+          ],
+          child: const GlassIconButton(
+            tooltip: null,
+            icon: Icons.more_horiz_rounded,
+            onTap: null,
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'delete') {
-                _confirmDeleteMeal();
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'delete', child: Text('Delete meal')),
-            ],
-          ),
+        ),
+      ],
+      bottom: StickyActionBar(label: 'Add item', onPressed: _addItem),
+      children: [
+        if (stats.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          StatStrip(stats: stats),
         ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: scheme.primaryContainer,
-                  foregroundColor: scheme.onPrimaryContainer,
-                  child: Text(_meal!.mealType.label.substring(0, 1)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _meal!.mealType.label,
-                        style: textTheme.labelLarge?.copyWith(
-                          color: scheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        DateFormat('EEEE, MMM d, y • h:mm a').format(_meal!.consumedAt),
-                        style: textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (_meal!.notes != null && _meal!.notes!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(_meal!.notes!),
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            if (_meal!.items.isEmpty) ...[
-              const EmptyState(
-                icon: Icons.no_meals_outlined,
-                title: 'No items in this meal',
-                subtitle: 'Add items to record what you ate.',
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.center,
-                child: FilledButton.icon(
-                  onPressed: _addItem,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add first item'),
-                ),
-              ),
-            ] else ...[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
+        if (meal.notes != null && meal.notes!.isNotEmpty)
+          PagePad(
+            FieldCard(label: 'Notes', child: Text(meal.notes!)),
+            top: 12,
+          ),
+        const SizedBox(height: 24),
+        SectionHeader(
+          title: 'Items',
+          actionLabel: 'Add ›',
+          onAction: _addItem,
+        ),
+        PagePad(
+          meal.items.isEmpty
+              ? EmptyState(
+                  icon: Icons.no_meals_outlined,
+                  title: 'No items in this meal',
+                  subtitle: 'Add items to record what you ate.',
+                  action: 'Add first item',
+                  onAction: _addItem,
+                )
+              : GlassList(
                   children: [
-                    Text('Items', style: textTheme.titleSmall),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: _addItem,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add item'),
-                    ),
+                    for (final item in meal.items)
+                      _ItemTile(
+                        item: item,
+                        onEdit: () => _editItem(item),
+                        onDelete: () => _deleteItem(item),
+                      ),
                   ],
                 ),
-              ),
-              for (final item in _meal!.items) _ItemTile(item: item, onEdit: () => _editItem(item), onDelete: () => _deleteItem(item)),
-            ],
-          ],
         ),
-      ),
+      ],
     );
+  }
+
+  /// Totals of the values recorded on this meal's items; a component with
+  /// no recorded value on any item is left out rather than shown as zero.
+  static List<StatData> _stats(Meal meal) {
+    double? sum(double? Function(MealItem) pick) {
+      double? total;
+      for (final item in meal.items) {
+        final v = pick(item);
+        if (v != null) total = (total ?? 0) + v;
+      }
+      return total;
+    }
+
+    final kcal = sum((i) => i.caloriesKcal);
+    final macros = [
+      ('Protein', sum((i) => i.proteinG)),
+      ('Carbs', sum((i) => i.carbohydratesG)),
+      ('Fat', sum((i) => i.fatG)),
+      ('Fiber', sum((i) => i.fiberG)),
+    ];
+    return [
+      if (kcal != null)
+        StatData(
+          label: 'Calories',
+          value: formatKcal(kcal),
+          unit: 'kcal',
+          sub: 'From recorded items',
+          icon: Icons.local_fire_department_outlined,
+        ),
+      for (final (label, value) in macros)
+        if (value != null)
+          StatData(
+            label: label,
+            value: formatDietNumber(value),
+            unit: 'g',
+            sub: 'This meal',
+          ),
+    ];
   }
 
   void _editMeal() {
@@ -235,16 +282,10 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
 
   Future<void> _deleteItem(MealItem item) async {
     final controller = context.read<DietController>();
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete item?'),
-        content: Text('Remove "${item.name}" from this meal?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
-        ],
-      ),
+    final confirm = await confirmAction(
+      context,
+      title: 'Delete item?',
+      message: 'Remove "${item.name}" from this meal?',
     );
     if (confirm != true) {
       return;
@@ -259,16 +300,10 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
 
   Future<void> _confirmDeleteMeal() async {
     final controller = context.read<DietController>();
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete meal?'),
-        content: Text('Delete "${_meal!.title}" and all its items? This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
-        ],
-      ),
+    final confirm = await confirmAction(
+      context,
+      title: 'Delete meal?',
+      message: 'Delete "${_meal!.title}" and all its items? This cannot be undone.',
     );
     if (confirm != true) {
       return;
@@ -298,28 +333,26 @@ class _ItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          _buildDetailText(),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'edit') {
-              onEdit();
-            } else if (value == 'delete') {
-              onDelete();
-            }
-          },
-          itemBuilder: (context) => const [
-            PopupMenuItem(value: 'edit', child: Text('Edit')),
-            PopupMenuItem(value: 'delete', child: Text('Delete')),
-          ],
-        ),
-        onTap: onEdit,
+    final colors = BlistraColors.resolve(context);
+    return GlassRow(
+      leading: const IconWell(Icons.restaurant_rounded),
+      title: item.name,
+      subtitle: _buildDetailText(),
+      onTap: onEdit,
+      trailing: PopupMenuButton<String>(
+        tooltip: 'Item actions',
+        icon: Icon(Icons.more_vert_rounded, size: 19, color: colors.muted),
+        onSelected: (value) {
+          if (value == 'edit') {
+            onEdit();
+          } else if (value == 'delete') {
+            onDelete();
+          }
+        },
+        itemBuilder: (context) => const [
+          PopupMenuItem(value: 'edit', child: Text('Edit')),
+          PopupMenuItem(value: 'delete', child: Text('Delete')),
+        ],
       ),
     );
   }

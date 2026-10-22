@@ -3,6 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../diet_controller.dart';
 import '../models/dietary_preference.dart';
+import '../widgets/diet_ui.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/page_header.dart';
 
 /// Displays and edits the user's diet preferences.
 class ProfileScreen extends StatefulWidget {
@@ -40,6 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     final controller = context.watch<DietController>();
     final profile = controller.profile;
     if (!_hydrated && profile != null) {
@@ -54,55 +60,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       });
     }
+    final waiting = controller.profileLoading && profile == null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Diet Profile')),
-      body: RefreshIndicator(
-        onRefresh: controller.loadProfile,
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-            children: [
-              if (controller.profileLoading && profile == null)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 48),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else ...[
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: controller.loadProfile,
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(top: 6, bottom: 24),
+              children: [
+                const BlistraPageHeader(
+                  eyebrow: 'Diet profile',
+                  title: 'How do you eat?',
+                  subtitle:
+                      'Your preference and foods to avoid. Nutrition targets are not stored in Diet.',
+                  showAvatar: false,
+                ),
+                if (waiting)
+                  const PagePad(SkeletonLoader(rows: 3), top: 14)
+                else ...[
+                  const PagePad(DietFormLabel('Preference'), top: 8),
+                  ChipRow(
+                    labels: [for (final p in DietaryPreference.values) p.label],
+                    selected: _selectedPreference == null
+                        ? null
+                        : DietaryPreference.values.indexOf(_selectedPreference!),
+                    onSelected: (i) => setState(
+                      () => _selectedPreference = DietaryPreference.values[i],
+                    ),
+                  ),
+                  PagePad(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          'Preference',
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final p in DietaryPreference.values)
-                              ChoiceChip(
-                                label: Text(p.label),
-                                selected: _selectedPreference == p,
-                                onSelected: (_) =>
-                                    setState(() => _selectedPreference = p),
-                              ),
-                          ],
-                        ),
-                        if (_selectedPreference == DietaryPreference.other) ...[
-                          const SizedBox(height: 12),
-                          TextFormField(
+                        if (_selectedPreference == DietaryPreference.other)
+                          DietTextField(
+                            label: 'Custom preference label',
                             controller: _customPreference,
-                            decoration: const InputDecoration(
-                              labelText: 'Custom preference label',
-                              hintText: 'e.g. Flexitarian',
-                            ),
+                            hint: 'e.g. Flexitarian',
                             validator: (value) {
                               if (_selectedPreference == DietaryPreference.other &&
                                   (value == null || value.trim().isEmpty)) {
@@ -111,55 +110,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               return null;
                             },
                           ),
-                        ],
-                        const SizedBox(height: 16),
-                        TextFormField(
+                        DietTextField(
+                          label: 'Disliked foods',
                           controller: _dislikedFoods,
+                          hint: 'e.g. Shellfish, cilantro',
                           maxLines: 3,
                           maxLength: 1000,
-                          decoration: const InputDecoration(
-                            labelText: 'Disliked foods',
-                            alignLabelWithHint: true,
-                            hintText: 'e.g. Shellfish, cilantro',
-                          ),
                         ),
-                        const SizedBox(height: 16),
-                        TextFormField(
+                        DietTextField(
+                          label: 'Notes',
                           controller: _notes,
+                          hint: 'Anything else we should know?',
                           maxLines: 4,
                           maxLength: 2000,
-                          decoration: const InputDecoration(
-                            labelText: 'Notes',
-                            alignLabelWithHint: true,
-                            hintText: 'Anything else we should know?',
-                          ),
                         ),
+                        if (controller.lastActionError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              controller.lastActionError!,
+                              style: TextStyle(
+                                color: colors.danger,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (controller.profileLoading)
-                  const Center(child: CircularProgressIndicator())
-                else ...[
-                  if (controller.lastActionError != null) ...[
-                    Text(
-                      controller.lastActionError!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  FilledButton.icon(
-                    onPressed: () => _save(controller),
-                    icon: const Icon(Icons.save_outlined),
-                    label: const Text('Save profile'),
+                    top: 12,
                   ),
                 ],
               ],
-            ],
+            ),
           ),
         ),
       ),
+      bottomNavigationBar: waiting
+          ? null
+          : StickyActionBar(
+              label: 'Save profile',
+              busy: controller.profileLoading,
+              onPressed: () => _save(controller),
+            ),
     );
   }
 

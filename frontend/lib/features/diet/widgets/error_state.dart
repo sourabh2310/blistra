@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Centered error state with a retry action.
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/glass.dart';
+
+/// Error message in a glass card with an optional retry action.
 class ErrorState extends StatelessWidget {
   const ErrorState({super.key, required this.message, this.onRetry});
 
@@ -9,26 +13,24 @@ class ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cloud_off_outlined, size: 40, color: scheme.outline),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
-            if (onRetry != null) ...[
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Try again'),
-              ),
-            ],
+    final colors = BlistraColors.resolve(context);
+    return GlassCard(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        children: [
+          IconWell(Icons.cloud_off_outlined, color: colors.danger),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 13, color: colors.text),
+            ),
+          ),
+          if (onRetry != null) ...[
+            const SizedBox(width: 8),
+            Pill('Try again', onTap: onRetry),
           ],
-        ),
+        ],
       ),
     );
   }

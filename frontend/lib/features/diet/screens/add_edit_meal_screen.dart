@@ -7,15 +7,28 @@ import '../models/item_draft.dart';
 import '../models/meal.dart';
 import '../models/meal_type.dart';
 import '../validators.dart';
+import '../widgets/diet_ui.dart';
 import '../widgets/item_editor_sheet.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/page_header.dart';
 
 /// Creates a meal (with optional items) or edits meal-level fields.
 class AddEditMealScreen extends StatefulWidget {
-  const AddEditMealScreen({super.key, this.mealId, this.initial});
+  const AddEditMealScreen({
+    super.key,
+    this.mealId,
+    this.initial,
+    this.initialType,
+  });
 
   /// When non-null this screen edits that meal instead of creating one.
   final String? mealId;
   final Meal? initial;
+
+  /// Preselected meal type for a new meal (e.g. from an empty Diet slot).
+  final MealType? initialType;
 
   bool get isEdit => initial != null;
 
@@ -39,7 +52,7 @@ class _AddEditMealScreenState extends State<AddEditMealScreen> {
     final initial = widget.initial;
     _title = TextEditingController(text: initial?.title ?? '');
     _notes = TextEditingController(text: initial?.notes ?? '');
-    _mealType = initial?.mealType ?? MealType.breakfast;
+    _mealType = initial?.mealType ?? widget.initialType ?? MealType.breakfast;
     _consumedAt = initial?.consumedAt ?? DateTime.now();
     if (initial != null) {
       _items.addAll(initial.items.map(ItemDraft.fromMealItem));
@@ -162,131 +175,128 @@ class _AddEditMealScreenState extends State<AddEditMealScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final colors = BlistraColors.resolve(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEdit ? 'Edit meal' : 'Add meal'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-          children: [
-            TextFormField(
-              controller: _title,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Meal title',
-                hintText: 'e.g. Avocado toast',
+      body: SafeArea(
+        bottom: false,
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.only(top: 6, bottom: 24),
+            children: [
+              BlistraPageHeader(
+                eyebrow: widget.isEdit ? 'Edit meal' : 'New meal',
+                title: widget.isEdit ? 'Edit this meal' : 'What did you eat?',
+                showAvatar: false,
               ),
-              validator: Validators.mealTitle,
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final type in MealType.values)
-                  ChoiceChip(
-                    label: Text(type.label),
-                    selected: _mealType == type,
-                    onSelected: (_) => setState(() => _mealType = type),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            InkWell(
-              onTap: _pickDateTime,
-              borderRadius: BorderRadius.circular(12),
-              child: InputDecorator(
-                decoration: const InputDecoration(labelText: 'Consumed at'),
-                child: Row(
+              PagePad(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.schedule, size: 20, color: scheme.outline),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateFormat('EEE, MMM d, y • h:mm a').format(_consumedAt),
+                    DietTextField(
+                      label: 'Meal title',
+                      controller: _title,
+                      hint: 'e.g. Avocado toast',
+                      textInputAction: TextInputAction.next,
+                      validator: Validators.mealTitle,
+                    ),
+                    const DietFormLabel('Meal'),
+                  ],
+                ),
+                top: 10,
+              ),
+              ChipRow(
+                labels: [for (final type in MealType.values) type.label],
+                icons: [for (final type in MealType.values) mealTypeIcon(type)],
+                selected: MealType.values.indexOf(_mealType),
+                onSelected: (i) => setState(() => _mealType = MealType.values[i]),
+              ),
+              PagePad(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FieldCard(
+                      label: 'Eaten at',
+                      onTap: _pickDateTime,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              DateFormat('EEE, d MMM y · h:mm a').format(_consumedAt),
+                            ),
+                          ),
+                          Icon(Icons.schedule_rounded, size: 18, color: colors.muted),
+                        ],
+                      ),
+                    ),
+                    DietTextField(
+                      label: 'Notes',
+                      controller: _notes,
+                      hint: 'Optional',
+                      maxLines: 3,
+                      maxLength: 2000,
+                      validator: (value) => Validators.notes(value),
                     ),
                   ],
                 ),
+                top: 12,
               ),
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _notes,
-              maxLines: 3,
-              maxLength: 2000,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                alignLabelWithHint: true,
-                hintText: 'Optional',
-              ),
-              validator: (value) => Validators.notes(value),
-            ),
-            const SizedBox(height: 8),
-            if (!widget.isEdit) ...[
-              Row(
-                children: [
-                  Text('Items', style: Theme.of(context).textTheme.titleSmall),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: () => _addOrEditItem(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add item'),
-                  ),
-                ],
-              ),
-              if (_items.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'No items yet. You can add a simple meal without items.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+              if (!widget.isEdit) ...[
+                const SizedBox(height: 14),
+                SectionHeader(
+                  title: 'Items',
+                  actionLabel: 'Add item ›',
+                  onAction: () => _addOrEditItem(),
                 ),
-              for (var i = 0; i < _items.length; i++)
-                Card(
-                  child: ListTile(
-                    title: Text(_items[i].name, maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                    subtitle: Text(_items[i].summaryText,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Edit item',
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () => _addOrEditItem(index: i),
+                PagePad(
+                  _items.isEmpty
+                      ? EmptyCard(
+                          message:
+                              'No items yet. You can add a simple meal without items.',
+                          action: 'Add item',
+                          onAction: () => _addOrEditItem(),
+                        )
+                      : GlassList(
+                          children: [
+                            for (var i = 0; i < _items.length; i++)
+                              GlassRow(
+                                leading: const IconWell(Icons.restaurant_rounded),
+                                title: _items[i].name,
+                                subtitle: _items[i].summaryText,
+                                onTap: () => _addOrEditItem(index: i),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Edit item',
+                                      visualDensity: VisualDensity.compact,
+                                      color: colors.muted,
+                                      icon: const Icon(Icons.edit_outlined, size: 19),
+                                      onPressed: () => _addOrEditItem(index: i),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Remove item',
+                                      visualDensity: VisualDensity.compact,
+                                      color: colors.muted,
+                                      icon: const Icon(Icons.delete_outline, size: 19),
+                                      onPressed: () =>
+                                          setState(() => _items.removeAt(i)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
-                        IconButton(
-                          tooltip: 'Remove item',
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => setState(() => _items.removeAt(i)),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
+              ],
             ],
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: FilledButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: _saving
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save_outlined),
-            label: Text(widget.isEdit ? 'Save changes' : 'Save meal'),
           ),
         ),
+      ),
+      bottomNavigationBar: StickyActionBar(
+        label: widget.isEdit ? 'Save changes' : 'Save meal',
+        busy: _saving,
+        onPressed: _save,
       ),
     );
   }
