@@ -14,8 +14,10 @@ import '../theme/app_theme.dart';
 /// Context-free access to the active theme colours, for painters and static
 /// style tables that cannot read [Theme]. Kept in sync by `MaterialApp.builder`.
 abstract final class ActiveColors {
-  static BlistraColors value =
-      BlistraColors.of(AccentPalette.lagoon, Brightness.light);
+  static BlistraColors value = BlistraColors.of(
+    AccentPalette.lagoon,
+    Brightness.light,
+  );
 
   static void sync(BlistraColors colors) => value = colors;
 
@@ -25,7 +27,11 @@ abstract final class ActiveColors {
     final v = value;
     final tinted = Color.lerp(c, v.accent, 0.12)!;
     return v.isDark
-        ? Color.lerp(Color.lerp(c, const Color(0xFF0B1022), 0.72)!, v.accent, 0.1)!
+        ? Color.lerp(
+            Color.lerp(c, const Color(0xFF0B1022), 0.72)!,
+            v.accent,
+            0.1,
+          )!
         : tinted;
   }
 
@@ -49,20 +55,17 @@ abstract final class ActiveColors {
 Color softBg(BuildContext context, Color pastel) {
   final colors = BlistraColors.resolve(context);
   if (!colors.isDark) return pastel;
-  return Color.alphaBlend(
-    pastel.withValues(alpha: 0.09),
-    colors.glassFill,
-  );
+  return Color.alphaBlend(pastel.withValues(alpha: 0.09), colors.glassFill);
 }
 
 /// A module/status colour made readable on the current surface: lightened in
 /// dark mode, unchanged in light.
 Color onGlass(BuildContext context, Color color) =>
     BlistraColors.resolve(context).isDark
-        ? Color.lerp(color, Colors.white, 0.4)!
-        : color;
+    ? Color.lerp(color, Colors.white, 0.4)!
+    : color;
 
-/// Page background: tinted base colour with three soft accent glows.
+/// Page background: tinted base colour with four soft glows from the theme.
 ///
 /// Placed once above the [Navigator] (see `MaterialApp.builder`) so every
 /// route, including pushed module pages, sits on the same backdrop.
@@ -74,27 +77,31 @@ class BlistraBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    final palette = colors.palette;
-    final double a = colors.glowOpacity;
+    final blobs = colors.blobs;
     return ColoredBox(
       color: colors.background,
       child: Stack(
         fit: StackFit.expand,
         children: [
           _Glow(
-            color: palette.glowA.withValues(alpha: a),
-            diameter: 520,
-            alignment: const Alignment(1.25, -1.15),
+            color: blobs[0],
+            diameter: 420,
+            alignment: const Alignment(-1.6, -0.95),
           ),
           _Glow(
-            color: palette.glowB.withValues(alpha: a * 0.8),
-            diameter: 560,
-            alignment: const Alignment(-1.5, 0.15),
+            color: blobs[1],
+            diameter: 400,
+            alignment: const Alignment(1.7, -0.2),
           ),
           _Glow(
-            color: palette.glowC.withValues(alpha: a * 0.7),
-            diameter: 480,
-            alignment: const Alignment(1.4, 0.95),
+            color: blobs[2],
+            diameter: 420,
+            alignment: const Alignment(-1.1, 0.55),
+          ),
+          _Glow(
+            color: blobs[3],
+            diameter: 340,
+            alignment: const Alignment(1.5, 1.15),
           ),
           child,
         ],
@@ -145,7 +152,7 @@ class GlassCard extends StatelessWidget {
     this.radius = 24,
     this.onTap,
     this.tint,
-    this.blur = 22,
+    this.blur = 14,
   });
 
   final Widget child;
@@ -163,11 +170,7 @@ class GlassCard extends StatelessWidget {
     final BorderRadius br = BorderRadius.circular(radius);
     Widget content = Padding(padding: padding, child: child);
     if (onTap != null) {
-      content = InkWell(
-        onTap: onTap,
-        borderRadius: br,
-        child: content,
-      );
+      content = InkWell(onTap: onTap, borderRadius: br, child: content);
     }
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -175,7 +178,8 @@ class GlassCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: colors.shadow,
-            blurRadius: 28,
+            blurRadius: 24,
+            spreadRadius: -14,
             offset: const Offset(0, 10),
           ),
         ],
@@ -188,22 +192,39 @@ class GlassCard extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: colors.glassFill,
               borderRadius: br,
               border: Border.all(color: colors.glassBorder),
-              gradient: tint == null
-                  ? null
-                  : LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        tint!.withValues(alpha: colors.isDark ? 0.22 : 0.16),
-                        Colors.transparent,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: tint == null
+                    ? [colors.glassFill, colors.glassFillEnd]
+                    : [
+                        Color.alphaBlend(
+                          tint!.withValues(alpha: colors.isDark ? 0.18 : 0.14),
+                          colors.glassFill,
+                        ),
+                        colors.glassFillEnd,
                       ],
-                      stops: const [0, 0.7],
-                    ),
+              ),
             ),
-            child: Material(type: MaterialType.transparency, child: content),
+            child: DecoratedBox(
+              // Faint light along the top edge, like real glass.
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(
+                borderRadius: br,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    colors.glassHighlight,
+                    colors.glassHighlight.withValues(alpha: 0),
+                  ],
+                  stops: const [0, 0.035],
+                ),
+              ),
+              child: Material(type: MaterialType.transparency, child: content),
+            ),
           ),
         ),
       ),

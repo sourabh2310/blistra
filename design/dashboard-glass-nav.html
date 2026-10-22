@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blistra · Glass dashboard and navigation</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05070b;font-family:Inter,sans-serif;color:#e9eeee;padding:40px 20px 80px}
+h1.pg{font:600 32px Fraunces,serif;text-align:center}h1.pg em{color:#2dd4a7;font-style:normal}
+p.pg{text-align:center;color:#8b979a;margin:8px auto 14px;max-width:640px;font-size:14px;line-height:1.55}
+.hint{text-align:center;font-size:12px;color:#5f6b6e;margin-bottom:36px}
+.wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:56px 24px;justify-items:center;max-width:1300px;margin:0 auto}
+.col{display:flex;flex-direction:column;align-items:center;gap:14px}
+.lab{font:700 13px Inter;letter-spacing:.06em;color:#c3cdcf;text-align:center}
+.lab b{color:#2dd4a7;margin-right:8px}
+.lab span{display:block;font-weight:400;color:#667276;margin-top:4px;font-size:12px;letter-spacing:0}
+
+/* ---------- phone + backdrop that the glass blurs ---------- */
+.phone{--ac:#2dd4a7;--acs:rgba(45,212,167,.18);--onac:#03241b;--tx:#f2f6f5;--mu:rgba(235,245,243,.62);--red:#ff7a85;--amb:#ffc46b;
+ width:382px;height:780px;border-radius:46px;border:8px solid #1a2027;overflow:hidden;position:relative;background:#070a12;color:var(--tx);box-shadow:0 30px 80px -20px #000c}
+.bg{position:absolute;inset:0;overflow:hidden}
+.bg i{position:absolute;border-radius:50%;filter:blur(38px)}
+.bg i:nth-child(1){width:260px;height:260px;left:-70px;top:30px;background:#14b8a6;opacity:.75}
+.bg i:nth-child(2){width:240px;height:240px;right:-80px;top:240px;background:#7c5cff;opacity:.7}
+.bg i:nth-child(3){width:260px;height:260px;left:10px;top:520px;background:#0ea5e9;opacity:.55}
+.bg i:nth-child(4){width:200px;height:200px;right:-40px;bottom:-20px;background:#f472b6;opacity:.45}
+.notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:90px;height:24px;background:#000;border-radius:14px;z-index:20}
+.scroll{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none;padding:52px 18px 130px;z-index:2}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ---------- glass system ---------- */
+.glass{background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.17);backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 14px 34px -14px rgba(0,0,0,.6)}
+.row{display:flex;align-items:center;justify-content:space-between}
+.eye{font:600 10px Inter;letter-spacing:.16em;text-transform:uppercase;color:var(--ac)}
+h2.hi{font:600 31px/1.1 Fraunces;margin:6px 0 4px;letter-spacing:-.01em;text-shadow:0 2px 20px rgba(0,0,0,.35)}h2.hi em{font-style:normal;color:var(--ac)}
+.sub{color:var(--mu);font-size:12.5px;line-height:1.45}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:26px 0 10px}
+.sec b{font:600 17px Fraunces}.sec a{font-size:11px;color:var(--ac);font-weight:700}
+.card{border-radius:24px;padding:15px}
+.k{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+.btn{display:inline-block;border-radius:99px;padding:10px 18px;font-size:12px;font-weight:700}
+.btn.p{background:#fff;color:#3a0d14}.btn.g{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.2)}
+.avatar{width:38px;height:38px;border-radius:14px;display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--tx)}
+.avatar svg{width:18px;height:18px}
+
+.next{border-radius:30px;padding:19px;margin-top:18px;background:linear-gradient(150deg,rgba(255,107,125,.5),rgba(255,107,125,.14));border:1px solid rgba(255,160,170,.5);backdrop-filter:blur(24px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 18px 40px -16px rgba(255,80,100,.55)}
+.next .eye{color:#ffd6da}.next .t{font:600 25px/1.15 Fraunces;margin:8px 0 4px}.next .sub{color:rgba(255,235,238,.8)}
+.next .cd{font:500 12px 'JetBrains Mono';margin-top:9px;color:#fff}.next .acts{display:flex;gap:8px;margin-top:14px}
+
+.att{border-radius:24px;overflow:hidden;margin-top:12px}
+.att .h{padding:11px 16px;background:rgba(255,107,125,.2);display:flex;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#ffc2c8}
+.att .it{display:flex;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid rgba(255,255,255,.1)}
+.it .t{font-size:13.5px;font-weight:600}.it .s{font-size:11px;color:var(--mu);margin-top:2px}.it .go{margin-left:auto;font-size:11px;font-weight:700;color:var(--ac)}
+.rd{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 10px var(--red);flex:none}
+
+.tl{position:relative;padding-left:62px}
+.tl:before{content:"";position:absolute;left:49px;top:6px;bottom:6px;width:1.5px;background:linear-gradient(rgba(255,255,255,.5),rgba(255,255,255,.05))}
+.ev{position:relative;display:flex;gap:11px;align-items:center;margin-bottom:10px;border-radius:20px;padding:11px 13px}
+.ev .tm{position:absolute;left:-62px;font:500 11px 'JetBrains Mono';color:var(--mu);width:42px;text-align:right}
+.ev:after{content:"";position:absolute;left:-17px;top:50%;margin-top:-4.5px;width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 12px var(--c)}
+.ev.done{opacity:.55}.ev.done .t{text-decoration:line-through}
+.ev .ic{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;font-size:14px;flex:none;background:rgba(255,255,255,.14)}
+.ev .t{font-size:13.5px;font-weight:600}.ev .s{font-size:11px;color:var(--mu);margin-top:2px}.ev .st{margin-left:auto;font-size:10px;font-weight:700;color:var(--mu)}
+.ev.now{border-color:rgba(45,212,167,.7);background:linear-gradient(145deg,rgba(45,212,167,.32),rgba(45,212,167,.08))}
+.tag{font:700 9px Inter;letter-spacing:.08em;padding:3px 8px;border-radius:99px;margin-left:auto;background:rgba(255,196,107,.22);color:var(--amb)}
+
+.hab{display:flex;gap:8px;flex-wrap:wrap}
+.hc{display:flex;align-items:center;gap:8px;padding:9px 13px 9px 9px;border-radius:99px;font-size:12.5px;font-weight:600}
+.hc i{width:20px;height:20px;border-radius:50%;border:1.8px solid rgba(255,255,255,.6);display:grid;place-items:center;font-style:normal;font-size:10px;color:var(--onac);flex:none}
+.hc.d{background:var(--acs);border-color:rgba(45,212,167,.5)}.hc.d i{background:var(--ac);border-color:var(--ac)}
+.prog{height:6px;border-radius:6px;background:rgba(255,255,255,.14);margin:2px 0 12px;overflow:hidden}.prog b{display:block;height:100%;background:linear-gradient(90deg,#2dd4a7,#67e8f9);border-radius:6px}
+.ql{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ql div{border-radius:20px;padding:13px 4px;text-align:center;font-size:10.5px;font-weight:700;color:var(--mu)}
+.ql svg{width:22px;height:22px;display:block;margin:0 auto 7px;color:var(--tx)}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{border-radius:22px;padding:13px 11px}
+.tile .v{font:600 21px Fraunces;margin-top:5px}.tile .v small{font:500 10px Inter;color:var(--mu)}.tile .s{font-size:10.5px;color:var(--mu);margin-top:3px}
+.days{display:flex;gap:6px}
+.days span{flex:1;height:30px;border-radius:11px;background:rgba(255,255,255,.1);display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--mu)}
+.days .a{background:var(--ac);color:var(--onac)}.days .t{border:1.5px solid var(--ac);color:var(--ac);background:transparent}
+.wk{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.wk .n{font:600 21px Fraunces}.wk .n small{font:500 11px Inter;color:var(--mu)}.wk .l{font-size:10px;color:var(--mu);margin-top:2px}
+.mn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mn div{border-radius:20px;padding:12px 13px}.mn b{display:block;font:600 20px Fraunces;margin-top:3px}
+
+/* ---------- NAVIGATION VARIANTS ---------- */
+.nav{position:absolute;z-index:15;display:flex;align-items:center;color:var(--mu)}
+.nav .ni{display:grid;place-items:center;position:relative}
+.nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav .on{color:var(--tx)}
+.nav small{font:600 10px Inter}
+.fab{background:linear-gradient(135deg,#34e0b4,#12b886);color:var(--onac)!important;display:grid;place-items:center;box-shadow:0 10px 26px -6px rgba(45,212,167,.7),inset 0 1px 0 rgba(255,255,255,.5)}
+.fab svg{stroke-width:2.2}
+
+/* N1 floating pill, icon-only, glowing active */
+.n1{left:18px;right:18px;bottom:16px;height:68px;border-radius:34px;justify-content:space-around}
+.n1 .ni{width:44px;height:44px;border-radius:16px}
+.n1 .on{background:rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.n1 .on:after{content:"";position:absolute;bottom:-8px;width:4px;height:4px;border-radius:50%;background:var(--ac);box-shadow:0 0 8px var(--ac)}
+.n1 .fab{width:52px;height:52px;border-radius:50%}
+
+/* N2 expanding label capsule for active tab */
+.n2{left:14px;right:14px;bottom:16px;height:66px;border-radius:33px;padding:0 10px;justify-content:space-between}
+.n2 .ni{height:46px;min-width:46px;border-radius:23px;flex-direction:row;gap:7px;padding:0 12px}
+.n2 .ni small{display:none}
+.n2 .on{background:var(--tx);color:#0b1117;padding:0 16px}.n2 .on small{display:inline}
+.n2 .fab{width:50px;height:50px;border-radius:50%;padding:0}
+
+/* N3 docked full-width bar with raised centre FAB and cutout */
+.n3{left:0;right:0;bottom:0;height:84px;border-radius:30px 30px 0 0;justify-content:space-around;padding:0 6px 8px;border-bottom:0}
+.n3 .ni{width:56px;height:56px;gap:3px;margin-top:14px}
+.n3 .ni.fabw{margin-top:-34px}
+.n3 .fab{width:62px;height:62px;border-radius:50%;border:5px solid rgba(7,10,18,.65);background-clip:padding-box}
+.n3 .on{color:var(--ac)}.n3 .on:before{content:"";position:absolute;top:-10px;width:24px;height:3px;border-radius:3px;background:var(--ac);box-shadow:0 0 12px var(--ac)}
+.n3 .ni small{font-size:9.5px}
+
+/* N4 minimal, labels, sliding spotlight */
+.n4{left:22px;right:22px;bottom:18px;height:62px;border-radius:22px;justify-content:space-between;padding:0 6px}
+.n4 .ni{flex:1;height:50px;gap:3px;border-radius:16px}
+.n4 .ni small{font-size:9.5px}
+.n4 .on{background:radial-gradient(60px 40px at 50% 100%,rgba(45,212,167,.5),transparent 75%);color:var(--ac)}
+.n4 .fab{width:44px;height:44px;border-radius:16px;flex:none;margin:0 6px}
+
+/* N5 tabs pill + detached glass FAB */
+.n5wrap{position:absolute;left:18px;right:18px;bottom:16px;display:flex;gap:12px;z-index:15;align-items:center}
+.n5{position:relative;flex:1;height:64px;border-radius:32px;justify-content:space-around;padding:0 8px}
+.n5 .ni{width:46px;height:46px;border-radius:50%}
+.n5 .on{background:linear-gradient(135deg,rgba(45,212,167,.4),rgba(45,212,167,.14));color:var(--ac);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.n5f{width:64px;height:64px;border-radius:50%;flex:none}
+.n5f.fab{box-shadow:0 14px 30px -8px rgba(45,212,167,.8),inset 0 1px 0 rgba(255,255,255,.55)}
+
+/* N6 edge-to-edge frosted strip, top light line, labels */
+.n6{left:0;right:0;bottom:0;height:80px;justify-content:space-around;padding:6px 6px 12px;border-radius:0;border:0;border-top:1px solid rgba(255,255,255,.22);background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(10,14,24,.55))!important}
+.n6 .ni{flex:1;height:56px;gap:4px}.n6 .ni small{font-size:9.5px}
+.n6 .on{color:var(--ac)}.n6 .on svg{filter:drop-shadow(0 0 8px var(--ac))}
+.n6 .on:after{content:"";position:absolute;top:-7px;width:28px;height:2px;background:var(--ac);box-shadow:0 0 12px var(--ac);border-radius:2px}
+.n6 .fab{width:46px;height:46px;border-radius:15px;flex:none}
+</style>
+</head>
+<body>
+<h1 class="pg">Blistra <em>glass</em> dashboard — 6 navigation bars</h1>
+<p class="pg">The complete essential dashboard rebuilt as a frosted-glass interface: every card, the hero, the timeline and the nav blur the colour behind them. Same screen in all six; only the navigation changes. Scroll a phone to watch the nav blur the content passing under it.</p>
+<div class="hint">Fonts load from Google Fonts, so you need to be online.</div>
+<div class="wrap" id="wrap"></div>
+
+<script>
+const I={
+home:'<svg viewBox="0 0 24 24"><path d="M3 11l9-7.5L21 11"/><path d="M5.5 9.5V20h13V9.5"/></svg>',
+plan:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+heart:'<svg viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/></svg>',
+hub:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></svg>',
+bell:'<svg viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z"/><path d="M10 21h4"/></svg>',
+drop:'<svg viewBox="0 0 24 24"><path d="M12 3.5s6 6.2 6 10.5a6 6 0 0 1-12 0c0-4.300 6-10.500 6-10.500z"/></svg>',
+meal:'<svg viewBox="0 0 24 24"><path d="M7 3v8M4.500 3v5a2.500 2.500 0 0 0 5 0V3M7 11v10M17 21V3c-2.500 1.500-3.500 4.500-3.500 8H17"/></svg>',
+rupee:'<svg viewBox="0 0 24 24"><path d="M7 5h10M7 9.500h10M7 5c6 0 6 9 0 9h-.5l6 5.500"/></svg>',
+task:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.500"/><path d="M8.500 12.200l2.500 2.500 4.500-5"/></svg>'};
+const items=[['home','Home',1],['plan','Planner'],['plus','',0,1],['heart','Health'],['hub','Hub']];
+const ni=(k,l,on,fab,cls='')=>`<div class="ni ${on?'on':''} ${fab?'fab':''} ${cls}">${I[k]}${l?`<small>${l}</small>`:''}</div>`;
+const navs={
+n1:()=>`<div class="nav n1 glass">${items.map(([k,l,on,f])=>ni(k,'',on,f)).join('')}</div>`,
+n2:()=>`<div class="nav n2 glass">${items.map(([k,l,on,f])=>ni(k,l,on,f)).join('')}</div>`,
+n3:()=>`<div class="nav n3 glass">${items.map(([k,l,on,f])=>f?`<div class="ni fabw"><div class="ni fab" style="width:62px;height:62px;border-radius:50%;margin:0">${I[k]}</div></div>`:ni(k,l,on,0)).join('')}</div>`,
+n4:()=>`<div class="nav n4 glass">${[items[0],items[1],items[3],items[4]].map(([k,l,on])=>ni(k,l,on)).join('')}${ni('plus','',0,1)}</div>`,
+n5:()=>`<div class="n5wrap"><div class="nav n5 glass">${[items[0],items[1],items[3],items[4]].map(([k,l,on])=>ni(k,'',on)).join('')}</div><div class="nav n5f fab ni">${I.plus}</div></div>`,
+n6:()=>`<div class="nav n6 glass">${[items[0],items[1]].map(([k,l,on])=>ni(k,l,on)).join('')}${ni('plus','',0,1)}${[items[3],items[4]].map(([k,l,on])=>ni(k,l,on)).join('')}</div>`
+};
+const body=`
+<div class="row"><div class="eye">Thursday · 22 Oct</div><div class="row" style="gap:8px"><div class="avatar glass">${I.bell}</div><div class="avatar glass" style="color:var(--ac)">SK</div></div></div>
+<h2 class="hi">Good evening,<br><em>Sourabh.</em></h2>
+<div class="sub">Your dose is almost due, and two tasks are overdue.</div>
+
+<div class="next"><div class="eye">Next up · due soon</div><div class="t">Metformin · 500 mg</div><div class="sub">After dinner · scheduled 9:00 PM</div><div class="cd">● in 25 minutes</div><div class="acts"><span class="btn p">Mark taken</span><span class="btn g">Skip</span></div></div>
+
+<div class="att glass"><div class="h"><span>Needs attention</span><span>2</span></div>
+<div class="it"><span class="rd"></span><div><div class="t">Pay electricity bill</div><div class="s">Overdue since Tuesday · High</div></div><span class="go">Open ›</span></div>
+<div class="it"><span class="rd"></span><div><div class="t">Renew car insurance</div><div class="s">Overdue since Wednesday · High</div></div><span class="go">Open ›</span></div></div>
+
+<div class="sec"><b>Today's timeline</b><a>Planner ›</a></div>
+<div class="tl">
+<div class="ev glass done" style="--c:#7aa2ff"><span class="tm">08:00</span><div class="ic">💊</div><div><div class="t">Vitamin D3</div><div class="s">Taken 8:04 AM</div></div></div>
+<div class="ev glass" style="--c:#ffc46b"><span class="tm">19:30</span><div class="ic">✓</div><div><div class="t">Review monthly budget</div><div class="s">Task · Finance</div></div><span class="tag">MED</span></div>
+<div class="ev glass now" style="--c:#2dd4a7"><span class="tm" style="color:var(--ac)">21:00</span><div class="ic">💊</div><div><div class="t">Metformin · 500 mg</div><div class="s">After dinner</div></div><span class="st" style="color:var(--ac)">NEXT</span></div>
+<div class="ev glass" style="--c:#7aa2ff"><span class="tm">22:30</span><div class="ic">💊</div><div><div class="t">Omega-3 · 1 capsule</div><div class="s">Bedtime</div></div></div>
+<div class="ev glass" style="--c:#f08bd0"><span class="tm">Fri 17:00</span><div class="ic">🩺</div><div><div class="t">Dr. Mehta · Checkup</div><div class="s">City Clinic</div></div><span class="st">2 DAYS</span></div></div>
+
+<div class="sec"><b>Habits</b><a>4 of 6 done</a></div>
+<div class="card glass"><div class="prog"><b style="width:66%"></b></div><div class="hab"><div class="hc glass d"><i>✓</i>Morning walk</div><div class="hc glass d"><i>✓</i>Meditate</div><div class="hc glass d"><i>✓</i>Journal</div><div class="hc glass d"><i>✓</i>Vitamins</div><div class="hc glass"><i></i>Read 20 min</div><div class="hc glass"><i></i>Stretch</div></div></div>
+
+<div class="sec"><b>Quick log</b></div>
+<div class="ql"><div class="glass">${I.drop.replace('<svg','<svg style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"')}+250 ml</div><div class="glass">${I.meal.replace('<svg','<svg style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"')}Meal</div><div class="glass">${I.rupee.replace('<svg','<svg style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"')}Expense</div><div class="glass">${I.task.replace('<svg','<svg style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"')}Task</div></div>
+
+<div class="sec"><b>Today so far</b><a>Details ›</a></div>
+<div class="g3"><div class="tile glass"><div class="k">Water</div><div class="v">1.8<small> L</small></div><div class="s">7 glasses</div></div><div class="tile glass"><div class="k">Calories</div><div class="v">1,420<small> kcal</small></div><div class="s">3 meals</div></div><div class="tile glass"><div class="k">Spent</div><div class="v">₹840</div><div class="s">3 expenses</div></div></div>
+
+<div class="sec"><b>This week</b></div>
+<div class="card glass"><div class="days"><span class="a">M</span><span class="a">T</span><span class="a">W</span><span class="t">T</span><span>F</span><span>S</span><span>S</span></div>
+<div class="wk"><div><div class="n">23<small>/31</small></div><div class="l">Tasks done</div></div><div><div class="n">19<small>/24</small></div><div class="l">Habits kept</div></div><div><div class="n">4<small>/7</small></div><div class="l">Active days</div></div></div></div>
+
+<div class="sec"><b>Money between friends</b><a>Settle ›</a></div>
+<div class="mn"><div class="glass"><div class="k">Owed to you</div><b style="color:var(--ac)">₹1,850</b></div><div class="glass"><div class="k">You owe</div><b style="color:var(--amb)">₹420</b></div></div>`;
+
+const defs=[['n1','1','Floating pill','Icon-only, glowing dot under the active tab'],['n2','2','Label capsule','Active tab expands into a light capsule with its name'],['n3','3','Docked with raised FAB','Edge-to-edge bar, centre button breaks out of the top'],['n4','4','Spotlight tabs','Labelled tabs, soft teal glow rising from the active one, add button at the end'],['n5','5','Split: tabs + detached FAB','Four-tab glass pill with a separate floating add button'],['n6','6','Frosted strip','Full-width strip, neon top line on the active tab, rounded add key']];
+document.getElementById('wrap').innerHTML=defs.map(([c,n,t,d])=>`<div class="col"><div class="phone"><div class="bg"><i></i><i></i><i></i><i></i></div><div class="notch"></div><div class="scroll">${body}</div>${navs[c]()}</div><div class="lab"><b>${n}</b>${t}<span>${d}</span></div></div>`).join('');
+</script>
+</body>
+</html>

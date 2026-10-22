@@ -161,8 +161,11 @@ class AppTheme {
   }
 }
 
-/// Colours that depend on the accent palette and brightness: glass surfaces,
-/// glow and gradients. Read with [BlistraColors.resolve].
+/// Colours that depend on the colour theme and brightness. Read with
+/// [BlistraColors.resolve].
+///
+/// Every value is derived from the theme hue (see [AccentPalette]) so the
+/// ten themes share one set of light and dark rules.
 @immutable
 class BlistraColors extends ThemeExtension<BlistraColors> {
   const BlistraColors({
@@ -172,11 +175,20 @@ class BlistraColors extends ThemeExtension<BlistraColors> {
     required this.text,
     required this.muted,
     required this.glassFill,
+    required this.glassFillEnd,
     required this.glassBorder,
+    required this.glassHighlight,
     required this.navFill,
+    required this.navFillEnd,
     required this.sheet,
     required this.accentText,
+    required this.onAccent,
+    required this.ink,
     required this.shadow,
+    required this.danger,
+    required this.warning,
+    required this.blobs,
+    required this.data,
   });
 
   final AccentPalette palette;
@@ -184,51 +196,115 @@ class BlistraColors extends ThemeExtension<BlistraColors> {
   final Color background;
   final Color text;
   final Color muted;
+
+  /// Glass surface: gradient from [glassFill] to [glassFillEnd], a hairline
+  /// [glassBorder] and a one-pixel [glassHighlight] along the top edge.
   final Color glassFill;
+  final Color glassFillEnd;
   final Color glassBorder;
+  final Color glassHighlight;
   final Color navFill;
+  final Color navFillEnd;
   final Color sheet;
 
   /// Accent readable as text/icon on [background].
   final Color accentText;
+
+  /// Text on a filled [accentText] surface.
+  final Color onAccent;
+
+  /// Base for subtle fills and dividers: white in dark, near-black in light.
+  final Color ink;
   final Color shadow;
+
+  /// Urgent items (overdue, due now). Stays red in every theme.
+  final Color danger;
+  final Color warning;
+
+  /// Four background glow colours, alpha included.
+  final List<Color> blobs;
+
+  /// Three secondary data colours for rings and timeline dots.
+  final List<Color> data;
 
   bool get isDark => brightness == Brightness.dark;
   LinearGradient get gradient => palette.gradient;
   Color get accent => palette.primary;
   Color get accent2 => palette.secondary;
-  double get glowOpacity => isDark ? 0.5 : 0.55;
+
+  /// [accentText] as a soft tinted fill.
+  Color get accentSoft => accentText.withValues(alpha: isDark ? 0.18 : 0.13);
+
+  /// [ink] at [alpha]: subtle fills, tracks and dividers.
+  Color inkAt(double alpha) => ink.withValues(alpha: alpha);
 
   factory BlistraColors.of(AccentPalette palette, Brightness brightness) {
-    final Color p = palette.primary;
+    final hues = palette.secondaryHues;
+    Color data(double hue, double s, double l) =>
+        HSLColor.fromAHSL(1, hue, s, l).toColor();
     if (brightness == Brightness.dark) {
       return BlistraColors(
         palette: palette,
         brightness: brightness,
-        background: Color.lerp(const Color(0xFF050810), p, 0.09)!,
-        text: const Color(0xFFEEF4F6),
-        muted: const Color(0xFF93A1B3),
-        glassFill: const Color(0x12FFFFFF),
-        glassBorder: const Color(0x24FFFFFF),
-        navFill: Color.lerp(const Color(0xFF0E1422), p, 0.08)!
-            .withValues(alpha: 0.72),
-        sheet: Color.lerp(const Color(0xFF0E1422), p, 0.1)!,
-        accentText: Color.lerp(p, Colors.white, 0.45)!,
-        shadow: const Color(0x59000000),
+        background: palette.tone(0.34, 0.06),
+        text: palette.tone(0.25, 0.96),
+        muted: palette.tone(0.14, 0.80, alpha: 0.66),
+        glassFill: const Color(0x13FFFFFF),
+        glassFillEnd: const Color(0x08FFFFFF),
+        glassBorder: const Color(0x17FFFFFF),
+        glassHighlight: const Color(0x1AFFFFFF),
+        navFill: const Color(0x1AFFFFFF),
+        navFillEnd: const Color(0x0AFFFFFF),
+        sheet: palette.tone(0.30, 0.10),
+        accentText: palette.tone(0.72, 0.62),
+        onAccent: palette.tone(0.60, 0.07),
+        ink: Colors.white,
+        shadow: const Color(0x99000000),
+        danger: const Color(0xFFFF7A85),
+        warning: const Color(0xFFFFC46B),
+        blobs: [
+          palette.tone(0.80, 0.48, alpha: 0.34),
+          palette.tone(0.80, 0.58, shift: 55, alpha: 0.30),
+          palette.tone(0.85, 0.52, shift: -45, alpha: 0.22),
+          palette.tone(0.80, 0.62, shift: 120, alpha: 0.15),
+        ],
+        data: [
+          data(hues[0], 0.85, 0.68),
+          data(hues[1], 0.90, 0.64),
+          data(hues[2], 0.75, 0.72),
+        ],
       );
     }
     return BlistraColors(
       palette: palette,
       brightness: brightness,
-      background: Color.lerp(const Color(0xFFF8F5EE), p, 0.07)!,
-      text: Color.lerp(const Color(0xFF0D1514), p, 0.2)!,
-      muted: Color.lerp(const Color(0xFF667370), p, 0.14)!,
-      glassFill: const Color(0x94FFFFFF),
+      background: palette.tone(0.36, 0.95),
+      text: palette.tone(0.35, 0.09),
+      muted: palette.tone(0.14, 0.26, alpha: 0.72),
+      glassFill: const Color(0xC7FFFFFF),
+      glassFillEnd: const Color(0x75FFFFFF),
       glassBorder: const Color(0xE6FFFFFF),
-      navFill: const Color(0xA8FFFFFF),
-      sheet: Color.lerp(Colors.white, p, 0.04)!,
-      accentText: Color.lerp(p, Colors.black, 0.18)!,
-      shadow: p.withValues(alpha: 0.22),
+      glassHighlight: const Color(0xF2FFFFFF),
+      navFill: const Color(0xDBFFFFFF),
+      navFillEnd: const Color(0x94FFFFFF),
+      sheet: palette.tone(0.30, 0.97),
+      accentText: palette.tone(0.72, 0.34),
+      onAccent: Colors.white,
+      ink: palette.tone(0.40, 0.14),
+      shadow: palette.tone(0.40, 0.30, alpha: 0.32),
+      danger: const Color(0xFFD3303C),
+      warning: const Color(0xFFB46F06),
+      blobs: [
+        palette.tone(0.85, 0.62, alpha: 0.55),
+        palette.tone(0.85, 0.68, shift: 55, alpha: 0.45),
+        palette.tone(0.90, 0.66, shift: -45, alpha: 0.40),
+        palette.tone(0.85, 0.70, shift: 120, alpha: 0.30),
+      ],
+      data: [
+        data(hues[0], 0.85, 0.40),
+        data(hues[1], 0.90, 0.38),
+        data(hues[2], 0.75, 0.42),
+      ],
     );
   }
 

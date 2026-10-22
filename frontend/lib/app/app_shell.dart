@@ -664,8 +664,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 }
 
-/// Rounded bottom bar: Home | Planner | (prominent Add) | … | Hub, driven by
-/// the user's saved destinations (max 5, Home + Add mandatory).
+//// Floating glass bottom bar: Home | Planner | (raised Add) | … | Hub,
+/// driven by the user's saved destinations (max 5, Home + Add mandatory).
 class _BlistraBottomBar extends StatelessWidget {
   const _BlistraBottomBar({
     required this.destinations,
@@ -682,13 +682,13 @@ class _BlistraBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    final radius = BorderRadius.circular(30);
+    final radius = BorderRadius.circular(32);
     return SafeArea(
       top: false,
       child: SizedBox(
-        height: 92,
+        height: 112,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -696,27 +696,32 @@ class _BlistraBottomBar extends StatelessWidget {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                height: 70,
+                height: 72,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: radius,
                     boxShadow: [
                       BoxShadow(
-                        color: colors.accent.withValues(alpha: .25),
-                        blurRadius: 34,
-                        offset: const Offset(0, 14),
+                        color: colors.shadow,
+                        blurRadius: 40,
+                        spreadRadius: -16,
+                        offset: const Offset(0, 20),
                       ),
                     ],
                   ),
                   child: ClipRRect(
                     borderRadius: radius,
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+                      filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: colors.navFill,
                           borderRadius: radius,
                           border: Border.all(color: colors.glassBorder),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [colors.navFill, colors.navFillEnd],
+                          ),
                         ),
                       ),
                     ),
@@ -727,7 +732,7 @@ class _BlistraBottomBar extends StatelessWidget {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                height: 70,
+                height: 72,
                 child: Material(
                   type: MaterialType.transparency,
                   child: Row(
@@ -736,10 +741,10 @@ class _BlistraBottomBar extends StatelessWidget {
                         if (destinations[i] == ShellDestinations.add)
                           Expanded(
                             child: OverflowBox(
-                              maxHeight: 100,
+                              maxHeight: 120,
                               alignment: Alignment.center,
                               child: Transform.translate(
-                                offset: const Offset(0, -18),
+                                offset: const Offset(0, -30),
                                 child: _AddButton(
                                   open: addOpen,
                                   onTap: () => onSelect(i),
@@ -771,6 +776,8 @@ class _BlistraBottomBar extends StatelessWidget {
   }
 }
 
+/// Raised round Add button, ringed by a halo of the page background so it
+/// reads as breaking out of the bar.
 class _AddButton extends StatelessWidget {
   const _AddButton({required this.open, required this.onTap});
 
@@ -780,6 +787,7 @@ class _AddButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
+    final accent = colors.accentText;
     return Semantics(
       label: 'Add',
       button: true,
@@ -787,15 +795,24 @@ class _AddButton extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
-          width: 58,
-          height: 58,
+          width: 64,
+          height: 64,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: colors.gradient,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [accent, Color.lerp(accent, Colors.black, 0.32)!],
+            ),
             boxShadow: [
               BoxShadow(
-                color: colors.accent.withValues(alpha: .55),
-                blurRadius: 26,
+                color: colors.background.withValues(alpha: 0.55),
+                spreadRadius: 6,
+              ),
+              BoxShadow(
+                color: accent.withValues(alpha: 0.5),
+                blurRadius: 22,
+                spreadRadius: -8,
                 offset: const Offset(0, 10),
               ),
             ],
@@ -810,7 +827,7 @@ class _AddButton extends StatelessWidget {
             child: Icon(
               open ? Icons.close : Icons.add,
               key: ValueKey(open),
-              color: Colors.white,
+              color: colors.onAccent,
               size: 30,
             ),
           ),
@@ -820,6 +837,8 @@ class _AddButton extends StatelessWidget {
   }
 }
 
+/// Tab with icon and label; the active tab is accent-coloured with a short
+/// glowing line above it.
 class _BarItem extends StatelessWidget {
   const _BarItem({
     required this.label,
@@ -847,31 +866,51 @@ class _BarItem extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            width: 62,
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: selected
-                  ? colors.accent.withValues(alpha: .16)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          child: SizedBox(
+            width: 56,
+            height: 56,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
               children: [
-                Icon(selected ? selectedIcon : icon, color: color, size: 23),
-                const SizedBox(height: 3),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 11,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                Positioned(
+                  top: -4,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 220),
+                    opacity: selected ? 1 : 0,
+                    child: Container(
+                      width: 24,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: colors.accentText,
+                        borderRadius: BorderRadius.circular(3),
+                        boxShadow: [
+                          BoxShadow(color: colors.accentText, blurRadius: 12),
+                        ],
+                      ),
+                    ),
                   ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      selected ? selectedIcon : icon,
+                      color: color,
+                      size: 22,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

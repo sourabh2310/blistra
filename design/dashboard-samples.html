@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blistra · Dashboard samples</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Manrope:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Serif+Display&family=Sora:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@500;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0e13;color:#e9eeee;font-family:Inter,sans-serif;padding:48px 24px 80px}
+header.top{max-width:1200px;margin:0 auto 40px}
+header.top h1{font-family:Fraunces,serif;font-size:40px;font-weight:600;letter-spacing:-.02em}
+header.top h1 em{color:#12B886;font-style:normal}
+header.top p{color:#8b979a;margin-top:8px;max-width:640px;line-height:1.5}
+.grid{max-width:1300px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:56px 32px;justify-items:center}
+.cell{display:flex;flex-direction:column;align-items:center;gap:16px}
+.cell .label{font:600 13px Inter;color:#9aa6a8;letter-spacing:.04em;text-align:center}
+.cell .label b{color:#12B886;margin-right:8px}
+.cell .label span{display:block;font-weight:400;color:#667276;margin-top:4px;font-size:12px}
+.phone{width:340px;height:700px;border-radius:44px;border:7px solid #1b2128;box-shadow:0 30px 80px -20px #000a,0 0 0 1px #ffffff12;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.scroll{flex:1;overflow-y:auto;scrollbar-width:none;padding:44px 18px 96px;position:relative}
+.scroll::-webkit-scrollbar{display:none}
+.notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:84px;height:22px;background:#000;border-radius:14px;z-index:9}
+.nav{position:absolute;left:14px;right:14px;bottom:14px;height:64px;border-radius:24px;display:flex;justify-content:space-around;align-items:center;z-index:5}
+.nav i{width:38px;height:38px;border-radius:14px;display:grid;place-items:center;font-style:normal;font-size:17px;opacity:.55}
+.nav i.on{opacity:1}
+.nav i.plus{width:46px;height:46px;border-radius:50%;opacity:1;font-size:22px;font-weight:300}
+.row{display:flex;align-items:center;justify-content:space-between}
+.ring{display:block}
+.mono{font-family:'JetBrains Mono',monospace}
+
+/* ===== 1 Midnight Glass ===== */
+.s1{background:#06090F;color:#EEF2F0;font-family:Inter}
+.s1:before{content:"";position:absolute;inset:0;background:radial-gradient(420px 300px at 90% -5%,#12B88640,transparent 70%),radial-gradient(300px 260px at -10% 100%,#12B88620,transparent 70%)}
+.s1 .hi{font:600 11px Inter;letter-spacing:.14em;text-transform:uppercase;color:#12B886}
+.s1 h2{font:600 30px/1.1 Fraunces;margin:6px 0 18px;letter-spacing:-.01em}
+.s1 h2 em{color:#12B886;font-style:normal}
+.s1 .card{background:#ffffff0a;border:1px solid #ffffff12;border-radius:22px;padding:16px;backdrop-filter:blur(14px);margin-bottom:12px;position:relative}
+.s1 .hero{display:flex;gap:16px;align-items:center}
+.s1 .big{font:600 34px Fraunces}.s1 .sub{color:#8d9a98;font-size:12px}
+.s1 .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.s1 .k{font-size:11px;color:#8d9a98;text-transform:uppercase;letter-spacing:.1em}
+.s1 .v{font:600 22px Fraunces;margin-top:6px}
+.s1 .bar{height:5px;border-radius:5px;background:#ffffff14;margin-top:10px;overflow:hidden}.s1 .bar b{display:block;height:100%;border-radius:5px}
+.s1 .nav{background:#0d131bcc;border:1px solid #ffffff14;backdrop-filter:blur(16px)}.s1 .nav i.on{background:#12B88625;color:#12B886}.s1 .nav i.plus{background:#12B886;color:#04201a}
+.s1 .task{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #ffffff0d;font-size:13px}
+.s1 .dot{width:18px;height:18px;border-radius:50%;border:1.5px solid #12B886;flex:none}
+.s1 .dot.d{background:#12B886}
+
+/* ===== 2 Aurora ===== */
+.s2{background:#0a0714;color:#fff;font-family:'Plus Jakarta Sans'}
+.s2:before{content:"";position:absolute;inset:0;background:radial-gradient(260px 260px at 10% 8%,#7c3aed90,transparent 70%),radial-gradient(280px 280px at 95% 22%,#06b6d480,transparent 70%),radial-gradient(260px 260px at 40% 70%,#ec489950,transparent 70%);filter:blur(20px)}
+.s2 .scroll>*{position:relative}
+.s2 .glass{background:linear-gradient(140deg,#ffffff1f,#ffffff08);border:1px solid #ffffff22;border-radius:26px;padding:16px;backdrop-filter:blur(22px);margin-bottom:12px}
+.s2 h2{font:800 26px/1.15 'Plus Jakarta Sans';letter-spacing:-.03em}
+.s2 .p{font-size:12px;color:#ffffffa8}
+.s2 .chip{display:inline-flex;gap:6px;align-items:center;padding:6px 12px;border-radius:99px;background:#ffffff18;font-size:11px;font-weight:600;margin-right:6px}
+.s2 .nav{background:#ffffff14;border:1px solid #ffffff22;backdrop-filter:blur(20px)}.s2 .nav i.on{background:#fff;color:#2a1560}.s2 .nav i.plus{background:linear-gradient(135deg,#a78bfa,#22d3ee);color:#fff}
+.s2 .bal{font:800 38px 'Plus Jakarta Sans';letter-spacing:-.04em}
+.s2 .tile{border-radius:22px;padding:14px;color:#0a0714}
+
+/* ===== 3 Ivory Editorial ===== */
+.s3{background:#f6f1e7;color:#1d1a15;font-family:Inter}
+.s3 .mast{display:flex;justify-content:space-between;border-bottom:2px solid #1d1a15;padding-bottom:8px;font:500 10px Inter;letter-spacing:.18em;text-transform:uppercase}
+.s3 h2{font:400 44px/1 'DM Serif Display';margin:18px 0 6px;letter-spacing:-.02em}
+.s3 h2 i{color:#b4532a}
+.s3 .lede{font:400 13px/1.55 Inter;color:#5b554a;margin-bottom:18px}
+.s3 .rule{border-top:1px solid #1d1a1530;padding:14px 0;display:flex;justify-content:space-between;align-items:baseline}
+.s3 .rule .n{font:400 34px 'DM Serif Display'}.s3 .rule .t{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7a7364}
+.s3 .rule .d{font-size:12px;color:#5b554a;text-align:right;max-width:130px}
+.s3 .sec{font:500 10px Inter;letter-spacing:.18em;text-transform:uppercase;color:#b4532a;margin:20px 0 6px}
+.s3 .nav{background:#1d1a15;color:#f6f1e7}.s3 .nav i.on{background:#f6f1e7;color:#1d1a15;opacity:1}.s3 .nav i.plus{background:#b4532a;color:#fff}
+
+/* ===== 4 Bento ===== */
+.s4{background:#eef0f6;color:#12142b;font-family:Manrope}
+.s4 .bento{display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:92px;gap:10px}
+.s4 .b{border-radius:24px;padding:14px;position:relative;overflow:hidden}
+.s4 .b .t{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.65}
+.s4 .b .n{font:800 28px Manrope;letter-spacing:-.03em;margin-top:4px}
+.s4 .b .s{font-size:11px;opacity:.7;font-weight:600}
+.s4 h2{font:800 26px Manrope;letter-spacing:-.03em;margin:2px 0 14px}
+.s4 .nav{background:#12142b}.s4 .nav i{color:#fff}.s4 .nav i.on{background:#ffffff20}.s4 .nav i.plus{background:#ffd23f;color:#12142b}
+
+/* ===== 5 Soft Clay ===== */
+.s5{background:#e6e9ef;color:#2c3446;font-family:'Plus Jakarta Sans'}
+.s5 .neo{background:#e6e9ef;border-radius:26px;box-shadow:9px 9px 20px #c3c8d4,-9px -9px 20px #fff;padding:16px;margin-bottom:18px}
+.s5 .in{box-shadow:inset 5px 5px 10px #c3c8d4,inset -5px -5px 10px #fff;border-radius:18px}
+.s5 h2{font:800 24px 'Plus Jakarta Sans';letter-spacing:-.03em}
+.s5 .p{font-size:12px;color:#7b8499}
+.s5 .nav{background:#e6e9ef;box-shadow:8px 8px 18px #c3c8d4,-8px -8px 18px #fff}.s5 .nav i{color:#2c3446}.s5 .nav i.on{box-shadow:inset 4px 4px 8px #c3c8d4,inset -4px -4px 8px #fff;color:#4f6df5}.s5 .nav i.plus{background:linear-gradient(145deg,#6b86ff,#4f6df5);color:#fff;box-shadow:5px 5px 12px #4f6df560}
+.s5 .pill{height:10px;border-radius:10px;margin-top:10px;padding:2px}.s5 .pill b{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,#7e94ff,#4f6df5)}
+
+/* ===== 6 Day Timeline ===== */
+.s6{background:#0f1311;color:#eef3ee;font-family:Outfit}
+.s6 h2{font:600 28px Outfit;letter-spacing:-.02em}
+.s6 .days{display:flex;gap:8px;margin:14px 0 18px}
+.s6 .days div{flex:1;text-align:center;padding:9px 0;border-radius:16px;background:#1a201c;font-size:10px;color:#7d8a80}
+.s6 .days div b{display:block;font:600 16px Outfit;color:#eef3ee;margin-top:3px}
+.s6 .days .on{background:#c8f169;color:#1a2308}.s6 .days .on b{color:#1a2308}
+.s6 .tl{position:relative;padding-left:56px}
+.s6 .tl:before{content:"";position:absolute;left:44px;top:4px;bottom:4px;width:1.5px;background:linear-gradient(#c8f16980,#ffffff10)}
+.s6 .ev{position:relative;margin-bottom:12px;background:#1a201c;border-radius:20px;padding:12px 14px}
+.s6 .ev .tm{position:absolute;left:-56px;top:12px;font:500 11px 'JetBrains Mono';color:#7d8a80}
+.s6 .ev:before{content:"";position:absolute;left:-16px;top:16px;width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 0 4px #0f1311}
+.s6 .ev b{font-size:14px;font-weight:600}.s6 .ev small{display:block;color:#7d8a80;font-size:11px;margin-top:3px}
+.s6 .ev.now{background:#c8f169;color:#1a2308}.s6 .ev.now small{color:#3c4a15}
+.s6 .nav{background:#1a201c}.s6 .nav i.on{background:#c8f169;color:#1a2308}.s6 .nav i.plus{background:#c8f169;color:#1a2308}
+
+/* ===== 7 Orbit ===== */
+.s7{background:radial-gradient(500px 380px at 50% 20%,#14213d,#05070d 70%);color:#fff;font-family:Sora}
+.s7 h2{font:600 18px Sora;text-align:center;margin-bottom:2px}
+.s7 .p{text-align:center;font-size:11px;color:#7f8bab}
+.s7 .orbit{display:grid;place-items:center;margin:14px 0 6px;position:relative}
+.s7 .orbit .c{position:absolute;text-align:center}
+.s7 .orbit .c b{font:700 34px Sora;display:block}
+.s7 .legend{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.s7 .lg{background:#ffffff0c;border:1px solid #ffffff12;border-radius:18px;padding:12px}
+.s7 .lg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.s7 .lg b{display:block;font:600 18px Sora;margin-top:6px}.s7 .lg span{font-size:10px;color:#7f8bab}
+.s7 .nav{background:#0c1424cc;border:1px solid #ffffff14}.s7 .nav i.on{color:#5eead4;background:#5eead420}.s7 .nav i.plus{background:linear-gradient(135deg,#5eead4,#3b82f6);color:#04101c}
+
+/* ===== 8 Sage ===== */
+.s8{background:#f3f6f0;color:#1f3a2c;font-family:'Plus Jakarta Sans'}
+.s8 .hero8{background:linear-gradient(150deg,#1f5c43,#2f8a64);color:#fff;border-radius:30px;padding:20px;margin-bottom:14px;position:relative;overflow:hidden}
+.s8 .hero8:after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:#ffffff14}
+.s8 h2{font:700 24px 'Plus Jakarta Sans';letter-spacing:-.02em;margin-bottom:12px}
+.s8 .w{background:#fff;border-radius:24px;padding:14px;margin-bottom:10px;box-shadow:0 8px 24px -14px #1f5c4360}
+.s8 .ico{width:38px;height:38px;border-radius:14px;display:grid;place-items:center;font-size:17px}
+.s8 .nav{background:#fff;box-shadow:0 10px 30px -10px #1f5c4360}.s8 .nav i{color:#1f3a2c}.s8 .nav i.on{background:#e2efe6;color:#1f5c43}.s8 .nav i.plus{background:#1f5c43;color:#fff}
+.s8 .hab{display:flex;gap:6px;margin-top:10px}.s8 .hab span{flex:1;height:34px;border-radius:12px;background:#e7ede4;display:grid;place-items:center;font-size:10px;font-weight:700;color:#7b9186}.s8 .hab .d{background:#2f8a64;color:#fff}
+
+/* ===== 9 Black & Gold ===== */
+.s9{background:#0a0a0a;color:#f1e9d8;font-family:Inter}
+.s9 .gold{background:linear-gradient(120deg,#f3d68a,#c9a24d 50%,#8e6a22);-webkit-background-clip:text;color:transparent}
+.s9 h2{font:500 30px 'Playfair Display';letter-spacing:-.01em}
+.s9 .cardg{border:1px solid #c9a24d44;border-radius:22px;padding:18px;background:linear-gradient(160deg,#17130a,#0c0c0c);margin:14px 0;position:relative;overflow:hidden}
+.s9 .cardg:after{content:"";position:absolute;right:-60px;top:-60px;width:160px;height:160px;border-radius:50%;border:1px solid #c9a24d33}
+.s9 .lbl{font:500 9px Inter;letter-spacing:.24em;text-transform:uppercase;color:#a89868}
+.s9 .bigg{font:500 38px 'Playfair Display';margin:6px 0}
+.s9 .li{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #ffffff10;font-size:13px}
+.s9 .li span{color:#a89868;font-size:11px}
+.s9 .nav{background:#121212;border:1px solid #c9a24d33}.s9 .nav i{color:#f1e9d8}.s9 .nav i.on{color:#c9a24d}.s9 .nav i.plus{background:linear-gradient(135deg,#f3d68a,#b88a2e);color:#1a1405}
+
+/* ===== 10 Command center ===== */
+.s10{background:#0a1020;color:#dfe8ff;font-family:'Space Grotesk'}
+.s10 h2{font:700 20px 'Space Grotesk'}
+.s10 .tag{font:500 10px 'JetBrains Mono';color:#5b6b95}
+.s10 .m{background:#101a33;border:1px solid #1d2b4f;border-radius:16px;padding:12px}
+.s10 .m .k{font:500 10px 'JetBrains Mono';color:#5b6b95;text-transform:uppercase}
+.s10 .m .v{font:700 24px 'Space Grotesk';margin-top:4px}
+.s10 .m .dl{font:500 10px 'JetBrains Mono'}
+.s10 .g{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.s10 .wide{grid-column:span 2}
+.s10 .nav{background:#101a33;border:1px solid #1d2b4f}.s10 .nav i.on{background:#2d6bff30;color:#7ea6ff}.s10 .nav i.plus{background:#2d6bff;color:#fff;border-radius:16px}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Blistra <em>dashboard</em> — 10 directions</h1>
+  <p>One personal-OS home screen for Planner, Medicines, Habits, Diet, Health and Finance. Each phone shows the same data from the dashboard API (today's doses, habit progress, calories, water, balance, tasks) in a different visual language. Scroll inside any phone.</p>
+</header>
+<div class="grid" id="grid"></div>
+
+<script>
+// ---------- helpers ----------
+const ring=(p,size,w,col,track='#ffffff14',cap='round')=>{const r=(size-w)/2,c=2*Math.PI*r;return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${track}" stroke-width="${w}"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="${cap}" stroke-dasharray="${c*p} ${c}" transform="rotate(-90 ${size/2} ${size/2})"/></svg>`};
+const spark=(pts,w,h,col,fill=true)=>{const mx=Math.max(...pts),mn=Math.min(...pts),sx=w/(pts.length-1);const xy=pts.map((v,i)=>[i*sx,h-4-((v-mn)/(mx-mn||1))*(h-8)]);const d=xy.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><linearGradient id="g${col.replace(/\W/g,'')}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".35"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>${fill?`<path d="${d} L${w} ${h} L0 ${h}Z" fill="url(#g${col.replace(/\W/g,'')})"/>`:''}<path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`};
+const bars=(pts,h,col,on,dim)=>`<div style="display:flex;gap:6px;align-items:flex-end;height:${h}px">${pts.map((v,i)=>`<div style="flex:1;height:${v}%;border-radius:6px;background:${i==on?col:dim}"></div>`).join('')}</div>`;
+const nav=icons=>`<div class="nav">${icons.map((x,i)=>`<i class="${i==0?'on':''} ${x=='+'?'plus':''}">${x}</i>`).join('')}</div>`;
+const NAV=['⌂','✓','+','◔','☰'];
+const phone=(cls,body,n=NAV)=>`<div class="phone ${cls}"><div class="notch"></div><div class="scroll">${body}</div>${nav(n)}</div>`;
+const cells=[];
+const add=(num,name,desc,html)=>cells.push(`<div class="cell">${html}<div class="label"><b>${num}</b>${name}<span>${desc}</span></div></div>`);
+
+// ---------- 1 Midnight Glass ----------
+add('01','Midnight Glass (evolved)','Brand-faithful: teal glow, Fraunces headings, frosted cards',phone('s1',`
+<div style="position:relative">
+<div class="row"><div class="hi">Thu · 22 Oct</div><div style="width:34px;height:34px;border-radius:50%;background:#12B88630;display:grid;place-items:center;font-size:12px;color:#12B886;font-weight:700">SK</div></div>
+<h2>Good evening,<br><em>Sourabh.</em></h2>
+<div class="card hero">${ring(.72,92,9,'#12B886')}<div><div class="k">Today's score</div><div class="big">72<small style="font-size:14px;color:#8d9a98"> / 100</small></div><div class="sub">4 of 6 habits · 3 of 5 doses</div></div></div>
+<div class="g2">
+<div class="card"><div class="k">Medicines</div><div class="v">3 / 5</div><div class="bar"><b style="width:60%;background:#7aa2ff"></b></div><div class="sub" style="margin-top:8px">Next · 9:00 PM</div></div>
+<div class="card"><div class="k">Water</div><div class="v">1.8 L</div><div class="bar"><b style="width:72%;background:#38d0e8"></b></div><div class="sub" style="margin-top:8px">of 2.5 L</div></div>
+<div class="card"><div class="k">Calories</div><div class="v">1,420</div><div class="bar"><b style="width:71%;background:#ffb454"></b></div><div class="sub" style="margin-top:8px">580 left</div></div>
+<div class="card"><div class="k">Balance</div><div class="v">₹48,260</div><div class="bar"><b style="width:40%;background:#12B886"></b></div><div class="sub" style="margin-top:8px">−₹3,120 this week</div></div></div>
+<div class="card"><div class="k" style="margin-bottom:6px">Up next</div>
+<div class="task"><span class="dot d"></span>Morning walk<span style="margin-left:auto;color:#8d9a98">7:00</span></div>
+<div class="task"><span class="dot"></span>Review budget<span style="margin-left:auto;color:#8d9a98">Today</span></div>
+<div class="task"><span class="dot"></span>Dr. Mehta — checkup<span style="margin-left:auto;color:#8d9a98">Fri 5 PM</span></div></div></div>`));
+
+// ---------- 2 Aurora ----------
+add('02','Aurora Glass','Vivid mesh gradient, deep glass, big finance number',phone('s2',`
+<div class="row"><div><div class="p">Good evening</div><h2>Sourabh ✦</h2></div><span class="chip">🔥 12-day streak</span></div>
+<div class="glass" style="margin-top:16px"><div class="p">Total balance</div><div class="bal">₹48,260</div><div style="margin:8px 0 6px">${spark([20,24,22,30,28,36,34,42,40,48],270,56,'#67e8f9')}</div><span class="chip">↑ ₹6,400 income</span><span class="chip">↓ ₹3,120 spent</span></div>
+<div class="row" style="gap:12px;margin-bottom:12px">
+<div class="tile" style="flex:1;background:linear-gradient(145deg,#c4b5fd,#a78bfa)"><div style="font-size:11px;font-weight:700;opacity:.7">MEDICINES</div><div style="font:800 28px 'Plus Jakarta Sans';margin:6px 0 2px">3/5</div><div style="font-size:11px;font-weight:600">Next 9:00 PM</div></div>
+<div class="tile" style="flex:1;background:linear-gradient(145deg,#a5f3fc,#67e8f9)"><div style="font-size:11px;font-weight:700;opacity:.7">HABITS</div><div style="font:800 28px 'Plus Jakarta Sans';margin:6px 0 2px">4/6</div><div style="font-size:11px;font-weight:600">2 remaining</div></div></div>
+<div class="glass"><div class="row"><b style="font-size:14px">Nutrition</b><span class="p">1,420 / 2,000 kcal</span></div><div style="display:flex;gap:14px;margin-top:12px">${ring(.71,64,8,'#f9a8d4','#ffffff18')}<div style="flex:1;font-size:12px;display:grid;gap:6px;align-content:center"><div class="row"><span class="p">Protein</span><b>86 g</b></div><div class="row"><span class="p">Carbs</span><b>160 g</b></div><div class="row"><span class="p">Water</span><b>1.8 L</b></div></div></div></div>`));
+
+// ---------- 3 Ivory Editorial ----------
+add('03','Ivory Editorial','Newspaper-like calm: serif numerals, hairlines, no boxes',phone('s3',`
+<div class="mast"><span>The Blistra Daily</span><span>Thu 22 Oct</span></div>
+<h2>Evening,<br><i>Sourabh.</i></h2>
+<p class="lede">Three doses taken, four habits kept. One appointment this week and a quiet budget.</p>
+<div class="sec">Today in numbers</div>
+<div class="rule"><div><div class="n">3<span style="font-size:18px;color:#7a7364"> / 5</span></div><div class="t">Doses taken</div></div><div class="d">Next: Metformin at 9:00 PM</div></div>
+<div class="rule"><div><div class="n">4<span style="font-size:18px;color:#7a7364"> / 6</span></div><div class="t">Habits done</div></div><div class="d">Read 20 min · Stretch</div></div>
+<div class="rule"><div><div class="n">1,420</div><div class="t">Kcal eaten</div></div><div class="d">580 left of 2,000 goal</div></div>
+<div class="rule"><div><div class="n">₹48k</div><div class="t">Balance</div></div><div class="d">₹3,120 spent this week</div></div>
+<div class="sec">Agenda</div>
+<div class="rule" style="padding:10px 0"><span style="font-size:14px">Review monthly budget</span><span class="t" style="font:10px Inter;letter-spacing:.1em;color:#b4532a">TODAY</span></div>
+<div class="rule" style="padding:10px 0"><span style="font-size:14px">Dr. Mehta — checkup</span><span class="t" style="font:10px Inter;letter-spacing:.1em;color:#7a7364">FRI 5 PM</span></div>`));
+
+// ---------- 4 Bento ----------
+add('04','Bento Colour Blocks','Playful modular tiles, bold sans, one tile = one module',phone('s4',`
+<div class="row"><div style="font:600 12px Manrope;color:#6b6f8a">Thursday, 22 Oct</div><div style="width:34px;height:34px;border-radius:12px;background:#12142b;color:#fff;display:grid;place-items:center;font-size:12px;font-weight:800">SK</div></div>
+<h2 style="margin-top:6px">Hey Sourabh,<br>you're on track.</h2>
+<div class="bento">
+<div class="b" style="background:#ffd23f;grid-row:span 2"><div class="t">Habits</div><div class="n" style="font-size:44px;margin-top:8px">4/6</div><div class="s">Streak 12 days</div><div style="position:absolute;bottom:10px;left:14px;right:14px">${bars([60,80,50,90,70,100,66],44,'#12142b',6,'#12142b30')}</div></div>
+<div class="b" style="background:#7c6cff;color:#fff"><div class="t">Medicines</div><div class="n">3/5</div><div class="s">Next 9 PM</div></div>
+<div class="b" style="background:#3dd6a3"><div class="t">Water</div><div class="n">1.8 L</div><div class="s">72% of goal</div></div>
+<div class="b" style="background:#ff7a6b;color:#fff;grid-column:span 2"><div class="t">Calories</div><div class="row"><div class="n">1,420</div><div style="width:56%;"><div style="height:8px;background:#ffffff40;border-radius:8px"><div style="height:100%;width:71%;background:#fff;border-radius:8px"></div></div><div class="s" style="margin-top:6px">580 kcal left</div></div></div></div>
+<div class="b" style="background:#fff;grid-column:span 2"><div class="t">Balance</div><div class="row"><div class="n">₹48,260</div><div>${spark([20,24,22,30,28,36,34,42],110,44,'#12142b',false)}</div></div></div>
+</div>`,['⌂','✓','+','◔','☰']));
+
+// ---------- 5 Soft Clay ----------
+add('05','Soft Clay (Neumorphic)','Tactile pillowy surfaces, calm blue accent',phone('s5',`
+<div class="row" style="margin-bottom:20px"><div><div class="p">Thursday</div><h2>Hello, Sourabh</h2></div><div class="neo" style="padding:0;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;margin:0;font-size:13px;font-weight:800;color:#4f6df5">SK</div></div>
+<div class="neo" style="text-align:center"><div class="p">Daily wellness</div><div style="display:grid;place-items:center;margin:10px 0"><div class="in" style="width:130px;height:130px;border-radius:50%;display:grid;place-items:center;position:relative">${ring(.72,116,10,'#4f6df5','#d6dae5')}<div style="position:absolute;font:800 32px 'Plus Jakarta Sans'">72%</div></div></div><div class="p">Great pace — keep going</div></div>
+<div class="neo"><div class="row"><b style="font-size:14px">Medicines</b><span class="p">3 of 5</span></div><div class="pill in"><b style="width:60%"></b></div></div>
+<div class="neo"><div class="row"><b style="font-size:14px">Water</b><span class="p">1.8 / 2.5 L</span></div><div class="pill in"><b style="width:72%"></b></div></div>
+<div class="neo"><div class="row"><b style="font-size:14px">Spending</b><span class="p">₹3,120 / ₹8,000</span></div><div class="pill in"><b style="width:39%"></b></div></div>`));
+
+// ---------- 6 Timeline ----------
+add('06','Day Timeline','The day as a flowing schedule — meds, meals, tasks in time order',phone('s6',`
+<div class="row"><h2>Today</h2><span class="mono" style="font-size:11px;color:#7d8a80">22 OCT</span></div>
+<div class="days"><div>M<b>19</b></div><div>T<b>20</b></div><div>W<b>21</b></div><div class="on">T<b>22</b></div><div>F<b>23</b></div><div>S<b>24</b></div></div>
+<div class="tl">
+<div class="ev" style="--c:#7aa2ff"><span class="tm">08:00</span><b>Vitamin D</b><small>Medicine · taken ✓</small></div>
+<div class="ev" style="--c:#ffb454"><span class="tm">13:00</span><b>Lunch · Dal, rice, salad</b><small>620 kcal logged</small></div>
+<div class="ev now" style="--c:#c8f169"><span class="tm" style="color:#3c4a15">19:30</span><b>Review monthly budget</b><small>Task · due today</small></div>
+<div class="ev" style="--c:#7aa2ff"><span class="tm">21:00</span><b>Metformin 500 mg</b><small>Medicine · after dinner</small></div>
+<div class="ev" style="--c:#38d0e8"><span class="tm">22:00</span><b>Wind-down · no screens</b><small>Habit · 12-day streak</small></div>
+<div class="ev" style="--c:#ff7a6b"><span class="tm">Fri 17:00</span><b>Dr. Mehta — checkup</b><small>Health appointment</small></div></div>`));
+
+// ---------- 7 Orbit ----------
+add('07','Orbit Rings','Concentric progress rings as the hero, cosmic dark blue',phone('s7',`
+<h2>Sourabh's day</h2><div class="p">Thursday, 22 October</div>
+<div class="orbit">${ring(.6,230,14,'#5eead4','#5eead418')}<div style="position:absolute">${ring(.72,190,14,'#60a5fa','#60a5fa18')}</div><div style="position:absolute">${ring(.71,150,14,'#fbbf24','#fbbf2418')}</div><div style="position:absolute">${ring(.66,110,14,'#f472b6','#f472b618')}</div><div class="c"><b>72</b><span style="font-size:10px;color:#7f8bab">LIFE SCORE</span></div></div>
+<div class="legend">
+<div class="lg"><i style="background:#5eead4"></i><span>Medicines</span><b>3 / 5</b></div>
+<div class="lg"><i style="background:#60a5fa"></i><span>Water</span><b>1.8 L</b></div>
+<div class="lg"><i style="background:#fbbf24"></i><span>Calories</span><b>1,420</b></div>
+<div class="lg"><i style="background:#f472b6"></i><span>Habits</span><b>4 / 6</b></div></div>
+<div class="lg" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center"><div><span>Finance this week</span><b>−₹3,120</b></div>${spark([30,28,34,26,22,24,18],90,36,'#5eead4')}</div>`));
+
+// ---------- 8 Sage ----------
+add('08','Sage Wellness','Soft greens, rounded, friendly — health-first',phone('s8',`
+<div class="row" style="margin-bottom:12px"><div style="font:600 12px 'Plus Jakarta Sans';color:#6b8577">Thursday · 22 Oct</div><div class="ico" style="background:#e2efe6;font-size:12px;font-weight:800;color:#1f5c43;border-radius:50%">SK</div></div>
+<h2>Take it easy,<br>Sourabh 🌿</h2>
+<div class="hero8"><div style="font-size:11px;opacity:.75;font-weight:600">Next dose</div><div style="font:700 28px 'Plus Jakarta Sans';margin:4px 0">Metformin · 9:00 PM</div><div style="font-size:12px;opacity:.85">500 mg · after dinner</div><div style="margin-top:14px;display:inline-block;padding:9px 18px;border-radius:99px;background:#fff;color:#1f5c43;font-weight:700;font-size:12px">Mark as taken</div></div>
+<div class="w row"><div style="display:flex;gap:12px;align-items:center"><div class="ico" style="background:#fde8d2">🍽</div><div><b style="font-size:14px">Calories</b><div style="font-size:11px;color:#6b8577">1,420 of 2,000 kcal</div></div></div>${ring(.71,44,6,'#e8883a','#fde8d2')}</div>
+<div class="w row"><div style="display:flex;gap:12px;align-items:center"><div class="ico" style="background:#d9eefb">💧</div><div><b style="font-size:14px">Water</b><div style="font-size:11px;color:#6b8577">1.8 of 2.5 L</div></div></div>${ring(.72,44,6,'#3b9fd8','#d9eefb')}</div>
+<div class="w"><div class="row"><b style="font-size:14px">Habits this week</b><span style="font-size:11px;color:#6b8577">4/6 today</span></div><div class="hab"><span class="d">M</span><span class="d">T</span><span class="d">W</span><span class="d">T</span><span>F</span><span>S</span></div></div>`));
+
+// ---------- 9 Black & Gold ----------
+add('09','Noir & Gold','Luxury private-banking feel: serif, gilded hairlines',phone('s9',`
+<div class="row"><div class="lbl">Blistra · Private</div><div class="lbl gold">Thu 22 Oct</div></div>
+<h2 style="margin-top:22px">Good evening,<br><span class="gold">Mr. Patel</span></h2>
+<div class="cardg"><div class="lbl">Net balance</div><div class="bigg gold">₹ 48,260</div><div class="row"><span style="font-size:12px;color:#a89868">↓ ₹3,120 spent this week</span><span>${spark([20,24,22,30,28,36,34,42],80,30,'#c9a24d',false)}</span></div></div>
+<div class="lbl" style="margin-top:20px">Today</div>
+<div class="li"><div>Doses taken<br><span>Next at 9:00 PM</span></div><b class="gold" style="font:500 22px 'Playfair Display'">3 / 5</b></div>
+<div class="li"><div>Habits kept<br><span>12-day streak</span></div><b class="gold" style="font:500 22px 'Playfair Display'">4 / 6</b></div>
+<div class="li"><div>Calories<br><span>580 remaining</span></div><b class="gold" style="font:500 22px 'Playfair Display'">1,420</b></div>
+<div class="li"><div>Hydration<br><span>of 2.5 litres</span></div><b class="gold" style="font:500 22px 'Playfair Display'">1.8 L</b></div>
+<div class="li" style="border:0"><div>Dr. Mehta<br><span>Friday · 5:00 PM</span></div><b style="font-size:11px;color:#c9a24d;letter-spacing:.14em">VIEW</b></div>`));
+
+// ---------- 10 Command center ----------
+add('10','Command Center','Data-dense analytics: sparklines, deltas, mono labels',phone('s10',`
+<div class="row"><div><div class="tag">// BLISTRA.OS</div><h2>Overview</h2></div><div class="tag">22·10·2026</div></div>
+<div style="height:14px"></div>
+<div class="g">
+<div class="m wide"><div class="row"><div><div class="k">Net balance</div><div class="v">₹48,260</div></div><div style="text-align:right"><div class="dl" style="color:#3ddc97">▲ 6.4%</div>${spark([20,24,22,30,28,36,34,42,40,48],110,40,'#3ddc97')}</div></div></div>
+<div class="m"><div class="k">Doses</div><div class="v">3/5</div><div class="dl" style="color:#7ea6ff">60% adherence</div></div>
+<div class="m"><div class="k">Habits</div><div class="v">4/6</div><div class="dl" style="color:#3ddc97">▲ streak 12</div></div>
+<div class="m"><div class="k">Kcal</div><div class="v">1,420</div><div class="dl" style="color:#ffb454">▼ 580 left</div></div>
+<div class="m"><div class="k">Water</div><div class="v">1.8 L</div><div class="dl" style="color:#5b6b95">72% of 2.5 L</div></div>
+<div class="m wide"><div class="k">Weekly activity</div><div style="margin-top:10px">${bars([40,65,55,80,60,90,72],60,'#2d6bff',6,'#1d2b4f')}</div><div class="row tag" style="margin-top:6px"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div></div>
+<div class="m wide"><div class="k">Queue</div><div style="font-size:13px;margin-top:8px;display:grid;gap:8px"><div class="row"><span>Review budget</span><span class="tag">TODAY</span></div><div class="row"><span>Metformin 500 mg</span><span class="tag">21:00</span></div><div class="row"><span>Dr. Mehta</span><span class="tag">FRI 17:00</span></div></div></div></div>`));
+
+document.getElementById('grid').innerHTML=cells.join('');
+</script>
+</body>
+</html>

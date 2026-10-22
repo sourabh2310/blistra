@@ -1,124 +1,98 @@
-/// The ten accent colour themes a user can pick in Appearance.
+/// The ten colour themes a user can pick in Appearance.
 ///
-/// The accent recolours the logo, glow, buttons, navigation, progress and
-/// artwork in both light and dark. Module colours (health, medicines, …)
-/// stay fixed because they carry meaning; see [ModuleColors].
+/// Each theme is a single hue. Every other colour (background, glass tint,
+/// glow blobs, accent, progress rings) is derived from it in
+/// [BlistraColors.of], separately for light and dark, so the themes stay
+/// consistent and a new one is a single line here.
 library;
 
 import 'package:flutter/material.dart';
 
 enum AccentPalette {
-  lagoon(
-    label: 'Lagoon',
-    primary: Color(0xFF12B886),
-    secondary: Color(0xFF0B7A66),
-    glowA: Color(0xFF2FD0B0),
-    glowB: Color(0xFFFFD08A),
-    glowC: Color(0xFF5AA9FF),
-  ),
-  ocean(
-    label: 'Ocean',
-    primary: Color(0xFF3B82F6),
-    secondary: Color(0xFF06B6D4),
-    glowA: Color(0xFF3B82F6),
-    glowB: Color(0xFF22D3EE),
-    glowC: Color(0xFF8B7BFF),
-  ),
-  orchid(
-    label: 'Orchid',
-    primary: Color(0xFF8B5CF6),
-    secondary: Color(0xFFD946EF),
-    glowA: Color(0xFF8B5CF6),
-    glowB: Color(0xFFF0A0FF),
-    glowC: Color(0xFF5AA9FF),
-  ),
-  sunset(
-    label: 'Sunset',
-    primary: Color(0xFFFF7A1A),
-    secondary: Color(0xFFE8452C),
-    glowA: Color(0xFFFF7A1A),
-    glowB: Color(0xFFFFC15A),
-    glowC: Color(0xFFFF5A7A),
-  ),
-  rosewood(
-    label: 'Rosewood',
-    primary: Color(0xFFE11D48),
-    secondary: Color(0xFFFB7185),
-    glowA: Color(0xFFE11D48),
-    glowB: Color(0xFFFFB3C4),
-    glowC: Color(0xFFA78BFA),
-  ),
-  forest(
-    label: 'Forest',
-    primary: Color(0xFF1F9D55),
-    secondary: Color(0xFF166534),
-    glowA: Color(0xFF3CB56A),
-    glowB: Color(0xFFC8E86A),
-    glowC: Color(0xFF4FD1C5),
-  ),
-  indigo(
-    label: 'Indigo',
-    primary: Color(0xFF4F46E5),
-    secondary: Color(0xFF6366F1),
-    glowA: Color(0xFF4F46E5),
-    glowB: Color(0xFF818CF8),
-    glowC: Color(0xFF38BDF8),
-  ),
-  gold(
-    label: 'Gold',
-    primary: Color(0xFFD98A00),
-    secondary: Color(0xFFB45309),
-    glowA: Color(0xFFF5B82E),
-    glowB: Color(0xFFFFE08A),
-    glowC: Color(0xFFFF9A5A),
-  ),
-  slate(
-    label: 'Slate',
-    primary: Color(0xFF52627A),
-    secondary: Color(0xFF1F2A3D),
-    glowA: Color(0xFF64748B),
-    glowB: Color(0xFFCBD5E1),
-    glowC: Color(0xFF94A3B8),
-  ),
-  blossom(
-    label: 'Blossom',
-    primary: Color(0xFFF06292),
-    secondary: Color(0xFFFF8A65),
-    glowA: Color(0xFFF06292),
-    glowB: Color(0xFFFFB7C9),
-    glowC: Color(0xFFFFCC80),
+  lagoon(label: 'Lagoon', description: 'Calm teal', hue: 168),
+  aurora(label: 'Aurora', description: 'Soft violet', hue: 262),
+  ocean(label: 'Ocean', description: 'Clear blue', hue: 212),
+  arctic(label: 'Arctic', description: 'Icy cyan', hue: 190),
+  indigo(label: 'Indigo', description: 'Deep indigo', hue: 236),
+  emerald(label: 'Emerald', description: 'Fresh green', hue: 146),
+  gold(label: 'Gold', description: 'Warm amber', hue: 42),
+  sunset(label: 'Sunset', description: 'Burnt orange', hue: 22),
+  rose(label: 'Rose', description: 'Playful pink', hue: 335),
+  graphite(
+    label: 'Graphite',
+    description: 'Neutral mono',
+    hue: 215,
+    saturation: 0.04,
   );
 
   const AccentPalette({
     required this.label,
-    required this.primary,
-    required this.secondary,
-    required this.glowA,
-    required this.glowB,
-    required this.glowC,
+    required this.description,
+    required this.hue,
+    this.saturation = 1,
   });
 
   final String label;
+  final String description;
 
-  /// Main accent: buttons, selection, links.
-  final Color primary;
+  /// Base hue in degrees (0–360).
+  final double hue;
+
+  /// Multiplier for the theme's own saturation; near zero gives a neutral
+  /// theme while secondary ring colours stay readable.
+  final double saturation;
+
+  /// Colour from this theme's hue with saturation [s] (0–1, scaled by
+  /// [saturation]) and lightness [l] (0–1), optionally shifted by [shift]°.
+  Color tone(double s, double l, {double shift = 0, double alpha = 1}) =>
+      HSLColor.fromAHSL(
+        alpha,
+        (hue + shift) % 360,
+        (s * saturation).clamp(0.0, 1.0),
+        l,
+      ).toColor();
+
+  /// Main accent for buttons and selection: a mid tone that carries white
+  /// text in both modes.
+  Color get primary => tone(0.72, 0.42);
 
   /// Second stop of the accent gradient.
-  final Color secondary;
+  Color get secondary => tone(0.72, 0.30);
 
-  /// Background glow blobs (top right, middle left, bottom right).
-  final Color glowA;
-  final Color glowB;
-  final Color glowC;
-
+  /// Swatch shown in the theme picker.
   LinearGradient get gradient => LinearGradient(
-        colors: [primary, secondary],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
+    colors: [tone(0.72, 0.66), tone(0.72, 0.36)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
-  static AccentPalette fromName(String? name) => AccentPalette.values
-      .firstWhere((p) => p.name == name, orElse: () => AccentPalette.lagoon);
+  /// Hues for secondary data colours (rings, timeline dots), chosen at least
+  /// 45° from the theme hue so they never blend into the accent.
+  List<double> get secondaryHues {
+    const candidates = <double>[215, 40, 320, 160, 270, 30];
+    double dist(double a, double b) {
+      final x = (a - b).abs() % 360;
+      return x > 180 ? 360 - x : x;
+    }
+
+    return candidates.where((c) => dist(c, hue) > 45).take(3).toList();
+  }
+
+  /// Stored names from the previous palette set map to their closest theme.
+  static AccentPalette fromName(String? name) {
+    const legacy = {
+      'orchid': AccentPalette.aurora,
+      'rosewood': AccentPalette.rose,
+      'forest': AccentPalette.emerald,
+      'slate': AccentPalette.graphite,
+      'blossom': AccentPalette.rose,
+    };
+    return legacy[name] ??
+        AccentPalette.values.firstWhere(
+          (p) => p.name == name,
+          orElse: () => AccentPalette.lagoon,
+        );
+  }
 }
 
 /// Fixed colours that identify each module, independent of the accent.

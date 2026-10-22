@@ -1,11 +1,11 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:provider/provider.dart';
 
 import '../../../core/auth/auth_state.dart';
-import '../../../core/theme/accent_palette.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
 import '../../app_scope.dart';
@@ -16,6 +16,14 @@ import '../../notifications/state/reminders_controller.dart';
 import '../../preferences/shell_destinations.dart';
 import '../models/dashboard_response.dart';
 
+/// Home: what is urgent, what is next and what is left today, on frosted
+/// glass over the theme backdrop.
+///
+/// Reading order: header (date, streak, search, notifications, profile) →
+/// Next up → Needs attention → next appointment → Today so far → nudges →
+/// timeline → habits → health → spending → this week. Every value comes from
+/// [DashboardResponse] except habit streaks, which come from the Habits
+/// statistics API.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     super.key,
@@ -39,924 +47,23 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final _scheduleKey = GlobalKey();
-  final _medicinesKey = GlobalKey();
-  final _habitsKey = GlobalKey();
-  final _financeKey = GlobalKey();
-
-  void _scrollToDestination(String destination) {
-    GlobalKey? key = switch (destination) {
-      'PLANNER/TODAY' => _scheduleKey,
-      'MEDICINES' => _medicinesKey,
-      'HABITS' => _habitsKey,
-      'FINANCE' => _financeKey,
-      _ => null,
-    };
-    if (key == null) {
-      widget.onDestination?.call(destination);
-      return;
-    }
-    final ctx = key.currentContext;
-    if (ctx == null) {
-      widget.onDestination?.call(destination);
-      return;
-    }
-    Scrollable.ensureVisible(
-      ctx,
-      duration: const Duration(milliseconds: 450),
-      curve: Curves.easeInOut,
-      alignment: 0.05,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    return ListenableBuilder(
-      listenable: Listenable.merge([scope.dashboard, scope.authState]),
-      builder: (context, _) {
-        final controller = scope.dashboard;
-        final now = DateTime.now();
-        final name = resolveDisplayName(
-          user: controller.dashboard?.user,
-          email: scope.authState.userEmail,
-        );
-        Future<void> refresh() => controller.refresh(
-          date: now,
-          offsetMinutes: now.timeZoneOffset.inMinutes,
-        );
-        return Material(
-          type: MaterialType.transparency,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Positioned.fill(
-                child: RefreshIndicator(
-                  onRefresh: refresh,
-                  child: SizedBox.expand(
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: SafeArea(
-                        bottom: false,
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1000),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _Greeting(
-                                  name: name,
-                                  now: now,
-                                  dashboard: controller.dashboard,
-                                  displayName: name,
-                                  onSearch: widget.onSearch,
-                                  onNotifications: widget.onNotifications,
-                                  onProfile: widget.onProfile,
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    16,
-                                    0,
-                                    16,
-                                    24,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (controller.isLoading &&
-                                          controller.dashboard == null)
-                                        const _DashboardSkeleton()
-                                      else if (controller.dashboard == null)
-                                        _FullError(
-                                          message:
-                                              controller.error ??
-                                              'Home is unavailable right now.',
-                                          onRetry: refresh,
-                                        )
-                                      else
-                                        _HomeContent(
-                                          dashboard: controller.dashboard!,
-                                          now: now,
-                                          homeWidgets: _orderedWidgets(
-                                            widget.homeWidgets,
-                                          ),
-                                          hubPinned: widget.hubPinned,
-                                          onDestination: widget.onDestination,
-                                          onRefresh: refresh,
-                                          scheduleKey: _scheduleKey,
-                                          medicinesKey: _medicinesKey,
-                                          habitsKey: _habitsKey,
-                                          financeKey: _financeKey,
-                                          scrollToDestination:
-                                              _scrollToDestination,
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-List<String> _orderedWidgets(List<String>? raw) {
-  if (raw == null || raw.isEmpty) return HomeWidgets.defaults;
-  try {
-    return HomeWidgets.normalizeWidgets(raw);
-  } on ArgumentError {
-    return HomeWidgets.defaults;
-  }
-}
-
-class _DarkHeaderAction extends StatelessWidget {
-  const _DarkHeaderAction({
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-    this.badge = false,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final bool badge;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onPressed,
-        child: Semantics(
-          button: true,
-          label: tooltip,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(
-                  icon,
-                  size: 19,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-              ),
-              if (badge)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFF4D6D),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DarkNotificationAction extends StatelessWidget {
-  const _DarkNotificationAction({required this.onPressed});
-
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    bool hasActive = false;
-    try {
-      final reminders = context.watch<RemindersController>();
-      hasActive = reminders.reminders.any((r) => r.isActive);
-    } catch (_) {
-      hasActive = false;
-    }
-    return _DarkHeaderAction(
-      tooltip: 'Notifications',
-      icon: Icons.notifications_none_outlined,
-      onPressed: onPressed,
-      badge: hasActive,
-    );
-  }
-}
-
-class _DarkProfileAvatar extends StatelessWidget {
-  const _DarkProfileAvatar({
-    required this.displayName,
-    required this.gradient,
-    this.onTap,
-  });
-
-  final String displayName;
-  final LinearGradient gradient;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Profile',
-      button: true,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 38,
-          height: 38,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Text(
-            initialsForName(displayName),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Greeting extends StatelessWidget {
-  const _Greeting({
-    required this.name,
-    required this.now,
-    required this.dashboard,
-    required this.displayName,
-    this.onSearch,
-    this.onNotifications,
-    this.onProfile,
-  });
-
-  final String name;
-  final DateTime now;
-  final DashboardResponse? dashboard;
-  final String displayName;
-  final VoidCallback? onSearch;
-  final VoidCallback? onNotifications;
-  final VoidCallback? onProfile;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    final palette = colors.palette;
-    final heroBg = Color.lerp(
-      const Color(0xFF080F0C),
-      palette.secondary,
-      colors.isDark ? 0.32 : 0.25,
-    )!;
-    final heroText = Colors.white.withValues(alpha: 0.95);
-    final heroMuted = Colors.white.withValues(alpha: 0.55);
-    final progress = computeDayProgress(dashboard, now: now);
-    final pct = progress.total == 0
-        ? 0.0
-        : (progress.completed / progress.total).clamp(0.0, 1.0).toDouble();
-    return Semantics(
-      label: '${greetingForHour(now.hour)}, $name. '
-          '${progress.total == 0 ? "All caught up." : "${progress.completed} of ${progress.total} done today."}',
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(28),
-            bottomRight: Radius.circular(28),
-          ),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              heroBg,
-              Color.lerp(heroBg, palette.primary, 0.42)!,
-            ],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: palette.primary.withValues(alpha: 0.28),
-              blurRadius: 22,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Nav bar inside dark hero
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 16, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const BlistraMark(size: 24),
-                        const SizedBox(width: 7),
-                        Flexible(
-                          child: Text(
-                            'Blistra',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: 'Fraunces',
-                              fontSize: 22,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -.5,
-                              color: heroText,
-                              height: 1.1,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _DarkHeaderAction(
-                    tooltip: 'Search',
-                    icon: Icons.search_rounded,
-                    onPressed: onSearch,
-                  ),
-                  const SizedBox(width: 8),
-                  _DarkNotificationAction(onPressed: onNotifications),
-                  const SizedBox(width: 8),
-                  _DarkProfileAvatar(
-                    displayName: displayName,
-                    gradient: colors.gradient,
-                    onTap: onProfile,
-                  ),
-                ],
-              ),
-            ),
-            // Greeting body
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 18, 46),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          DateFormat('EEEE · d MMMM').format(now),
-                          style: TextStyle(
-                            fontFamily: 'Fraunces',
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
-                            color: heroMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${greetingForHour(now.hour)},',
-                          style: TextStyle(
-                            fontFamily: 'Fraunces',
-                            fontSize: 13,
-                            color: heroMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontFamily: 'Fraunces',
-                                  fontSize: 34,
-                                  height: 1.05,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: -.7,
-                                  color: heroText,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Icon(
-                              _dayPartIcon(now.hour),
-                              size: 22,
-                              color: const Color(0xFFFFB020),
-                              semanticLabel: '',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        if (progress.attention > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFFEF4444,
-                              ).withValues(alpha: 0.22),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(
-                                  0xFFEF4444,
-                                ).withValues(alpha: 0.35),
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Text(
-                              '🔴 ${progress.attention} ${progress.attention == 1 ? 'thing needs' : 'things need'} your focus',
-                              style: const TextStyle(
-                                fontSize: 11.5,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          )
-                        else if (progress.total == 0)
-                          Text(
-                            "You're all caught up for today.",
-                            style: TextStyle(
-                              fontFamily: 'Fraunces',
-                              fontSize: 13,
-                              color: heroMuted,
-                            ),
-                          ),
-                        if (progress.total > 0) ...[
-                          const SizedBox(height: 10),
-                          Text(
-                            '${progress.completed} of ${progress.total} done today',
-                            style: TextStyle(fontSize: 11.5, color: heroMuted),
-                          ),
-                          const SizedBox(height: 5),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: SizedBox(
-                              height: 4,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Container(
-                                    color: Colors.white.withValues(alpha: 0.14),
-                                  ),
-                                  FractionallySizedBox(
-                                    widthFactor: pct,
-                                    alignment: Alignment.centerLeft,
-                                    child: Container(color: palette.glowA),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  ExcludeSemantics(
-                    child: progress.total == 0
-                        ? Container(
-                            width: 76,
-                            height: 76,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: 0.18),
-                              border: Border.all(
-                                color: palette.glowA.withValues(alpha: 0.35),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.check_rounded,
-                              size: 34,
-                              color: palette.glowA,
-                            ),
-                          )
-                        : SizedBox(
-                            width: 76,
-                            height: 76,
-                            child: CustomPaint(
-                              painter: _RingPainter(
-                                progress: pct,
-                                ringColor: palette.glowA,
-                                trackColor: Colors.white.withValues(
-                                  alpha: 0.13,
-                                ),
-                              ),
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '${(pct * 100).round()}%',
-                                      style: TextStyle(
-                                        fontFamily: 'Fraunces',
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: heroText,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${progress.completed}/${progress.total}',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        color: heroMuted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RingPainter extends CustomPainter {
-  const _RingPainter({
-    required this.progress,
-    required this.ringColor,
-    required this.trackColor,
-  });
-  final double progress;
-  final Color ringColor;
-  final Color trackColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.shortestSide - 10) / 2;
-    const stroke = 7.0;
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = trackColor
-        ..strokeWidth = stroke
-        ..style = PaintingStyle.stroke,
-    );
-    if (progress <= 0) return;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      2 * math.pi * progress,
-      false,
-      Paint()
-        ..color = ringColor
-        ..strokeWidth = stroke
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_RingPainter old) => old.progress != progress;
-}
-
-class _HomeContent extends StatelessWidget {
-  const _HomeContent({
-    required this.dashboard,
-    required this.now,
-    required this.homeWidgets,
-    required this.hubPinned,
-    required this.onDestination,
-    required this.onRefresh,
-    required this.scheduleKey,
-    required this.medicinesKey,
-    required this.habitsKey,
-    required this.financeKey,
-    required this.scrollToDestination,
-  });
-
-  final DashboardResponse dashboard;
-  final DateTime now;
-  final List<String> homeWidgets;
-  final bool hubPinned;
-  final void Function(String destinationId)? onDestination;
-  final Future<void> Function() onRefresh;
-  final GlobalKey scheduleKey;
-  final GlobalKey medicinesKey;
-  final GlobalKey habitsKey;
-  final GlobalKey financeKey;
-  final void Function(String destination) scrollToDestination;
-
-  Widget _section(String id, {bool compact = false}) {
-    GlobalKey? key = switch (id) {
-      HomeWidgets.todaysSchedule => scheduleKey,
-      HomeWidgets.medicines => medicinesKey,
-      HomeWidgets.habits => habitsKey,
-      HomeWidgets.finance => financeKey,
-      _ => null,
-    };
-    final content = _SectionContent(
-      compact: compact,
-      id: id,
-      dashboard: dashboard,
-      now: now,
-      onDestination: onDestination,
-      onRefresh: onRefresh,
-      homeWidgets: homeWidgets,
-      scrollToDestination: scrollToDestination,
-    );
-    if (key != null) return KeyedSubtree(key: key, child: content);
-    return content;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final sections = homeWidgets.where(HomeWidgets.sections.contains).toList();
-    // Modules shown as separate panels (health/diet stay in _YourLife)
-    final moduleIds = homeWidgets
-        .where(
-          (id) =>
-              id == HomeWidgets.medicines ||
-              id == HomeWidgets.habits ||
-              id == HomeWidgets.finance,
-        )
-        .toList();
-    final children = <Widget>[];
-    for (final id in sections) {
-      if (id == HomeWidgets.todayOverview) {
-        // Float card: visually overlaps the hero bottom by 26 px.
-        // Transform.translate does not affect layout, so the card's
-        // layout box stays at position 0 (immediately below the hero),
-        // while its visual position moves up by 26 px into the hero's
-        // bottom padding area.  The 26 px natural gap that results below
-        // the card's visual bottom provides clean spacing to the next
-        // section without an explicit SizedBox.
-        children.add(
-          Transform.translate(
-            offset: const Offset(0, -26),
-            child: _section(id),
-          ),
-        );
-      } else {
-        children.add(_section(id));
-        children.add(const SizedBox(height: 12));
-      }
-    }
-    for (final id in moduleIds) {
-      children.add(_section(id));
-      children.add(const SizedBox(height: 12));
-    }
-    if (!hubPinned) {
-      children.add(
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => onDestination?.call('HUB'),
-            icon: const Icon(Icons.explore_outlined),
-            label: const Text('Explore Hub'),
-          ),
-        ),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
-    );
-  }
-}
-
-class _SectionContent extends StatelessWidget {
-  const _SectionContent({
-    this.compact = false,
-    required this.id,
-    required this.dashboard,
-    required this.now,
-    required this.onDestination,
-    required this.onRefresh,
-    required this.homeWidgets,
-    required this.scrollToDestination,
-  });
-
-  final bool compact;
-  final String id;
-  final DashboardResponse dashboard;
-  final DateTime now;
-  final void Function(String destinationId)? onDestination;
-  final Future<void> Function() onRefresh;
-  final List<String> homeWidgets;
-  final void Function(String destination) scrollToDestination;
-
-  @override
-  Widget build(BuildContext context) => switch (id) {
-    HomeWidgets.todayOverview => _TodayOverview(
-      dashboard: dashboard,
-      onDestination: onDestination,
-      onRefresh: onRefresh,
-      scrollToDestination: scrollToDestination,
-    ),
-    HomeWidgets.todaysSchedule => _TodaySchedule(
-      dashboard: dashboard,
-      now: now,
-      onDestination: onDestination,
-      compact: compact,
-    ),
-    HomeWidgets.needsAttention => _NeedsAttention(
-      dashboard: dashboard,
-      now: now,
-      onDestination: onDestination,
-      compact: compact,
-    ),
-    HomeWidgets.yourLife => _YourLife(
-      dashboard: dashboard,
-      homeWidgets: homeWidgets,
-      onDestination: onDestination,
-      onRefresh: onRefresh,
-    ),
-    HomeWidgets.thisWeek => _ThisWeek(
-      week: dashboard.week,
-      onDestination: onDestination,
-      onRefresh: onRefresh,
-    ),
-    HomeWidgets.medicines => _Panel(
-      title: 'Medicines',
-      icon: Icons.medication_outlined,
-      trailing: _SeeAll(
-        label: 'See all',
-        onTap: () => onDestination?.call('MEDICINES'),
-      ),
-      child: _ModuleCard(
-        id: HomeWidgets.medicines,
-        dashboard: dashboard,
-        onDestination: onDestination,
-        onRefresh: onRefresh,
-      ),
-    ),
-    HomeWidgets.habits => _Panel(
-      title: 'Habits',
-      icon: Icons.eco_outlined,
-      trailing: _SeeAll(
-        label: 'See all',
-        onTap: () => onDestination?.call('HABITS'),
-      ),
-      child: _ModuleCard(
-        id: HomeWidgets.habits,
-        dashboard: dashboard,
-        onDestination: onDestination,
-        onRefresh: onRefresh,
-      ),
-    ),
-    HomeWidgets.finance => _Panel(
-      title: 'Finance',
-      icon: Icons.account_balance_wallet_outlined,
-      trailing: _SeeAll(
-        label: 'See all',
-        onTap: () => onDestination?.call('FINANCE'),
-      ),
-      child: _ModuleCard(
-        id: HomeWidgets.finance,
-        dashboard: dashboard,
-        onDestination: onDestination,
-        onRefresh: onRefresh,
-      ),
-    ),
-    _ => const SizedBox.shrink(),
-  };
-}
-
-class _TodayOverview extends StatelessWidget {
-  const _TodayOverview({
-    required this.dashboard,
-    required this.onDestination,
-    required this.onRefresh,
-    required this.scrollToDestination,
-  });
-
-  final DashboardResponse dashboard;
-  final void Function(String destinationId)? onDestination;
-  final Future<void> Function() onRefresh;
-  final void Function(String destination) scrollToDestination;
-
-  @override
-  Widget build(BuildContext context) {
-    final metrics = computeHomeOverview(dashboard);
-    Widget card(int i) => _MetricCard(
-      label: metrics.availableMetrics[i].label,
-      value: metrics.availableMetrics[i].value,
-      detail: metrics.availableMetrics[i].detail,
-      icon: metrics.availableMetrics[i].icon,
-      caption: metrics.availableMetrics[i].caption,
-      semanticLabel: metrics.availableMetrics[i].semanticLabel,
-      progress: metrics.availableMetrics[i].progress,
-      onTap: () => scrollToDestination(metrics.availableMetrics[i].destination),
-    );
-    return _Panel(
-      title: 'Today',
-      icon: Icons.calendar_today_outlined,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ExcludeSemantics(
-            child: Opacity(opacity: 0, child: Text('Today overview')),
-          ),
-          if (metrics.availableMetrics.isEmpty)
-            _ErrorState(onRetry: onRefresh, moduleError: true)
-          else
-            LayoutBuilder(
-              builder: (context, constraints) {
-                const spacing = 10.0;
-                // Reference hierarchy is a four-card pastel strip. Wide
-                // layouts show all four across; phones get a 2 x 2 grid so
-                // every card stays a full touch target with no overflow and
-                // no horizontal scrolling.
-                if (constraints.maxWidth >= 300) {
-                  return IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (var i = 0;
-                            i < metrics.availableMetrics.length;
-                            i++) ...[
-                          if (i > 0) const SizedBox(width: 8),
-                          Expanded(child: card(i)),
-                        ],
-                      ],
-                    ),
-                  );
-                }
-                // Wrap sizes every card to its intrinsic content height,
-                // so the icon row + large metric + two-line caption can
-                // never clip on 320px phones (a fixed aspect ratio would).
-                final cardWidth =
-                    (constraints.maxWidth - spacing) / 2;
-                return Wrap(
-                  spacing: spacing,
-                  runSpacing: spacing,
-                  children: [
-                    for (var i = 0;
-                        i < metrics.availableMetrics.length;
-                        i++)
-                      SizedBox(width: cardWidth, child: card(i)),
-                  ],
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TodaySchedule extends StatefulWidget {
-  const _TodaySchedule({
-    required this.dashboard,
-    required this.now,
-    required this.onDestination,
-    this.compact = false,
-  });
-
-  final bool compact;
-
-  final DashboardResponse dashboard;
-  final DateTime now;
-  final void Function(String destinationId)? onDestination;
-
-  @override
-  State<_TodaySchedule> createState() => _TodayScheduleState();
-}
-
-class _TodayScheduleState extends State<_TodaySchedule> {
   /// Keys of rows with a mutation in flight. Prevents double-submit from
   /// rapid taps; the key is source + id so unrelated rows stay interactive.
   final Set<String> _busy = {};
 
+  /// Current streak per habit id, filled lazily from the Habits API.
+  final Map<String, int> _streaks = {};
+  final Set<String> _streakRequested = {};
+
   String _key(TimelineItem item) => '${item.source.name}:${item.sourceId}';
 
+  void _open(String destination) => widget.onDestination?.call(destination);
+
   Future<void> _refreshHome() async {
+    final now = DateTime.now();
     try {
-      final scope = AppScope.of(context);
-      await scope.dashboard.refresh(
-        date: widget.now,
-        offsetMinutes: widget.now.timeZoneOffset.inMinutes,
-      );
+      await AppScope.of(context).dashboard
+          .refresh(date: now, offsetMinutes: now.timeZoneOffset.inMinutes);
     } catch (_) {
       // Refresh failures surface via the controller's error state.
     }
@@ -964,12 +71,14 @@ class _TodayScheduleState extends State<_TodaySchedule> {
 
   void _fail(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _runGuarded(TimelineItem item, Future<void> Function() work) async {
+  Future<void> _runGuarded(
+    TimelineItem item,
+    Future<void> Function() work,
+  ) async {
     final key = _key(item);
     if (_busy.contains(key)) return;
     setState(() => _busy.add(key));
@@ -1002,13 +111,15 @@ class _TodayScheduleState extends State<_TodaySchedule> {
     try {
       habits = context.read<HabitsController>();
     } catch (_) {
-      widget.onDestination?.call(item.destination);
+      _open(item.destination);
       return Future.value();
     }
-    final day = DateTime(widget.now.year, widget.now.month, widget.now.day);
+    final now = DateTime.now();
+    final day = DateTime(now.year, now.month, now.day);
     return _runGuarded(
       item,
-      () => habits.recordCompletion(item.sourceId, completedOn: day).then((_) {}),
+      () =>
+          habits.recordCompletion(item.sourceId, completedOn: day).then((_) {}),
     );
   }
 
@@ -1034,718 +145,972 @@ class _TodayScheduleState extends State<_TodaySchedule> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // "Next up" is a visual reframe of today's schedule: same TimelineItem
-    // model, same buildTimeline aggregation, same domain-owned mutations.
-    final items = buildTimeline(widget.dashboard, now: widget.now, limit: 6);
-    return _Panel(
-      title: 'Next up',
-      icon: Icons.schedule_rounded,
-      compact: widget.compact,
-      trailing: _SeeAll(
-        onTap: () => widget.onDestination?.call('PLANNER/TODAY'),
-      ),
-      child: items.isEmpty
-          ? const _EmptyState(message: 'Nothing scheduled for today.')
-          : Column(
-              children: [
-                for (var i = 0; i < items.length; i++)
-                  _ScheduleRow(
-                    item: items[i],
-                    showDivider: i != items.length - 1,
-                    busy: _busy.contains(_key(items[i])),
-                    onTap: () =>
-                        widget.onDestination?.call(items[i].destination),
-                    onCompleteTask: items[i].source == HomeSource.task
-                        ? () => _toggleTask(items[i])
-                        : null,
-                    onCompleteHabit: items[i].source == HomeSource.habit
-                        ? () => _completeHabit(items[i])
-                        : null,
-                    onTakeDose: items[i].source == HomeSource.medicine
-                        ? () => _recordDose(items[i], 'TAKEN')
-                        : null,
-                    onSkipDose: items[i].source == HomeSource.medicine
-                        ? () => _recordDose(items[i], 'SKIPPED')
-                        : null,
-                  ),
-              ],
-            ),
-    );
-  }
-}
-
-class _NeedsAttention extends StatelessWidget {
-  const _NeedsAttention({
-    required this.dashboard,
-    required this.now,
-    required this.onDestination,
-    this.compact = false,
-  });
-
-  final bool compact;
-
-  final DashboardResponse dashboard;
-  final DateTime now;
-  final void Function(String destinationId)? onDestination;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = buildAttentionItems(dashboard, now: now, limit: 4);
-    return _Panel(
-      title: compact ? 'Needs attention' : 'Needs your attention',
-      icon: Icons.notifications_none_rounded,
-      compact: compact,
-      trailing: compact
-          ? null
-          : _SeeAll(
-              label: 'See details',
-              onTap: () => onDestination?.call('HUB'),
-            ),
-      child: items.isEmpty
-          ? const _AttentionEmptyState()
-          : Column(
-              children: [
-                for (var i = 0; i < items.length; i++)
-                  _AttentionRow(
-                    item: items[i],
-                    showDivider: i != items.length - 1,
-                    onTap: () => onDestination?.call(items[i].destination),
-                  ),
-              ],
-            ),
-    );
-  }
-}
-
-/// Positive empty state for the attention section, driven only by the real
-/// (empty) AttentionItem list — never hardcoded urgency.
-class _AttentionEmptyState extends StatelessWidget {
-  const _AttentionEmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: colors.accent.withValues(alpha: .14),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-              color: colors.accent,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check, color: Colors.white, size: 14),
-          ),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'You are on track',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: colors.text,
-                  ),
-                ),
-                Text(
-                  'No other urgent items right now.',
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    height: 1.25,
-                    color: colors.muted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Home's personal snapshot. Previously "Your life" rendered every module
-/// card (medicines / habits / finance duplicated the TODAY metrics and the
-/// Hub). It now renders ONLY Health + Diet from the existing dashboard
-/// payload: medicines, habits and finance already live in TODAY and in
-/// their own Hub modules. The [HomeWidgets.yourLife] section token is kept
-/// so persisted preferences stay compatible; only the rendered content
-/// changed. Data, empty states and navigation reuse [_ModuleCard].
-class _YourLife extends StatelessWidget {
-  const _YourLife({
-    required this.dashboard,
-    required this.homeWidgets,
-    required this.onDestination,
-    required this.onRefresh,
-  });
-
-  final DashboardResponse dashboard;
-  final List<String> homeWidgets;
-  final void Function(String destinationId)? onDestination;
-  final Future<void> Function() onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    // Wellbeing snapshot only — never repeat TODAY's tasks/medicines/
-    // habits/finance cards here, regardless of stored module preferences.
-    const selected = [HomeWidgets.health, HomeWidgets.diet];
-    return _Panel(
-      title: 'Your wellbeing',
-      icon: Icons.favorite_outline,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const spacing = 10.0;
-          Widget card(String id) => _ModuleCard(
-            id: id,
-            dashboard: dashboard,
-            onDestination: onDestination,
-            onRefresh: onRefresh,
-          );
-          if (constraints.maxWidth >= 300) {
-            return IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: card(selected[0])),
-                  const SizedBox(width: spacing),
-                  Expanded(child: card(selected[1])),
-                ],
-              ),
-            );
-          }
-          return Column(
-            children: [
-              card(selected[0]),
-              const SizedBox(height: spacing),
-              card(selected[1]),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ThisWeek extends StatelessWidget {
-  const _ThisWeek({
-    required this.week,
-    required this.onDestination,
-    required this.onRefresh,
-  });
-
-  final WeekSection? week;
-  final void Function(String destinationId)? onDestination;
-  final Future<void> Function() onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    final value = week;
-    if (value != null && value.unavailable) {
-      return _Panel(
-        title: 'This week',
-        icon: Icons.bar_chart_rounded,
-        child: _ErrorState(onRetry: onRefresh, moduleError: true),
-      );
-    }
-    final total = value == null ? 0 : value.tasksDue + value.habitOccurrences;
-    if (value == null || total == 0) {
-      return const _Panel(
-        title: 'This week',
-        icon: Icons.bar_chart_rounded,
-        child: _EmptyState(message: 'No weekly activity to show.'),
-      );
-    }
-    final taskProgress = value.tasksDue == 0
-        ? 0.0
-        : (value.completedTasks / value.tasksDue).clamp(0.0, 1.0).toDouble();
-    final habitProgress = value.habitOccurrences == 0
-        ? 0.0
-        : (value.habitCompletions / value.habitOccurrences)
-              .clamp(0.0, 1.0)
-              .toDouble();
-    return _Panel(
-      title: 'This week',
-      icon: Icons.bar_chart_rounded,
-      trailing: _SeeAll(
-        label: 'See details',
-        onTap: () => onDestination?.call('DASHBOARD/WEEK'),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // The backend exposes only week aggregates (never per-day values),
-          // so bars show aggregate activity per active day.
-          final bars = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _WeekBars(
-                start: value.start,
-                activeDays: value.activeDays,
-                taskProgress: taskProgress,
-                habitProgress: habitProgress,
-              ),
-              const SizedBox(height: 6),
-              _WeekDayStrip(start: value.start),
-            ],
-          );
-          final details = _WeekDetails(
-            habitProgress: habitProgress,
-            taskProgress: taskProgress,
-            activeDays: value.activeDays,
-          );
-          if (constraints.maxWidth < 300) {
-            return Column(children: [bars, const SizedBox(height: 10), details]);
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(flex: 11, child: bars),
-              const SizedBox(width: 10),
-              Expanded(flex: 14, child: details),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Monday-through-Sunday activity bars built from the real week aggregates.
-/// Heights derive only from [taskProgress], [habitProgress] and
-/// [activeDays] — the backend provides no per-day completions, so no
-/// per-day values are claimed. The first [activeDays] columns (from Monday)
-/// render filled at aggregate height; the rest render as track. The date
-/// row itself is [_WeekDayStrip] with the real week [start] dates.
-class _WeekBars extends StatelessWidget {
-  const _WeekBars({
-    required this.start,
-    required this.activeDays,
-    required this.taskProgress,
-    required this.habitProgress,
-  });
-
-  final DateTime? start;
-  final int activeDays;
-  final double taskProgress;
-  final double habitProgress;
-
-  @override
-  Widget build(BuildContext context) {
-    final monday = start ?? _WeekDayStrip.mondayOf(DateTime.now());
-    final today = DateTime.now();
-    final isThisWeek =
-        !today.isBefore(monday) &&
-        today.isBefore(monday.add(const Duration(days: 7)));
-    final overall =
-        ((taskProgress + habitProgress) / 2).clamp(0.15, 1.0).toDouble();
-    final filled = activeDays.clamp(0, 7);
-    return SizedBox(
-      height: 64,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (var i = 0; i < 7; i++)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3.5),
-                child: _WeekBar(
-                  isActive: i < filled,
-                  isToday:
-                      isThisWeek &&
-                      monday.add(Duration(days: i)).day == today.day &&
-                      monday.add(Duration(days: i)).month == today.month,
-                  height: (i < filled ? 18 + 40 * overall : 8.0).toDouble(),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Single week-activity bar. Height and fill come exclusively from the
-/// real week aggregates computed in [_ThisWeek].
-class _WeekBar extends StatelessWidget {
-  const _WeekBar({
-    required this.isActive,
-    required this.isToday,
-    required this.height,
-  });
-
-  final bool isActive;
-  final bool isToday;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) => AnimatedContainer(
-    duration: const Duration(milliseconds: 300),
-    height: isToday && isActive ? height + 6 : height,
-    decoration: BoxDecoration(
-      color: isToday && isActive
-          ? BlistraColors.resolve(context).accent
-          : isActive
-          ? BlistraColors.resolve(context).accent.withValues(alpha: .75)
-          : BlistraColors.resolve(context).accent.withValues(alpha: .18),
-      borderRadius: const BorderRadius.all(Radius.circular(6)),
-    ),
-  );
-}
-
-/// Monday-through-Sunday strip built from the real week [start] returned by
-/// the backend. Shows honest calendar dates only — never invented activity.
-class _WeekDayStrip extends StatelessWidget {
-  const _WeekDayStrip({required this.start});
-
-  final DateTime? start;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final monday = start ?? _mondayOf(DateTime.now());
-    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        for (var i = 0; i < 7; i++)
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  labels[i],
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: BlistraColors.resolve(context).muted,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${monday.add(Duration(days: i)).day}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  /// Monday of [day]'s week. Shared with [_WeekBars] so bars and date
-  /// labels always agree on the same real calendar days.
-  static DateTime mondayOf(DateTime day) {
-    final date = DateTime(day.year, day.month, day.day);
-    return date.subtract(Duration(days: date.weekday - 1));
-  }
-
-  static DateTime _mondayOf(DateTime day) => mondayOf(day);
-}
-
-class _WeekDetails extends StatelessWidget {
-  const _WeekDetails({
-    required this.habitProgress,
-    required this.taskProgress,
-    required this.activeDays,
-  });
-
-  final double habitProgress;
-  final double taskProgress;
-  final int activeDays;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return Container(
-      padding: const EdgeInsets.only(left: 8),
-      decoration: BoxDecoration(
-        border: Border(left: BorderSide(color: colors.glassBorder)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _WeekDetail(
-              value: '${(habitProgress * 100).round()}%',
-              label: 'Habits\ncompleted',
-            ),
-          ),
-          Expanded(
-            child: _WeekDetail(
-              value: '${(taskProgress * 100).round()}%',
-              label: 'Tasks\ncompleted',
-            ),
-          ),
-          Expanded(
-            child: _WeekDetail(value: '$activeDays / 7', label: 'Days\nactive'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WeekDetail extends StatelessWidget {
-  const _WeekDetail({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            value,
-            style: TextStyle(
-              fontFamily: 'Fraunces',
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: colors.text,
-            ),
-          ),
+  /// Primary action for the Next up hero, when the item supports one.
+  Future<void> Function()? _primaryAction(TimelineItem item) =>
+      switch (item.source) {
+        HomeSource.medicine when item.actionable => () => _recordDose(
+          item,
+          'TAKEN',
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(fontSize: 10, height: 1.2, color: colors.muted),
-        ),
-      ],
-    );
+        HomeSource.task => () => _toggleTask(item),
+        HomeSource.habit => () => _completeHabit(item),
+        _ => null,
+      };
+
+  /// Loads streaks for today's habits once each; failures leave no streak.
+  void _loadStreaks(DashboardResponse? dashboard) {
+    final habits = dashboard?.habits;
+    if (habits == null || habits.unavailable) return;
+    HabitsController controller;
+    try {
+      controller = context.read<HabitsController>();
+    } catch (_) {
+      return;
+    }
+    for (final habit in habits.todayHabits) {
+      if (habit.id.isEmpty || !_streakRequested.add(habit.id)) continue;
+      controller
+          .fetchStatistics(habit.id)
+          .then((stats) {
+            if (mounted) {
+              setState(() => _streaks[habit.id] = stats.currentStreak);
+            }
+          })
+          .catchError((_) {});
+    }
   }
-}
-
-class _ModuleCard extends StatelessWidget {
-  const _ModuleCard({
-    required this.id,
-    required this.dashboard,
-    required this.onDestination,
-    required this.onRefresh,
-  });
-
-  final String id;
-  final DashboardResponse dashboard;
-  final void Function(String destinationId)? onDestination;
-  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    final value = _moduleValue();
-    if (value.isError) {
-      return _ModuleCardShell(
-        id: id,
-        icon: _moduleIcon(id),
-        value: 'Unavailable',
-        detail: 'Could not load this module.',
-        action: IconButton(
-          onPressed: onRefresh,
-          tooltip: 'Retry',
-          constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-          padding: EdgeInsets.zero,
-          icon: const Icon(Icons.refresh, size: 18),
-        ),
-      );
-    }
-    return _ModuleCardShell(
-      id: id,
-      icon: _moduleIcon(id),
-      value: value.value,
-      detail: value.detail,
-      onTap: () => onDestination?.call(_moduleDestination(id)),
-    );
-  }
-
-  _ModuleValue _moduleValue() {
-    switch (id) {
-      case HomeWidgets.health:
-        final section = dashboard.health;
-        if (section == null || section.unavailable) return _ModuleValue.error();
-        final measurements = [...section.latestMeasurements];
-        measurements.sort((a, b) {
-          final aDate =
-              DateTime.tryParse(a.measuredAt ?? '') ??
-              DateTime.fromMillisecondsSinceEpoch(0);
-          final bDate =
-              DateTime.tryParse(b.measuredAt ?? '') ??
-              DateTime.fromMillisecondsSinceEpoch(0);
-          return bDate.compareTo(aDate);
+    final scope = AppScope.of(context);
+    return ListenableBuilder(
+      listenable: Listenable.merge([scope.dashboard, scope.authState]),
+      builder: (context, _) {
+        final controller = scope.dashboard;
+        final dashboard = controller.dashboard;
+        final now = DateTime.now();
+        final name = resolveDisplayName(
+          user: dashboard?.user,
+          email: scope.authState.userEmail,
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _loadStreaks(dashboard);
         });
-        // Weight is the headline health number when recorded; otherwise the
-        // most recent reading of any kind.
-        MeasurementSummary? item;
-        for (final m in measurements) {
-          if (m.type.toUpperCase() == 'WEIGHT') {
-            item = m;
-            break;
-          }
-        }
-        item ??= measurements.isEmpty ? null : measurements.first;
-        if (item == null) {
-          return const _ModuleValue(
-            'No recent measurement',
-            'No recent measurement',
-          );
-        }
-        final unit = item.unit == null || item.unit!.isEmpty ? '' : ' ${item.unit}';
-        final label = _measurementLabel(item.type);
-        final age = _relativeDay(item.measuredAt);
-        return _ModuleValue(
-          '${_plainNumber(item.value ?? '')}$unit',
-          age.isEmpty ? label : '$label · $age',
-        );
-      case HomeWidgets.medicines:
-        final section = dashboard.medicines;
-        if (section == null || section.unavailable) return _ModuleValue.error();
-        final expected = section.dosesToday.length;
-        final taken = section.dosesToday.where(_isTaken).length;
-        return _ModuleValue(
-          '$taken of $expected',
-          expected == 0 ? 'No doses expected today' : 'Doses taken today',
-        );
-      case HomeWidgets.diet:
-        final section = dashboard.diet;
-        if (section == null || section.unavailable) return _ModuleValue.error();
-        final calories = section.nutrition?.caloriesKcal?.total;
-        return _ModuleValue(
-          calories == null || calories.isEmpty
-              ? '${section.mealCount} meal${section.mealCount == 1 ? '' : 's'}'
-              : '${_plainNumber(calories)} kcal',
-          'Logged today',
-        );
-      case HomeWidgets.habits:
-        final section = dashboard.habits;
-        if (section == null || section.unavailable) return _ModuleValue.error();
-        return _ModuleValue(
-          '${section.completedToday} of ${section.expectedToday}',
-          section.expectedToday == 0
-              ? 'No habits expected today'
-              : 'Completed today',
-        );
-      case HomeWidgets.finance:
-        final section = dashboard.finance;
-        if (section == null || section.unavailable) return _ModuleValue.error();
-        final currencies = section.today?.currencies ?? const [];
-        if (currencies.isEmpty) {
-          return const _ModuleValue('No spending', 'No activity today');
-        }
-        if (currencies.length == 1) {
-          final currency = currencies.first;
-          final expense = currency.expense;
-          return _ModuleValue(
-            expense.isEmpty
-                ? 'No spending'
-                : formatSpend(expense, currency.currency),
-            '${currency.currency} spent today',
-          );
-        }
-        return _ModuleValue(
-          '${currencies.length} currencies',
-          'Spending summaries today',
-        );
-      default:
-        return const _ModuleValue('Unavailable', '');
-    }
-  }
-}
-
-class _ModuleValue {
-  const _ModuleValue(this.value, this.detail) : isError = false;
-  const _ModuleValue.error()
-    : value = 'Unavailable',
-      detail = '',
-      isError = true;
-
-  final String value;
-  final String detail;
-  final bool isError;
-}
-
-class _ModuleCardShell extends StatelessWidget {
-  const _ModuleCardShell({
-    required this.id,
-    required this.icon,
-    required this.value,
-    required this.detail,
-    this.action,
-    this.onTap,
-  });
-
-  final String id;
-  final IconData icon;
-  final String value;
-  final String detail;
-  final Widget? action;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    final style = _moduleStyle(id, Theme.of(context).colorScheme);
-    return Semantics(
-      label: '${HomeWidgets.label(id)}: $value $detail',
-      button: onTap != null,
-      child: _ModuleTile(
-        color: style.foreground,
-        onTap: onTap,
-        radius: 18,
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            _TileIcon(icon: icon, color: style.foreground, size: 40),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    HomeWidgets.label(id),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: colors.muted),
+        final streak = _streaks.values.fold<int>(0, math.max);
+        final view = dashboard == null
+            ? null
+            : _HomeData.from(
+                dashboard,
+                now,
+                _orderedWidgets(widget.homeWidgets),
+              );
+        return Material(
+          type: MaterialType.transparency,
+          child: RefreshIndicator(
+            onRefresh: _refreshHome,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.only(
+                top: MediaQuery.paddingOf(context).top + 14,
+                bottom: 28,
+              ),
+              children: [
+                _Pad(
+                  _Header(
+                    now: now,
+                    name: name,
+                    streak: streak,
+                    subtitle:
+                        view?.subtitle ??
+                        (controller.isLoading
+                            ? 'Getting your day ready…'
+                            : 'Pull down to try again.'),
+                    onSearch: widget.onSearch,
+                    onNotifications: widget.onNotifications,
+                    onProfile: widget.onProfile,
                   ),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontFamily: 'Fraunces',
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: colors.text,
+                ),
+                if (controller.isLoading && dashboard == null)
+                  const _Pad(_Skeleton())
+                else if (view == null)
+                  _Pad(
+                    _FullError(
+                      message:
+                          controller.error ?? 'Home is unavailable right now.',
+                      onRetry: _refreshHome,
+                    ),
+                  )
+                else
+                  ..._sections(view),
+                if (!widget.hubPinned)
+                  _Pad(
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () => _open('HUB'),
+                        icon: const Icon(Icons.explore_outlined),
+                        label: const Text('Explore Hub'),
                       ),
                     ),
                   ),
-                  Text(
-                    detail,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      height: 1.2,
-                      color: colors.muted,
-                    ),
-                  ),
-                  ?action,
-                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  List<Widget> _sections(_HomeData view) {
+    final hero = view.nextUp;
+    return [
+      if (hero != null)
+        _Pad(
+          _NextUpHero(
+            item: hero,
+            busy: _busy.contains(_key(hero)),
+            onPrimary: _primaryAction(hero),
+            onSkip: hero.source == HomeSource.medicine && hero.actionable
+                ? () => _recordDose(hero, 'SKIPPED')
+                : null,
+            onOpen: () => _open(hero.destination),
+          ),
+          top: 18,
+        ),
+      if (view.show(HomeWidgets.needsAttention) && view.attention.isNotEmpty)
+        _Pad(_AttentionCard(items: view.attention, onOpen: _open), top: 12),
+      if (view.appointment != null)
+        _Pad(
+          _AppointmentCard(
+            appointment: view.appointment!,
+            now: view.now,
+            onTap: () => _open('HEALTH'),
+          ),
+          top: 12,
+        ),
+      if (view.show(HomeWidgets.todayOverview) && view.stats.isNotEmpty) ...[
+        _Pad(_SectionTitle('Today so far', action: 'Swipe ›'), top: 26),
+        _StatStrip(stats: view.stats, onOpen: _open),
+      ],
+      if (view.nudges.isNotEmpty)
+        _Pad(_NudgeCard(nudges: view.nudges, onOpen: _open), top: 10),
+      if (view.show(HomeWidgets.todaysSchedule)) ...[
+        _Pad(
+          _SectionTitle(
+            "Today's timeline",
+            action: 'Planner ›',
+            onAction: () => _open('PLANNER/TODAY'),
+          ),
+          top: 26,
+        ),
+        _Pad(
+          view.plannerUnavailable
+              ? _Unavailable(name: 'Planner', onRetry: _refreshHome)
+              : view.timeline.isEmpty
+              ? const _EmptyCard(message: 'Nothing scheduled for today.')
+              : _Timeline(
+                  items: view.timeline,
+                  next: hero,
+                  busy: _busy,
+                  keyOf: _key,
+                  onOpen: (item) => _open(item.destination),
+                ),
+        ),
+      ],
+      if (view.show(HomeWidgets.habits) && view.habits != null) ...[
+        _Pad(
+          _SectionTitle(
+            'Habits',
+            action:
+                '${view.habits!.completedToday} of '
+                '${view.habits!.expectedToday} done',
+            onAction: () => _open('HABITS'),
+          ),
+          top: 26,
+        ),
+        _Pad(
+          view.habits!.unavailable
+              ? _Unavailable(name: 'Habits', onRetry: _refreshHome)
+              : _HabitsCard(
+                  habits: view.habits!,
+                  streaks: _streaks,
+                  busy: _busy,
+                  onComplete: (habit) => _completeHabit(_habitItem(habit)),
+                  onOpen: (habit) => _open('HABITS/${habit.id}'),
+                ),
+        ),
+      ],
+      if (view.show(HomeWidgets.health) && view.measurements.isNotEmpty) ...[
+        _Pad(
+          _SectionTitle(
+            'Health',
+            action: 'Vitals ›',
+            onAction: () => _open('HEALTH'),
+          ),
+          top: 26,
+        ),
+        _StatStrip(stats: view.measurements, onOpen: _open),
+      ],
+      if (view.show(HomeWidgets.finance) && view.month != null) ...[
+        _Pad(
+          _SectionTitle(
+            'Spending this month',
+            action: 'Finance ›',
+            onAction: () => _open('FINANCE'),
+          ),
+          top: 26,
+        ),
+        _Pad(_SpendingCard(month: view.month!)),
+      ],
+      if (view.show(HomeWidgets.thisWeek) &&
+          view.week != null &&
+          !view.week!.unavailable) ...[
+        _Pad(const _SectionTitle('This week'), top: 26),
+        _Pad(_WeekCard(week: view.week!, now: view.now)),
+      ],
+    ];
+  }
+
+  TimelineItem _habitItem(HabitSummary habit) => TimelineItem(
+    at: DateTime.now(),
+    title: habit.name,
+    meta: 'Habit',
+    status: TimelineStatus.upcoming,
+    destination: 'HABITS/${habit.id}',
+    source: HomeSource.habit,
+    sourceId: habit.id,
+    rawStatus: 'PENDING',
+  );
+}
+
+List<String> _orderedWidgets(List<String>? raw) {
+  if (raw == null || raw.isEmpty) return HomeWidgets.defaults;
+  try {
+    return HomeWidgets.normalizeWidgets(raw);
+  } on ArgumentError {
+    return HomeWidgets.defaults;
+  }
+}
+
+// ───────────────────────────── view model ─────────────────────────────
+
+/// One tile in a horizontal strip (Today so far, Health).
+class _Stat {
+  const _Stat({
+    required this.label,
+    required this.value,
+    required this.sub,
+    required this.destination,
+    this.unit = '',
+    this.total,
+    this.progress,
+    this.color,
+    this.icon,
+  });
+
+  final String label;
+  final String value;
+  final String unit;
+
+  /// "of N" shown after [value], for counts with a ring.
+  final String? total;
+  final String sub;
+  final String destination;
+  final double? progress;
+  final Color? color;
+  final IconData? icon;
+}
+
+class _Nudge {
+  const _Nudge(this.icon, this.title, this.sub, this.action, this.destination);
+
+  final IconData icon;
+  final String title;
+  final String sub;
+  final String action;
+  final String destination;
+}
+
+/// Everything Home shows, derived once per build from [DashboardResponse].
+class _HomeData {
+  _HomeData._({
+    required this.now,
+    required this.widgets,
+    required this.timeline,
+    required this.nextUp,
+    required this.attention,
+    required this.appointment,
+    required this.stats,
+    required this.nudges,
+    required this.habits,
+    required this.measurements,
+    required this.month,
+    required this.week,
+    required this.plannerUnavailable,
+    required this.subtitle,
+  });
+
+  final DateTime now;
+  final List<String> widgets;
+  final List<TimelineItem> timeline;
+  final TimelineItem? nextUp;
+  final List<AttentionItem> attention;
+  final AppointmentSummary? appointment;
+  final List<_Stat> stats;
+  final List<_Nudge> nudges;
+  final HabitSection? habits;
+  final List<_Stat> measurements;
+  final CurrencySection? month;
+  final WeekSection? week;
+  final bool plannerUnavailable;
+  final String subtitle;
+
+  bool show(String id) => widgets.contains(id);
+
+  factory _HomeData.from(
+    DashboardResponse d,
+    DateTime now,
+    List<String> widgets,
+  ) {
+    // Today only: overdue items from earlier days live in Needs attention.
+    final timeline = buildTimeline(
+      d,
+      now: now,
+      limit: 20,
+    ).where((i) => !i.anytime && _sameDay(i.at, now)).toList();
+    final nextUp = _pickNextUp(timeline, now);
+    final attention = _attention(d, now, nextUp);
+    final appointment = _nextAppointment(d.health, now);
+    final urgent = nextUp != null && _isUrgent(nextUp, now);
+    final parts = <String>[
+      if (urgent && nextUp.source == HomeSource.medicine)
+        'Your dose is almost due'
+      else if (urgent)
+        '${nextUp.title} is due now',
+      if (attention.isNotEmpty)
+        attention.length == 1
+            ? 'one thing needs attention'
+            : '${_words(attention.length)} things need attention',
+    ];
+    final subtitle = parts.isEmpty
+        ? (timeline.any((i) => !i.done)
+              ? "Nothing urgent. Here's what is left today."
+              : "You're all caught up for today.")
+        : '${_capitalise(parts.join(', and '))}.';
+    final finance = d.finance;
+    final month =
+        finance == null || finance.unavailable || finance.currencies.isEmpty
+        ? null
+        : finance.currencies.first;
+    return _HomeData._(
+      now: now,
+      widgets: widgets,
+      timeline: timeline.take(6).toList(),
+      nextUp: nextUp,
+      attention: attention,
+      appointment: appointment,
+      stats: _todayStats(d, now),
+      nudges: _nudges(d.diet, now),
+      habits: d.habits,
+      measurements: _measurements(d.health),
+      month: month,
+      week: d.week,
+      plannerUnavailable: d.planner?.unavailable ?? false,
+      subtitle: subtitle,
+    );
+  }
+}
+
+/// Overdue tasks and doses whose time has passed without being taken.
+/// Habits have their own card and future doses are not yet a problem, so
+/// neither appears here. The Next up item is not repeated.
+List<AttentionItem> _attention(
+  DashboardResponse d,
+  DateTime now,
+  TimelineItem? nextUp,
+) {
+  final items = <AttentionItem>[];
+  final planner = d.planner;
+  if (planner != null && !planner.unavailable) {
+    for (final task in _uniqueTasks(planner)) {
+      final status = (task.status ?? '').toUpperCase();
+      final at = DateTime.tryParse(task.dueAt ?? task.startAt ?? '')?.toLocal();
+      if (task.id.isEmpty ||
+          status == 'COMPLETED' ||
+          status == 'CANCELLED' ||
+          at == null ||
+          !at.isBefore(now) ||
+          task.id == nextUp?.sourceId) {
+        continue;
+      }
+      final priority = (task.priority ?? '').toUpperCase();
+      items.add(
+        AttentionItem(
+          title: task.title,
+          detail: [
+            _sameDay(at, now)
+                ? 'Overdue since ${_shortTime(at)}'
+                : 'Overdue since ${DateFormat('EEEE').format(at)}',
+            if (priority == 'HIGH' || priority == 'URGENT') 'High',
+          ].join(' · '),
+          destination: 'PLANNER/TASK/${task.id}',
+        ),
+      );
+    }
+  }
+  final meds = d.medicines;
+  if (meds != null && !meds.unavailable) {
+    for (final dose in meds.dosesToday) {
+      final status = dose.status.toUpperCase();
+      final at = DateTime.tryParse(dose.scheduledAt)?.toLocal();
+      if (dose.medicineId.isEmpty ||
+          at == null ||
+          status == 'TAKEN' ||
+          status == 'SKIPPED' ||
+          status == 'CANCELLED' ||
+          (status != 'MISSED' && at.isAfter(now)) ||
+          (nextUp != null &&
+              nextUp.sourceId == dose.medicineId &&
+              nextUp.at == at)) {
+        continue;
+      }
+      items.add(
+        AttentionItem(
+          title: dose.medicineName,
+          detail: status == 'MISSED'
+              ? 'Dose missed at ${_shortTime(at)}'
+              : 'Dose was due at ${_shortTime(at)}',
+          destination: 'MEDICINES/${dose.medicineId}',
+        ),
+      );
+    }
+  }
+  return items.take(3).toList();
+}
+
+bool _isUrgent(TimelineItem item, DateTime now) =>
+    item.status == TimelineStatus.overdue ||
+    item.status == TimelineStatus.missed ||
+    (item.status == TimelineStatus.due &&
+        item.at.difference(now).inMinutes <= 60);
+
+/// The most time-critical open item: a due medicine first, then anything
+/// overdue, then the next upcoming item.
+TimelineItem? _pickNextUp(List<TimelineItem> items, DateTime now) {
+  final open = items
+      .where(
+        (i) =>
+            !i.done &&
+            i.status != TimelineStatus.cancelled &&
+            i.source != HomeSource.meal,
+      )
+      .toList();
+  for (final i in open) {
+    if (i.source == HomeSource.medicine && i.status == TimelineStatus.due) {
+      return i;
+    }
+  }
+  for (final i in open) {
+    if (i.status == TimelineStatus.overdue && i.source == HomeSource.task) {
+      return i;
+    }
+  }
+  for (final i in open) {
+    if (!i.at.isBefore(now)) return i;
+  }
+  return null;
+}
+
+AppointmentSummary? _nextAppointment(HealthSection? health, DateTime now) {
+  if (health == null || health.unavailable) return null;
+  AppointmentSummary? best;
+  DateTime? bestAt;
+  for (final a in health.upcomingAppointments) {
+    final at = DateTime.tryParse(a.scheduledAt)?.toLocal();
+    final status = (a.status ?? '').toUpperCase();
+    if (at == null || at.isBefore(now) || status == 'CANCELLED') continue;
+    if (bestAt == null || at.isBefore(bestAt)) {
+      best = a;
+      bestAt = at;
+    }
+  }
+  return best;
+}
+
+List<_Stat> _todayStats(DashboardResponse d, DateTime now) {
+  final colors = ActiveColors.value;
+  final stats = <_Stat>[];
+  final planner = d.planner;
+  if (planner != null && !planner.unavailable) {
+    final tasks = _uniqueTasks(planner)
+        .where((t) => (t.status ?? '').toUpperCase() != 'CANCELLED');
+    final total = tasks.length;
+    final done = tasks
+        .where((t) => (t.status ?? '').toUpperCase() == 'COMPLETED')
+        .length;
+    final overdue = planner.overdueTasks.length;
+    stats.add(
+      _Stat(
+        label: 'Tasks',
+        value: '$done',
+        total: '$total',
+        sub: total == 0
+            ? 'Nothing due today'
+            : '${total - done} left${overdue > 0 ? ' · $overdue overdue' : ''}',
+        progress: total == 0 ? 0 : done / total,
+        color: colors.accentText,
+        destination: 'PLANNER/TODAY',
+      ),
+    );
+  }
+  final meds = d.medicines;
+  if (meds != null && !meds.unavailable) {
+    final total = meds.dosesToday.length;
+    final taken = meds.dosesToday.where(_isTaken).length;
+    DateTime? next;
+    for (final dose in meds.dosesToday) {
+      final at = DateTime.tryParse(dose.scheduledAt)?.toLocal();
+      final s = dose.status.toUpperCase();
+      if (at == null || s == 'TAKEN' || s == 'SKIPPED' || s == 'CANCELLED') {
+        continue;
+      }
+      if (!at.isBefore(now) && (next == null || at.isBefore(next))) next = at;
+    }
+    stats.add(
+      _Stat(
+        label: 'Medicines',
+        value: '$taken',
+        total: '$total',
+        sub: [
+          if (next != null) 'Next ${_shortTime(next)}',
+          '${meds.activeMedicineCount} active',
+        ].join(' · '),
+        progress: total == 0 ? 0 : taken / total,
+        color: colors.data[0],
+        destination: 'MEDICINES',
+      ),
+    );
+  }
+  final habits = d.habits;
+  if (habits != null && !habits.unavailable) {
+    final left = habits.expectedToday - habits.completedToday;
+    stats.add(
+      _Stat(
+        label: 'Habits',
+        value: '${habits.completedToday}',
+        total: '${habits.expectedToday}',
+        sub: left <= 0 ? 'All done' : '$left remaining',
+        progress: habits.expectedToday == 0
+            ? 0
+            : habits.completedToday / habits.expectedToday,
+        color: colors.data[1],
+        destination: 'HABITS',
+      ),
+    );
+  }
+  final diet = d.diet;
+  if (diet != null && !diet.unavailable) {
+    final ml = double.tryParse(diet.waterTotalMilliliters ?? '') ?? 0;
+    stats.add(
+      _Stat(
+        label: 'Water',
+        value: _plainNumber((ml / 1000).toStringAsFixed(1)),
+        unit: 'L',
+        sub: diet.waterCount == 1 ? '1 glass' : '${diet.waterCount} glasses',
+        icon: Icons.water_drop_outlined,
+        destination: 'DIET',
+      ),
+    );
+    final n = diet.nutrition;
+    final kcal = n?.caloriesKcal?.total;
+    stats.add(
+      _Stat(
+        label: 'Calories',
+        value: kcal == null ? '0' : _plainNumber(kcal),
+        unit: 'kcal',
+        sub: diet.mealCount == 1
+            ? '1 meal logged'
+            : '${diet.mealCount} meals logged',
+        icon: Icons.local_fire_department_outlined,
+        destination: 'DIET',
+      ),
+    );
+    for (final (label, macro, icon) in [
+      ('Protein', n?.proteinG, Icons.egg_alt_outlined),
+      ('Carbs', n?.carbohydratesG, Icons.rice_bowl_outlined),
+      ('Fat', n?.fatG, Icons.opacity_outlined),
+      ('Fiber', n?.fiberG, Icons.eco_outlined),
+    ]) {
+      if (macro?.total == null) continue;
+      stats.add(
+        _Stat(
+          label: label,
+          value: _plainNumber(macro!.total!),
+          unit: 'g',
+          sub: kcal == null ? 'Today' : 'Of ${_plainNumber(kcal)} kcal',
+          icon: icon,
+          destination: 'DIET',
+        ),
+      );
+    }
+  }
+  final finance = d.finance;
+  if (finance != null && !finance.unavailable && finance.today != null) {
+    final today = finance.today!.currencies;
+    final c = today.isEmpty ? null : today.first;
+    final currency =
+        c?.currency ??
+        (finance.currencies.isEmpty
+            ? 'INR'
+            : finance.currencies.first.currency);
+    stats.add(
+      _Stat(
+        label: 'Spent',
+        value: formatSpend(c?.expense ?? '0', currency),
+        sub: today.length > 1 ? '${today.length} currencies' : 'Today',
+        icon: Icons.payments_outlined,
+        destination: 'FINANCE',
+      ),
+    );
+    stats.add(
+      _Stat(
+        label: 'Income',
+        value: formatSpend(c?.income ?? '0', currency),
+        sub: 'Today',
+        icon: Icons.trending_up_rounded,
+        destination: 'FINANCE',
+      ),
+    );
+  }
+  if (planner != null && !planner.unavailable) {
+    final starts = [
+      for (final e in planner.todayEvents)
+        ?DateTime.tryParse(e.startAt)?.toLocal(),
+    ]..sort();
+    final next = starts.where((at) => !at.isBefore(now)).firstOrNull;
+    stats.add(
+      _Stat(
+        label: 'Events',
+        value: '${starts.length}',
+        unit: 'today',
+        sub: next == null ? 'None left' : 'Next ${_shortTime(next)}',
+        icon: Icons.event_outlined,
+        destination: 'PLANNER/TODAY',
+      ),
+    );
+  }
+  return stats;
+}
+
+List<_Nudge> _nudges(DietSection? diet, DateTime now) {
+  if (diet == null || diet.unavailable) return const [];
+  final nudges = <_Nudge>[];
+  final lastWater = diet.water
+      .map((w) => DateTime.tryParse(w.consumedAt ?? '')?.toLocal())
+      .whereType<DateTime>()
+      .fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
+  final ml = double.tryParse(diet.waterTotalMilliliters ?? '') ?? 0;
+  final litres = _plainNumber((ml / 1000).toStringAsFixed(1));
+  if (now.hour >= 9 && now.hour < 22) {
+    if (lastWater == null) {
+      nudges.add(
+        const _Nudge(
+          Icons.water_drop_outlined,
+          'No water logged yet today',
+          'A glass now keeps you on track',
+          '+ Water',
+          'DIET',
+        ),
+      );
+    } else if (now.difference(lastWater).inHours >= 3) {
+      nudges.add(
+        _Nudge(
+          Icons.water_drop_outlined,
+          'No water since ${_shortTime(lastWater)}',
+          '$litres L so far today',
+          '+ Water',
+          'DIET',
+        ),
+      );
+    }
+  }
+  final meals = [...diet.meals]
+    ..sort((a, b) => (a.consumedAt ?? '').compareTo(b.consumedAt ?? ''));
+  final hasDinner = meals.any((m) => (m.type ?? '').toUpperCase() == 'DINNER');
+  if (now.hour >= 20 && !hasDinner) {
+    final last = meals.isEmpty ? null : meals.last;
+    final kcal = last == null ? null : _mealKcal(last);
+    nudges.add(
+      _Nudge(
+        Icons.restaurant_outlined,
+        'Dinner not logged yet',
+        last == null
+            ? 'No meals logged today'
+            : 'Last meal · ${_mealTitle(last.type)}'
+                  '${kcal == null ? '' : ' · $kcal kcal'}',
+        'Log',
+        'DIET',
+      ),
+    );
+  }
+  return nudges;
+}
+
+String? _mealKcal(MealSummary meal) {
+  var total = 0.0;
+  var any = false;
+  for (final item in meal.items) {
+    final v = double.tryParse(item.caloriesKcal ?? '');
+    if (v != null) {
+      total += v;
+      any = true;
+    }
+  }
+  return any ? NumberFormat('#,##0').format(total) : null;
+}
+
+List<_Stat> _measurements(HealthSection? health) {
+  if (health == null || health.unavailable) return const [];
+  return [
+    for (final m in health.latestMeasurements)
+      if (m.value != null)
+        _Stat(
+          label: _measurementLabel(m.type),
+          value: m.valueDiastolic == null
+              ? _plainNumber(m.value!)
+              : '${_plainNumber(m.value!)}/${_plainNumber(m.valueDiastolic!)}',
+          unit: m.unit ?? '',
+          sub: _capitalise(_relativeDay(m.measuredAt)),
+          icon: _measurementIcon(m.type),
+          destination: 'HEALTH',
+        ),
+  ];
+}
+
+IconData _measurementIcon(String type) => switch (type.toUpperCase()) {
+  'WEIGHT' => Icons.monitor_weight_outlined,
+  'BLOOD_PRESSURE' => Icons.speed_rounded,
+  'HEART_RATE' => Icons.favorite_outline,
+  'BLOOD_GLUCOSE' || 'GLUCOSE' => Icons.bloodtype_outlined,
+  'TEMPERATURE' => Icons.thermostat_outlined,
+  _ => Icons.monitor_heart_outlined,
+};
+
+String _words(int n) => switch (n) {
+  2 => 'two',
+  3 => 'three',
+  4 => 'four',
+  5 => 'five',
+  _ => '$n',
+};
+
+String _capitalise(String s) =>
+    s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+String _shortTime(DateTime t) =>
+    DateFormat(t.minute == 0 ? 'h a' : 'h:mm a').format(t);
+
+// ───────────────────────────── shared pieces ─────────────────────────────
+
+/// Standard horizontal page gutter.
+class _Pad extends StatelessWidget {
+  const _Pad(this.child, {this.top = 0});
+
+  final Widget child;
+  final double top;
+
+  @override
+  Widget build(BuildContext context) =>
+      Padding(padding: EdgeInsets.fromLTRB(18, top, 18, 0), child: child);
+}
+
+TextStyle _serif(double size, Color color, {double height = 1.15}) => TextStyle(
+  fontFamily: 'Fraunces',
+  fontSize: size,
+  fontWeight: FontWeight.w600,
+  letterSpacing: -0.2,
+  height: height,
+  color: color,
+);
+
+TextStyle _eyebrow(Color color) => TextStyle(
+  fontSize: 10,
+  fontWeight: FontWeight.w600,
+  letterSpacing: 1.6,
+  color: color,
+);
+
+const _tabular = [FontFeature.tabularFigures()];
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title, {this.action, this.onAction});
+
+  final String title;
+  final String? action;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text(title, style: _serif(17, colors.text)),
+            ),
+          ),
+          if (action != null)
+            GestureDetector(
+              onTap: onAction,
+              child: Text(
+                action!,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: colors.accentText,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small square glass button used in the header.
+class _GlassIcon extends StatelessWidget {
+  const _GlassIcon({
+    required this.child,
+    required this.label,
+    this.onTap,
+    this.width = 38,
+  });
+
+  final Widget child;
+  final String label;
+  final VoidCallback? onTap;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: SizedBox(
+          width: width,
+          height: 38,
+          child: GlassCard(
+            radius: 14,
+            padding: EdgeInsets.zero,
+            onTap: onTap,
+            child: Center(child: child),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Ring extends StatelessWidget {
+  const _Ring({required this.progress, required this.color});
+
+  static const double size = 34;
+  static const double stroke = 4;
+
+  final double progress;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _RingPainter(
+          progress: progress.clamp(0.0, 1.0),
+          color: color,
+          track: colors.inkAt(0.12),
+          stroke: stroke,
+        ),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  _RingPainter({
+    required this.progress,
+    required this.color,
+    required this.track,
+    required this.stroke,
+  });
+
+  final double progress;
+  final Color color;
+  final Color track;
+  final double stroke;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final arc = rect.deflate(stroke / 2);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(arc, 0, math.pi * 2, false, paint..color = track);
+    if (progress > 0) {
+      canvas.drawArc(
+        arc,
+        -math.pi / 2,
+        math.pi * 2 * progress,
+        false,
+        paint..color = color,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.progress != progress || old.color != color || old.track != track;
+}
+
+class _Bar extends StatelessWidget {
+  const _Bar({required this.value, this.color, this.gradient});
+
+  static const double height = 6;
+
+  final double value;
+  final Color? color;
+  final Gradient? gradient;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(height),
+      child: SizedBox(
+        height: height,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(color: colors.inkAt(0.12)),
+            FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: value.clamp(0.0, 1.0),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: color,
+                  gradient: gradient,
+                  borderRadius: BorderRadius.circular(height),
+                ),
               ),
             ),
           ],
@@ -1755,346 +1120,756 @@ class _ModuleCardShell extends StatelessWidget {
   }
 }
 
-class _Panel extends StatelessWidget {
-  const _Panel({
-    required this.title,
-    required this.child,
-    this.trailing,
-    this.icon,
-    this.compact = false,
-  });
+class _Pill extends StatelessWidget {
+  const _Pill(this.text, {required this.color, this.onTap});
 
-  final String title;
-  final Widget child;
-  final Widget? trailing;
-  final IconData? icon;
-
-  /// Smaller heading and padding for half-width panels.
-  final bool compact;
+  final String text;
+  final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    return GlassCard(
-      radius: 24,
-      padding: EdgeInsets.fromLTRB(
-        compact ? 10 : 14,
-        compact ? 12 : 14,
-        compact ? 10 : 14,
-        compact ? 8 : 14,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: compact ? 17 : 20, color: colors.accentText),
-                SizedBox(width: compact ? 5 : 8),
-              ],
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: compact ? 2 : 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'Fraunces',
-                    fontSize: compact ? 15 : 18,
-                    fontWeight: FontWeight.w600,
-                    height: 1.15,
-                    color: colors.text,
-                  ),
-                ),
-              ),
-              ?trailing,
-            ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: onTap == null ? 9 : 12,
+          vertical: onTap == null ? 4 : 7,
+        ),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: colors.isDark ? 0.2 : 0.14),
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: onTap == null ? 10 : 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: onTap == null ? 0.4 : 0,
+            color: color,
           ),
-          SizedBox(height: compact ? 8 : 12),
-          child,
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Reference-style today summary card: pastel surface, circular tinted icon
-/// with a chevron, large serif metric, two-line caption. The [value] is the
-/// live domain number; only the static caption copy is fixed.
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.detail,
-    required this.icon,
-    required this.caption,
-    required this.semanticLabel,
-    required this.onTap,
-    this.progress = 0.0,
+// ───────────────────────────── header ─────────────────────────────
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.now,
+    required this.name,
+    required this.streak,
+    required this.subtitle,
+    this.onSearch,
+    this.onNotifications,
+    this.onProfile,
   });
 
-  final String label;
-  final String value;
-  final String detail;
-  final IconData icon;
-  final String caption;
-  final String semanticLabel;
-  final VoidCallback onTap;
-  final double progress;
+  final DateTime now;
+  final String name;
+  final int streak;
+  final String subtitle;
+  final VoidCallback? onSearch;
+  final VoidCallback? onNotifications;
+  final VoidCallback? onProfile;
 
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    final style = _metricStyle(label, Theme.of(context).colorScheme);
-    return Semantics(
-      label: '$semanticLabel: $value $detail',
-      button: true,
-      child: _ModuleTile(
-        color: style.foreground,
-        onTap: onTap,
-        padding: const EdgeInsets.fromLTRB(10, 10, 6, 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final initials = initialsForName(name);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _TileIcon(icon: icon, color: style.foreground, size: 32),
-                Icon(Icons.chevron_right, size: 14, color: colors.muted),
-              ],
-            ),
-            const SizedBox(height: 8),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
+            Expanded(
               child: Text(
-                value,
+                DateFormat('EEEE · d MMM').format(now).toUpperCase(),
                 maxLines: 1,
-                style: TextStyle(
-                  fontFamily: 'Fraunces',
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: colors.text,
-                ),
+                overflow: TextOverflow.ellipsis,
+                style: _eyebrow(colors.accentText),
               ),
             ),
-            const SizedBox(height: 1),
-            Text(
-              caption,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, height: 1.2, color: colors.muted),
+            if (streak > 0) ...[
+              _GlassIcon(
+                label: '$streak-day habit streak',
+                width: streak > 9 ? 64 : 56,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.local_fire_department_rounded,
+                      size: 18,
+                      color: Color(0xFFFFB454),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      '$streak',
+                      style: _serif(
+                        15,
+                        colors.isDark
+                            ? const Color(0xFFFFD08A)
+                            : const Color(0xFF9A5A00),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            _GlassIcon(
+              label: 'Search',
+              onTap: onSearch,
+              child: Icon(Icons.search_rounded, size: 19, color: colors.text),
             ),
-            if (progress > 0) ...[
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: SizedBox(
-                  height: 3,
-                  child: Stack(
-                    fit: StackFit.expand,
+            const SizedBox(width: 8),
+            _NotificationButton(onTap: onNotifications),
+            const SizedBox(width: 8),
+            Semantics(
+              label: 'Profile',
+              button: true,
+              excludeSemantics: true,
+              child: _GlassIcon(
+                label: 'Profile',
+                onTap: onProfile,
+                child: initials.isEmpty
+                    ? Icon(
+                        Icons.person_outline_rounded,
+                        size: 19,
+                        color: colors.accentText,
+                      )
+                    : Text(
+                        initials,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: colors.accentText,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: '${greetingForHour(now.hour)},\n'),
+              TextSpan(
+                text: name == 'there' ? 'there.' : '$name.',
+                style: TextStyle(color: colors.accentText),
+              ),
+            ],
+          ),
+          style: _serif(31, colors.text, height: 1.1),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: TextStyle(fontSize: 12.5, height: 1.45, color: colors.muted),
+        ),
+      ],
+    );
+  }
+}
+
+/// Bell with a dot while reminders are active. There is no unread count in
+/// the API, so the badge never shows a made-up number.
+class _NotificationButton extends StatelessWidget {
+  const _NotificationButton({this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    var active = false;
+    try {
+      active = context.watch<RemindersController>().reminders.any(
+        (r) => r.isActive,
+      );
+    } catch (_) {
+      active = false;
+    }
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _GlassIcon(
+          label: 'Notifications',
+          onTap: onTap,
+          child: Icon(
+            Icons.notifications_none_outlined,
+            size: 19,
+            color: colors.text,
+          ),
+        ),
+        if (active)
+          Positioned(
+            top: -2,
+            right: -2,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B7D),
+                shape: BoxShape.circle,
+                border: Border.all(color: colors.background, width: 2),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ───────────────────────────── next up ─────────────────────────────
+
+class _NextUpHero extends StatelessWidget {
+  const _NextUpHero({
+    required this.item,
+    required this.busy,
+    required this.onOpen,
+    this.onPrimary,
+    this.onSkip,
+  });
+
+  final TimelineItem item;
+  final bool busy;
+  final VoidCallback onOpen;
+  final Future<void> Function()? onPrimary;
+  final VoidCallback? onSkip;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final now = DateTime.now();
+    final urgent = _isUrgent(item, now);
+    final tone = urgent ? colors.danger : colors.accentText;
+    final dark = colors.isDark;
+    final ink = dark
+        ? Colors.white
+        : (urgent ? const Color(0xFF4A0F19) : colors.text);
+    final soft = ink.withValues(alpha: 0.75);
+    final eyebrow = dark
+        ? Color.lerp(tone, Colors.white, 0.65)!
+        : Color.lerp(tone, Colors.black, 0.15)!;
+    final minutes = item.at.difference(now).inMinutes;
+    final countdown = minutes > 0
+        ? 'in ${_duration(minutes)}'
+        : minutes == 0
+        ? 'now'
+        : 'overdue by ${_duration(-minutes)}';
+    final primaryLabel = switch (item.source) {
+      HomeSource.medicine => 'Mark taken',
+      HomeSource.task => 'Mark done',
+      HomeSource.habit => 'Done',
+      _ => 'Open',
+    };
+    final radius = BorderRadius.circular(30);
+    return Semantics(
+      container: true,
+      label: 'Next up: ${item.title}, $countdown',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: tone.withValues(alpha: 0.4),
+              blurRadius: 30,
+              spreadRadius: -18,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: BackdropFilter.grouped(
+            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: Container(
+              padding: const EdgeInsets.all(19),
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                border: Border.all(
+                  color: tone.withValues(alpha: dark ? 0.32 : 0.35),
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: dark
+                      ? [
+                          tone.withValues(alpha: 0.28),
+                          tone.withValues(alpha: 0.07),
+                        ]
+                      : [
+                          Color.alphaBlend(
+                            tone.withValues(alpha: 0.22),
+                            Colors.white,
+                          ),
+                          Color.alphaBlend(
+                            tone.withValues(alpha: 0.07),
+                            Colors.white,
+                          ),
+                        ],
+                ),
+              ),
+              child: Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  onTap: onOpen,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(color: style.foreground.withValues(alpha: 0.18)),
-                      FractionallySizedBox(
-                        widthFactor: progress.clamp(0.0, 1.0),
-                        alignment: Alignment.centerLeft,
-                        child: Container(color: style.foreground),
+                      Text(
+                        urgent
+                            ? 'NEXT UP · DUE SOON'
+                            : 'NEXT UP · ${_shortTime(item.at).toUpperCase()}',
+                        style: _eyebrow(eyebrow),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(item.title, style: _serif(25, ink)),
+                      const SizedBox(height: 4),
+                      Text(
+                        _heroMeta(item),
+                        style: TextStyle(fontSize: 12.5, color: soft),
+                      ),
+                      const SizedBox(height: 9),
+                      Text(
+                        '● $countdown',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: dark ? Colors.white : eyebrow,
+                          fontFeatures: _tabular,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          _HeroButton(
+                            label: primaryLabel,
+                            filled: true,
+                            busy: busy,
+                            ink: ink,
+                            onTap: onPrimary ?? () async => onOpen(),
+                          ),
+                          if (onSkip != null) ...[
+                            const SizedBox(width: 8),
+                            _HeroButton(
+                              label: 'Skip',
+                              filled: false,
+                              busy: false,
+                              ink: ink,
+                              onTap: busy ? null : () async => onSkip!(),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Tinted glass tile used for module summaries.
-class _ModuleTile extends StatelessWidget {
-  const _ModuleTile({
-    required this.color,
-    required this.child,
-    required this.onTap,
-    this.padding = const EdgeInsets.all(12),
-    this.radius = 16,
-  });
-
-  final Color color;
-  final Widget child;
-  final VoidCallback? onTap;
-  final EdgeInsetsGeometry padding;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return Material(
-      type: MaterialType.transparency,
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(radius),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              color.withValues(alpha: colors.isDark ? .26 : .20),
-              color.withValues(alpha: .06),
-            ],
+            ),
           ),
         ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(radius),
-          child: Padding(padding: padding, child: child),
+      ),
+    );
+  }
+}
+
+String _heroMeta(TimelineItem item) {
+  final kind = switch (item.source) {
+    HomeSource.medicine => 'Medicine',
+    HomeSource.task => 'Task',
+    HomeSource.event => 'Event',
+    HomeSource.habit => 'Habit',
+    HomeSource.meal => 'Meal',
+    HomeSource.appointment => 'Appointment',
+  };
+  return '$kind · scheduled ${_shortTime(item.at)}';
+}
+
+String _duration(int minutes) {
+  if (minutes < 60) return '$minutes minute${minutes == 1 ? '' : 's'}';
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  return m == 0 ? '$h h' : '$h h $m min';
+}
+
+class _HeroButton extends StatelessWidget {
+  const _HeroButton({
+    required this.label,
+    required this.filled,
+    required this.busy,
+    required this.ink,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool filled;
+  final bool busy;
+  final Color ink;
+  final Future<void> Function()? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = BlistraColors.resolve(context).isDark;
+    final bg = filled
+        ? (dark ? Colors.white : ink)
+        : ink.withValues(alpha: dark ? 0.16 : 0.1);
+    final fg = filled ? (dark ? const Color(0xFF3A0D14) : Colors.white) : ink;
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        onTap: busy || onTap == null ? null : () => onTap!(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(99),
+            border: filled
+                ? null
+                : Border.all(color: ink.withValues(alpha: 0.2)),
+          ),
+          child: busy
+              ? SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+                )
+              : Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: fg,
+                  ),
+                ),
         ),
       ),
     );
   }
 }
 
-class _TileIcon extends StatelessWidget {
-  const _TileIcon({required this.icon, required this.color, this.size = 32});
+// ───────────────────────────── attention ─────────────────────────────
 
-  final IconData icon;
-  final Color color;
-  final double size;
+class _AttentionCard extends StatelessWidget {
+  const _AttentionCard({required this.items, required this.onOpen});
 
-  @override
-  Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: .28),
-      shape: BoxShape.circle,
-    ),
-    child: Icon(icon, size: size * .54, color: onGlass(context, color)),
-  );
-}
-
-class _ScheduleRow extends StatelessWidget {
-  const _ScheduleRow({
-    required this.item,
-    required this.onTap,
-    this.showDivider = true,
-    this.busy = false,
-    this.onCompleteTask,
-    this.onCompleteHabit,
-    this.onTakeDose,
-    this.onSkipDose,
-  });
-
-  final TimelineItem item;
-  final VoidCallback onTap;
-  final bool showDivider;
-  final bool busy;
-  final VoidCallback? onCompleteTask;
-  final VoidCallback? onCompleteHabit;
-  final VoidCallback? onTakeDose;
-  final VoidCallback? onSkipDose;
+  final List<AttentionItem> items;
+  final void Function(String destination) onOpen;
 
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    final statusColor = _timelineColor(item.status, Theme.of(context).colorScheme);
-    final category = _categoryColor(item.meta);
-    final time = item.anytime
-        ? 'Any\ntime'
-        : DateFormat('h:mm\na').format(item.at);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 46),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 32,
-              child: Text(
-                time,
-                style: TextStyle(fontSize: 9, height: 1.15, color: colors.muted),
-              ),
-            ),
-            SizedBox(
-              width: 12,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (showDivider)
-                    Positioned(
-                      top: 22,
-                      bottom: -22,
-                      child: Container(width: 1.5, color: colors.glassBorder),
+    final header = colors.isDark
+        ? Color.lerp(colors.danger, Colors.white, 0.45)!
+        : colors.danger;
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 11, 16, 11),
+            color: colors.danger.withValues(alpha: colors.isDark ? 0.2 : 0.12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'NEEDS ATTENTION',
+                    style: _eyebrow(header).copyWith(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.9,
                     ),
-                  Semantics(
-                    label: _timelineStatusLabel(item.status),
-                    child: Container(
+                  ),
+                ),
+                Text(
+                  '${items.length}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: header,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          for (var i = 0; i < items.length; i++)
+            InkWell(
+              onTap: () => onOpen(items[i].destination),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                decoration: BoxDecoration(
+                  border: i == 0
+                      ? null
+                      : Border(top: BorderSide(color: colors.inkAt(0.1))),
+                ),
+                child: Row(
+                  children: [
+                    Container(
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: statusColor,
+                        color: colors.danger,
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: colors.danger, blurRadius: 10),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            items[i].title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: colors.text,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            items[i].detail,
+                            style: TextStyle(fontSize: 11, color: colors.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      'Open ›',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: colors.accentText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ───────────────────────────── appointment ─────────────────────────────
+
+class _AppointmentCard extends StatelessWidget {
+  const _AppointmentCard({
+    required this.appointment,
+    required this.now,
+    required this.onTap,
+  });
+
+  final AppointmentSummary appointment;
+  final DateTime now;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final at = DateTime.parse(appointment.scheduledAt).toLocal();
+    final days = DateTime(
+      at.year,
+      at.month,
+      at.day,
+    ).difference(DateTime(now.year, now.month, now.day)).inDays;
+    final when = days == 0
+        ? 'Today'
+        : days == 1
+        ? 'Tomorrow'
+        : 'in $days days';
+    final where = appointment.location?.trim() ?? '';
+    return GlassCard(
+      radius: 22,
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 50,
+            decoration: BoxDecoration(
+              color: colors.accentSoft,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${at.day}',
+                  style: _serif(18, colors.accentText, height: 1),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  DateFormat('MMM').format(at).toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: colors.accentText,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('NEXT APPOINTMENT', style: _eyebrow(colors.accentText)),
+                const SizedBox(height: 3),
+                Text(
+                  appointment.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: colors.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    DateFormat('EEE · h:mm a').format(at),
+                    if (where.isNotEmpty) where,
+                  ].join(' · '),
+                  style: TextStyle(fontSize: 11, color: colors.muted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _Pill(when, color: colors.accentText),
+        ],
+      ),
+    );
+  }
+}
+
+// ───────────────────────────── stat strips ─────────────────────────────
+
+class _StatStrip extends StatelessWidget {
+  const _StatStrip({required this.stats, required this.onOpen});
+
+  final List<_Stat> stats;
+  final void Function(String destination) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 124,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        clipBehavior: Clip.none,
+        itemCount: stats.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, i) => _StatTile(
+          stat: stats[i],
+          onTap: () => onOpen(stats[i].destination),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.stat, required this.onTap});
+
+  final _Stat stat;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return SizedBox(
+      width: 138,
+      child: GlassCard(
+        radius: 22,
+        padding: const EdgeInsets.fromLTRB(13, 13, 13, 12),
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 34,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      stat.label.toUpperCase(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        letterSpacing: 1,
+                        fontWeight: FontWeight.w600,
+                        color: colors.muted,
                       ),
                     ),
                   ),
+                  if (stat.progress != null)
+                    _Ring(
+                      progress: stat.progress!,
+                      color: stat.color ?? colors.accentText,
+                    )
+                  else if (stat.icon != null)
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: colors.inkAt(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(stat.icon, size: 17, color: colors.muted),
+                    ),
                 ],
               ),
             ),
-            const SizedBox(width: 3),
-            Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: category.withValues(alpha: .20),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(
-                _categoryIcon(item.meta),
-                size: 14,
-                color: onGlass(context, category),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      height: 1.15,
-                      fontWeight: FontWeight.w600,
-                      color: colors.text,
-                    ),
-                  ),
-                  Text(
-                    item.meta,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      height: 1.2,
-                      color: colors.muted,
-                    ),
-                  ),
-                ],
+            const Spacer(),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text.rich(
+                TextSpan(
+                  text: stat.value,
+                  children: [
+                    if (stat.total != null || stat.unit.isNotEmpty)
+                      TextSpan(
+                        text: stat.total != null
+                            ? ' / ${stat.total}'
+                            : ' ${stat.unit}',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: colors.muted,
+                        ),
+                      ),
+                  ],
+                ),
+                style: _serif(24, colors.text, height: 1.1),
               ),
             ),
-            const SizedBox(width: 4),
-            _ScheduleTrailing(
-              item: item,
-              statusColor: statusColor,
-              busy: busy,
-              onCompleteTask: onCompleteTask,
-              onCompleteHabit: onCompleteHabit,
-              onTakeDose: onTakeDose,
-              onSkipDose: onSkipDose,
+            const SizedBox(height: 3),
+            Text(
+              stat.sub,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10.5, color: colors.muted),
             ),
           ],
         ),
@@ -2103,445 +1878,775 @@ class _ScheduleRow extends StatelessWidget {
   }
 }
 
-/// Trailing inline action for a schedule row. Mutations always go through
-/// the owning domain controller/API; Home never invents dosage, completion,
-/// or medical decisions. While a mutation is in flight a spinner replaces
-/// the action to prevent double-submit.
-/// Trailing inline action for a schedule row. Mutations always go through
-/// the owning domain controller/API; Home never invents dosage, completion,
-/// or medical decisions. While a mutation is in flight a spinner replaces
-/// the action to prevent double-submit.
-///
-/// Rendered as a small check circle (as in the design). A due dose is taken
-/// with a tap and skipped with a long press.
-class _ScheduleTrailing extends StatelessWidget {
-  const _ScheduleTrailing({
-    required this.item,
-    required this.statusColor,
-    required this.busy,
-    this.onCompleteTask,
-    this.onCompleteHabit,
-    this.onTakeDose,
-    this.onSkipDose,
-  });
+// ───────────────────────────── nudges ─────────────────────────────
 
-  final TimelineItem item;
-  final Color statusColor;
-  final bool busy;
-  final VoidCallback? onCompleteTask;
-  final VoidCallback? onCompleteHabit;
-  final VoidCallback? onTakeDose;
-  final VoidCallback? onSkipDose;
+class _NudgeCard extends StatelessWidget {
+  const _NudgeCard({required this.nudges, required this.onOpen});
 
-  Widget _circle(
-    BuildContext context, {
-    required bool done,
-    required String tooltip,
-    VoidCallback? onTap,
-    VoidCallback? onLongPress,
-  }) {
+  final List<_Nudge> nudges;
+  final void Function(String destination) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Container(
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: done ? colors.accent : Colors.transparent,
-              border: Border.all(
-                color: done ? colors.accent : colors.muted,
-                width: 1.8,
+    return GlassCard(
+      radius: 22,
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var i = 0; i < nudges.length; i++)
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              decoration: BoxDecoration(
+                border: i == 0
+                    ? null
+                    : Border(top: BorderSide(color: colors.inkAt(0.08))),
               ),
-            ),
-            child: done
-                ? const Icon(Icons.check, size: 11, color: Colors.white)
-                : null,
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (busy) {
-      return const SizedBox(
-        width: 26,
-        height: 26,
-        child: Padding(
-          padding: EdgeInsets.all(5),
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
-    final completed = item.status == TimelineStatus.completed;
-    if (onCompleteTask != null && item.source == HomeSource.task) {
-      return _circle(
-        context,
-        done: completed,
-        tooltip: completed ? 'Reopen task' : 'Complete task',
-        onTap: onCompleteTask,
-      );
-    }
-    if (onCompleteHabit != null && item.source == HomeSource.habit) {
-      return _circle(
-        context,
-        done: completed,
-        tooltip: 'Mark habit complete',
-        onTap: onCompleteHabit,
-      );
-    }
-    if (item.source == HomeSource.medicine && item.actionable) {
-      final due = !item.at.isAfter(DateTime.now());
-      if (!due) {
-        return Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(Icons.notifications_none, size: 18, color: statusColor),
-        );
-      }
-      return _circle(
-        context,
-        done: false,
-        tooltip: 'Take dose (long press to skip)',
-        onTap: onTakeDose,
-        onLongPress: onSkipDose,
-      );
-    }
-    if (completed) {
-      return _circle(context, done: true, tooltip: 'Completed');
-    }
-    return Padding(
-      padding: const EdgeInsets.all(4),
-      child: Icon(_timelineIcon(item.status), size: 17, color: statusColor),
-    );
-  }
-}
-
-class _AttentionRow extends StatelessWidget {
-  const _AttentionRow({
-    required this.item,
-    required this.onTap,
-    this.showDivider = true,
-  });
-
-  final AttentionItem item;
-  final VoidCallback onTap;
-  final bool showDivider;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    final color = _attentionColor(item.detail);
-    return Padding(
-      padding: EdgeInsets.only(bottom: showDivider ? 7 : 0),
-      child: Material(
-        type: MaterialType.transparency,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: colors.isDark ? .16 : .12),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(14),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
               child: Row(
                 children: [
                   Container(
-                    width: 26,
-                    height: 26,
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: .28),
-                      shape: BoxShape.circle,
+                      color: colors.inkAt(0.08),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(
-                      _attentionIcon(item.detail),
-                      size: 14,
-                      color: onGlass(context, color),
-                    ),
+                    child: Icon(nudges[i].icon, size: 17, color: colors.text),
                   ),
-                  const SizedBox(width: 7),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          item.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          nudges[i].title,
                           style: TextStyle(
-                            fontSize: 11,
-                            height: 1.15,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: colors.text,
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          item.detail,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            height: 1.2,
-                            color: onGlass(context, color),
-                          ),
+                          nudges[i].sub,
+                          style: TextStyle(fontSize: 11, color: colors.muted),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, size: 13, color: colors.muted),
+                  _Pill(
+                    nudges[i].action,
+                    color: colors.accentText,
+                    onTap: () => onOpen(nudges[i].destination),
+                  ),
                 ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ───────────────────────────── timeline ─────────────────────────────
+
+class _Timeline extends StatelessWidget {
+  const _Timeline({
+    required this.items,
+    required this.next,
+    required this.busy,
+    required this.keyOf,
+    required this.onOpen,
+  });
+
+  final List<TimelineItem> items;
+  final TimelineItem? next;
+  final Set<String> busy;
+  final String Function(TimelineItem) keyOf;
+  final void Function(TimelineItem) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return Stack(
+      children: [
+        Positioned(
+          left: 49,
+          top: 6,
+          bottom: 16,
+          child: Container(
+            width: 1.5,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [colors.inkAt(0.5), colors.inkAt(0.05)],
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SeeAll extends StatelessWidget {
-  const _SeeAll({required this.onTap, this.label = 'See all'});
-  final VoidCallback onTap;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-        child: Text(
-          '$label ›',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: BlistraColors.resolve(context).accentText,
-          ),
+        Column(
+          children: [
+            for (final item in items)
+              _TimelineRow(
+                item: item,
+                isNext: next != null && keyOf(next!) == keyOf(item),
+                busy: busy.contains(keyOf(item)),
+                onTap: () => onOpen(item),
+              ),
+          ],
         ),
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.message});
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Text(
-      message,
-      style: Theme.of(context).textTheme.bodyMedium
-          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-    ),
-  );
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.onRetry, this.moduleError = false});
-  final Future<void> Function() onRetry;
-  final bool moduleError;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Text(
-          moduleError
-              ? 'Some Home data could not be loaded.'
-              : 'Try again to load Home.',
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
-        ),
-      ),
-      TextButton(onPressed: onRetry, child: const Text('Retry')),
-    ],
-  );
-}
-
-class _FullError extends StatelessWidget {
-  const _FullError({required this.message, required this.onRetry});
-  final String message;
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Home is unavailable',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(message),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _DashboardSkeleton extends StatelessWidget {
-  const _DashboardSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
-    return Column(
-      children: [
-        _SkeletonBlock(color: color, height: 180),
-        const SizedBox(height: 16),
-        _SkeletonBlock(color: color, height: 120),
-        const SizedBox(height: 16),
-        _SkeletonBlock(color: color, height: 240),
       ],
     );
   }
 }
 
-class _SkeletonBlock extends StatelessWidget {
-  const _SkeletonBlock({required this.color, required this.height});
-  final Color color;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    height: height,
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(16),
-    ),
-  );
-}
-
-class _FeatureStyle {
-  const _FeatureStyle({
-    required this.background,
-    required this.iconBackground,
-    required this.foreground,
+class _TimelineRow extends StatelessWidget {
+  const _TimelineRow({
+    required this.item,
+    required this.isNext,
+    required this.busy,
+    required this.onTap,
   });
 
-  final Color background;
-  final Color iconBackground;
-  final Color foreground;
-}
+  final TimelineItem item;
+  final bool isNext;
+  final bool busy;
+  final VoidCallback onTap;
 
-_FeatureStyle _metricStyle(String label, ColorScheme scheme) {
-  if (label.contains('Tasks')) {
-    return const _FeatureStyle(
-      background: Color(0xFFE9F7EF),
-      iconBackground: Color(0xFFD4F0E3),
-      foreground: ModuleColors.planner,
-    );
-  }
-  if (label.contains('Medicines')) {
-    return const _FeatureStyle(
-      background: Color(0xFFEFF5FF),
-      iconBackground: Color(0xFFDDE9FF),
-      foreground: ModuleColors.medicines,
-    );
-  }
-  if (label.contains('Habits')) {
-    return const _FeatureStyle(
-      background: Color(0xFFFFF3E8),
-      iconBackground: Color(0xFFFFE3C6),
-      foreground: ModuleColors.diet,
-    );
-  }
-  return _FeatureStyle(
-    background: scheme.brightness == Brightness.dark
-        ? const Color(0xFF302746)
-        : const Color(0xFFF4EAFE),
-    iconBackground: scheme.brightness == Brightness.dark
-        ? const Color(0xFF493560)
-        : const Color(0xFFE9D7FC),
-    foreground: ModuleColors.habits,
-  );
-}
-
-_FeatureStyle _moduleStyle(String id, ColorScheme scheme) => switch (id) {
-  HomeWidgets.health => const _FeatureStyle(
-    background: Color(0xFFFFEEEE),
-    iconBackground: Color(0xFFFFD7D7),
-    foreground: ModuleColors.health,
-  ),
-  HomeWidgets.medicines => const _FeatureStyle(
-    background: Color(0xFFEFF5FF),
-    iconBackground: Color(0xFFDDE9FF),
-    foreground: Color(0xFF2878EA),
-  ),
-  HomeWidgets.diet => const _FeatureStyle(
-    background: Color(0xFFFFF3E8),
-    iconBackground: Color(0xFFFFE3C6),
-    foreground: ModuleColors.diet,
-  ),
-  HomeWidgets.habits => const _FeatureStyle(
-    background: Color(0xFFEAF7EF),
-    iconBackground: Color(0xFFD4F0E3),
-    foreground: Color(0xFF0B6B4F),
-  ),
-  HomeWidgets.finance => _metricStyle('Spending today', scheme),
-  _ => _metricStyle('', scheme),
-};
-
-IconData _categoryIcon(String meta) {
-  if (meta.startsWith('Medicine')) return Icons.medication_outlined;
-  if (meta.startsWith('Habit')) return Icons.directions_run_rounded;
-  if (meta.startsWith('Meal')) return Icons.restaurant_outlined;
-  if (meta.startsWith('Health')) return Icons.favorite_outline;
-  if (meta.startsWith('Event')) return Icons.groups_2_outlined;
-  if (meta.startsWith('Task')) return Icons.description_outlined;
-  return Icons.circle_outlined;
-}
-
-Color _categoryColor(String meta) {
-  if (meta.startsWith('Medicine')) return const Color(0xFFEF5570);
-  if (meta.startsWith('Habit')) return const Color(0xFF1B9A70);
-  if (meta.startsWith('Meal')) return const Color(0xFFE76B2E);
-  if (meta.startsWith('Health')) return const Color(0xFFB640A0);
-  if (meta.startsWith('Event')) return const Color(0xFF7D42D5);
-  if (meta.startsWith('Task')) return const Color(0xFF377BD5);
-  return const Color(0xFF4A837B);
-}
-
-Color _timelineColor(TimelineStatus status, ColorScheme scheme) =>
-    switch (status) {
-      TimelineStatus.completed => const Color(0xFF18A768),
-      TimelineStatus.overdue ||
-      TimelineStatus.missed => const Color(0xFFE24545),
-      TimelineStatus.due => const Color(0xFFE24545),
-      TimelineStatus.cancelled => scheme.outline,
-      TimelineStatus.upcoming => const Color(0xFF3278E8),
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final now = DateTime.now();
+    final dot = switch (item.source) {
+      HomeSource.medicine => colors.data[0],
+      HomeSource.task => colors.data[1],
+      HomeSource.appointment || HomeSource.event => colors.data[2],
+      _ => colors.accentText,
     };
-
-Color _attentionColor(String detail) {
-  if (detail.contains('overdue')) return const Color(0xFFC6402E);
-  if (detail.contains('Medicine')) return const Color(0xFFDE3D5B);
-  return const Color(0xFF16805D);
+    final c = isNext ? colors.accentText : dot;
+    final icon = switch (item.source) {
+      HomeSource.medicine => Icons.medication_outlined,
+      HomeSource.task => Icons.check_rounded,
+      HomeSource.event => Icons.event_outlined,
+      HomeSource.habit => Icons.repeat_rounded,
+      HomeSource.meal => Icons.restaurant_outlined,
+      HomeSource.appointment => Icons.medical_services_outlined,
+    };
+    final sameDay = _sameDay(item.at, now);
+    final days = DateTime(
+      item.at.year,
+      item.at.month,
+      item.at.day,
+    ).difference(DateTime(now.year, now.month, now.day)).inDays;
+    final Widget? trailing = isNext
+        ? Text(
+            'NEXT',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: colors.accentText,
+            ),
+          )
+        : item.status == TimelineStatus.overdue
+        ? _Pill('OVERDUE', color: colors.danger)
+        : !sameDay && days > 0
+        ? Text(
+            days == 1 ? 'TOMORROW' : '$days DAYS',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: colors.muted,
+            ),
+          )
+        : null;
+    final faded = item.done || item.status == TimelineStatus.cancelled;
+    final card = Container(
+      decoration: isNext
+          ? BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: colors.accentText.withValues(alpha: 0.4),
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colors.accentText.withValues(alpha: 0.18),
+                  colors.accentText.withValues(alpha: 0.05),
+                ],
+              ),
+            )
+          : null,
+      child: GlassCard(
+        radius: 20,
+        padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+        onTap: onTap,
+        // Fade the content, not the glass: opacity over a backdrop blur
+        // leaves a dark inner box.
+        child: Opacity(
+          opacity: faded ? 0.55 : 1,
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: c.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: busy
+                    ? Padding(
+                        padding: const EdgeInsets.all(9),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: c,
+                        ),
+                      )
+                    : Icon(icon, size: 16, color: c),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: colors.text,
+                        decoration: item.done
+                            ? TextDecoration.lineThrough
+                            : null,
+                        decorationColor: colors.muted,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.meta,
+                      style: TextStyle(fontSize: 11, color: colors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              if (trailing != null) ...[const SizedBox(width: 8), trailing],
+            ],
+          ),
+        ),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 42,
+            child: Text(
+              sameDay
+                  ? DateFormat('HH:mm').format(item.at)
+                  : '${DateFormat('EEE').format(item.at)}\n'
+                        '${DateFormat('HH:mm').format(item.at)}',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: isNext ? colors.accentText : colors.muted,
+                fontFeatures: _tabular,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 20,
+            child: Center(
+              child: Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: c,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: c, blurRadius: 12)],
+                ),
+              ),
+            ),
+          ),
+          Expanded(child: card),
+        ],
+      ),
+    );
+  }
 }
 
-IconData _attentionIcon(String detail) {
-  if (detail.contains('overdue')) return Icons.check_rounded;
-  if (detail.contains('Medicine')) return Icons.medication_outlined;
-  return Icons.bolt_rounded;
+// ───────────────────────────── habits ─────────────────────────────
+
+class _HabitsCard extends StatelessWidget {
+  const _HabitsCard({
+    required this.habits,
+    required this.streaks,
+    required this.busy,
+    required this.onComplete,
+    required this.onOpen,
+  });
+
+  final HabitSection habits;
+  final Map<String, int> streaks;
+  final Set<String> busy;
+  final void Function(HabitSummary) onComplete;
+  final void Function(HabitSummary) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    if (habits.todayHabits.isEmpty) {
+      return const _EmptyCard(message: 'No habits due today.');
+    }
+    final progress = habits.expectedToday == 0
+        ? 0.0
+        : habits.completedToday / habits.expectedToday;
+    return GlassCard(
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Bar(
+            value: progress,
+            gradient: LinearGradient(
+              colors: [colors.accentText, colors.data[0]],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final habit in habits.todayHabits)
+                _HabitChip(
+                  habit: habit,
+                  streak: streaks[habit.id] ?? 0,
+                  busy: busy.contains('${HomeSource.habit.name}:${habit.id}'),
+                  onTap: habit.completedToday
+                      ? () => onOpen(habit)
+                      : () => onComplete(habit),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitChip extends StatelessWidget {
+  const _HabitChip({
+    required this.habit,
+    required this.streak,
+    required this.busy,
+    required this.onTap,
+  });
+
+  final HabitSummary habit;
+  final int streak;
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final done = habit.completedToday;
+    return Semantics(
+      button: true,
+      checked: done,
+      label: habit.name,
+      child: GestureDetector(
+        onTap: busy ? null : onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(9, 9, 13, 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(99),
+            color: done ? colors.accentSoft : colors.glassFill,
+            border: Border.all(
+              color: done
+                  ? colors.accentText.withValues(alpha: 0.5)
+                  : colors.glassBorder,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: done ? colors.accentText : Colors.transparent,
+                  border: Border.all(
+                    color: done ? colors.accentText : colors.inkAt(0.6),
+                    width: 1.8,
+                  ),
+                ),
+                child: busy
+                    ? Padding(
+                        padding: const EdgeInsets.all(3),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.6,
+                          color: colors.accentText,
+                        ),
+                      )
+                    : done
+                    ? Icon(
+                        Icons.check_rounded,
+                        size: 12,
+                        color: colors.onAccent,
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                habit.name,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: colors.text,
+                ),
+              ),
+              if (streak > 0) ...[
+                const SizedBox(width: 5),
+                const Icon(
+                  Icons.local_fire_department_rounded,
+                  size: 12,
+                  color: Color(0xFFFFB454),
+                ),
+                Text(
+                  '$streak',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: colors.data[1],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ───────────────────────────── spending ─────────────────────────────
+
+class _SpendingCard extends StatelessWidget {
+  const _SpendingCard({required this.month});
+
+  final CurrencySection month;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final net = double.tryParse(month.net) ?? 0;
+    final expense = double.tryParse(month.expense) ?? 0;
+    final cats = month.topCategories.take(3).toList();
+    final barColors = [colors.data[0], colors.data[1], colors.accentText];
+    Widget figure(String label, String value, Color color) => Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              letterSpacing: 1,
+              fontWeight: FontWeight.w600,
+              color: colors.muted,
+            ),
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: _serif(17, color)),
+          ),
+        ],
+      ),
+    );
+    return GlassCard(
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              figure(
+                'Income',
+                formatSpend(month.income, month.currency),
+                colors.accentText,
+              ),
+              const SizedBox(width: 8),
+              figure(
+                'Spent',
+                formatSpend(month.expense, month.currency),
+                colors.text,
+              ),
+              const SizedBox(width: 8),
+              figure(
+                'Net',
+                '${net > 0 ? '+' : ''}${formatSpend(month.net, month.currency)}',
+                net >= 0 ? colors.accentText : colors.danger,
+              ),
+            ],
+          ),
+          if (cats.isNotEmpty) const SizedBox(height: 4),
+          for (var i = 0; i < cats.length; i++) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    cats[i].categoryName,
+                    style: TextStyle(fontSize: 12, color: colors.muted),
+                  ),
+                ),
+                Text(
+                  formatSpend(cats[i].amount, month.currency),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colors.text,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            _Bar(
+              value: expense <= 0
+                  ? 0
+                  : (double.tryParse(cats[i].amount) ?? 0) / expense,
+              color: barColors[i],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ───────────────────────────── week ─────────────────────────────
+
+/// Week strip and totals. The API reports how many days were active, not
+/// which ones, so the strip only marks past days and today.
+class _WeekCard extends StatelessWidget {
+  const _WeekCard({required this.week, required this.now});
+
+  final WeekSection week;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final start =
+        week.start ??
+        DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(Duration(days: now.weekday - 1));
+    final today = DateTime(now.year, now.month, now.day);
+    Widget stat(int n, int of, String label) => Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              text: '$n',
+              children: [
+                TextSpan(
+                  text: '/$of',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: colors.muted,
+                  ),
+                ),
+              ],
+            ),
+            style: _serif(21, colors.text),
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(fontSize: 10, color: colors.muted)),
+        ],
+      ),
+    );
+    return GlassCard(
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              for (var i = 0; i < 7; i++) ...[
+                if (i > 0) const SizedBox(width: 6),
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      final day = DateTime(
+                        start.year,
+                        start.month,
+                        start.day + i,
+                      );
+                      final isToday = day == today;
+                      final past = day.isBefore(today);
+                      return Container(
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(11),
+                          color: isToday
+                              ? Colors.transparent
+                              : colors.inkAt(past ? 0.14 : 0.07),
+                          border: isToday
+                              ? Border.all(color: colors.accentText, width: 1.5)
+                              : null,
+                        ),
+                        child: Text(
+                          DateFormat('E').format(day).substring(0, 1),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: isToday ? colors.accentText : colors.muted,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              stat(week.completedTasks, week.tasksDue, 'Tasks done'),
+              stat(week.habitCompletions, week.habitOccurrences, 'Habits kept'),
+              stat(week.activeDays, 7, 'Active days'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ───────────────────────────── states ─────────────────────────────
+
+class _EmptyCard extends StatelessWidget {
+  const _EmptyCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Text(message, style: TextStyle(fontSize: 13, color: colors.muted)),
+    );
+  }
+}
+
+/// A section whose module failed; the rest of Home keeps working.
+class _Unavailable extends StatelessWidget {
+  const _Unavailable({required this.name, required this.onRetry});
+
+  final String name;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return GlassCard(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "$name couldn't load",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colors.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'The rest of your dashboard is fine.',
+                  style: TextStyle(fontSize: 11, color: colors.muted),
+                ),
+              ],
+            ),
+          ),
+          _Pill('Retry', color: colors.accentText, onTap: onRetry),
+        ],
+      ),
+    );
+  }
+}
+
+class _FullError extends StatelessWidget {
+  const _FullError({required this.message, required this.onRetry});
+
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
+      child: GlassCard(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Home is unavailable', style: _serif(19, colors.text)),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              style: TextStyle(fontSize: 12.5, color: colors.muted),
+            ),
+            const SizedBox(height: 14),
+            _Pill('Try again', color: colors.accentText, onTap: onRetry),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Skeleton extends StatelessWidget {
+  const _Skeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    Widget block(double h) => Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Container(
+        height: h,
+        decoration: BoxDecoration(
+          color: colors.inkAt(0.06),
+          borderRadius: BorderRadius.circular(24),
+        ),
+      ),
+    );
+    return Semantics(
+      label: 'Loading Home',
+      child: Column(children: [block(170), block(130), block(124), block(240)]),
+    );
+  }
 }
 
 enum TimelineStatus { upcoming, due, completed, missed, overdue, cancelled }
@@ -2990,42 +3095,7 @@ List<TimelineItem> buildTimeline(
 
 bool _isTaken(DoseSummary dose) => dose.status.toUpperCase() == 'TAKEN';
 
-IconData _moduleIcon(String id) => switch (id) {
-  HomeWidgets.health => Icons.favorite_outline,
-  HomeWidgets.medicines => Icons.medication_outlined,
-  HomeWidgets.diet => Icons.restaurant_outlined,
-  HomeWidgets.habits => Icons.repeat,
-  HomeWidgets.finance => Icons.account_balance_wallet_outlined,
-  _ => Icons.circle_outlined,
-};
-
-String _moduleDestination(String id) => switch (id) {
-  HomeWidgets.health => 'HEALTH',
-  HomeWidgets.medicines => 'MEDICINES',
-  HomeWidgets.diet => 'DIET',
-  HomeWidgets.habits => 'HABITS',
-  HomeWidgets.finance => 'FINANCE',
-  _ => 'HUB',
-};
-
-IconData _timelineIcon(TimelineStatus status) => switch (status) {
-  TimelineStatus.completed => Icons.check_circle_outline,
-  TimelineStatus.overdue || TimelineStatus.missed => Icons.error_outline,
-  TimelineStatus.due => Icons.notifications_none,
-  TimelineStatus.cancelled => Icons.remove_circle_outline,
-  TimelineStatus.upcoming => Icons.circle_outlined,
-};
-
 String _time(DateTime value) => DateFormat('h:mm a').format(value);
-
-/// Time-of-day glyph beside the greeting name (reference shows a sun).
-/// Purely presentational; the hour comes from the user's local time.
-IconData _dayPartIcon(int hour) {
-  if (hour >= 5 && hour < 12) return Icons.wb_sunny_rounded;
-  if (hour >= 12 && hour < 17) return Icons.wb_sunny_outlined;
-  if (hour >= 17 && hour < 21) return Icons.wb_twilight_rounded;
-  return Icons.nightlight_round;
-}
 
 String _mealTitle(String? value) {
   if (value == null || value.isEmpty) return 'Meal';
@@ -3034,15 +3104,6 @@ String _mealTitle(String? value) {
 
 bool _sameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
-
-String _timelineStatusLabel(TimelineStatus status) => switch (status) {
-  TimelineStatus.upcoming => 'Upcoming',
-  TimelineStatus.due => 'Due',
-  TimelineStatus.completed => 'Completed',
-  TimelineStatus.missed => 'Missed',
-  TimelineStatus.overdue => 'Overdue',
-  TimelineStatus.cancelled => 'Cancelled',
-};
 
 /// Event display status. A passed scheduled time NEVER means completed:
 /// without an owning-domain completion record, a past event is overdue.
@@ -3053,7 +3114,6 @@ TimelineStatus _eventStatus(DateTime start, DateTime? end, DateTime now) {
   if (!start.isAfter(now)) return TimelineStatus.due;
   return TimelineStatus.upcoming;
 }
-
 
 /// Human-friendly money text for Home tiles: currency symbol, thousands
 /// separators and no trailing zeros ("₹420", "₹1,250.50").
@@ -3067,13 +3127,13 @@ String formatSpend(String amount, String currency) {
   return symbol != null ? '$symbol$text' : '$currency $text';
 }
 
-
-
 /// "68.40" -> "68.4", "72.00" -> "72"; non-numeric text is returned as is.
 String _plainNumber(String raw) {
   final parsed = double.tryParse(raw);
   if (parsed == null) return raw;
-  if (parsed == parsed.roundToDouble()) return NumberFormat('#,##0').format(parsed);
+  if (parsed == parsed.roundToDouble()) {
+    return NumberFormat('#,##0').format(parsed);
+  }
   return NumberFormat('#,##0.##').format(parsed);
 }
 
@@ -3091,14 +3151,15 @@ String _relativeDay(String? iso) {
   final at = DateTime.tryParse(iso ?? '')?.toLocal();
   if (at == null) return '';
   final now = DateTime.now();
-  final days = DateTime(now.year, now.month, now.day)
-      .difference(DateTime(at.year, at.month, at.day))
-      .inDays;
+  final days = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).difference(DateTime(at.year, at.month, at.day)).inDays;
   if (days <= 0) return 'today';
   if (days == 1) return 'yesterday';
   return '$days days ago';
 }
-
 
 /// Today's tasks plus overdue ones, each task once. The backend lists a task
 /// whose time has passed in both `todayTasks` and `overdueTasks`.

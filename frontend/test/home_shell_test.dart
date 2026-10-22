@@ -66,7 +66,7 @@ void main() {
     // shell, not Home).
     expect(find.byType(FloatingActionButton), findsNothing);
     expect(find.byType(Scaffold), findsNothing);
-    expect(find.text('Blistra'), findsOneWidget);
+    expect(find.byTooltip('Search'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -78,7 +78,7 @@ void main() {
     final load = controller.loadDashboard(date: DateTime(2026, 9, 24));
     await tester.pumpWidget(_home(controller: controller));
     await tester.pump();
-    expect(find.text('Blistra'), findsOneWidget);
+    expect(find.bySemanticsLabel('Loading Home'), findsOneWidget);
     expect(tester.takeException(), isNull);
     response.complete(http.Response('{}', 200));
     await load;
@@ -142,7 +142,13 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.tap(find.text('Health'));
+    final weight = find.text('LATEST WEIGHT');
+    await tester.scrollUntilVisible(
+      weight,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(weight);
     expect(destination, 'HEALTH');
   });
 
@@ -176,11 +182,12 @@ void main() {
         _home(controller: controller, homeWidgets: const []),
       );
       await tester.pump();
-      expect(find.text('Sourabhkumar Chandrasekhar'), findsOneWidget);
-      expect(find.text('Today overview'), findsOneWidget);
-      expect(find.text('Next up'), findsOneWidget);
-      expect(find.textContaining('attention'), findsOneWidget);
-      expect(find.text('Your wellbeing'), findsOneWidget);
+      expect(
+        find.textContaining('Sourabhkumar Chandrasekhar', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.text('Today so far'), findsOneWidget);
+      expect(find.text("Today's timeline"), findsOneWidget);
       expect(find.text('Nothing scheduled for today.'), findsOneWidget);
       expect(find.byTooltip('Planner'), findsNothing);
       expect(tester.takeException(), isNull);

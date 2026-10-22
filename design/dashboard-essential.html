@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blistra · Essential dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0e13;font-family:Inter,sans-serif;color:#e9eeee;padding:40px 20px 80px}
+h1.pg{font:600 32px Fraunces,serif;text-align:center}h1.pg em{color:#12B886;font-style:normal}
+p.pg{text-align:center;color:#8b979a;margin:8px auto 36px;max-width:620px;font-size:14px;line-height:1.55}
+.wrap{display:flex;gap:36px;justify-content:center;flex-wrap:wrap;align-items:flex-start;max-width:1300px;margin:0 auto}
+.col{display:flex;flex-direction:column;align-items:center;gap:14px}
+.lab{font:600 12px Inter;letter-spacing:.1em;color:#7c888b;text-transform:uppercase;text-align:center}
+.lab span{display:block;text-transform:none;letter-spacing:0;font-weight:400;margin-top:3px;font-size:12px;color:#5f6b6e}
+.phone{width:390px;border-radius:44px;border:8px solid #1b2128;overflow:hidden;position:relative;box-shadow:0 30px 80px -20px #000a;background:#06090F;color:#EEF2F0}
+.phone:before{content:"";position:absolute;inset:0 0 auto 0;height:380px;background:radial-gradient(420px 280px at 92% -6%,#12B88638,transparent 70%);pointer-events:none}
+.notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:90px;height:24px;background:#000;border-radius:14px;z-index:9}
+.pad{padding:52px 18px 112px;position:relative}
+:root{--mu:#8d9a98;--card:#ffffff0b;--bd:#ffffff14;--ac:#12B886;--acs:#12B88622;--red:#ff6b6b;--reds:#ff6b6b1a;--amb:#ffb454;--ambs:#ffb45418;--blu:#7aa2ff;--cy:#38d0e8}
+.row{display:flex;align-items:center;justify-content:space-between}
+.eye{font:600 10px Inter;letter-spacing:.16em;text-transform:uppercase;color:var(--ac)}
+h2.hi{font:600 30px/1.1 Fraunces;margin:6px 0 4px;letter-spacing:-.01em}h2.hi em{font-style:normal;color:var(--ac)}
+.sub{color:var(--mu);font-size:12.5px;line-height:1.45}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:26px 0 10px}
+.sec b{font:600 17px Fraunces}.sec a{font-size:11px;color:var(--ac);font-weight:600}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:22px;padding:15px;backdrop-filter:blur(14px)}
+.k{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+.btn{display:inline-block;border-radius:99px;padding:10px 18px;font-size:12px;font-weight:700}
+.btn.p{background:var(--ac);color:#04201a}.btn.g{background:#ffffff12;color:#EEF2F0}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--acs);color:var(--ac);display:grid;place-items:center;font-size:12px;font-weight:700}
+
+/* next up */
+.next{border-radius:26px;padding:18px;background:linear-gradient(150deg,#12B88630,#12B88608 70%);border:1px solid #12B88655;margin-top:18px}
+.next.warn{background:linear-gradient(150deg,#ff6b6b2a,#ff6b6b08 70%);border-color:#ff6b6b66}
+.next .t{font:600 24px/1.15 Fraunces;margin:8px 0 4px}
+.next .cd{font:500 12px 'JetBrains Mono';color:var(--ac)}.next.warn .cd{color:var(--red)}
+.next .acts{display:flex;gap:8px;margin-top:14px}
+
+/* attention */
+.att{border:1px solid var(--bd);border-radius:22px;overflow:hidden;margin-top:12px}
+.att .h{padding:11px 15px;background:var(--reds);display:flex;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--red)}
+.att .it{display:flex;gap:12px;align-items:center;padding:12px 15px;border-top:1px solid var(--bd);background:var(--card)}
+.att .it:first-of-type{border-top:0}
+.it .t{font-size:13.5px;font-weight:600}.it .s{font-size:11px;color:var(--mu);margin-top:2px}
+.it .go{margin-left:auto;font-size:11px;font-weight:700;color:var(--ac);flex:none}
+
+/* timeline */
+.tl{position:relative;padding-left:62px}
+.tl:before{content:"";position:absolute;left:49px;top:6px;bottom:6px;width:1.5px;background:linear-gradient(#12B88680,#ffffff10)}
+.ev{position:relative;display:flex;gap:11px;align-items:center;margin-bottom:10px;background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:11px 13px}
+.ev .tm{position:absolute;left:-62px;font:500 11px 'JetBrains Mono';color:var(--mu);width:42px;text-align:right}
+.ev:before{content:"";position:absolute;left:-17px;top:50%;margin-top:-4.5px;width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 0 4px #06090F}
+.ev.done{opacity:.5}.ev.done .t{text-decoration:line-through}
+.ev .ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:14px;flex:none;background:color-mix(in srgb,var(--c) 18%,transparent)}
+.ev .t{font-size:13.5px;font-weight:600}.ev .s{font-size:11px;color:var(--mu);margin-top:2px}
+.ev .st{margin-left:auto;font-size:10px;font-weight:700;color:var(--mu);flex:none}
+.ev.now{border-color:#12B88666;background:#12B8861a}
+.tag{font:700 9px Inter;letter-spacing:.08em;padding:3px 7px;border-radius:99px;margin-left:auto;flex:none}
+.hi-t{background:var(--reds);color:var(--red)}.md-t{background:var(--ambs);color:var(--amb)}
+
+/* habits */
+.hab{display:flex;gap:8px;flex-wrap:wrap}
+.hc{display:flex;align-items:center;gap:8px;padding:9px 13px 9px 9px;border-radius:99px;background:var(--card);border:1px solid var(--bd);font-size:12.5px;font-weight:600}
+.hc i{width:20px;height:20px;border-radius:50%;border:1.8px solid var(--ac);display:grid;place-items:center;font-style:normal;font-size:10px;color:#04201a;flex:none}
+.hc.d{background:var(--acs);border-color:#12B88644}.hc.d i{background:var(--ac)}
+.prog{height:6px;border-radius:6px;background:#ffffff14;margin:10px 0 12px;overflow:hidden}.prog b{display:block;height:100%;background:var(--ac);border-radius:6px}
+
+/* quick log */
+.ql{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ql div{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:12px 4px;text-align:center;font-size:10.5px;font-weight:600;color:var(--mu)}
+.ql b{display:block;font-size:20px;margin-bottom:5px;font-weight:400}
+
+/* today tiles */
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:13px 11px}
+.tile .v{font:600 20px Fraunces;margin-top:5px}.tile .v small{font:500 10px Inter;color:var(--mu)}
+.tile .s{font-size:10.5px;color:var(--mu);margin-top:3px}
+
+/* week */
+.wk{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.wk div .n{font:600 20px Fraunces}.wk div .n small{font:500 11px Inter;color:var(--mu)}
+.wk .l{font-size:10px;color:var(--mu);margin-top:2px}
+.days{display:flex;gap:6px;margin-top:2px}
+.days span{flex:1;height:30px;border-radius:10px;background:#ffffff0f;display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--mu)}
+.days .a{background:var(--ac);color:#04201a}.days .t{border:1.5px solid var(--ac);color:var(--ac)}
+
+/* money */
+.mn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mn div{border-radius:16px;padding:11px 12px}
+.mn .in{background:var(--acs)}.mn .out{background:var(--ambs)}
+.mn b{display:block;font:600 19px Fraunces;margin-top:3px}
+
+.clear{text-align:center;padding:22px 16px}.clear .big{font-size:34px}.clear b{display:block;font:600 19px Fraunces;margin:8px 0 4px}
+
+.nav{position:absolute;left:14px;right:14px;bottom:14px;height:66px;border-radius:26px;display:flex;justify-content:space-around;align-items:center;background:#0d131bdd;border:1px solid var(--bd);backdrop-filter:blur(16px);z-index:5}
+.nav i{width:40px;height:40px;border-radius:14px;display:grid;place-items:center;font-style:normal;font-size:17px;color:var(--mu)}
+.nav i.on{background:var(--acs);color:var(--ac)}.nav i.pl{width:48px;height:48px;border-radius:50%;background:var(--ac);color:#04201a;font-size:24px;font-weight:300}
+
+/* rationale */
+.why{max-width:1240px;margin:56px auto 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+.why .bx{background:#11161d;border:1px solid #1e2630;border-radius:20px;padding:22px}
+.why h3{font:600 18px Fraunces;margin-bottom:12px}
+.why li{list-style:none;font-size:13px;line-height:1.5;color:#a6b2b4;padding:7px 0;border-top:1px solid #1e2630}
+.why li:first-of-type{border-top:0}.why li b{color:#e9eeee}
+.why .no li b{color:#ff8f8f}
+</style>
+</head>
+<body>
+<h1 class="pg">Blistra <em>essential</em> dashboard</h1>
+<p class="pg">Built from one question: <i>what does someone need to know, and do, in the next few seconds of opening the app?</i> Answer: what's urgent, what's next, and what's left today. Everything else is one tap away. Every element maps to a field the dashboard API already returns.</p>
+<div class="wrap" id="wrap"></div>
+
+<div class="why">
+ <div class="bx"><h3>The reading order</h3><ul>
+  <li><b>1 · Next up</b> — the single most time-critical thing, with its action button. Open → act → close.</li>
+  <li><b>2 · Needs attention</b> — only appears when something is overdue or missed. Hidden when empty, so it never becomes noise.</li>
+  <li><b>3 · Today's timeline</b> — doses, events and due tasks merged in time order, so there's one list instead of three modules to check.</li>
+  <li><b>4 · Habits left</b> — tappable chips, finished ones fade.</li>
+  <li><b>5 · Quick log</b> — water, meal, expense, task. Logging is the app's most repeated action, so it's on the home screen.</li>
+  <li><b>6 · Today so far / This week / Money</b> — calm summary, below the fold.</li></ul></div>
+ <div class="bx no"><h3>Cut from the previous version — and why</h3><ul>
+  <li><b>Life score / streaks</b> — not in the API; invented scores feel arbitrary and can guilt users.</li>
+  <li><b>Sleep, steps, adherence %, refill stock</b> — no data source yet.</li>
+  <li><b>Calorie ring / water goal / budget %</b> — the API returns totals, not goals. Showing a ring against a made-up target would mislead. Show totals until goals exist.</li>
+  <li><b>Habit times</b> — habits have no time-of-day field, so they stay a checklist, not timeline entries.</li>
+  <li><b>AI insight card, 8-week heatmap, vitals grid</b> — nice, but not decision-critical on the home screen. Vitals live in Health.</li></ul></div>
+ <div class="bx"><h3>Data mapping (DashboardResponse)</h3><ul>
+  <li><b>Next up / timeline</b> — medicines.dosesToday (scheduledAt, status), planner.todayEvents, planner.todayTasks, health.upcomingAppointments</li>
+  <li><b>Needs attention</b> — planner.overdueTasks; doses with a past scheduledAt and no takenAt</li>
+  <li><b>Habits</b> — habits.todayHabits, completedToday / expectedToday</li>
+  <li><b>Today so far</b> — diet.waterTotalMilliliters, diet.nutrition.caloriesKcal, finance.today (per currency)</li>
+  <li><b>This week</b> — week.completedTasks, habitCompletions, activeDays</li>
+  <li><b>Money</b> — finance.owedToYou / youOwe (shown only when non-zero)</li>
+  <li><b>Resilience</b> — each section can be <code>unavailable</code>; render that card as "Couldn't load · Retry" and keep the rest.</li></ul></div>
+</div>
+
+<script>
+const nav=`<div class="nav"><i class="on">⌂</i><i>✓</i><i class="pl">+</i><i>◔</i><i>☰</i></div>`;
+const head=(line)=>`<div class="row"><div class="eye">Thursday · 22 Oct</div><div class="row" style="gap:8px"><div class="avatar" style="background:#ffffff0d;color:#EEF2F0">🔔</div><div class="avatar">SK</div></div></div><h2 class="hi">Good evening,<br><em>Sourabh.</em></h2><div class="sub">${line}</div>`;
+
+const habits=`<div class="sec"><b>Habits</b><a>4 of 6 done</a></div><div class="card"><div class="prog"><b style="width:66%"></b></div><div class="hab"><div class="hc d"><i>✓</i>Morning walk</div><div class="hc d"><i>✓</i>Meditate</div><div class="hc d"><i>✓</i>Journal</div><div class="hc d"><i>✓</i>Take vitamins</div><div class="hc"><i></i>Read 20 min</div><div class="hc"><i></i>Stretch</div></div></div>`;
+const quick=`<div class="sec"><b>Quick log</b></div><div class="ql"><div><b>💧</b>+250 ml</div><div><b>🍽</b>Meal</div><div><b>₹</b>Expense</div><div><b>✓</b>Task</div></div>`;
+const today=`<div class="sec"><b>Today so far</b><a>Details ›</a></div><div class="g3"><div class="tile"><div class="k">Water</div><div class="v">1.8<small> L</small></div><div class="s">7 glasses</div></div><div class="tile"><div class="k">Calories</div><div class="v">1,420<small> kcal</small></div><div class="s">3 meals</div></div><div class="tile"><div class="k">Spent</div><div class="v">₹840</div><div class="s">3 expenses</div></div></div>`;
+const week=`<div class="sec"><b>This week</b></div><div class="card"><div class="days"><span class="a">M</span><span class="a">T</span><span class="a">W</span><span class="t">T</span><span>F</span><span>S</span><span>S</span></div><div class="wk"><div><div class="n">23<small>/31</small></div><div class="l">Tasks done</div></div><div><div class="n">19<small>/24</small></div><div class="l">Habits kept</div></div><div><div class="n">4<small>/7</small></div><div class="l">Active days</div></div></div></div>`;
+const money=`<div class="sec"><b>Money between friends</b><a>Settle ›</a></div><div class="mn"><div class="in"><div class="k">Owed to you</div><b>₹1,850</b></div><div class="out"><div class="k">You owe</div><b>₹420</b></div></div>`;
+
+const busy=`${head('Your dose is almost due, and two tasks are overdue.')}
+<div class="next warn"><div class="eye" style="color:var(--red)">Next up · due soon</div><div class="t">Metformin · 500 mg</div><div class="sub">After dinner · scheduled 9:00 PM</div><div class="cd" style="margin-top:8px">● in 25 minutes</div><div class="acts"><span class="btn p" style="background:var(--red);color:#fff">Mark taken</span><span class="btn g">Skip</span></div></div>
+<div class="att"><div class="h"><span>Needs attention</span><span>2</span></div>
+<div class="it"><div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex:none"></div><div><div class="t">Pay electricity bill</div><div class="s">Overdue since Tuesday · High</div></div><span class="go">Open ›</span></div>
+<div class="it"><div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex:none"></div><div><div class="t">Renew car insurance</div><div class="s">Overdue since Wednesday · High</div></div><span class="go">Open ›</span></div></div>
+<div class="sec"><b>Today's timeline</b><a>Planner ›</a></div>
+<div class="tl">
+<div class="ev done" style="--c:#7aa2ff"><span class="tm">08:00</span><div class="ic">💊</div><div><div class="t">Vitamin D3</div><div class="s">Taken 8:04 AM</div></div></div>
+<div class="ev done" style="--c:#7aa2ff"><span class="tm">13:00</span><div class="ic">💊</div><div><div class="t">Metformin</div><div class="s">Taken 1:12 PM</div></div></div>
+<div class="ev" style="--c:#ffb454"><span class="tm">19:30</span><div class="ic">✓</div><div><div class="t">Review monthly budget</div><div class="s">Task · Finance</div></div><span class="tag md-t">MED</span></div>
+<div class="ev now" style="--c:#12B886"><span class="tm" style="color:#12B886">21:00</span><div class="ic">💊</div><div><div class="t">Metformin · 500 mg</div><div class="s">After dinner</div></div><span class="st" style="color:var(--ac)">NEXT</span></div>
+<div class="ev" style="--c:#7aa2ff"><span class="tm">22:30</span><div class="ic">💊</div><div><div class="t">Omega-3 · 1 capsule</div><div class="s">Bedtime</div></div></div>
+<div class="ev" style="--c:#f08bd0"><span class="tm">Fri 17:00</span><div class="ic">🩺</div><div><div class="t">Dr. Mehta · Checkup</div><div class="s">City Clinic</div></div><span class="st">2 DAYS</span></div></div>
+${habits}${quick}${today}${week}${money}`;
+
+const calm=`${head('Nothing urgent. Here is what is left today.')}
+<div class="next"><div class="eye">Next up · 7:30 PM</div><div class="t">Review monthly budget</div><div class="sub">Task · Finance list · medium priority</div><div class="cd" style="margin-top:8px">● in 2 h 10 min</div><div class="acts"><span class="btn p">Mark done</span><span class="btn g">Snooze</span></div></div>
+<div class="card clear" style="margin-top:12px"><div class="big">✨</div><b>You're all caught up</b><div class="sub">No overdue tasks and no missed doses.</div></div>
+<div class="sec"><b>Still to do today</b><a>Planner ›</a></div>
+<div class="tl">
+<div class="ev" style="--c:#7aa2ff"><span class="tm">21:00</span><div class="ic">💊</div><div><div class="t">Metformin · 500 mg</div><div class="s">After dinner</div></div></div>
+<div class="ev" style="--c:#7aa2ff"><span class="tm">22:30</span><div class="ic">💊</div><div><div class="t">Omega-3 · 1 capsule</div><div class="s">Bedtime</div></div></div></div>
+${habits}${quick}${today}${week}`;
+
+const fresh=`${head('Let\'s set up your day. Add something to get started.')}
+<div class="card" style="margin-top:18px;text-align:center;padding:26px 18px"><div style="font-size:34px">🌱</div><b style="display:block;font:600 20px Fraunces;margin:10px 0 6px">Your dashboard is empty</b><div class="sub">It fills in as you add medicines, habits, tasks and expenses. Start with one.</div></div>
+<div class="sec"><b>Start with</b></div>
+<div style="display:grid;gap:10px">
+<div class="card row"><div style="display:flex;gap:12px;align-items:center"><div class="avatar" style="background:#7aa2ff22;font-size:16px;border-radius:12px">💊</div><div><div style="font-size:14px;font-weight:600">Add a medicine</div><div class="sub">Get dose reminders</div></div></div><span class="go" style="color:var(--ac);font-size:18px">›</span></div>
+<div class="card row"><div style="display:flex;gap:12px;align-items:center"><div class="avatar" style="font-size:16px;border-radius:12px">🔁</div><div><div style="font-size:14px;font-weight:600">Create a habit</div><div class="sub">Build a daily routine</div></div></div><span style="color:var(--ac);font-size:18px">›</span></div>
+<div class="card row"><div style="display:flex;gap:12px;align-items:center"><div class="avatar" style="background:#ffb45422;font-size:16px;border-radius:12px">✓</div><div><div style="font-size:14px;font-weight:600">Plan a task</div><div class="sub">Never miss a deadline</div></div></div><span style="color:var(--ac);font-size:18px">›</span></div></div>
+${quick}
+<div class="sec"><b>Section failed to load</b></div>
+<div class="card row"><div><div style="font-size:13px;font-weight:600">Finance couldn't load</div><div class="sub">The rest of your dashboard is fine.</div></div><span class="btn g" style="padding:8px 14px">Retry</span></div>`;
+
+const defs=[['Busy day','Urgent first, then the day in order',busy],['Calm day','Attention card disappears when empty',calm],['New user + error state','Guides first action; one section fails gracefully',fresh]];
+document.getElementById('wrap').innerHTML=defs.map(([t,s,b])=>`<div class="col"><div class="lab">${t}<span>${s}</span></div><div class="phone"><div class="notch"></div><div class="pad">${b}</div>${nav}</div></div>`).join('');
+</script>
+</body>
+</html>
