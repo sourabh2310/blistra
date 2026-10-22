@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/page_header.dart';
 import '../models/task_list.dart';
 import '../planner_controller.dart';
+import '../widgets/planner_parts.dart';
 
 /// Task list form: create a new list (edit is handled via the rename sheet in
 /// the Lists tab by reusing this screen).
@@ -27,7 +30,8 @@ class _TaskListFormScreenState extends State<TaskListFormScreen> {
   @override
   void initState() {
     super.initState();
-    _name = TextEditingController(text: widget.list?.name ?? '');
+    _name = TextEditingController(text: widget.list?.name ?? '')
+      ..addListener(() => setState(() {}));
     _description = TextEditingController(text: widget.list?.description ?? '');
   }
 
@@ -90,58 +94,49 @@ class _TaskListFormScreenState extends State<TaskListFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Back',
-          onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back),
+    return PopScope(
+      canPop: !_saving,
+      child: Scaffold(
+        bottomNavigationBar: StickyActionBar(
+          label: _isEditing ? 'Save changes' : 'Create list',
+          busy: _saving,
+          onPressed: _name.text.trim().isEmpty ? null : _save,
         ),
-        title: Text(_isEditing ? 'Edit list' : 'New list'),
-        actions: [
-          TextButton(onPressed: _saving ? null : _save, child: const Text('Save')),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _name,
-              textInputAction: TextInputAction.next,
-              maxLength: 100,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'Name is required' : null,
+        body: SafeArea(
+          bottom: false,
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 24),
+              children: [
+                BlistraPageHeader(
+                  eyebrow: _isEditing ? 'Edit list' : 'New list',
+                  title: _isEditing ? 'Rename this list' : 'What is this list for?',
+                  showAvatar: false,
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 14),
+                ),
+                PlannerTextField(
+                  label: 'Name',
+                  controller: _name,
+                  hint: 'Groceries',
+                  large: true,
+                  autofocus: !_isEditing,
+                  maxLength: 100,
+                  textInputAction: TextInputAction.next,
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Name is required' : null,
+                ),
+                PlannerTextField(
+                  label: 'Description',
+                  controller: _description,
+                  hint: 'Optional',
+                  minLines: 2,
+                  maxLines: 4,
+                  maxLength: 500,
+                ),
+              ],
             ),
-            TextFormField(
-              controller: _description,
-              minLines: 2,
-              maxLines: 4,
-              maxLength: 500,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check),
-              label: Text(_isEditing ? 'Save changes' : 'Create list'),
-            ),
-          ],
+          ),
         ),
       ),
     );

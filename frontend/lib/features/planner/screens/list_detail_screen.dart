@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
 import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/page_header.dart';
 import '../models/task.dart';
 import '../models/task_list.dart';
 import '../models/task_status.dart';
 import '../planner_controller.dart';
+import '../widgets/planner_parts.dart';
 import '../widgets/status_views.dart';
 import 'task_detail_screen.dart';
 import 'task_form_screen.dart';
@@ -30,6 +33,7 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
   List<PlannerTask> _items = const [];
   String? _error;
   bool _loading = true;
+  final Set<String> _busy = {};
 
   @override
   void initState() {
@@ -99,134 +103,124 @@ class _ListDetailScreenState extends State<ListDetailScreen> {
     }
   }
 
+  Future<void> _toggle(PlannerTask task) async {
+    setState(() => _busy.add(task.id));
+    try {
+      if (task.status.isActive) {
+        await widget.planner.completeTask(task.id);
+      } else {
+        await widget.planner.reopenTask(task.id);
+      }
+      await _load();
+    } catch (_) {
+      if (mounted) showAppMessage(context, "Couldn't update this item.", error: true);
+    } finally {
+      if (mounted) setState(() => _busy.remove(task.id));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final list = _list;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('List details'),
-        actions: [
-          TextButton(onPressed: list == null ? null : _editList, child: const Text('Edit')),
-        ],
-      ),
-      body: _loading && list == null
-          ? const SkeletonLoader(rows: 5)
-          : _error != null && list == null
-              ? ErrorRetry(message: _error!, onRetry: _load)
-              : list == null
-                  ? const SizedBox.shrink()
-                  : _body(context, list),
-    );
-  }
-
-  Widget _body(BuildContext context, TaskList list) {
-    final completed = _items.where((task) => task.status == TaskStatus.completed).length;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 104),
-      children: [
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(list.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-              if (list.description?.isNotEmpty == true) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(list.description!),
-              ],
-              const SizedBox(height: AppSpacing.xl),
-              Text('$completed / ${_items.length} completed', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: AppSpacing.sm),
-              LinearProgressIndicator(value: _items.isEmpty ? 0 : completed / _items.length, minHeight: 8, borderRadius: BorderRadius.circular(AppRadius.pill)),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        SectionHeader(title: 'Items', icon: Icons.checklist_rtl),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _addItem,
-            icon: const Icon(Icons.playlist_add),
-            label: const Text('Add item'),
-          ),
-        ),
-        if (_items.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 40),
-            child: Text('No items in this list yet.'),
-          )
-        else
-          for (final task in _items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _ListTaskRow(
-                task: task,
-                onTap: () async {
-                  await Navigator.of(context).push<void>(
-                    MaterialPageRoute(
-                      builder: (_) => TaskDetailScreen(planner: widget.planner, taskId: task.id),
+      bottomNavigationBar: list == null ? null : StickyActionBar(label: 'Add item', onPressed: _addItem),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            BlistraPageHeader(
+              eyebrow: 'List',
+              title: list?.name ?? 'List details',
+              subtitle: list?.description?.isNotEmpty == true ? list!.description : null,
+              showAvatar: false,
+              actions: [
+                GlassIconButton(
+                  icon: Icons.edit_outlined,
+                  tooltip: 'Edit list',
+                  onTap: list == null ? null : _editList,
+                ),
+                PopupMenuButton<int>(
+                  tooltip: 'More list actions',
+                  enabled: list != null,
+                  onSelected: (_) => _deleteList(),
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 0,
+                      child: Text('Delete list', style: TextStyle(color: BlistraColors.resolve(context).danger)),
                     ),
-                  );
-                  _load();
-                },
-                onToggle: () async {
-                  try {
-                    if (task.status.isActive) {
-                      await widget.planner.completeTask(task.id);
-                    } else {
-                      await widget.planner.reopenTask(task.id);
-                    }
-                    await _load();
-                  } catch (_) {
-                    if (context.mounted) showAppMessage(context, "Couldn't update this item.", error: true);
-                  }
-                },
-              ),
+                  ],
+                  child: const IgnorePointer(
+                    child: GlassIconButton(icon: Icons.more_horiz, tooltip: null, onTap: null),
+                  ),
+                ),
+              ],
             ),
-        TextButton.icon(
-          onPressed: _deleteList,
-          style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
-          icon: const Icon(Icons.delete_outline),
-          label: const Text('Delete list'),
+            const SizedBox(height: 10),
+            if (_loading && list == null)
+              const SkeletonLoader(rows: 5, rowHeight: 56)
+            else if (_error != null && list == null)
+              ErrorRetry(message: _error!, onRetry: _load)
+            else if (list != null)
+              ..._body(context),
+          ],
         ),
-      ],
-    );
-  }
-}
-
-class _ListTaskRow extends StatelessWidget {
-  const _ListTaskRow({required this.task, required this.onTap, required this.onToggle});
-
-  final PlannerTask task;
-  final VoidCallback onTap;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final done = task.status == TaskStatus.completed;
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: done ? 'Reopen item' : 'Complete item',
-            onPressed: onToggle,
-            icon: Icon(done ? Icons.check_box : Icons.check_box_outline_blank),
-            color: done ? Theme.of(context).colorScheme.primary : null,
-          ),
-          Expanded(
-            child: Text(
-              task.title,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                decoration: done ? TextDecoration.lineThrough : null,
-              ),
-            ),
-          ),
-          const Icon(Icons.chevron_right),
-        ],
       ),
     );
+  }
+
+  List<Widget> _body(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final completed = _items.where((task) => task.status == TaskStatus.completed).length;
+    final total = _items.length;
+    final left = total - completed;
+    return [
+      PagePad(
+        StatusCard(
+          caption: 'Progress',
+          title: '$completed / $total completed',
+          subtitle: total == 0 ? 'No items yet' : '$left ${left == 1 ? 'item' : 'items'} left',
+          leading: ProgressRing(
+            progress: total == 0 ? 0 : completed / total,
+            size: 56,
+            stroke: 6,
+            child: Text(
+              total == 0 ? '0%' : '${(completed * 100 / total).round()}%',
+              style: BlistraText.serif(13, colors.text),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 22),
+      SectionHeader(title: 'Items', actionLabel: '${_items.length}'),
+      PagePad(
+        _items.isEmpty
+            ? const EmptyCard(message: 'No items in this list yet.')
+            : GlassList(children: [
+                for (final task in _items)
+                  GlassRow(
+                    leading: CheckCircle(
+                      checked: task.status == TaskStatus.completed,
+                      urgent: task.overdue && task.status.isActive,
+                      busy: _busy.contains(task.id),
+                      semanticLabel: task.status == TaskStatus.completed ? 'Reopen item' : 'Complete item',
+                      onTap: () => _toggle(task),
+                    ),
+                    title: task.title,
+                    subtitle: task.status == TaskStatus.cancelled ? 'Cancelled' : null,
+                    done: !task.status.isActive,
+                    trailing: task.status.isActive ? PriorityPill(task.priority) : null,
+                    onTap: () async {
+                      await Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => TaskDetailScreen(planner: widget.planner, taskId: task.id),
+                        ),
+                      );
+                      _load();
+                    },
+                  ),
+              ]),
+      ),
+    ];
   }
 }
