@@ -4,7 +4,6 @@
 /// follows the user's accent palette and light/dark mode.
 library;
 
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -152,7 +151,6 @@ class GlassCard extends StatelessWidget {
     this.radius = 24,
     this.onTap,
     this.tint,
-    this.blur = 14,
   });
 
   final Widget child;
@@ -162,7 +160,6 @@ class GlassCard extends StatelessWidget {
 
   /// Optional module colour washed over the top-left of the glass.
   final Color? tint;
-  final double blur;
 
   @override
   Widget build(BuildContext context) {
@@ -172,59 +169,62 @@ class GlassCard extends StatelessWidget {
     if (onTap != null) {
       content = InkWell(onTap: onTap, borderRadius: br, child: content);
     }
+    // No BackdropFilter: the backdrop behind every card is already a soft,
+    // static glow, so a translucent fill looks the same as a real blur. Live
+    // blurs inside scrolling lists darkened the background on Android and
+    // cost a full-screen pass per card.
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: br,
-        boxShadow: [
-          BoxShadow(
-            color: colors.shadow,
-            blurRadius: 24,
-            spreadRadius: -14,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        // Light mode only: a shadow under translucent dark-mode glass shows
+        // through the card and muddies it.
+        boxShadow: colors.isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: colors.shadow,
+                  blurRadius: 24,
+                  spreadRadius: -14,
+                  offset: const Offset(0, 10),
+                ),
+              ],
       ),
       child: ClipRRect(
         borderRadius: br,
-        // Grouped: cards only blur the app background, so they can share the
-        // nearest BackdropGroup's snapshot (falls back to a plain blur).
-        child: BackdropFilter.grouped(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: br,
+            border: Border.all(color: colors.glassBorder),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: tint == null
+                  ? [colors.glassFill, colors.glassFillEnd]
+                  : [
+                      Color.alphaBlend(
+                        tint!.withValues(alpha: colors.isDark ? 0.18 : 0.14),
+                        colors.glassFill,
+                      ),
+                      colors.glassFillEnd,
+                    ],
+            ),
+          ),
           child: DecoratedBox(
+            // Faint light along the top edge, like real glass.
+            position: DecorationPosition.foreground,
             decoration: BoxDecoration(
               borderRadius: br,
-              border: Border.all(color: colors.glassBorder),
               gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: tint == null
-                    ? [colors.glassFill, colors.glassFillEnd]
-                    : [
-                        Color.alphaBlend(
-                          tint!.withValues(alpha: colors.isDark ? 0.18 : 0.14),
-                          colors.glassFill,
-                        ),
-                        colors.glassFillEnd,
-                      ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  colors.glassHighlight,
+                  colors.glassHighlight.withValues(alpha: 0),
+                ],
+                stops: const [0, 0.035],
               ),
             ),
-            child: DecoratedBox(
-              // Faint light along the top edge, like real glass.
-              position: DecorationPosition.foreground,
-              decoration: BoxDecoration(
-                borderRadius: br,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    colors.glassHighlight,
-                    colors.glassHighlight.withValues(alpha: 0),
-                  ],
-                  stops: const [0, 0.035],
-                ),
-              ),
-              child: Material(type: MaterialType.transparency, child: content),
-            ),
+            child: Material(type: MaterialType.transparency, child: content),
           ),
         ),
       ),

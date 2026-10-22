@@ -2,13 +2,17 @@
 ///
 /// Presentation-only widgets. No business logic, no API calls.
 /// Each module keeps its own controller/repository; these widgets only render.
+/// Newer building blocks (stat strips, glass lists, rings, form fields) live
+/// in `blistra_ui.dart`.
 library;
 
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'blistra_ui.dart';
+import 'glass.dart';
 
-/// Standard page header: greeting + subtitle + optional trailing.
+/// Standard page header: serif title + subtitle + optional trailing.
 class PageHeader extends StatelessWidget {
   const PageHeader({
     super.key,
@@ -23,14 +27,9 @@ class PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = BlistraColors.resolve(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.lg,
-        AppSpacing.lg,
-        AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.fromLTRB(kPageGutter, 16, kPageGutter, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -38,19 +37,15 @@ class PageHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.4,
-                  ),
-                ),
+                Text(title, style: BlistraText.serif(28, colors.text, height: 1.1)),
                 if (subtitle != null) ...[
-                  const SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: 6),
                   Text(
                     subtitle!,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.45,
+                      color: colors.muted,
                     ),
                   ),
                 ],
@@ -64,7 +59,8 @@ class PageHeader extends StatelessWidget {
   }
 }
 
-/// Section heading with optional action (e.g. "See all").
+/// Section heading: serif title with an optional accent action on the right
+/// ("See all ›"). Includes the page gutter.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
@@ -77,36 +73,49 @@ class SectionHeader extends StatelessWidget {
   final String title;
   final String? actionLabel;
   final VoidCallback? onAction;
+
+  /// Kept for compatibility; the design uses plain serif headings.
   final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = BlistraColors.resolve(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 18, color: theme.colorScheme.primary),
-            const SizedBox(width: AppSpacing.sm),
-          ],
           Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            child: Semantics(
+              header: true,
+              child: Text(title, style: BlistraText.serif(17, colors.text)),
             ),
           ),
-          if (actionLabel != null && onAction != null)
-            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+          if (actionLabel != null)
+            Semantics(
+              button: onAction != null,
+              child: GestureDetector(
+                onTap: onAction,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    actionLabel!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: colors.accentText,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-/// Purposeful card wrapper (avoid card-everything).
+/// Glass card wrapper used by module pages.
 class AppCard extends StatelessWidget {
   const AppCard({super.key, required this.child, this.onTap, this.padding});
 
@@ -115,20 +124,11 @@ class AppCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
 
   @override
-  Widget build(BuildContext context) {
-    final card = Card(
-      child: Padding(
-        padding: padding ?? const EdgeInsets.all(AppSpacing.lg),
+  Widget build(BuildContext context) => GlassCard(
+        padding: padding ?? const EdgeInsets.all(15),
+        onTap: onTap,
         child: child,
-      ),
-    );
-    if (onTap == null) return card;
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      onTap: onTap,
-      child: card,
-    );
-  }
+      );
 }
 
 /// Small status pill (Upcoming / Taken / Overdue / ...). Never color-only:
@@ -147,29 +147,27 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final c = colors.isDark ? Color.lerp(color, Colors.white, 0.25)! : color;
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: c.withValues(alpha: colors.isDark ? 0.2 : 0.14),
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 13, color: color),
+            Icon(icon, size: 12, color: c),
             const SizedBox(width: 4),
           ],
           Text(
             label,
             style: TextStyle(
-              color: color,
+              color: c,
               fontWeight: FontWeight.w700,
-              fontSize: 12,
+              fontSize: 10.5,
             ),
           ),
         ],
@@ -199,46 +197,43 @@ class MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AppCard(
+    final colors = BlistraColors.resolve(context);
+    return GlassCard(
+      radius: 20,
+      padding: const EdgeInsets.all(13),
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              if (icon != null)
-                Icon(icon, size: 18, color: theme.colorScheme.primary),
-              if (icon != null) const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  label.toUpperCase(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: BlistraText.caption(colors.muted),
                 ),
               ),
+              if (icon != null) Icon(icon, size: 16, color: colors.muted),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            value,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: BlistraText.serif(22, colors.text)),
           ),
           if (delta != null) ...[
             const SizedBox(height: 2),
             Text(
               delta!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: deltaPositive == null
-                    ? theme.colorScheme.onSurfaceVariant
-                    : (deltaPositive!
-                        ? Colors.green.shade700
-                        : theme.colorScheme.error),
+              style: TextStyle(
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
+                color: deltaPositive == null
+                    ? colors.muted
+                    : (deltaPositive! ? colors.accentText : colors.danger),
               ),
             ),
           ],
@@ -291,19 +286,19 @@ class SkeletonLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
+    final colors = BlistraColors.resolve(context);
     return Column(
       children: [
         for (var i = 0; i < rows; i++)
           Container(
             height: rowHeight,
             margin: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.sm,
+              horizontal: kPageGutter,
+              vertical: 5,
             ),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              color: colors.inkAt(0.06),
+              borderRadius: BorderRadius.circular(22),
             ),
           ),
       ],
@@ -321,35 +316,42 @@ Future<bool> confirmAction(
 }) async {
   final result = await showDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          style: destructive
-              ? FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                )
-              : null,
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text(confirmLabel),
-        ),
-      ],
-    ),
+    builder: (context) {
+      final colors = BlistraColors.resolve(context);
+      return AlertDialog(
+        title: Text(title),
+        content: Text(message, style: TextStyle(color: colors.muted)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 44),
+              backgroundColor: destructive ? colors.danger : null,
+              foregroundColor: destructive ? Colors.white : null,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      );
+    },
   );
   return result ?? false;
 }
 
 /// Human-friendly error snackbar (logs stay technical, UI stays friendly).
 void showAppMessage(BuildContext context, String message, {bool error = false}) {
+  final colors = BlistraColors.resolve(context);
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(message),
-      backgroundColor: error ? Theme.of(context).colorScheme.error : null,
+      content: Text(
+        message,
+        style: TextStyle(color: error ? Colors.white : colors.text),
+      ),
+      backgroundColor: error ? colors.danger : null,
     ),
   );
 }

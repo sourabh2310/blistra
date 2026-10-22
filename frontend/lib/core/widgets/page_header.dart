@@ -1,11 +1,12 @@
-/// Shared page header: logo, glass action buttons, profile avatar, then the
-/// page title and subtitle. Used by every module page so they all match the
-/// Home design.
+/// Shared page header: back button or date eyebrow, glass action buttons,
+/// profile avatar, then a serif title and subtitle. Used by every module page
+/// so they all match the Home design.
 library;
 
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:provider/provider.dart';
 
 import '../../app/app_scope.dart';
@@ -13,10 +14,11 @@ import '../../features/dashboard/models/dashboard_response.dart';
 import '../../features/profile/profile_controller.dart';
 import '../../features/profile/profile_screen.dart';
 import '../theme/app_theme.dart';
+import 'blistra_ui.dart';
 import 'glass.dart';
 import 'module_guard.dart';
 
-/// 40 px frosted rounded-square icon button.
+//// 38 px frosted rounded-square icon button.
 class GlassIconButton extends StatelessWidget {
   const GlassIconButton({
     super.key,
@@ -38,38 +40,37 @@ class GlassIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
     final button = GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              GlassCard(
-                padding: EdgeInsets.zero,
-                radius: 14,
-                blur: 16,
-                child: SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(icon, size: 19, color: colors.text),
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          GlassCard(
+            padding: EdgeInsets.zero,
+            radius: 14,
+            child: SizedBox(
+              width: 38,
+              height: 38,
+              child: Icon(icon, size: 19, color: colors.text),
+            ),
+          ),
+          if (badge)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6B7D),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.background, width: 2),
                 ),
               ),
-              if (badge)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF4D6D),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: colors.background, width: 2),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
+            ),
+        ],
+      ),
+    );
     final label = tooltip;
     if (label == null) return button;
     return Tooltip(
@@ -79,7 +80,7 @@ class GlassIconButton extends StatelessWidget {
   }
 }
 
-/// Gradient initials avatar that opens Profile.
+/// Glass initials (or photo) avatar that opens Profile.
 class ProfileAvatarButton extends StatelessWidget {
   const ProfileAvatarButton({super.key});
 
@@ -105,57 +106,69 @@ class ProfileAvatarButton extends StatelessWidget {
     } catch (_) {
       // No ProfileController above this header (e.g. in isolated tests).
     }
+    final initials = name.trim().isEmpty ? '' : initialsForName(name);
     return Semantics(
       label: 'Profile',
       button: true,
       child: GestureDetector(
         onTap: () =>
             pushModulePage(context, const ProfileScreen(), title: 'Profile'),
-        child: Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            gradient: colors.gradient,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: colors.accent.withValues(alpha: .4),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: photo != null
-              ? Image.memory(photo,
-                  width: 40, height: 40, fit: BoxFit.cover, gaplessPlayback: true)
-              : Text(
-                  name.trim().isEmpty ? 'B' : initialsForName(name),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+        child: GlassCard(
+          padding: EdgeInsets.zero,
+          radius: 14,
+          child: SizedBox(
+            width: 38,
+            height: 38,
+            child: photo != null
+                ? Image.memory(
+                    photo,
+                    width: 38,
+                    height: 38,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                  )
+                : Center(
+                    child: initials.isEmpty
+                        ? Icon(
+                            Icons.person_outline_rounded,
+                            size: 19,
+                            color: colors.accentText,
+                          )
+                        : Text(
+                            initials,
+                            style: TextStyle(
+                              color: colors.accentText,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
                   ),
-                ),
+          ),
         ),
       ),
     );
   }
 }
 
+/// Page header shared by every module page, matching Home: back button (on
+/// pushed pages) and a small accent eyebrow on the left, glass actions on
+/// the right, then a serif title and a muted subtitle.
 class BlistraPageHeader extends StatelessWidget {
   const BlistraPageHeader({
     super.key,
     required this.title,
     this.subtitle,
+    this.eyebrow,
     this.actions = const [],
     this.showAvatar = true,
-    this.padding = const EdgeInsets.fromLTRB(16, 8, 16, 6),
+    this.padding = const EdgeInsets.fromLTRB(18, 8, 18, 6),
   });
 
   final String title;
   final String? subtitle;
+
+  /// Small uppercase line above the title; defaults to today's date.
+  final String? eyebrow;
   final List<Widget> actions;
   final bool showAvatar;
   final EdgeInsetsGeometry padding;
@@ -163,6 +176,9 @@ class BlistraPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
+    final canPop = Navigator.of(context).canPop();
+    final line = (eyebrow ?? DateFormat('EEEE · d MMM').format(DateTime.now()))
+        .toUpperCase();
     return Padding(
       padding: padding,
       child: Column(
@@ -170,7 +186,7 @@ class BlistraPageHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              if (Navigator.of(context).canPop()) ...[
+              if (canPop) ...[
                 GlassIconButton(
                   icon: Icons.arrow_back_rounded,
                   tooltip: 'Back',
@@ -178,14 +194,15 @@ class BlistraPageHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
               ],
-              // Scales down instead of overflowing when a screen has several
-              // header actions on a narrow phone.
-              const Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: BlistraWordmark(size: 30, serif: false),
-                ),
+              Expanded(
+                child: canPop
+                    ? const SizedBox.shrink()
+                    : Text(
+                        line,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: BlistraText.eyebrow(colors.accentText),
+                      ),
               ),
               for (final action in actions) ...[
                 action,
@@ -194,23 +211,17 @@ class BlistraPageHeader extends StatelessWidget {
               if (showAvatar) const ProfileAvatarButton(),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: TextStyle(
-              fontFamily: 'Sora',
-              fontSize: 30,
-              height: 1.1,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -.6,
-              color: colors.text,
-            ),
-          ),
+          if (canPop) ...[
+            const SizedBox(height: 12),
+            Text(line, style: BlistraText.eyebrow(colors.accentText)),
+          ],
+          const SizedBox(height: 8),
+          Text(title, style: BlistraText.serif(30, colors.text, height: 1.1)),
           if (subtitle != null) ...[
             const SizedBox(height: 6),
             Text(
               subtitle!,
-              style: TextStyle(fontSize: 13, height: 1.4, color: colors.muted),
+              style: TextStyle(fontSize: 12.5, height: 1.45, color: colors.muted),
             ),
           ],
         ],
@@ -219,8 +230,8 @@ class BlistraPageHeader extends StatelessWidget {
   }
 }
 
-
-/// Frosted segmented tab bar. Scrolls horizontally when labels do not fit.
+/// Glass segmented tabs with a filled accent selection. Tabs share the width
+/// equally; with many or long labels the bar scrolls horizontally instead.
 class BlistraSegmentedTabs extends StatelessWidget {
   const BlistraSegmentedTabs({
     super.key,
@@ -228,7 +239,7 @@ class BlistraSegmentedTabs extends StatelessWidget {
     required this.selected,
     required this.onSelected,
     this.icons,
-    this.padding = const EdgeInsets.fromLTRB(16, 4, 16, 8),
+    this.padding = const EdgeInsets.fromLTRB(18, 8, 18, 8),
   });
 
   final List<String> labels;
@@ -240,75 +251,71 @@ class BlistraSegmentedTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
-    return Padding(
-      padding: padding,
-      child: GlassCard(
-        radius: 22,
-        blur: 16,
-        padding: const EdgeInsets.all(4),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: MediaQuery.sizeOf(context).width - 32 - 8 - 2,
+    Widget tab(int i, {required bool expand}) {
+      final on = selected == i;
+      final body = Semantics(
+        button: true,
+        selected: on,
+        label: labels[i],
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onSelected(i),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: on ? colors.accentText : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                for (var i = 0; i < labels.length; i++)
-                  Semantics(
-                    button: true,
-                    selected: selected == i,
-                    label: labels[i],
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => onSelected(i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 9,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected == i
-                              ? colors.accent.withValues(alpha: .2)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (icons != null) ...[
-                              Icon(
-                                icons![i],
-                                size: 15,
-                                color: selected == i
-                                    ? colors.accentText
-                                    : colors.muted,
-                              ),
-                              const SizedBox(width: 5),
-                            ],
-                            Text(
-                              labels[i],
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: selected == i
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: selected == i
-                                    ? colors.accentText
-                                    : colors.muted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                if (icons != null) ...[
+                  Icon(
+                    icons![i],
+                    size: 15,
+                    color: on ? colors.onAccent : colors.muted,
+                  ),
+                  const SizedBox(width: 5),
+                ],
+                Flexible(
+                  child: Text(
+                    labels[i],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: on ? colors.onAccent : colors.muted,
                     ),
                   ),
+                ),
               ],
             ),
           ),
         ),
+      );
+      return expand ? Expanded(child: body) : body;
+    }
+
+    final fits = labels.length <= 4 &&
+        labels.every((l) => l.length <= (labels.length <= 3 ? 14 : 10));
+    return Padding(
+      padding: padding,
+      child: GlassCard(
+        radius: 16,
+        padding: const EdgeInsets.all(4),
+        child: fits
+            ? Row(children: [
+                for (var i = 0; i < labels.length; i++) tab(i, expand: true),
+              ])
+            : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(children: [
+                  for (var i = 0; i < labels.length; i++) tab(i, expand: false),
+                ]),
+              ),
       ),
     );
   }

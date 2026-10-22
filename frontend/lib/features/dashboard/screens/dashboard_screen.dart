@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -7,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/auth/auth_state.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
 import '../../../core/widgets/glass.dart';
 import '../../app_scope.dart';
 import '../../habits/habits_controller.dart';
@@ -215,7 +215,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 bottom: 28,
               ),
               children: [
-                _Pad(
+                PagePad(
                   _Header(
                     now: now,
                     name: name,
@@ -231,9 +231,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 if (controller.isLoading && dashboard == null)
-                  const _Pad(_Skeleton())
+                  const PagePad(_Skeleton())
                 else if (view == null)
-                  _Pad(
+                  PagePad(
                     _FullError(
                       message:
                           controller.error ?? 'Home is unavailable right now.',
@@ -243,7 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 else
                   ..._sections(view),
                 if (!widget.hubPinned)
-                  _Pad(
+                  PagePad(
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
@@ -265,7 +265,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final hero = view.nextUp;
     return [
       if (hero != null)
-        _Pad(
+        PagePad(
           _NextUpHero(
             item: hero,
             busy: _busy.contains(_key(hero)),
@@ -278,9 +278,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           top: 18,
         ),
       if (view.show(HomeWidgets.needsAttention) && view.attention.isNotEmpty)
-        _Pad(_AttentionCard(items: view.attention, onOpen: _open), top: 12),
+        PagePad(_AttentionCard(items: view.attention, onOpen: _open), top: 12),
       if (view.appointment != null)
-        _Pad(
+        PagePad(
           _AppointmentCard(
             appointment: view.appointment!,
             now: view.now,
@@ -289,13 +289,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           top: 12,
         ),
       if (view.show(HomeWidgets.todayOverview) && view.stats.isNotEmpty) ...[
-        _Pad(_SectionTitle('Today so far', action: 'Swipe ›'), top: 26),
+        PagePad(_SectionTitle('Today so far', action: 'Swipe ›'), top: 26),
         _StatStrip(stats: view.stats, onOpen: _open),
       ],
       if (view.nudges.isNotEmpty)
-        _Pad(_NudgeCard(nudges: view.nudges, onOpen: _open), top: 10),
+        PagePad(_NudgeCard(nudges: view.nudges, onOpen: _open), top: 10),
       if (view.show(HomeWidgets.todaysSchedule)) ...[
-        _Pad(
+        PagePad(
           _SectionTitle(
             "Today's timeline",
             action: 'Planner ›',
@@ -303,11 +303,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           top: 26,
         ),
-        _Pad(
+        PagePad(
           view.plannerUnavailable
-              ? _Unavailable(name: 'Planner', onRetry: _refreshHome)
+              ? UnavailableCard(name: 'Planner', onRetry: _refreshHome)
               : view.timeline.isEmpty
-              ? const _EmptyCard(message: 'Nothing scheduled for today.')
+              ? const EmptyCard(message: 'Nothing scheduled for today.')
               : _Timeline(
                   items: view.timeline,
                   next: hero,
@@ -318,7 +318,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ],
       if (view.show(HomeWidgets.habits) && view.habits != null) ...[
-        _Pad(
+        PagePad(
           _SectionTitle(
             'Habits',
             action:
@@ -328,9 +328,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           top: 26,
         ),
-        _Pad(
+        PagePad(
           view.habits!.unavailable
-              ? _Unavailable(name: 'Habits', onRetry: _refreshHome)
+              ? UnavailableCard(name: 'Habits', onRetry: _refreshHome)
               : _HabitsCard(
                   habits: view.habits!,
                   streaks: _streaks,
@@ -341,7 +341,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ],
       if (view.show(HomeWidgets.health) && view.measurements.isNotEmpty) ...[
-        _Pad(
+        PagePad(
           _SectionTitle(
             'Health',
             action: 'Vitals ›',
@@ -352,7 +352,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _StatStrip(stats: view.measurements, onOpen: _open),
       ],
       if (view.show(HomeWidgets.finance) && view.month != null) ...[
-        _Pad(
+        PagePad(
           _SectionTitle(
             'Spending this month',
             action: 'Finance ›',
@@ -360,13 +360,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           top: 26,
         ),
-        _Pad(_SpendingCard(month: view.month!)),
+        PagePad(_SpendingCard(month: view.month!)),
       ],
       if (view.show(HomeWidgets.thisWeek) &&
           view.week != null &&
           !view.week!.unavailable) ...[
-        _Pad(const _SectionTitle('This week'), top: 26),
-        _Pad(_WeekCard(week: view.week!, now: view.now)),
+        PagePad(const _SectionTitle('This week'), top: 26),
+        PagePad(_WeekCard(week: view.week!, now: view.now)),
       ],
     ];
   }
@@ -912,36 +912,6 @@ String _shortTime(DateTime t) =>
 
 // ───────────────────────────── shared pieces ─────────────────────────────
 
-/// Standard horizontal page gutter.
-class _Pad extends StatelessWidget {
-  const _Pad(this.child, {this.top = 0});
-
-  final Widget child;
-  final double top;
-
-  @override
-  Widget build(BuildContext context) =>
-      Padding(padding: EdgeInsets.fromLTRB(18, top, 18, 0), child: child);
-}
-
-TextStyle _serif(double size, Color color, {double height = 1.15}) => TextStyle(
-  fontFamily: 'Fraunces',
-  fontSize: size,
-  fontWeight: FontWeight.w600,
-  letterSpacing: -0.2,
-  height: height,
-  color: color,
-);
-
-TextStyle _eyebrow(Color color) => TextStyle(
-  fontSize: 10,
-  fontWeight: FontWeight.w600,
-  letterSpacing: 1.6,
-  color: color,
-);
-
-const _tabular = [FontFeature.tabularFigures()];
-
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.title, {this.action, this.onAction});
 
@@ -960,7 +930,7 @@ class _SectionTitle extends StatelessWidget {
           Expanded(
             child: Semantics(
               header: true,
-              child: Text(title, style: _serif(17, colors.text)),
+              child: Text(title, style: BlistraText.serif(17, colors.text)),
             ),
           ),
           if (action != null)
@@ -1017,143 +987,9 @@ class _GlassIcon extends StatelessWidget {
   }
 }
 
-class _Ring extends StatelessWidget {
-  const _Ring({required this.progress, required this.color});
 
-  static const double size = 34;
-  static const double stroke = 4;
 
-  final double progress;
-  final Color color;
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _RingPainter(
-          progress: progress.clamp(0.0, 1.0),
-          color: color,
-          track: colors.inkAt(0.12),
-          stroke: stroke,
-        ),
-      ),
-    );
-  }
-}
-
-class _RingPainter extends CustomPainter {
-  _RingPainter({
-    required this.progress,
-    required this.color,
-    required this.track,
-    required this.stroke,
-  });
-
-  final double progress;
-  final Color color;
-  final Color track;
-  final double stroke;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final arc = rect.deflate(stroke / 2);
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(arc, 0, math.pi * 2, false, paint..color = track);
-    if (progress > 0) {
-      canvas.drawArc(
-        arc,
-        -math.pi / 2,
-        math.pi * 2 * progress,
-        false,
-        paint..color = color,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_RingPainter old) =>
-      old.progress != progress || old.color != color || old.track != track;
-}
-
-class _Bar extends StatelessWidget {
-  const _Bar({required this.value, this.color, this.gradient});
-
-  static const double height = 6;
-
-  final double value;
-  final Color? color;
-  final Gradient? gradient;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(height),
-      child: SizedBox(
-        height: height,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ColoredBox(color: colors.inkAt(0.12)),
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: value.clamp(0.0, 1.0),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: color,
-                  gradient: gradient,
-                  borderRadius: BorderRadius.circular(height),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill(this.text, {required this.color, this.onTap});
-
-  final String text;
-  final Color color;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: onTap == null ? 9 : 12,
-          vertical: onTap == null ? 4 : 7,
-        ),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: colors.isDark ? 0.2 : 0.14),
-          borderRadius: BorderRadius.circular(99),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: onTap == null ? 10 : 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: onTap == null ? 0.4 : 0,
-            color: color,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ───────────────────────────── header ─────────────────────────────
 
@@ -1190,7 +1026,7 @@ class _Header extends StatelessWidget {
                 DateFormat('EEEE · d MMM').format(now).toUpperCase(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: _eyebrow(colors.accentText),
+                style: BlistraText.eyebrow(colors.accentText),
               ),
             ),
             if (streak > 0) ...[
@@ -1208,7 +1044,7 @@ class _Header extends StatelessWidget {
                     const SizedBox(width: 3),
                     Text(
                       '$streak',
-                      style: _serif(
+                      style: BlistraText.serif(
                         15,
                         colors.isDark
                             ? const Color(0xFFFFD08A)
@@ -1264,7 +1100,7 @@ class _Header extends StatelessWidget {
               ),
             ],
           ),
-          style: _serif(31, colors.text, height: 1.1),
+          style: BlistraText.serif(31, colors.text, height: 1.1),
         ),
         const SizedBox(height: 6),
         Text(
@@ -1386,89 +1222,86 @@ class _NextUpHero extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: radius,
-          child: BackdropFilter.grouped(
-            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-            child: Container(
-              padding: const EdgeInsets.all(19),
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                border: Border.all(
-                  color: tone.withValues(alpha: dark ? 0.32 : 0.35),
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: dark
-                      ? [
-                          tone.withValues(alpha: 0.28),
-                          tone.withValues(alpha: 0.07),
-                        ]
-                      : [
-                          Color.alphaBlend(
-                            tone.withValues(alpha: 0.22),
-                            Colors.white,
-                          ),
-                          Color.alphaBlend(
-                            tone.withValues(alpha: 0.07),
-                            Colors.white,
-                          ),
-                        ],
-                ),
+          child: Container(
+            padding: const EdgeInsets.all(19),
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(
+                color: tone.withValues(alpha: dark ? 0.32 : 0.35),
               ),
-              child: Material(
-                type: MaterialType.transparency,
-                child: InkWell(
-                  onTap: onOpen,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        urgent
-                            ? 'NEXT UP · DUE SOON'
-                            : 'NEXT UP · ${_shortTime(item.at).toUpperCase()}',
-                        style: _eyebrow(eyebrow),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(item.title, style: _serif(25, ink)),
-                      const SizedBox(height: 4),
-                      Text(
-                        _heroMeta(item),
-                        style: TextStyle(fontSize: 12.5, color: soft),
-                      ),
-                      const SizedBox(height: 9),
-                      Text(
-                        '● $countdown',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: dark ? Colors.white : eyebrow,
-                          fontFeatures: _tabular,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: dark
+                    ? [
+                        tone.withValues(alpha: 0.28),
+                        tone.withValues(alpha: 0.07),
+                      ]
+                    : [
+                        Color.alphaBlend(
+                          tone.withValues(alpha: 0.22),
+                          Colors.white,
                         ),
+                        Color.alphaBlend(
+                          tone.withValues(alpha: 0.07),
+                          Colors.white,
+                        ),
+                      ],
+              ),
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: onOpen,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      urgent
+                          ? 'NEXT UP · DUE SOON'
+                          : 'NEXT UP · ${_shortTime(item.at).toUpperCase()}',
+                      style: BlistraText.eyebrow(eyebrow),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(item.title, style: BlistraText.serif(25, ink)),
+                    const SizedBox(height: 4),
+                    Text(
+                      _heroMeta(item),
+                      style: TextStyle(fontSize: 12.5, color: soft),
+                    ),
+                    const SizedBox(height: 9),
+                    Text(
+                      '● $countdown',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: dark ? Colors.white : eyebrow,
+                        fontFeatures: BlistraText.tabular,
                       ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        _HeroButton(
+                          label: primaryLabel,
+                          filled: true,
+                          busy: busy,
+                          ink: ink,
+                          onTap: onPrimary ?? () async => onOpen(),
+                        ),
+                        if (onSkip != null) ...[
+                          const SizedBox(width: 8),
                           _HeroButton(
-                            label: primaryLabel,
-                            filled: true,
-                            busy: busy,
+                            label: 'Skip',
+                            filled: false,
+                            busy: false,
                             ink: ink,
-                            onTap: onPrimary ?? () async => onOpen(),
+                            onTap: busy ? null : () async => onSkip!(),
                           ),
-                          if (onSkip != null) ...[
-                            const SizedBox(width: 8),
-                            _HeroButton(
-                              label: 'Skip',
-                              filled: false,
-                              busy: false,
-                              ink: ink,
-                              onTap: busy ? null : () async => onSkip!(),
-                            ),
-                          ],
                         ],
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1580,7 +1413,7 @@ class _AttentionCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'NEEDS ATTENTION',
-                    style: _eyebrow(header).copyWith(
+                    style: BlistraText.eyebrow(header).copyWith(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.9,
@@ -1708,7 +1541,7 @@ class _AppointmentCard extends StatelessWidget {
               children: [
                 Text(
                   '${at.day}',
-                  style: _serif(18, colors.accentText, height: 1),
+                  style: BlistraText.serif(18, colors.accentText, height: 1),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -1728,7 +1561,7 @@ class _AppointmentCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('NEXT APPOINTMENT', style: _eyebrow(colors.accentText)),
+                Text('NEXT APPOINTMENT', style: BlistraText.eyebrow(colors.accentText)),
                 const SizedBox(height: 3),
                 Text(
                   appointment.title,
@@ -1752,7 +1585,7 @@ class _AppointmentCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          _Pill(when, color: colors.accentText),
+          Pill(when, color: colors.accentText),
         ],
       ),
     );
@@ -1822,7 +1655,7 @@ class _StatTile extends StatelessWidget {
                     ),
                   ),
                   if (stat.progress != null)
-                    _Ring(
+                    ProgressRing(
                       progress: stat.progress!,
                       color: stat.color ?? colors.accentText,
                     )
@@ -1861,7 +1694,7 @@ class _StatTile extends StatelessWidget {
                       ),
                   ],
                 ),
-                style: _serif(24, colors.text, height: 1.1),
+                style: BlistraText.serif(24, colors.text, height: 1.1),
               ),
             ),
             const SizedBox(height: 3),
@@ -1934,7 +1767,7 @@ class _NudgeCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _Pill(
+                  Pill(
                     nudges[i].action,
                     color: colors.accentText,
                     onTap: () => onOpen(nudges[i].destination),
@@ -2049,7 +1882,7 @@ class _TimelineRow extends StatelessWidget {
             ),
           )
         : item.status == TimelineStatus.overdue
-        ? _Pill('OVERDUE', color: colors.danger)
+        ? Pill('OVERDUE', color: colors.danger)
         : !sameDay && days > 0
         ? Text(
             days == 1 ? 'TOMORROW' : '$days DAYS',
@@ -2154,7 +1987,7 @@ class _TimelineRow extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: isNext ? colors.accentText : colors.muted,
-                fontFeatures: _tabular,
+                fontFeatures: BlistraText.tabular,
               ),
             ),
           ),
@@ -2200,7 +2033,7 @@ class _HabitsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
     if (habits.todayHabits.isEmpty) {
-      return const _EmptyCard(message: 'No habits due today.');
+      return const EmptyCard(message: 'No habits due today.');
     }
     final progress = habits.expectedToday == 0
         ? 0.0
@@ -2210,7 +2043,7 @@ class _HabitsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Bar(
+          ProgressLine(
             value: progress,
             gradient: LinearGradient(
               colors: [colors.accentText, colors.data[0]],
@@ -2366,7 +2199,7 @@ class _SpendingCard extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(value, style: _serif(17, color)),
+            child: Text(value, style: BlistraText.serif(17, color)),
           ),
         ],
       ),
@@ -2418,7 +2251,7 @@ class _SpendingCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            _Bar(
+            ProgressLine(
               value: expense <= 0
                   ? 0
                   : (double.tryParse(cats[i].amount) ?? 0) / expense,
@@ -2471,7 +2304,7 @@ class _WeekCard extends StatelessWidget {
                 ),
               ],
             ),
-            style: _serif(21, colors.text),
+            style: BlistraText.serif(21, colors.text),
           ),
           const SizedBox(height: 2),
           Text(label, style: TextStyle(fontSize: 10, color: colors.muted)),
@@ -2539,61 +2372,7 @@ class _WeekCard extends StatelessWidget {
 
 // ───────────────────────────── states ─────────────────────────────
 
-class _EmptyCard extends StatelessWidget {
-  const _EmptyCard({required this.message});
 
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Text(message, style: TextStyle(fontSize: 13, color: colors.muted)),
-    );
-  }
-}
-
-/// A section whose module failed; the rest of Home keeps working.
-class _Unavailable extends StatelessWidget {
-  const _Unavailable({required this.name, required this.onRetry});
-
-  final String name;
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BlistraColors.resolve(context);
-    return GlassCard(
-      padding: const EdgeInsets.all(15),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "$name couldn't load",
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: colors.text,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'The rest of your dashboard is fine.',
-                  style: TextStyle(fontSize: 11, color: colors.muted),
-                ),
-              ],
-            ),
-          ),
-          _Pill('Retry', color: colors.accentText, onTap: onRetry),
-        ],
-      ),
-    );
-  }
-}
 
 class _FullError extends StatelessWidget {
   const _FullError({required this.message, required this.onRetry});
@@ -2611,14 +2390,14 @@ class _FullError extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Home is unavailable', style: _serif(19, colors.text)),
+            Text('Home is unavailable', style: BlistraText.serif(19, colors.text)),
             const SizedBox(height: 6),
             Text(
               message,
               style: TextStyle(fontSize: 12.5, color: colors.muted),
             ),
             const SizedBox(height: 14),
-            _Pill('Try again', color: colors.accentText, onTap: onRetry),
+            Pill('Try again', color: colors.accentText, onTap: onRetry),
           ],
         ),
       ),

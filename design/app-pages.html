@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blistra · All pages</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05070b;font-family:Inter,sans-serif;color:#e9eeee;padding:40px 20px 100px}
+h1.pg{font:600 34px Fraunces,serif;text-align:center}h1.pg em{color:#2dd4a7;font-style:normal}
+p.pg{text-align:center;color:#8b979a;margin:8px auto 22px;max-width:700px;font-size:14px;line-height:1.55}
+.jump{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:980px;margin:0 auto 50px}
+.jump a{padding:7px 14px;border-radius:99px;background:#ffffff0d;border:1px solid #ffffff14;color:#cfd8d9;font-size:12px;font-weight:600;text-decoration:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:64px 28px;max-width:1340px;margin:0 auto}
+.cell{display:flex;flex-direction:column;align-items:center;gap:14px}
+.why{max-width:382px;font-size:12.5px;line-height:1.55;color:#93a0a2}
+.why b{display:block;color:#e9eeee;font:600 17px Fraunces;margin-bottom:6px}
+.why ul{margin:8px 0 0 16px}.why li{margin:3px 0}
+
+/* phone + tokens (Lagoon dark) */
+.ph{--ac:hsl(168 72% 62%);--onac:hsl(168 60% 7%);--acs:hsla(168,72%,62%,.18);--tx:hsl(168 25% 96%);--mu:hsla(168,14%,80%,.66);--red:#ff7a85;--amb:#ffc46b;--c1:hsl(215 85% 68%);--c2:hsl(40 90% 64%);--c3:hsl(320 75% 72%);
+ width:382px;height:800px;border-radius:46px;border:8px solid #1a2027;overflow:hidden;position:relative;background:hsl(168 34% 6%);color:var(--tx);box-shadow:0 30px 80px -20px #000c}
+.bg{position:absolute;inset:0;overflow:hidden}.bg i{position:absolute;border-radius:50%;filter:blur(46px)}
+.bg i:nth-child(1){width:260px;height:260px;left:-70px;top:30px;background:hsla(168,80%,48%,.34)}
+.bg i:nth-child(2){width:240px;height:240px;right:-80px;top:240px;background:hsla(223,80%,58%,.30)}
+.bg i:nth-child(3){width:260px;height:260px;left:10px;top:520px;background:hsla(123,85%,52%,.22)}
+.bg i:nth-child(4){width:200px;height:200px;right:-40px;bottom:-20px;background:hsla(288,80%,62%,.15)}
+.notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:90px;height:24px;background:#000;border-radius:14px;z-index:20}
+.sc{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none;padding:50px 18px 130px;z-index:2}.sc::-webkit-scrollbar{display:none}
+.g{background:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.09);box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.eye{font:600 10px Inter;letter-spacing:.16em;text-transform:uppercase;color:var(--ac)}
+.h1{font:600 30px/1.1 Fraunces;margin:6px 0 4px}.h1 em{font-style:normal;color:var(--ac)}
+.sub{color:var(--mu);font-size:12.5px;line-height:1.45}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:24px 0 10px}.sec b{font:600 17px Fraunces}.sec a{font-size:11px;color:var(--ac);font-weight:700}
+.card{border-radius:24px;padding:15px}
+.k{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+.ib{width:38px;height:38px;border-radius:14px;display:grid;place-items:center;font-size:15px}
+.back{width:38px;height:38px;border-radius:14px;display:grid;place-items:center;font-size:18px}
+.seg{display:flex;padding:4px;border-radius:16px;margin:14px 0 4px}.seg div{flex:1;text-align:center;padding:9px 0;border-radius:12px;font-size:12px;font-weight:700;color:var(--mu)}.seg .on{background:var(--ac);color:var(--onac)}
+.chips{display:flex;gap:8px;overflow:auto;scrollbar-width:none;margin:0 -18px;padding:2px 18px}.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:8px 14px;border-radius:99px;font-size:12px;font-weight:600;color:var(--mu)}.chip.on{background:var(--acs);color:var(--ac);border-color:hsla(168,72%,62%,.45)}
+.hs{display:flex;gap:10px;overflow-x:auto;margin:0 -18px;padding:2px 18px 4px;scrollbar-width:none}.hs::-webkit-scrollbar{display:none}
+.tile{flex:0 0 136px;border-radius:22px;padding:13px}
+.tile .v{font:600 23px Fraunces;margin-top:10px}.tile .v small{font:500 11px Inter;color:var(--mu)}.tile .s{font-size:10.5px;color:var(--mu);margin-top:3px}
+.li{display:flex;align-items:center;gap:12px;padding:12px 15px}.li+.li{border-top:1px solid rgba(255,255,255,.08)}
+.li .t{font-size:13.5px;font-weight:600}.li .s{font-size:11px;color:var(--mu);margin-top:2px}.li .r{margin-left:auto;text-align:right;flex:none;font-size:11px;color:var(--mu)}
+.list{border-radius:22px;overflow:hidden}
+.ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:15px;flex:none;background:rgba(255,255,255,.08)}
+.pill{display:inline-block;padding:4px 9px;border-radius:99px;font-size:10px;font-weight:700;background:var(--acs);color:var(--ac)}
+.pill.r{background:rgba(255,122,133,.18);color:var(--red)}.pill.a{background:rgba(255,196,107,.18);color:var(--amb)}
+.btn{display:inline-block;border-radius:99px;padding:9px 16px;font-size:12px;font-weight:700;background:var(--ac);color:var(--onac)}
+.btn.gh{background:rgba(255,255,255,.1);color:var(--tx);border:1px solid rgba(255,255,255,.14)}
+.bar{height:6px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden}.bar b{display:block;height:100%;border-radius:6px;background:var(--ac)}
+.chk{width:22px;height:22px;border-radius:50%;border:1.8px solid rgba(255,255,255,.55);flex:none;display:grid;place-items:center;font-size:11px;color:var(--onac)}.chk.d{background:var(--ac);border-color:var(--ac)}
+.big{font:600 34px Fraunces}
+.fld{border-radius:16px;padding:11px 14px;margin-bottom:10px}.fld .k{margin-bottom:4px}.fld div:last-child{font-size:14px}
+.fab{position:absolute;right:20px;bottom:116px;z-index:6;width:54px;height:54px;border-radius:18px;background:var(--ac);color:var(--onac);display:grid;place-items:center;font-size:24px;box-shadow:0 12px 26px -10px hsla(168,72%,62%,.7)}
+.nav{position:absolute;left:16px;right:16px;bottom:22px;height:72px;border-radius:32px;display:flex;justify-content:space-around;align-items:center;z-index:8;background:linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(14px)}
+.nav span{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--mu);width:56px;position:relative}.nav span i{font-style:normal;font-size:18px}
+.nav span.on{color:var(--ac)}.nav span.on:before{content:"";position:absolute;top:-11px;width:24px;height:3px;border-radius:3px;background:var(--ac);box-shadow:0 0 12px var(--ac)}
+.nav .add{width:64px;height:64px;border-radius:50%;margin-top:-46px;background:linear-gradient(135deg,var(--ac),hsl(168 72% 40%));color:var(--onac);display:grid;place-items:center;font-size:28px;box-shadow:0 0 0 6px hsla(168,34%,6%,.55)}
+.sticky{position:absolute;left:0;right:0;bottom:0;z-index:8;padding:14px 18px 26px;background:linear-gradient(transparent,hsl(168 34% 6%) 35%)}
+.sticky .btn{display:block;text-align:center;padding:14px}
+.ring{position:relative;display:grid;place-items:center}.ring b{position:absolute;font:600 22px Fraunces}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:9;border-radius:30px 30px 0 0;padding:12px 18px 30px;background:hsl(168 30% 10%);border-top:1px solid rgba(255,255,255,.12)}
+.dim{position:absolute;inset:0;z-index:8;background:rgba(0,0,0,.5)}
+.grab{width:40px;height:5px;border-radius:5px;background:rgba(255,255,255,.25);margin:0 auto 14px}
+.qa{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.qa div{border-radius:20px;padding:14px 4px;text-align:center;font-size:11px;font-weight:600}.qa i{display:block;font-style:normal;font-size:20px;margin-bottom:6px}
+</style>
+</head>
+<body>
+<h1 class="pg">Blistra — <em>every page</em>, one design</h1>
+<p class="pg">Same system as the new Home: frosted glass on the theme glow, Fraunces headings, Inter body, accent from the chosen theme. Every module home answers three questions in this order — <i>what needs me now, how am I doing, where is everything</i> — then its lists. Details and forms share one template each. Shown in Lagoon dark; all ten themes and light mode apply automatically.</p>
+<div class="jump" id="jump"></div>
+<div class="grid" id="grid"></div>
+
+<script>
+const ring=(p,s,w,c)=>{const r=(s-w)/2,C=2*Math.PI*r;return `<svg width="${s}" height="${s}"><circle cx="${s/2}" cy="${s/2}" r="${r}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="${w}"/><circle cx="${s/2}" cy="${s/2}" r="${r}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${C*p} ${C}" transform="rotate(-90 ${s/2} ${s/2})"/></svg>`};
+const nav=(on)=>`<div class="nav">${[['⌂','Home'],['▦','Planner'],null,['♡','Health'],['⊞','Hub']].map(x=>x?`<span class="${x[1]===on?'on':''}"><i>${x[0]}</i>${x[1]}</span>`:`<div class="add">+</div>`).join('')}</div>`;
+const head=(eye,title,right='',back=false)=>`<div class="row">${back?'<div class="back g">‹</div>':`<div class="eye">${eye}</div>`}<div class="row" style="gap:8px">${right}</div></div>${back?`<div class="eye" style="margin-top:12px">${eye}</div>`:''}<div class="h1">${title}</div>`;
+const L=(rows)=>`<div class="list g">${rows.map(r=>`<div class="li">${r}</div>`).join('')}</div>`;
+const T=(k,v,u,s,extra='')=>`<div class="tile g"><div class="row"><span class="k">${k}</span>${extra}</div><div class="v">${v}<small> ${u}</small></div><div class="s">${s}</div></div>`;
+const phone=(body,navOn='',extra='')=>`<div class="ph"><div class="bg"><i></i><i></i><i></i><i></i></div><div class="notch"></div><div class="sc">${body}</div>${extra}${navOn!==null?nav(navOn):''}</div>`;
+const pages=[];
+const add=(id,name,html,why)=>pages.push({id,name,html,why});
+
+add('planner','Planner',phone(`
+${head('Thursday · 22 Oct','Planner','<div class="ib g">⌕</div><div class="ib g">⋯</div>')}
+<div class="seg g"><div class="on">Today</div><div>Upcoming</div><div>Lists</div><div>Calendar</div></div>
+<div class="card g" style="margin-top:12px;display:flex;gap:14px;align-items:center"><div class="ring">${ring(.56,66,7,'hsl(168 72% 62%)')}<b style="font-size:17px">5/9</b></div><div><div class="k">Today</div><div style="font:600 18px Fraunces;margin-top:2px">4 tasks left</div><div class="sub">2 overdue · 1 event at 5:22 PM</div></div></div>
+<div class="sec"><b>Overdue</b><a>Reschedule all</a></div>
+${L([`<span class="chk" style="border-color:var(--red)"></span><div><div class="t">Pay electricity bill</div><div class="s" style="color:var(--red)">Tue · Bills</div></div><span class="pill r r">HIGH</span>`,`<span class="chk" style="border-color:var(--red)"></span><div><div class="t">Renew car insurance</div><div class="s" style="color:var(--red)">Wed · Car</div></div><span class="pill r r">HIGH</span>`])}
+<div class="sec"><b>Today</b><a>By time ▾</a></div>
+${L([`<span class="chk d">✓</span><div><div class="t" style="text-decoration:line-through;opacity:.55">Call mom</div><div class="s">9:00 AM · Personal</div></div>`,`<span class="chk"></span><div><div class="t">Review monthly budget</div><div class="s">4:22 PM · Finance</div></div><span class="pill a">MED</span>`,`<div class="ic" style="background:hsla(320,75%,72%,.18)">📅</div><div><div class="t">Team sync</div><div class="s">5:22 – 6:22 PM · Event</div></div>`,`<span class="chk"></span><div><div class="t">Buy groceries</div><div class="s">Any time · Home</div></div>`])}
+<div class="sec"><b>Lists</b><a>All ›</a></div>
+<div class="chips"><div class="chip g">🏠 Home 6</div><div class="chip g">💼 Work 12</div><div class="chip g">💳 Bills 3</div><div class="chip g">🚗 Car 2</div></div>
+`,'Planner'),`<b>Planner</b>One place for tasks and events. Today first: a progress ring, then <i>Overdue</i> (red, with one-tap reschedule), then today's items in time order with checkboxes. Tabs switch to Upcoming (grouped by day), Lists, and a Calendar month view. Swipe a row to complete, snooze or delete.`);
+
+add('meds','Medicines',phone(`
+${head('Medicines','Today\'s doses','<div class="ib g">↺</div><div class="ib g">⋯</div>')}
+<div class="sub">3 of 5 taken · next Metformin at 2:47 PM</div>
+<div class="hs" style="margin-top:14px">${T('Adherence','86','%','Last 7 days',ring(.86,30,4,'hsl(215 85% 68%)'))}${T('Active','4','meds','2 daily, 2 weekly')}${T('Refill soon','1','','Metformin · 6 days','<span class="pill a">!</span>')}</div>
+<div class="sec"><b>Morning</b><a>2 of 2</a></div>
+${L([`<span class="chk d">✓</span><div><div class="t">Vitamin D3 · 1000 IU</div><div class="s">Taken 8:04 AM</div></div><div class="r">8:00</div>`,`<span class="chk d">✓</span><div><div class="t">Thyroxine · 50 mcg</div><div class="s">Taken 7:02 AM</div></div><div class="r">7:00</div>`])}
+<div class="sec"><b>Afternoon</b><a>1 of 2</a></div>
+${L([`<span class="chk d">✓</span><div><div class="t">Metformin · 500 mg</div><div class="s">Taken 1:12 PM</div></div><div class="r">13:00</div>`,`<span class="chk" style="border-color:var(--red)"></span><div><div class="t">Metformin · 500 mg</div><div class="s" style="color:var(--red)">Due in 25 min</div></div><div class="row" style="gap:6px"><span class="btn" style="padding:7px 12px">Take</span><span class="btn gh" style="padding:7px 12px">Skip</span></div>`])}
+<div class="sec"><b>Night</b><a>0 of 1</a></div>
+${L([`<span class="chk"></span><div><div class="t">Omega-3 · 1 capsule</div><div class="s">Bedtime</div></div><div class="r">22:30</div>`])}
+<div class="sec"><b>My medicines</b><a>All ›</a></div>
+${L([`<div class="ic" style="background:hsla(215,85%,68%,.18)">💊</div><div><div class="t">Metformin 500 mg</div><div class="s">Twice daily · 12 tablets left</div></div><span class="pill a">REFILL</span>`,`<div class="ic" style="background:hsla(215,85%,68%,.18)">💊</div><div><div class="t">Vitamin D3</div><div class="s">Daily · 48 left</div></div><div class="r">›</div>`])}
+`,'Home'),`<b>Medicines</b>The job is "did I take it?". Doses grouped by Morning / Afternoon / Evening / Night with Take and Skip right on the row. Top strip: 7-day adherence (from dose history), active count, refills due (from refill remaining quantity). Below: every medicine with schedule and stock left; tap for detail, schedule and history.`);
+
+add('habits','Habits',phone(`
+${head('Habits','4 of 6 today','<div class="ib g">📊</div><div class="ib g">⋯</div>')}
+<div class="sub">Two left. Your longest streak is 21 days.</div>
+<div class="card g" style="margin-top:14px"><div class="row"><div><div class="k">This week</div><div style="font:600 24px Fraunces;margin-top:3px">81%</div></div><div style="display:flex;gap:5px;align-items:flex-end;height:44px">${[70,90,60,100,66,0,0].map((h,i)=>`<i style="width:14px;height:${Math.max(h,8)}%;border-radius:5px;background:${i===4?'var(--ac)':h?'hsla(168,72%,62%,.4)':'rgba(255,255,255,.1)'}"></i>`).join('')}</div></div></div>
+<div class="sec"><b>Due today</b><a>2 left</a></div>
+${L([`<span class="chk"></span><div><div class="t">Read 20 minutes</div><div class="s">🔥 4 days · best 12</div></div><div class="r" style="display:flex;gap:3px">${[1,1,1,0,1,1,0].map(d=>`<i style="width:7px;height:7px;border-radius:50%;background:${d?'var(--ac)':'rgba(255,255,255,.15)'}"></i>`).join('')}</div>`,`<span class="chk"></span><div><div class="t">Stretch 10 min</div><div class="s">🔥 2 days · best 9</div></div><div class="r" style="display:flex;gap:3px">${[0,1,1,0,0,1,0].map(d=>`<i style="width:7px;height:7px;border-radius:50%;background:${d?'var(--ac)':'rgba(255,255,255,.15)'}"></i>`).join('')}</div>`])}
+<div class="sec"><b>Done</b><a>4</a></div>
+${L([`<span class="chk d">✓</span><div><div class="t">Morning walk</div><div class="s">🔥 12 days</div></div>`,`<span class="chk d">✓</span><div><div class="t">Meditate</div><div class="s">🔥 9 days</div></div>`,`<span class="chk d">✓</span><div><div class="t">Vitamins</div><div class="s">🔥 21 days · best</div></div>`])}
+<div class="sec"><b>All habits</b><a>Manage ›</a></div>
+`,'Home'),`<b>Habits</b>A checklist that rewards consistency. Due habits on top with a one-tap check, current and best streak, and a 7-dot history. Done ones drop below. Header card shows this week's completion rate. Tap a habit for its calendar heatmap, stats and schedule.`);
+
+add('diet','Diet',phone(`
+${head('Diet · Today','1,420 kcal','<div class="ib g">📈</div><div class="ib g">⋯</div>')}
+<div class="sub">3 meals logged · last at 1:00 PM</div>
+<div class="card g" style="margin-top:14px"><div class="row" style="gap:14px">${[['Protein','86 g',.6,'hsl(0 85% 72%)'],['Carbs','160 g',.7,'hsl(40 90% 64%)'],['Fat','48 g',.45,'hsl(215 85% 68%)'],['Fiber','18 g',.5,'hsl(146 70% 60%)']].map(([n,v,p,c])=>`<div style="flex:1"><div class="k">${n}</div><div style="font:600 16px Fraunces;margin:3px 0 6px">${v}</div><div class="bar"><b style="width:${p*100}%;background:${c}"></b></div></div>`).join('')}</div></div>
+<div class="card g" style="margin-top:10px"><div class="row"><div><div class="k">Water</div><div style="font:600 22px Fraunces;margin-top:3px">1.8 L <small style="font:500 11px Inter;color:var(--mu)">7 glasses</small></div></div><div class="row" style="gap:6px"><span class="btn gh">+250</span><span class="btn">+500 ml</span></div></div><div style="display:flex;gap:4px;margin-top:12px">${Array.from({length:10},(_,i)=>`<i style="flex:1;height:18px;border-radius:5px;background:${i<7?'hsl(190 80% 60%)':'rgba(255,255,255,.1)'}"></i>`).join('')}</div></div>
+<div class="sec"><b>Meals</b><a>History ›</a></div>
+${L([`<div class="ic">🌅</div><div><div class="t">Breakfast · 380 kcal</div><div class="s">Oats, banana, coffee · 8:10 AM</div></div><div class="r">›</div>`,`<div class="ic">☀️</div><div><div class="t">Lunch · 620 kcal</div><div class="s">Dal, rice, salad · 1:00 PM</div></div><div class="r">›</div>`,`<div class="ic">🍎</div><div><div class="t">Snack · 420 kcal</div><div class="s">Nuts, yogurt · 4:30 PM</div></div><div class="r">›</div>`,`<div class="ic" style="border:1px dashed rgba(255,255,255,.25);background:none">🌙</div><div><div class="t" style="color:var(--mu)">Dinner</div><div class="s">Not logged yet</div></div><span class="btn" style="padding:7px 12px">Log</span>`])}
+<div class="sec"><b>Last 7 days</b><a>Trends ›</a></div>
+<div class="card g"><div style="display:flex;gap:7px;align-items:flex-end;height:70px">${[62,80,70,88,75,92,71].map((h,i)=>`<i style="flex:1;height:${h}%;border-radius:7px;background:${i===6?'var(--ac)':'rgba(255,255,255,.14)'}"></i>`).join('')}</div></div>
+`,'Home'),`<b>Diet</b>Totals, not judgement — the API has no calorie goals yet, so the header is today's total and macros are shown as bars relative to each other. Water is a big tap target. Meals by slot with an empty "Dinner — Log" placeholder so the gap is obvious. 7-day calorie trend at the bottom.`);
+
+add('health','Health',phone(`
+${head('Health','Your vitals','<div class="ib g">＋</div><div class="ib g">⋯</div>')}
+<div class="sub">Last reading today · next check-up Friday</div>
+<div class="card g" style="margin-top:14px;display:flex;gap:13px;align-items:center"><div class="ib" style="background:var(--acs);color:var(--ac);flex-direction:column;width:46px;height:50px;font:600 18px Fraunces;line-height:1">24<small style="font:700 8px Inter">OCT</small></div><div><div class="k" style="color:var(--ac)">Next appointment</div><div style="font-size:13.5px;font-weight:600;margin-top:2px">Dr. Mehta · General checkup</div><div class="sub" style="font-size:11px">Fri · 5:00 PM · City Clinic</div></div><span class="pill" style="margin-left:auto">2 days</span></div>
+<div class="sec"><b>Vitals</b><a>All ›</a></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${[['Weight','72.4','kg','▼ 0.6 this month'],['Blood pressure','118/76','mmHg','Normal · 2 days ago'],['Heart rate','68','bpm','3 days ago'],['Glucose','96','mg/dL','Fasting · today']].map(([k,v,u,s])=>`<div class="g" style="border-radius:20px;padding:13px"><div class="k">${k}</div><div style="font:600 22px Fraunces;margin-top:6px">${v} <small style="font:500 11px Inter;color:var(--mu)">${u}</small></div><div class="sub" style="font-size:10.5px">${s}</div></div>`).join('')}</div>
+<div class="sec"><b>Sleep & activity</b><a>This week</a></div>
+<div class="hs">${T('Last night','7h 12m','','11:40 PM → 6:52 AM')}${T('Avg sleep','6h 58m','','7 nights')}${T('Activity','4','sessions','185 min this week')}</div>
+<div class="sec"><b>Log</b><a>Journal ›</a></div>
+${L([`<div class="ic" style="background:hsla(320,75%,72%,.18)">🤒</div><div><div class="t">Mild headache</div><div class="s">Symptom · yesterday</div></div>`,`<div class="ic" style="background:hsla(146,70%,60%,.18)">🏃</div><div><div class="t">Running · 35 min</div><div class="s">Activity · Tue</div></div>`])}
+<div class="sec"><b>Profile</b><a>Edit ›</a></div>
+<div class="card g row"><div><div class="k">Blood group</div><b>O+</b></div><div><div class="k">Height</div><b>176 cm</b></div><div><div class="k">Allergies</div><b>None</b></div></div>
+`,'Health'),`<b>Health</b>Glanceable vitals first. Next appointment on top (time-sensitive), then a 2×2 grid of latest measurements with change and when, sleep and activity as a swipe row, recent symptoms/logs, and the medical profile card (blood group, height, allergies) that matters in an emergency.`);
+
+add('finance','Finance',phone(`
+${head('Finance · October','₹40,520 <span style="font:500 13px Inter;color:var(--mu)">net</span>','<div class="ib g">⇅</div><div class="ib g">⋯</div>')}
+<div class="seg g"><div class="on">Overview</div><div>Expenses</div><div>Friends</div><div>Groups</div></div>
+<div class="card g" style="margin-top:12px"><div class="row"><div><div class="k">Income</div><b style="font:600 18px Fraunces;color:var(--ac)">₹62,000</b></div><div><div class="k">Spent</div><b style="font:600 18px Fraunces">₹21,480</b></div><div><div class="k">Today</div><b style="font:600 18px Fraunces">₹840</b></div></div>
+<div class="k" style="margin-top:14px">Budget · ₹21,480 of ₹30,000</div><div class="bar" style="margin-top:6px"><b style="width:72%;background:var(--amb)"></b></div><div class="sub" style="font-size:11px;margin-top:5px">72% used · 9 days left · ₹950/day to stay on budget</div></div>
+<div class="sec"><b>Where it went</b><a>Categories ›</a></div>
+<div class="card g">${[['Rent','14,000',65,'var(--c1)'],['Food & dining','6,200',29,'var(--c2)'],['Transport','1,280',6,'var(--ac)']].map(([n,a,p,c])=>`<div class="row" style="font-size:12px;color:var(--mu);margin-top:8px"><span>${n}</span><b style="color:var(--tx)">₹${a}</b></div><div class="bar" style="margin-top:6px"><b style="width:${p}%;background:${c}"></b></div>`).join('')}</div>
+<div class="sec"><b>Friends</b><a>Settle ›</a></div>
+<div class="row" style="gap:10px"><div class="g" style="flex:1;border-radius:20px;padding:12px"><div class="k">Owed to you</div><b style="font:600 19px Fraunces;color:var(--ac)">₹1,850</b></div><div class="g" style="flex:1;border-radius:20px;padding:12px"><div class="k">You owe</div><b style="font:600 19px Fraunces;color:var(--amb)">₹420</b></div></div>
+<div class="sec"><b>Recent</b><a>All ›</a></div>
+${L([`<div class="ic">🍕</div><div><div class="t">Dominos</div><div class="s">Food · today 8:12 PM</div></div><div class="r" style="color:var(--tx);font-weight:600">−₹540</div>`,`<div class="ic">🚕</div><div><div class="t">Uber</div><div class="s">Transport · today</div></div><div class="r" style="color:var(--tx);font-weight:600">−₹300</div>`,`<div class="ic">💼</div><div><div class="t">Salary</div><div class="s">Income · 1 Oct</div></div><div class="r" style="color:var(--ac);font-weight:600">+₹62,000</div>`])}
+`,'Hub'),`<b>Finance</b>"Am I okay this month?" — net, income, spent and today in one card, then the budget bar with a daily allowance to stay on track. Where the money went by category, what friends owe (and what you owe), and recent transactions. Tabs reach full Expenses, Friends and Groups/trips.`);
+
+add('docs','Documents',phone(`
+${head('Documents','Your files','<div class="ib g">↑</div>')}
+<div class="g" style="border-radius:16px;padding:12px 14px;margin:14px 0 12px;color:var(--mu);font-size:13px">⌕  Search documents</div>
+<div class="chips"><div class="chip g on">All 24</div><div class="chip g">🪪 ID 4</div><div class="chip g">🏥 Medical 9</div><div class="chip g">🧾 Bills 6</div><div class="chip g">🛡 Insurance 3</div><div class="chip g">📄 Other 2</div></div>
+<div class="sec"><b>Recent</b><a>Sort: newest ▾</a></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${[['PDF','Blood test report','Medical · 2.1 MB','hsl(0 80% 70%)'],['JPG','Passport front','ID · 840 KB','hsl(215 85% 68%)'],['PDF','Car insurance 2026','Insurance · 1.3 MB','hsl(40 90% 64%)'],['PDF','Electricity Oct','Bills · 220 KB','hsl(146 70% 60%)']].map(([t,n,s,c])=>`<div class="g" style="border-radius:20px;padding:12px"><div style="height:64px;border-radius:14px;background:${c.replace(')',' / .16)').replace('hsl','hsl')};display:grid;place-items:center;font:700 12px Inter;color:${c}">${t}</div><div style="font-size:12.5px;font-weight:600;margin-top:9px">${n}</div><div class="sub" style="font-size:10.5px">${s}</div></div>`).join('')}</div>
+<div class="sec"><b>All</b><a>24</a></div>
+${L([`<div class="ic" style="color:hsl(0 80% 70%)">PDF</div><div><div class="t">Prescription · Dr. Mehta</div><div class="s">Medical · 12 Oct</div></div><div class="r">⋯</div>`])}
+`,'Hub','<div class="fab">↑</div>'),`<b>Documents</b>Find fast: search first, category chips with counts, recent files as visual cards (type badge coloured by category), then the full list. Upload is the primary action. Detail page previews, renames, recategorises, shares or downloads.`);
+
+add('hub','Hub',phone(`
+${head('Hub','Everything','<div class="ib g">⌕</div>')}
+<div class="sub">All your modules, with what's happening in each.</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">${[['📋','Planner','4 tasks left','168'],['💊','Medicines','Next 2:47 PM','215'],['🔁','Habits','2 left today','40'],['🍽','Diet','1,420 kcal','22'],['♡','Health','Checkup Fri','335'],['₹','Finance','₹21k spent','146'],['📄','Documents','24 files','262'],['🔔','Reminders','3 active','190']].map(([i,n,s,h])=>`<div class="g" style="border-radius:22px;padding:14px"><div class="ic" style="background:hsla(${h},80%,60%,.18);color:hsl(${h} 80% 70%)">${i}</div><div style="font:600 16px Fraunces;margin-top:10px">${n}</div><div class="sub" style="font-size:11px">${s}</div></div>`).join('')}</div>
+<div class="sec"><b>Tools</b></div>
+${L([`<div class="ic">✦</div><div><div class="t">Blistra AI</div><div class="s">Ask, plan, or add entries by chat</div></div><div class="r">›</div>`,`<div class="ic">⚙</div><div><div class="t">Customize Home & navigation</div><div class="s">Choose what shows where</div></div><div class="r">›</div>`])}
+`,'Hub'),`<b>Hub</b>The map of the app. Each module tile carries one live line so the Hub is useful, not just a menu. Tools (AI, customize) below. Pinning a module to the nav bar happens from here.`);
+
+add('profile','Profile & Settings',phone(`
+${head('Profile','Settings','')}
+<div class="card g" style="margin-top:14px;display:flex;gap:14px;align-items:center"><div style="width:56px;height:56px;border-radius:20px;background:linear-gradient(135deg,var(--ac),hsl(168 72% 36%));display:grid;place-items:center;font:700 18px Inter;color:var(--onac)">SP</div><div><div style="font:600 19px Fraunces">Sourabh Patel</div><div class="sub">@sourabh · patel.k@gmail.com</div></div><div class="r" style="margin-left:auto;color:var(--mu)">›</div></div>
+<div class="sec"><b>Preferences</b></div>
+${L([`<div class="ic">🎨</div><div><div class="t">Appearance</div><div class="s">Lagoon · Dark</div></div><div class="r">›</div>`,`<div class="ic">🔔</div><div><div class="t">Notifications</div><div class="s">Doses, tasks, habits</div></div><div class="r">›</div>`,`<div class="ic">🌍</div><div><div class="t">Region & units</div><div class="s">India · metric · ₹</div></div><div class="r">›</div>`,`<div class="ic">⊞</div><div><div class="t">Home & navigation</div><div class="s">Customize</div></div><div class="r">›</div>`])}
+<div class="sec"><b>Safety</b></div>
+${L([`<div class="ic">🛡</div><div><div class="t">Security</div><div class="s">Password, Google, sessions</div></div><div class="r">›</div>`,`<div class="ic">🆘</div><div><div class="t">Emergency contact</div><div class="s">Priya · +91 98…</div></div><div class="r">›</div>`,`<div class="ic">🔒</div><div><div class="t">Privacy & data</div><div class="s">Export, delete account</div></div><div class="r">›</div>`])}
+<div class="sec"><b>Support</b></div>
+${L([`<div class="ic">?</div><div><div class="t">Help</div></div><div class="r">›</div>`,`<div class="ic" style="color:var(--red)">⎋</div><div><div class="t" style="color:var(--red)">Sign out</div></div>`])}
+`,''),`<b>Profile & Settings</b>Identity card on top, then grouped settings rows (Preferences / Safety / Support). Each row shows its current value so users rarely need to open it. Sign out is last and red.`);
+
+add('notif','Notifications',phone(`
+${head('Notifications','Reminders','<div class="ib g">⚙</div>',true)}
+<div class="seg g"><div class="on">Upcoming</div><div>All reminders</div></div>
+<div class="sec"><b>Today</b></div>
+${L([`<div class="ic" style="background:hsla(215,85%,68%,.18)">💊</div><div><div class="t">Metformin 500 mg</div><div class="s">Medicine · 2:47 PM</div></div><span class="pill">25 min</span>`,`<div class="ic" style="background:hsla(40,90%,64%,.18)">✓</div><div><div class="t">Review monthly budget</div><div class="s">Task · 4:22 PM</div></div><div class="r">16:22</div>`,`<div class="ic">🔁</div><div><div class="t">Read 20 minutes</div><div class="s">Habit · 9:00 PM</div></div><div class="r">21:00</div>`])}
+<div class="sec"><b>Tomorrow</b></div>
+${L([`<div class="ic" style="background:hsla(320,75%,72%,.18)">🩺</div><div><div class="t">Dr. Mehta · Checkup</div><div class="s">Appointment · Fri 5:00 PM</div></div><div class="r">1 day</div>`])}
+<div class="card g" style="margin-top:14px"><div class="row"><div><div class="t" style="font-size:13px;font-weight:600">Quiet hours</div><div class="sub" style="font-size:11px">11:00 PM – 7:00 AM</div></div><span style="width:44px;height:26px;border-radius:99px;background:var(--ac);position:relative"><i style="position:absolute;right:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff"></i></span></div></div>
+`,null),`<b>Notifications</b>What will ping me and when, grouped by day, each with its module icon. "All reminders" lists and edits them; settings holds quiet hours and per-module switches.`);
+
+add('detail','Detail page (template)',phone(`
+${head('Medicine','Metformin <em>500 mg</em>','<div class="ib g">✎</div><div class="ib g">⋯</div>',true)}
+<div class="sub">Tablet · twice daily · since 3 Jan</div>
+<div class="hs" style="margin-top:14px">${T('Adherence','92','%','30 days',ring(.92,30,4,'hsl(215 85% 68%)'))}${T('Stock','12','tabs','~6 days left','<span class="pill a">LOW</span>')}${T('Streak','11','days','No missed dose')}</div>
+<div class="sec"><b>Schedule</b><a>Edit ›</a></div>
+${L([`<div class="ic">☀️</div><div><div class="t">1:00 PM · 1 tablet</div><div class="s">After lunch · every day</div></div>`,`<div class="ic">🌙</div><div><div class="t">9:00 PM · 1 tablet</div><div class="s">After dinner · every day</div></div>`])}
+<div class="sec"><b>Recent doses</b><a>History ›</a></div>
+${L([`<span class="chk d">✓</span><div><div class="t">Today 1:12 PM</div><div class="s">Taken</div></div>`,`<span class="chk d">✓</span><div><div class="t">Yesterday 9:05 PM</div><div class="s">Taken</div></div>`,`<span class="chk" style="border-color:var(--red)">!</span><div><div class="t">Mon 9:00 PM</div><div class="s" style="color:var(--red)">Missed</div></div>`])}
+<div class="sec"><b>Refills</b><a>Add ›</a></div>
+${L([`<div class="ic">📦</div><div><div class="t">60 tablets</div><div class="s">12 Sep · Apollo Pharmacy</div></div>`])}
+`,null,'<div class="sticky"><span class="btn">Record a refill</span></div>'),`<b>Detail template</b>Used by every record (task, event, medicine, habit, meal, expense, document, appointment). Back + edit + more in the header, a serif title with the key value in accent, a stat strip, then sections, and one primary action pinned to the bottom.`);
+
+add('form','Form page (template)',phone(`
+${head('New task','What needs doing?','',true)}
+<div class="fld g" style="margin-top:16px"><div class="k">Title</div><div>Renew car insurance</div></div>
+<div class="row" style="gap:10px"><div class="fld g" style="flex:1"><div class="k">Due</div><div>Fri, 24 Oct</div></div><div class="fld g" style="flex:1"><div class="k">Time</div><div>10:00 AM</div></div></div>
+<div class="k" style="margin:6px 0 8px">Priority</div>
+<div class="seg g" style="margin:0 0 12px"><div>Low</div><div>Medium</div><div class="on">High</div></div>
+<div class="fld g"><div class="k">List</div><div>🚗 Car ▾</div></div>
+<div class="fld g"><div class="k">Reminder</div><div>1 day before ▾</div></div>
+<div class="fld g" style="min-height:86px"><div class="k">Notes</div><div style="color:var(--mu)">Policy #A-2214, compare quotes first</div></div>
+`,null,'<div class="sticky"><span class="btn">Save task</span></div>'),`<b>Form template</b>Every create/edit screen: back, a question-style serif title, glass fields with small caps labels, segmented controls instead of dropdowns where options are few, and Save pinned at the bottom (disabled until valid).`);
+
+add('add','Quick add (+)',phone(`
+${head('Thursday · 22 Oct','Good evening,<br><em>Sourabh.</em>','<div class="ib g">⌕</div><div class="ib g">🔔</div>')}
+`, 'Home','<div class="dim"></div><div class="sheet"><div class="grab"></div><div style="font:600 20px Fraunces;margin-bottom:4px">Add</div><div class="sub" style="margin-bottom:16px">What would you like to log?</div><div class="qa">'+[['✓','Task'],['📅','Event'],['💊','Dose'],['🔁','Habit'],['🍽','Meal'],['💧','Water'],['₹','Expense'],['♡','Vital'],['📄','Document'],['🩺','Appoint.'],['😴','Sleep'],['✦','Ask AI']].map(([i,n])=>`<div class="g"><i>${i}</i>${n}</div>`).join('')+'</div></div>'),`<b>Quick add</b>The + button opens one glass sheet with every "log something" action in a 4×3 grid, so logging is never more than two taps from anywhere.`);
+
+add('auth','Sign in',phone(`
+<div style="text-align:center;margin-top:70px"><div style="width:64px;height:64px;border-radius:20px;margin:0 auto;background:linear-gradient(135deg,var(--ac),hsl(168 72% 36%));display:grid;place-items:center;font:700 30px Inter;color:var(--onac)">b</div><div style="font:600 30px Fraunces;margin-top:18px">Welcome <em style="font-style:normal;color:var(--ac)">back.</em></div><div class="sub">Sign in to continue.</div></div>
+<div class="fld g" style="margin-top:34px"><div class="k">Email or username</div><div>sourabh@gmail.com</div></div>
+<div class="fld g"><div class="k">Password</div><div>••••••••••</div></div>
+<div style="text-align:right;font-size:12px;color:var(--ac);font-weight:600;margin:4px 0 18px">Forgot password?</div>
+<span class="btn" style="display:block;text-align:center;padding:14px">Sign in</span>
+<div class="row" style="margin:18px 0;color:var(--mu);font-size:11px"><i style="flex:1;height:1px;background:rgba(255,255,255,.12)"></i>or<i style="flex:1;height:1px;background:rgba(255,255,255,.12)"></i></div>
+<span class="btn gh" style="display:block;text-align:center;padding:14px">G  Continue with Google</span>
+<div class="sub" style="text-align:center;margin-top:22px">New here? <b style="color:var(--ac)">Create account</b></div>
+`,null),`<b>Sign in & registration</b>Same glass and glow before login so the app feels like one product from the first screen. Registration keeps its single scrolling form; the Google path skips email and password (now working).`);
+
+add('search','Search',phone(`
+${head('Search','Find anything','',true)}
+<div class="g" style="border-radius:16px;padding:12px 14px;margin:14px 0 12px;font-size:14px">⌕  metf<span style="color:var(--ac)">|</span></div>
+<div class="chips"><div class="chip g on">All</div><div class="chip g">Medicines</div><div class="chip g">Tasks</div><div class="chip g">Documents</div></div>
+<div class="sec"><b>Medicines</b><a>1</a></div>
+${L([`<div class="ic" style="background:hsla(215,85%,68%,.18)">💊</div><div><div class="t"><b style="color:var(--ac)">Metf</b>ormin 500 mg</div><div class="s">Twice daily</div></div><div class="r">›</div>`])}
+<div class="sec"><b>Documents</b><a>1</a></div>
+${L([`<div class="ic" style="color:hsl(0 80% 70%)">PDF</div><div><div class="t"><b style="color:var(--ac)">Metf</b>ormin prescription</div><div class="s">Medical · 12 Oct</div></div><div class="r">›</div>`])}
+<div class="sec"><b>Recent searches</b><a>Clear</a></div>
+<div class="chips"><div class="chip g">insurance</div><div class="chip g">blood test</div><div class="chip g">rent</div></div>
+`,null),`<b>Search</b>One field across every module, results grouped by module with the match highlighted, module filter chips, and recent searches.`);
+
+document.getElementById('grid').innerHTML=pages.map(p=>`<div class="cell" id="${p.id}">${p.html}<div class="why">${p.why}</div></div>`).join('');
+document.getElementById('jump').innerHTML=pages.map(p=>`<a href="#${p.id}">${p.name}</a>`).join('');
+</script>
+</body>
+</html>

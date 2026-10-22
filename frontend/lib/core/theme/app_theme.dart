@@ -20,30 +20,42 @@ class AppTheme {
       _build(palette, Brightness.dark);
 
   static ThemeData _build(AccentPalette palette, Brightness brightness) {
-    final bool dark = brightness == Brightness.dark;
     final colors = BlistraColors.of(palette, brightness);
     final base = ColorScheme.fromSeed(
       seedColor: palette.primary,
       brightness: brightness,
     );
     final scheme = base.copyWith(
-      primary: dark ? colors.accentText : palette.primary,
-      onPrimary: Colors.white,
+      primary: colors.accentText,
+      onPrimary: colors.onAccent,
       secondary: palette.secondary,
       surface: colors.background,
       onSurface: colors.text,
       onSurfaceVariant: colors.muted,
       outlineVariant: colors.glassBorder,
+      error: colors.danger,
     );
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      side: BorderSide(color: colors.glassBorder),
+    final serif = TextStyle(
+      fontFamily: 'Fraunces',
+      fontWeight: FontWeight.w600,
+      letterSpacing: -0.2,
+      color: colors.text,
     );
+    final baseText = ThemeData(brightness: brightness).textTheme;
+    final textTheme = baseText.copyWith(
+      headlineLarge: baseText.headlineLarge?.merge(serif),
+      headlineMedium: baseText.headlineMedium?.merge(serif),
+      headlineSmall: baseText.headlineSmall?.merge(serif),
+      titleLarge: baseText.titleLarge?.merge(serif),
+    );
+    const stadium = StadiumBorder();
+    final fieldRadius = BorderRadius.circular(16);
     return ThemeData(
       useMaterial3: true,
       fontFamily: 'Inter',
       brightness: brightness,
       colorScheme: scheme,
+      textTheme: textTheme,
       extensions: [colors],
       // Transparent so the [BlistraBackdrop] glow shows through every page.
       scaffoldBackgroundColor: Colors.transparent,
@@ -55,103 +67,208 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         foregroundColor: colors.text,
-        titleTextStyle: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.3,
-          color: colors.text,
-        ),
+        titleTextStyle: serif.copyWith(fontSize: 22),
       ),
       cardTheme: CardThemeData(
         elevation: 0,
         color: colors.glassFill,
         surfaceTintColor: Colors.transparent,
-        shadowColor: colors.shadow,
-        shape: shape,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide(color: colors.glassBorder),
+        ),
         margin: EdgeInsets.zero,
       ),
       chipTheme: ChipThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.pill),
+        backgroundColor: colors.glassFill,
+        selectedColor: colors.accentSoft,
+        checkmarkColor: colors.accentText,
+        labelStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: colors.text,
         ),
+        shape: const StadiumBorder(),
         side: BorderSide(color: colors.glassBorder),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: colors.glassFill,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
+          horizontal: AppSpacing.lg,
           vertical: 14,
         ),
+        labelStyle: TextStyle(color: colors.muted),
+        floatingLabelStyle: TextStyle(color: colors.accentText),
         hintStyle: TextStyle(color: colors.muted.withValues(alpha: 0.8)),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: fieldRadius,
           borderSide: BorderSide(color: colors.glassBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: fieldRadius,
           borderSide: BorderSide(color: colors.glassBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: BorderSide(color: palette.primary, width: 1.6),
+          borderRadius: fieldRadius,
+          borderSide: BorderSide(color: colors.accentText, width: 1.4),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          borderSide: BorderSide(color: scheme.error, width: 1.2),
+          borderRadius: fieldRadius,
+          borderSide: BorderSide(color: colors.danger, width: 1.2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: fieldRadius,
+          borderSide: BorderSide(color: colors.danger, width: 1.4),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: palette.primary,
-          foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+          backgroundColor: colors.accentText,
+          foregroundColor: colors.onAccent,
+          disabledBackgroundColor: colors.inkAt(0.1),
+          disabledForegroundColor: colors.muted,
+          minimumSize: const Size.fromHeight(50),
+          shape: stadium,
+          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: colors.accentText,
+          foregroundColor: colors.onAccent,
+          shape: stadium,
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 44),
+          minimumSize: const Size(0, 46),
+          foregroundColor: colors.text,
+          backgroundColor: colors.inkAt(0.06),
           side: BorderSide(color: colors.glassBorder),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+          shape: stadium,
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: colors.accentText,
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: colors.accentText,
+        foregroundColor: colors.onAccent,
+        elevation: 0,
+        highlightElevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          side: WidgetStatePropertyAll(BorderSide(color: colors.glassBorder)),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected)
+                ? colors.accentText
+                : colors.glassFill,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected)
+                ? colors.onAccent
+                : colors.muted,
           ),
         ),
       ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? Colors.white : colors.muted,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? colors.accentText
+              : colors.inkAt(0.12),
+        ),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: const CircleBorder(),
+        fillColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? colors.accentText
+              : Colors.transparent,
+        ),
+        checkColor: WidgetStatePropertyAll(colors.onAccent),
+        side: BorderSide(color: colors.inkAt(0.55), width: 1.8),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: colors.accentText,
+        linearTrackColor: colors.inkAt(0.12),
+        circularTrackColor: Colors.transparent,
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: colors.accentText,
+        unselectedLabelColor: colors.muted,
+        indicatorColor: colors.accentText,
+        dividerColor: Colors.transparent,
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        backgroundColor: colors.sheet,
+        contentTextStyle: TextStyle(color: colors.text),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: colors.glassBorder),
+        ),
       ),
       dividerTheme: DividerThemeData(
         space: 1,
         thickness: 1,
-        color: colors.glassBorder,
+        color: colors.inkAt(0.08),
       ),
-      listTileTheme: const ListTileThemeData(
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      listTileTheme: ListTileThemeData(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         minVerticalPadding: 8,
+        iconColor: colors.muted,
+        titleTextStyle: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: colors.text,
+        ),
+        subtitleTextStyle: TextStyle(fontSize: 12, color: colors.muted),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: colors.sheet,
         surfaceTintColor: Colors.transparent,
+        titleTextStyle: serif.copyWith(fontSize: 20),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg + 4),
+          borderRadius: BorderRadius.circular(26),
+          side: BorderSide(color: colors.glassBorder),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colors.sheet,
         surfaceTintColor: Colors.transparent,
+        dragHandleColor: colors.inkAt(0.25),
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: colors.sheet,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: colors.glassBorder),
         ),
       ),
       datePickerTheme: DatePickerThemeData(
         backgroundColor: colors.sheet,
+        surfaceTintColor: Colors.transparent,
         headerForegroundColor: colors.text,
       ),
+      timePickerTheme: TimePickerThemeData(backgroundColor: colors.sheet),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: colors.navFill,
         selectedItemColor: colors.accentText,
@@ -161,7 +278,7 @@ class AppTheme {
   }
 }
 
-/// Colours that depend on the colour theme and brightness. Read with
+// Colours that depend on the colour theme and brightness. Read with
 /// [BlistraColors.resolve].
 ///
 /// Every value is derived from the theme hue (see [AccentPalette]) so the
