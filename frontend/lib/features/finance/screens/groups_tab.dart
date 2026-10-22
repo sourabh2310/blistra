@@ -5,6 +5,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/page_header.dart';
 import '../finance_controller.dart';
 import '../models.dart';
 import '../widgets/finance_widgets.dart';
@@ -81,69 +85,102 @@ class _GroupsTabState extends State<GroupsTab> {
   }
 
   @override
-  Widget build(BuildContext context) => RefreshIndicator(
-    onRefresh: _load,
-    child: ListView(
-      padding: const EdgeInsets.all(16),
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        FilledButton.icon(
-          onPressed: _busy ? null : _create,
-          icon: const Icon(Icons.group_add_outlined),
-          label: const Text('Create trip / group'),
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Text(
-            'Keep each trip separate. Invite people by username; they choose whether to join.',
-          ),
-        ),
-        if (_error != null) ...[
-          Text(_error!),
-          TextButton(onPressed: _load, child: const Text('Retry')),
-        ],
-        if (_groups == null && _error == null)
-          const Center(child: CircularProgressIndicator()),
-        if (_groups?.isEmpty == true) const Text('No groups yet.'),
-        for (final g in _groups ?? <TripGroup>[])
-          Card(
-            child: ListTile(
-              title: Text(g.name),
-              subtitle: Text(
-                '${g.currency} · ${g.invited
-                    ? 'Invitation'
-                    : g.archived
-                    ? 'Archived'
-                    : 'Joined'}',
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final groups = _groups ?? <TripGroup>[];
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(0, 4, 0, 120),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          PagePad(
+            StatusCard(
+              caption: 'Trips & groups',
+              title: 'Split a trip together',
+              subtitle:
+                  'Keep each trip separate. Invite people by username; they choose whether to join.',
+              leading: const IconWell(Icons.luggage_rounded, size: 44),
+              trailing: Pill(
+                'Create',
+                onTap: _busy ? null : _create,
               ),
-              onTap: g.invited ? null : () => _open(g),
-              trailing: g.invited
-                  ? Wrap(
-                      children: [
-                        TextButton(
-                          onPressed: _busy
-                              ? null
-                              : () => _run(
-                                  () => controller.api.acceptGroup(g.id),
-                                ),
-                          child: const Text('Join'),
-                        ),
-                        IconButton(
-                          tooltip: 'Decline invitation',
-                          onPressed: _busy
-                              ? null
-                              : () =>
-                                    _run(() => controller.api.leaveGroup(g.id)),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
-                    )
-                  : const Icon(Icons.chevron_right),
+              onTap: _busy ? null : _create,
             ),
           ),
-      ],
-    ),
-  );
+          if (_error != null)
+            PagePad(
+              EmptyCard(message: _error!, action: 'Retry', onAction: _load),
+              top: 12,
+            ),
+          if (_groups == null && _error == null)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          if (_groups?.isEmpty == true)
+            const PagePad(EmptyCard(message: 'No groups yet.'), top: 12),
+          if (groups.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const SectionHeader(title: 'Your groups'),
+            PagePad(
+              GlassList(
+                children: [
+                  for (final g in groups)
+                    GlassRow(
+                      leading: IconWell(
+                        g.invited
+                            ? Icons.mail_outline_rounded
+                            : g.archived
+                            ? Icons.inventory_2_outlined
+                            : Icons.groups_rounded,
+                        color: g.invited ? colors.accentText : null,
+                      ),
+                      title: g.name,
+                      subtitle:
+                          '${g.currency} · ${g.invited
+                              ? 'Invitation'
+                              : g.archived
+                              ? 'Archived'
+                              : 'Joined'}',
+                      onTap: g.invited ? null : () => _open(g),
+                      trailing: g.invited
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Pill(
+                                  'Join',
+                                  onTap: _busy
+                                      ? null
+                                      : () => _run(
+                                          () => controller.api.acceptGroup(g.id),
+                                        ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Decline invitation',
+                                  color: colors.muted,
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _run(
+                                          () => controller.api.leaveGroup(g.id),
+                                        ),
+                                  icon: const Icon(Icons.close_rounded),
+                                ),
+                              ],
+                            )
+                          : Icon(
+                              Icons.chevron_right_rounded,
+                              color: colors.muted,
+                            ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class GroupDetailScreen extends StatefulWidget {
@@ -374,6 +411,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     final detail = _detail, me = controller.me?.id;
     final owner = detail?.group.ownerId == me;
     final archived = detail?.group.archived ?? false;
@@ -381,181 +419,307 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       for (final m in detail?.members ?? <TripMember>[])
         m.user.id: m.user.displayName,
     };
+    final group = detail?.group ?? widget.group;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(detail?.group.name ?? widget.group.name),
-        actions: [
-          if (detail != null)
-            PopupMenuButton<String>(
-              enabled: !_busy,
-              onSelected: (action) {
-                if (action == 'export') {
-                  _export();
-                } else {
-                  _run(
-                    () =>
-                        controller.api.archiveGroup(widget.group.id, !archived),
-                  );
-                }
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                  value: 'export',
-                  child: Text('Export ledger (JSON)'),
-                ),
-                if (owner)
-                  PopupMenuItem(
-                    value: 'archive',
-                    child: Text(archived ? 'Reopen trip' : 'Archive trip'),
+      backgroundColor: Colors.transparent,
+      bottomNavigationBar: detail == null
+          ? null
+          : StickyActionBar(
+              label: 'Add expense',
+              onPressed: _busy || archived ? null : _expense,
+            ),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            BlistraPageHeader(
+              eyebrow: archived ? 'Trip · archived' : 'Trip · ${group.currency}',
+              title: group.name,
+              showAvatar: false,
+              actions: [
+                if (detail != null)
+                  PopupMenuButton<String>(
+                    tooltip: 'More',
+                    enabled: !_busy,
+                    onSelected: (action) {
+                      if (action == 'export') {
+                        _export();
+                      } else {
+                        _run(
+                          () => controller.api.archiveGroup(
+                            widget.group.id,
+                            !archived,
+                          ),
+                        );
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'export',
+                        child: Text('Export ledger (JSON)'),
+                      ),
+                      if (owner)
+                        PopupMenuItem(
+                          value: 'archive',
+                          child: Text(archived ? 'Reopen trip' : 'Archive trip'),
+                        ),
+                    ],
+                    child: const IgnorePointer(
+                      child: GlassIconButton(
+                        tooltip: null,
+                        icon: Icons.more_horiz,
+                        onTap: null,
+                      ),
+                    ),
                   ),
               ],
             ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          children: [
-            if (_busy) const LinearProgressIndicator(),
-            if (_error != null) ...[
-              Text(_error!),
-              TextButton(onPressed: _load, child: const Text('Retry')),
-            ],
-            if (detail == null && _error == null)
-              const Center(child: CircularProgressIndicator()),
-            if (detail != null) ...[
-              Wrap(
-                spacing: 8,
-                children: [
-                  FilledButton.icon(
-                    onPressed: _busy || archived ? null : _expense,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add expense'),
-                  ),
-                  if (owner)
-                    OutlinedButton(
-                      onPressed: _busy || archived ? null : _invite,
-                      child: const Text('Invite member'),
-                    ),
-                  if (!owner)
-                    TextButton(
-                      onPressed: _busy ? null : _leave,
-                      child: const Text('Leave group'),
-                    ),
-                ],
-              ),
-              const SectionLabel('Group balances'),
-              if (archived)
-                const ListTile(
-                  leading: Icon(Icons.inventory_2_outlined),
-                  title: Text('Archived trip'),
-                  subtitle: Text(
-                    'The ledger is preserved. Pending payments can still be confirmed or rejected. The owner can reopen this trip.',
-                  ),
-                ),
-              const Text(
-                'Positive: owed to this person. Negative: this person owes the group. Currencies stay separate.',
-              ),
-              if (detail.balances.isEmpty)
-                const ListTile(title: Text('All settled up')),
-              for (final b in detail.balances)
-                ListTile(
-                  title: Text(names[b.userId] ?? 'Former member'),
-                  trailing: Text(b.amount.display(currencyCode: b.currency)),
-                ),
-              const SectionLabel('Members'),
-              for (final m in detail.members)
-                ListTile(
-                  title: Text(m.user.displayName),
-                  subtitle: Text(
-                    '@${m.user.username} · ${m.owner ? 'Owner' : m.status.toLowerCase()}',
-                  ),
-                  trailing: m.status != 'ACCEPTED' || m.user.id == me
-                      ? null
-                      : PopupMenuButton<String>(
-                          onSelected: (action) async {
-                            if (action == 'pay') {
-                              await _payment(m.user);
-                            } else {
-                              await _run(
-                                () => controller.api.transferGroup(
-                                  widget.group.id,
-                                  m.user.id,
-                                ),
-                              );
-                            }
-                          },
-                          itemBuilder: (_) => [
-                            if (!archived)
-                              const PopupMenuItem(
-                                value: 'pay',
-                                child: Text('Record payment'),
-                              ),
+            if (_busy)
+              const PagePad(LinearProgressIndicator(minHeight: 2), top: 4),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+                  children: [
+                    if (_error != null)
+                      PagePad(
+                        EmptyCard(
+                          message: _error!,
+                          action: 'Retry',
+                          onAction: _load,
+                        ),
+                        top: 4,
+                      ),
+                    if (detail == null && _error == null)
+                      const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    if (detail != null) ...[
+                      PagePad(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
                             if (owner)
-                              const PopupMenuItem(
-                                value: 'owner',
-                                child: Text('Make group owner'),
+                              Pill(
+                                'Invite member',
+                                onTap: _busy || archived ? null : _invite,
+                              ),
+                            if (!owner)
+                              Pill(
+                                'Leave group',
+                                color: colors.muted,
+                                onTap: _busy ? null : _leave,
                               ),
                           ],
                         ),
-                ),
-              const SectionLabel('Expenses'),
-              if (_expenses.isEmpty)
-                const Text('Add the first expense for this trip.'),
-              for (final e in _expenses)
-                ExpenseTile(
-                  expense: e,
-                  meId: me,
-                  onTap: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ChangeNotifierProvider.value(
-                          value: controller,
-                          child: ExpenseDetailScreen(expense: e),
+                        top: 4,
+                      ),
+                      if (archived)
+                        const PagePad(
+                          StatusCard(
+                            caption: 'Archived trip',
+                            title: 'Ledger preserved',
+                            subtitle:
+                                'The ledger is preserved. Pending payments can still be confirmed or rejected. The owner can reopen this trip.',
+                            leading: IconWell(Icons.inventory_2_outlined),
+                          ),
+                          top: 14,
+                        ),
+                      const SizedBox(height: 24),
+                      const SectionHeader(title: 'Group balances'),
+                      const PagePad(
+                        FinanceNote(
+                          'Positive: owed to this person. Negative: this person owes the group. Currencies stay separate.',
                         ),
                       ),
-                    );
-                    if (mounted) await _load();
-                  },
-                ),
-              if (!_last)
-                TextButton(
-                  onPressed: _busy ? null : _more,
-                  child: const Text('Load more expenses'),
-                ),
-              const SectionLabel('Payments'),
-              const Text(
-                'Recorded payments change balances only after the other participant confirms.',
-              ),
-              for (final s in _payments)
-                PaymentTile(
-                  settlement: s,
-                  busy: _busy,
-                  onDelete: s.editable
-                      ? () => _run(() => controller.deleteSettlement(s))
-                      : null,
-                  onDecision: s.confirmable
-                      ? (yes) => _run(
-                          () =>
-                              controller.decideSettlement(s.id, confirmed: yes),
+                      PagePad(
+                        GlassList(
+                          children: [
+                            if (detail.balances.isEmpty)
+                              const GlassRow(
+                                leading: IconWell(Icons.check_rounded),
+                                title: 'All settled up',
+                              ),
+                            for (final b in detail.balances)
+                              GlassRow(
+                                title: names[b.userId] ?? 'Former member',
+                                trailing: Text(
+                                  b.amount.display(currencyCode: b.currency),
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    fontFeatures: BlistraText.tabular,
+                                    color: b.amount.isZero
+                                        ? colors.muted
+                                        : b.amount.isNegative
+                                        ? oweTone(colors)
+                                        : owedTone(colors),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const SectionHeader(title: 'Members'),
+                      PagePad(
+                        GlassList(
+                          children: [
+                            for (final m in detail.members)
+                              GlassRow(
+                                leading: UserAvatar(m.user),
+                                title: m.user.displayName,
+                                subtitle:
+                                    '@${m.user.username} · ${m.owner ? 'Owner' : m.status.toLowerCase()}',
+                                trailing:
+                                    m.status != 'ACCEPTED' || m.user.id == me
+                                    ? null
+                                    : PopupMenuButton<String>(
+                                        tooltip: 'Member actions',
+                                        icon: Icon(
+                                          Icons.more_horiz,
+                                          color: colors.muted,
+                                        ),
+                                        onSelected: (action) async {
+                                          if (action == 'pay') {
+                                            await _payment(m.user);
+                                          } else {
+                                            await _run(
+                                              () => controller.api
+                                                  .transferGroup(
+                                                    widget.group.id,
+                                                    m.user.id,
+                                                  ),
+                                            );
+                                          }
+                                        },
+                                        itemBuilder: (_) => [
+                                          if (!archived)
+                                            const PopupMenuItem(
+                                              value: 'pay',
+                                              child: Text('Record payment'),
+                                            ),
+                                          if (owner)
+                                            const PopupMenuItem(
+                                              value: 'owner',
+                                              child: Text('Make group owner'),
+                                            ),
+                                        ],
+                                      ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const SectionHeader(title: 'Expenses'),
+                      if (_expenses.isEmpty)
+                        const PagePad(
+                          EmptyCard(
+                            message: 'Add the first expense for this trip.',
+                          ),
                         )
-                      : null,
+                      else
+                        PagePad(
+                          GlassList(
+                            children: [
+                              for (final e in _expenses)
+                                ExpenseTile(
+                                  expense: e,
+                                  meId: me,
+                                  showDate: true,
+                                  onTap: () async {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            ChangeNotifierProvider.value(
+                                              value: controller,
+                                              child: ExpenseDetailScreen(
+                                                expense: e,
+                                              ),
+                                            ),
+                                      ),
+                                    );
+                                    if (mounted) await _load();
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
+                      if (!_last)
+                        Center(
+                          child: TextButton(
+                            onPressed: _busy ? null : _more,
+                            child: const Text('Load more expenses'),
+                          ),
+                        ),
+                      const SizedBox(height: 24),
+                      const SectionHeader(title: 'Payments'),
+                      const PagePad(
+                        FinanceNote(
+                          'Recorded payments change balances only after the other participant confirms.',
+                        ),
+                      ),
+                      if (_payments.isNotEmpty)
+                        PagePad(
+                          GlassList(
+                            children: [
+                              for (final s in _payments)
+                                PaymentTile(
+                                  settlement: s,
+                                  busy: _busy,
+                                  onDelete: s.editable
+                                      ? () => _run(
+                                          () => controller.deleteSettlement(s),
+                                        )
+                                      : null,
+                                  onDecision: s.confirmable
+                                      ? (yes) => _run(
+                                          () => controller.decideSettlement(
+                                            s.id,
+                                            confirmed: yes,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                            ],
+                          ),
+                        ),
+                      if (_morePayments)
+                        Center(
+                          child: TextButton(
+                            onPressed: _busy
+                                ? null
+                                : () => _moreLedger(payments: true),
+                            child: const Text('Load more payments'),
+                          ),
+                        ),
+                      const SizedBox(height: 24),
+                      const SectionHeader(title: 'Change history'),
+                      PagePad(
+                        FinanceHistoryList(
+                          entries: _history,
+                          meId: me,
+                          names: names,
+                        ),
+                      ),
+                      if (_moreHistory)
+                        Center(
+                          child: TextButton(
+                            onPressed: _busy
+                                ? null
+                                : () => _moreLedger(payments: false),
+                            child: const Text('Load more changes'),
+                          ),
+                        ),
+                    ],
+                  ],
                 ),
-              if (_morePayments)
-                TextButton(
-                  onPressed: _busy ? null : () => _moreLedger(payments: true),
-                  child: const Text('Load more payments'),
-                ),
-              const SectionLabel('Change history'),
-              FinanceHistoryList(entries: _history, meId: me, names: names),
-              if (_moreHistory)
-                TextButton(
-                  onPressed: _busy ? null : () => _moreLedger(payments: false),
-                  child: const Text('Load more changes'),
-                ),
-            ],
+              ),
+            ),
           ],
         ),
       ),
@@ -600,59 +764,96 @@ class FinanceHistoryList extends StatelessWidget {
       : names[id] ??
             'Participant ${id.toString().substring(0, id.toString().length.clamp(0, 8))}';
 
-  Widget _snapshot(String label, Map<String, dynamic>? state) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-        if (state == null)
-          const Text('No record')
-        else ...[
-          Text('${state['currency']} ${state['amount']}'),
-          if (state['spentOn'] != null) Text('Date: ${state['spentOn']}'),
-          if (state['paidBy'] != null)
-            Text('Paid by: ${_name(state['paidBy'])}'),
-          if (state['splitType'] != null) Text('Split: ${state['splitType']}'),
-          if (state['payerId'] != null)
-            Text('${_name(state['payerId'])} paid ${_name(state['payeeId'])}'),
-          if (state['status'] != null) Text('Status: ${state['status']}'),
-          for (final share in state['shares'] as List? ?? const [])
-            Text(
-              '${_name(share['userId'])}: ${state['currency']} ${share['amount']}',
-            ),
-        ],
-      ],
-    ),
-  );
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      if (entries.isEmpty)
-        const ListTile(title: Text('No changes recorded yet.')),
-      for (final h in entries)
-        ExpansionTile(
-          title: Text('${h['entityType']} · ${h['action']}'),
-          subtitle: Text(
-            '${h['actorId'] == meId ? 'You' : h['actorName'] ?? 'Participant'} · ${h['recordedAt']}\n'
-            '${_amountSummary(h)}',
-          ),
-          children: [
-            if (h['beforeState'] == null && h['afterState'] == null)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Split details were not recorded for this older change.',
-                ),
-              )
-            else ...[
-              _snapshot('Before', _state(h['beforeState'])),
-              _snapshot('After', _state(h['afterState'])),
-            ],
+  Widget _snapshot(
+    BlistraColors colors,
+    String label,
+    Map<String, dynamic>? state,
+  ) {
+    final line = TextStyle(fontSize: 12, height: 1.45, color: colors.text);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(15, 2, 15, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: BlistraText.caption(colors.muted)),
+          const SizedBox(height: 3),
+          if (state == null)
+            Text('No record', style: line)
+          else ...[
+            Text('${state['currency']} ${state['amount']}', style: line),
+            if (state['spentOn'] != null)
+              Text('Date: ${state['spentOn']}', style: line),
+            if (state['paidBy'] != null)
+              Text('Paid by: ${_name(state['paidBy'])}', style: line),
+            if (state['splitType'] != null)
+              Text('Split: ${state['splitType']}', style: line),
+            if (state['payerId'] != null)
+              Text(
+                '${_name(state['payerId'])} paid ${_name(state['payeeId'])}',
+                style: line,
+              ),
+            if (state['status'] != null)
+              Text('Status: ${state['status']}', style: line),
+            for (final share in state['shares'] as List? ?? const [])
+              Text(
+                '${_name(share['userId'])}: ${state['currency']} ${share['amount']}',
+                style: line,
+              ),
           ],
-        ),
-    ],
-  );
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    if (entries.isEmpty) {
+      return const EmptyCard(message: 'No changes recorded yet.');
+    }
+    return GlassList(
+      children: [
+        for (final h in entries)
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 15),
+              childrenPadding: EdgeInsets.zero,
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              iconColor: colors.muted,
+              collapsedIconColor: colors.muted,
+              title: Text(
+                '${h['entityType']} · ${h['action']}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.text,
+                ),
+              ),
+              subtitle: Text(
+                '${h['actorId'] == meId ? 'You' : h['actorName'] ?? 'Participant'} · ${h['recordedAt']}\n'
+                '${_amountSummary(h)}',
+                style: TextStyle(fontSize: 11, color: colors.muted),
+              ),
+              children: [
+                if (h['beforeState'] == null && h['afterState'] == null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(15, 0, 15, 12),
+                    child: Text(
+                      'Split details were not recorded for this older change.',
+                      style: TextStyle(fontSize: 12, color: colors.muted),
+                    ),
+                  )
+                else ...[
+                  _snapshot(colors, 'Before', _state(h['beforeState'])),
+                  _snapshot(colors, 'After', _state(h['afterState'])),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 Future<String?> _ask(BuildContext context, String title, String label) async {

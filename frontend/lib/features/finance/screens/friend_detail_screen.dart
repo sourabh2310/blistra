@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/page_header.dart';
 import '../finance_controller.dart';
@@ -179,10 +181,27 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
+      bottomNavigationBar: detail == null
+          ? null
+          : StickyActionBar(
+              label: 'Settle up',
+              onPressed: detail.friend.settled ? null : _settle,
+              secondary: detail.friend.isFriend
+                  ? OutlinedButton.icon(
+                      onPressed: () => _push(
+                        ExpenseFormScreen(withFriend: detail.friend.user),
+                      ),
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add expense'),
+                    )
+                  : null,
+            ),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             BlistraPageHeader(
+              eyebrow: 'Friend',
               title: user?.displayName ?? 'Friend',
               subtitle: user == null ? null : '@${user.username}',
               showAvatar: false,
@@ -220,94 +239,72 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                   : RefreshIndicator(
                       onRefresh: _load,
                       child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                        padding: const EdgeInsets.fromLTRB(0, 10, 0, 24),
                         children: [
-                          GlassCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    UserAvatar(detail.friend.user, size: 52),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Text(
-                                        balanceSentence(detail.friend.balances),
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
-                                          color: balanceColor(
-                                            detail.friend.balances,
-                                            colors,
+                          PagePad(
+                            GlassCard(
+                              padding: const EdgeInsets.all(15),
+                              child: Row(
+                                children: [
+                                  UserAvatar(detail.friend.user, size: 48),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'BALANCE',
+                                          style: BlistraText.caption(
+                                            colors.muted,
                                           ),
                                         ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (!detail.friend.isFriend) ...[
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    'Not friends any more — you can still settle up.',
-                                    style: TextStyle(
-                                      color: colors.muted,
-                                      fontSize: 12.5,
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          balanceSentence(
+                                            detail.friend.balances,
+                                          ),
+                                          style: BlistraText.serif(
+                                            19,
+                                            balanceColor(
+                                              detail.friend.balances,
+                                              colors,
+                                            ),
+                                          ),
+                                        ),
+                                        if (!detail.friend.isFriend) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Not friends any more — you can still settle up.',
+                                            style: TextStyle(
+                                              color: colors.muted,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: FilledButton.icon(
-                                        onPressed: detail.friend.settled
-                                            ? null
-                                            : _settle,
-                                        icon: const Icon(
-                                          Icons.handshake_rounded,
-                                        ),
-                                        label: const Text('Settle up'),
-                                      ),
-                                    ),
-                                    if (detail.friend.isFriend) ...[
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          onPressed: () => _push(
-                                            ExpenseFormScreen(
-                                              withFriend: detail.friend.user,
-                                            ),
-                                          ),
-                                          icon: const Icon(Icons.add_rounded),
-                                          label: const Text('Add expense'),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ],
+                              ),
                             ),
                           ),
-                          const SectionLabel('History'),
+                          const SizedBox(height: 24),
+                          const SectionHeader(title: 'History'),
                           if (items.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Text(
-                                'No shared expenses yet.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: colors.muted),
-                              ),
+                            const PagePad(
+                              EmptyCard(message: 'No shared expenses yet.'),
                             )
                           else
-                            GlassCard(
-                              padding: const EdgeInsets.all(6),
-                              child: Column(
+                            PagePad(
+                              GlassList(
                                 children: [
                                   for (final (_, item) in items)
                                     if (item is Expense)
                                       ExpenseTile(
                                         expense: item,
                                         meId: meId,
+                                        showDate: true,
                                         onTap: () => _push(
                                           ExpenseDetailScreen(expense: item),
                                         ),
@@ -326,12 +323,17 @@ class _FriendDetailScreenState extends State<FriendDetailScreen> {
                                 ],
                               ),
                             ),
-                          const SectionLabel('Change history'),
-                          FinanceHistoryList(entries: _history, meId: meId),
+                          const SizedBox(height: 24),
+                          const SectionHeader(title: 'Change history'),
+                          PagePad(
+                            FinanceHistoryList(entries: _history, meId: meId),
+                          ),
                           if (_moreHistory)
-                            TextButton(
-                              onPressed: _busy ? null : _loadMoreHistory,
-                              child: const Text('Load more changes'),
+                            Center(
+                              child: TextButton(
+                                onPressed: _busy ? null : _loadMoreHistory,
+                                child: const Text('Load more changes'),
+                              ),
                             ),
                         ],
                       ),

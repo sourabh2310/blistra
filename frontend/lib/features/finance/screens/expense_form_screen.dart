@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/money/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/page_header.dart';
 import '../finance_api.dart';
@@ -318,177 +319,159 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
               .map((u) => Friend(user: u, isFriend: true, balances: const []))
               .toList();
     final problem = _splitProblem(me);
+    final editing = widget.existing != null;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
+      bottomNavigationBar: StickyActionBar(
+        key: const Key('expense-save'),
+        label: editing ? 'Save changes' : 'Save expense',
+        busy: _saving,
+        onPressed: _save,
+      ),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             BlistraPageHeader(
-              title: widget.existing == null ? 'Add expense' : 'Edit expense',
+              eyebrow: editing ? 'Edit expense' : 'New expense',
+              title: editing ? 'Change this expense' : 'What did you spend?',
               showAvatar: false,
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                padding: const EdgeInsets.fromLTRB(
+                  kPageGutter,
+                  10,
+                  kPageGutter,
+                  24,
+                ),
                 children: [
-                  GlassCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                  AmountField(
+                    label: 'Amount',
+                    inputKey: const Key('expense-amount'),
+                    controller: _amount,
+                    currency: _currency,
+                    large: true,
+                    autofocus: !editing,
+                    onChanged: (_) => setState(() {}),
+                    currencyPicker: CurrencyPicker(
+                      value: _currency,
+                      options: {
+                        ...FinanceController.commonCurrencies,
+                        _currency,
+                      },
+                      onChanged: (c) => setState(() => _currency = c),
+                    ),
+                  ),
+                  _TextFieldCard(
+                    label: 'What was it for?',
+                    fieldKey: const Key('expense-description'),
+                    controller: _description,
+                    hint: 'Dinner, cab, groceries…',
+                    maxLength: 255,
+                    capitalization: TextCapitalization.sentences,
+                  ),
+                  FieldCard(
+                    label: 'Date',
+                    onTap: _pickDate,
+                    child: Row(
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            DropdownButton<String>(
-                              value: _currency,
-                              underline: const SizedBox.shrink(),
-                              items: [
-                                for (final c in {
-                                  ...FinanceController.commonCurrencies,
-                                  _currency,
-                                })
-                                  DropdownMenuItem(value: c, child: Text(c)),
-                              ],
-                              onChanged: (c) => c == null
-                                  ? null
-                                  : setState(() => _currency = c),
+                        Expanded(
+                          child: Text(
+                            '${dayLabel(_date)} · ${DateFormat('EEEE, d MMMM yyyy').format(_date)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(
+                          Icons.event_rounded,
+                          size: 18,
+                          color: colors.muted,
+                        ),
+                      ],
+                    ),
+                  ),
+                  FieldCard(
+                    label: 'Category',
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final c in ExpenseCategory.values)
+                            _CategoryChip(
+                              category: c,
+                              selected: _category == c,
+                              onTap: () => setState(() => _category = c),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                key: const Key('expense-amount'),
-                                controller: _amount,
-                                autofocus: widget.existing == null,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                inputFormatters: amountFormatters,
-                                style: TextStyle(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w700,
-                                  color: colors.text,
-                                ),
-                                decoration: const InputDecoration(
-                                  hintText: '0',
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  filled: false,
-                                ),
-                                onChanged: (_) => setState(() {}),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: GlassCard(
+                      radius: 16,
+                      padding: const EdgeInsets.fromLTRB(14, 2, 8, 2),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              widget.groupId == null
+                                  ? 'Split with friends'
+                                  : 'Split with group members',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: colors.text,
                               ),
                             ),
-                          ],
-                        ),
-                        TextField(
-                          key: const Key('expense-description'),
-                          controller: _description,
-                          textCapitalization: TextCapitalization.sentences,
-                          maxLength: 255,
-                          decoration: const InputDecoration(
-                            labelText: 'What was it for?',
-                            hintText: 'Dinner, cab, groceries…',
-                            counterText: '',
+                            subtitle: Text(
+                              _split
+                                  ? 'Shared cost'
+                                  : 'Personal expense — only you',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: colors.muted,
+                              ),
+                            ),
+                            value: _split,
+                            onChanged: (v) => setState(() => _split = v),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SectionLabel('Category'),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final c in ExpenseCategory.values)
-                        ChoiceChip(
-                          avatar: Icon(c.icon, size: 18, color: c.color),
-                          label: Text(c.label),
-                          selected: _category == c,
-                          onSelected: (_) => setState(() => _category = c),
-                        ),
-                    ],
-                  ),
-                  const SectionLabel('Date'),
-                  GlassCard(
-                    padding: EdgeInsets.zero,
-                    onTap: _pickDate,
-                    child: ListTile(
-                      leading: const Icon(Icons.event_rounded),
-                      title: Text(dayLabel(_date)),
-                      subtitle: Text(
-                        DateFormat('EEEE, d MMMM yyyy').format(_date),
+                          if (_split)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                right: 6,
+                                bottom: 12,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: _splitSection(
+                                  context,
+                                  colors,
+                                  me,
+                                  accepted,
+                                  problem,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      trailing: const Icon(Icons.chevron_right_rounded),
                     ),
                   ),
-                  const SectionLabel('Split'),
-                  GlassCard(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(widget.groupId == null ? 'Split with friends' : 'Split with group members'),
-                          subtitle: Text(
-                            _split
-                                ? 'Shared cost'
-                                : 'Personal expense — only you',
-                          ),
-                          value: _split,
-                          onChanged: (v) => setState(() => _split = v),
-                        ),
-                        if (_split)
-                          ..._splitSection(
-                            context,
-                            colors,
-                            me,
-                            accepted,
-                            problem,
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SectionLabel('Notes'),
-                  TextField(
+                  _TextFieldCard(
+                    label: 'Notes',
                     controller: _notes,
-                    maxLines: 3,
-                    minLines: 1,
+                    hint: 'Optional',
                     maxLength: 1000,
-                    decoration: const InputDecoration(
-                      hintText: 'Optional',
-                      counterText: '',
-                    ),
+                    minLines: 2,
+                    maxLines: 4,
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _error!,
-                      style: const TextStyle(
-                        color: oweColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
-                    key: const Key('expense-save'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                    ),
-                    onPressed: _saving ? null : _save,
-                    icon: _saving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.check_rounded),
-                    label: Text(
-                      widget.existing == null ? 'Save expense' : 'Save changes',
-                    ),
-                  ),
+                  if (_error != null) FinanceError(_error!),
                 ],
               ),
             ),
@@ -511,11 +494,12 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
           widget.groupId == null
               ? 'Add friends by username in the Friends tab to split costs with them.'
               : 'Invite a member and wait for them to join this group before splitting an expense.',
-          style: TextStyle(color: colors.muted),
+          style: TextStyle(fontSize: 12, color: colors.muted),
         ),
       ];
     }
     final people = _participants(me);
+    final caption = BlistraText.caption(colors.muted);
     return [
       Wrap(
         spacing: 8,
@@ -542,46 +526,55 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
         contentPadding: EdgeInsets.zero,
         value: _includeMe,
         onChanged: (v) => setState(() => _includeMe = v ?? true),
-        title: const Text('Include me in the split'),
+        title: Text(
+          'Include me in the split',
+          style: TextStyle(fontSize: 13.5, color: colors.text),
+        ),
         subtitle: _includeMe
             ? null
-            : const Text('You paid on their behalf; they owe it all'),
+            : Text(
+                'You paid on their behalf; they owe it all',
+                style: TextStyle(fontSize: 11.5, color: colors.muted),
+              ),
         controlAffinity: ListTileControlAffinity.leading,
       ),
-      DropdownButtonFormField<String?>(
-        key: ValueKey('paid-${_friends.length}'),
-        initialValue: _paidBy,
-        decoration: const InputDecoration(labelText: 'Paid by'),
-        items: [
-          const DropdownMenuItem(value: null, child: Text('You')),
-          for (final f in _friends)
-            DropdownMenuItem(value: f.id, child: Text(f.displayName)),
-        ],
-        onChanged: (v) => setState(() => _paidBy = v),
-      ),
-      const SizedBox(height: 12),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SegmentedButton<SplitType>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(value: SplitType.equal, label: Text('Equal')),
-            ButtonSegment(value: SplitType.exact, label: Text('Exact')),
-            ButtonSegment(value: SplitType.percent, label: Text('%')),
-            ButtonSegment(value: SplitType.shares, label: Text('Shares')),
+      Text('PAID BY', style: caption),
+      DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          key: ValueKey('paid-${_friends.length}'),
+          value: _paidBy,
+          isExpanded: true,
+          style: TextStyle(fontSize: 14, color: colors.text),
+          dropdownColor: colors.sheet,
+          items: [
+            const DropdownMenuItem(value: null, child: Text('You')),
+            for (final f in _friends)
+              DropdownMenuItem(value: f.id, child: Text(f.displayName)),
           ],
-          selected: {_type},
-          onSelectionChanged: (s) => setState(() {
-            _type = s.first;
-            if (_type == SplitType.shares) {
-              for (final p in people) {
-                if (_valueFor(p.id).text.trim().isEmpty) {
-                  _valueFor(p.id).text = '1';
-                }
+          onChanged: (v) => setState(() => _paidBy = v),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text('SPLIT', style: caption),
+      const SizedBox(height: 6),
+      GlassSegmented<SplitType>(
+        options: const [
+          (SplitType.equal, 'Equal'),
+          (SplitType.exact, 'Exact'),
+          (SplitType.percent, '%'),
+          (SplitType.shares, 'Shares'),
+        ],
+        selected: _type,
+        onChanged: (t) => setState(() {
+          _type = t;
+          if (_type == SplitType.shares) {
+            for (final p in people) {
+              if (_valueFor(p.id).text.trim().isEmpty) {
+                _valueFor(p.id).text = '1';
               }
             }
-          }),
-        ),
+          }
+        }),
       ),
       const SizedBox(height: 8),
       for (final p in people)
@@ -589,20 +582,28 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             children: [
-              UserAvatar(p, size: 32),
+              UserAvatar(p, size: 30),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   p.id == me?.id ? 'You' : p.displayName,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
+                    fontSize: 13.5,
                     color: colors.text,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
               if (_type == SplitType.equal)
-                Text(_preview(p, me), style: TextStyle(color: colors.muted))
+                Text(
+                  _preview(p, me),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontFeatures: BlistraText.tabular,
+                    color: colors.muted,
+                  ),
+                )
               else ...[
                 if (_type != SplitType.exact)
                   Padding(
@@ -612,8 +613,13 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                       style: TextStyle(color: colors.muted, fontSize: 12),
                     ),
                   ),
-                SizedBox(
+                Container(
                   width: 96,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: colors.inkAt(0.06),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: TextField(
                     controller: _valueFor(p.id),
                     textAlign: TextAlign.end,
@@ -621,8 +627,14 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                       decimal: true,
                     ),
                     inputFormatters: amountFormatters,
+                    style: TextStyle(fontSize: 13.5, color: colors.text),
                     decoration: InputDecoration(
                       isDense: true,
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
                       prefixText: _type == SplitType.exact
                           ? '$_currency '
                           : null,
@@ -644,10 +656,116 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
           padding: const EdgeInsets.only(top: 6),
           child: Text(
             problem,
-            style: const TextStyle(color: oweColor, fontSize: 12.5),
+            style: TextStyle(color: colors.danger, fontSize: 12),
           ),
         ),
     ];
+  }
+}
+
+/// Borderless text input in a [FieldCard] with a length limit.
+class _TextFieldCard extends StatelessWidget {
+  const _TextFieldCard({
+    required this.label,
+    required this.controller,
+    required this.maxLength,
+    this.fieldKey,
+    this.hint,
+    this.capitalization = TextCapitalization.none,
+    this.minLines = 1,
+    this.maxLines = 1,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final int maxLength;
+  final Key? fieldKey;
+  final String? hint;
+  final TextCapitalization capitalization;
+  final int minLines;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return FieldCard(
+      label: label,
+      child: TextField(
+        key: fieldKey,
+        controller: controller,
+        textCapitalization: capitalization,
+        maxLength: maxLength,
+        minLines: minLines,
+        maxLines: maxLines,
+        style: TextStyle(fontSize: 14, color: colors.text),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(fontSize: 14, color: colors.muted),
+          counterText: '',
+          isDense: true,
+          filled: false,
+          contentPadding: EdgeInsets.zero,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+        ),
+      ),
+    );
+  }
+}
+
+/// Small selectable category chip for the form.
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.category,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ExpenseCategory category;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    final tone = selected ? colors.accentText : colors.muted;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: category.label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected ? colors.accentSoft : colors.inkAt(0.05),
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(
+              color: selected
+                  ? colors.accentText.withValues(alpha: 0.45)
+                  : colors.inkAt(0.08),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(category.icon, size: 14, color: tone),
+              const SizedBox(width: 5),
+              Text(
+                category.label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: tone,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

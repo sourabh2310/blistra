@@ -181,7 +181,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        find.text('GROUP BALANCES'),
+        find.text('Group balances'),
         findsOneWidget,
         reason: tester
             .widgetList<Text>(find.byType(Text))
