@@ -4,6 +4,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:frontend/features/documents/models/document.dart';
 import 'package:frontend/features/documents/providers/documents_provider.dart';
 
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/blistra_ui.dart';
+import '../../core/widgets/glass.dart';
+import '../../core/widgets/page_header.dart';
+import 'widgets/document_visuals.dart';
+
+/// Upload form (form template): file, category chips, description, and
+/// Upload pinned at the bottom.
 class UploadDocumentPage extends StatefulWidget {
   const UploadDocumentPage({super.key});
 
@@ -18,10 +26,10 @@ class _UploadDocumentPageState extends State<UploadDocumentPage> {
   PlatformFile? _selectedFile;
   DocumentCategory _selectedCategory = DocumentCategory.other;
   bool _isUploading = false;
-  double _progress = 0.0;
   String? _error;
 
   static const _maxFileSize = 10 * 1024 * 1024; // 10 MB
+  static const _maxDescription = 1000;
   static const _allowedExtensions = {'pdf', 'jpg', 'jpeg', 'png'};
 
   @override
@@ -74,7 +82,6 @@ class _UploadDocumentPageState extends State<UploadDocumentPage> {
 
     setState(() {
       _isUploading = true;
-      _progress = 0.0;
       _error = null;
     });
 
@@ -113,159 +120,120 @@ class _UploadDocumentPageState extends State<UploadDocumentPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colors = BlistraColors.resolve(context);
+    final progress = context.watch<DocumentsProvider>().uploadProgress;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Document'),
-        leading: _isUploading
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // File selection
-              _FileSelectionCard(
-                file: _selectedFile,
-                onPick: _pickFile,
-                onClear: () => setState(() => _selectedFile = null),
-              ),
-              const SizedBox(height: 16),
-
-              // Category dropdown
-              DropdownButtonFormField<DocumentCategory>(
-                initialValue: _selectedCategory,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  prefixIcon: Icon(Icons.category_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                items: DocumentCategory.values
-                    .map(
-                      (cat) =>
-                          DropdownMenuItem(value: cat, child: Text(cat.label)),
-                    )
-                    .toList(),
-                onChanged: (val) => setState(() => _selectedCategory = val!),
-              ),
-              const SizedBox(height: 16),
-
-              // Description
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
-                  prefixIcon: Icon(Icons.description_outlined),
-                  border: OutlineInputBorder(),
-                  hintText: 'Add a note about this document...',
-                ),
-                maxLines: 3,
-                maxLength: 1000,
-              ),
-              const SizedBox(height: 24),
-
-              // Error display
-              if (_error != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _error!,
-                    style: TextStyle(color: colorScheme.onErrorContainer),
-                  ),
+    return PopScope(
+      canPop: !_isUploading,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          bottom: false,
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                const BlistraPageHeader(
+                  eyebrow: 'Add Document',
+                  title: 'What are you adding?',
+                  subtitle: 'PDF, JPEG or PNG · up to 10 MB',
+                  showAvatar: false,
                 ),
                 const SizedBox(height: 16),
-              ],
-
-              // Upload progress
-              if (_isUploading) ...[
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Uploading... ${(_progress * 100).toStringAsFixed(0)}%',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                      value: _progress,
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                      valueColor: AlwaysStoppedAnimation(colorScheme.primary),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ],
-
-              // Action buttons
-              if (!_isUploading) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _pickFile,
-                        icon: const Icon(Icons.attach_file),
-                        label: _selectedFile == null
-                            ? const Text('Choose File')
-                            : Text('Change (${_selectedFile!.name})'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                PagePad(_FileField(
+                  file: _selectedFile,
+                  onPick: _isUploading ? null : _pickFile,
+                  onClear: _isUploading
+                      ? null
+                      : () => setState(() => _selectedFile = null),
+                )),
+                PagePad(Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 8),
+                  child: Text(
+                    'CATEGORY',
+                    style: BlistraText.caption(colors.muted),
+                  ),
+                )),
+                PagePad(CategoryChips(
+                  selected: _selectedCategory,
+                  onSelected: _isUploading
+                      ? null
+                      : (c) => setState(() => _selectedCategory = c),
+                )),
+                const SizedBox(height: 14),
+                PagePad(GlassTextField(
+                  label: 'Description (optional)',
+                  controller: _descriptionController,
+                  hint: 'Add a note about this document...',
+                  maxLines: 3,
+                  enabled: !_isUploading,
+                  validator: (v) => (v?.length ?? 0) > _maxDescription
+                      ? 'Keep it under $_maxDescription characters'
+                      : null,
+                )),
+                if (_error != null)
+                  PagePad(GlassCard(
+                    radius: 16,
+                    padding: const EdgeInsets.all(14),
+                    tint: colors.danger,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline_rounded,
+                          size: 18,
+                          color: colors.danger,
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _selectedFile == null ? null : _upload,
-                        icon: const Icon(Icons.cloud_upload),
-                        label: const Text('Upload'),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: TextStyle(fontSize: 12.5, color: colors.text),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  )),
+                if (_isUploading)
+                  PagePad(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Uploading... ${(progress * 100).toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: colors.accentText,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ProgressLine(value: progress),
+                      ],
+                    ),
+                    top: 14,
+                  ),
               ],
-
-              // Help text
-              const SizedBox(height: 24),
-              Text(
-                'Supported formats: PDF, JPEG, PNG\nMaximum size: 10 MB',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+            ),
           ),
+        ),
+        bottomNavigationBar: StickyActionBar(
+          label: 'Upload',
+          busy: _isUploading,
+          onPressed: _selectedFile == null ? null : _upload,
         ),
       ),
     );
   }
 }
 
-class _FileSelectionCard extends StatelessWidget {
+/// Glass file field: a prompt to pick, or the chosen file with a clear button.
+class _FileField extends StatelessWidget {
   final PlatformFile? file;
-  final VoidCallback onPick;
-  final VoidCallback onClear;
+  final VoidCallback? onPick;
+  final VoidCallback? onClear;
 
-  const _FileSelectionCard({
+  const _FileField({
     required this.file,
     required this.onPick,
     required this.onClear,
@@ -273,41 +241,37 @@ class _FileSelectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colors = BlistraColors.resolve(context);
+    final picked = file;
 
-    if (file == null) {
-      return InkWell(
+    if (picked == null) {
+      return FieldCard(
+        label: 'File',
         onTap: onPick,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: colorScheme.outline,
-              style: BorderStyle.solid,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
             children: [
-              Icon(
-                Icons.cloud_upload_outlined,
-                size: 48,
-                color: colorScheme.primary,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Tap to select a document',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'PDF, JPEG, PNG • Max 10 MB',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+              IconWell(Icons.upload_file_rounded, color: colors.accentText),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tap to select a document',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colors.accentText,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'PDF, JPEG, PNG • Max 10 MB',
+                      style: TextStyle(fontSize: 11, color: colors.muted),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -316,62 +280,53 @@ class _FileSelectionCard extends StatelessWidget {
       );
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: _fileIcon(file!),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    file!.name,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+    return FieldCard(
+      label: 'File',
+      onTap: onPick,
+      child: Row(
+        children: [
+          IconWell(_fileIcon(picked), color: colors.accentText),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  picked.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: colors.text,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _formatSize(file!.size),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_formatSize(picked.size)} · tap to change',
+                  style: TextStyle(fontSize: 11, color: colors.muted),
+                ),
+              ],
             ),
-            IconButton(
-              icon: Icon(Icons.close, color: colorScheme.error),
-              onPressed: onClear,
-              tooltip: 'Remove file',
-            ),
-          ],
-        ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close_rounded, color: colors.danger),
+            onPressed: onClear,
+            tooltip: 'Remove file',
+          ),
+        ],
       ),
     );
   }
 
-  Widget _fileIcon(PlatformFile file) {
+  IconData _fileIcon(PlatformFile file) {
     final ext = file.extension?.toLowerCase() ?? '';
     if (ext == 'pdf') {
-      return const Icon(Icons.picture_as_pdf, size: 24);
+      return Icons.picture_as_pdf_outlined;
     } else if (['jpg', 'jpeg', 'png'].contains(ext)) {
-      return const Icon(Icons.image, size: 24);
+      return Icons.image_outlined;
     }
-    return const Icon(Icons.insert_drive_file, size: 24);
+    return Icons.insert_drive_file_outlined;
   }
 
   String _formatSize(int bytes) {

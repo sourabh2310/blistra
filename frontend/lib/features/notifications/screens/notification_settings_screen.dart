@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/page_header.dart';
+import '../models/reminder_type.dart';
 import '../state/settings_controller.dart';
+import 'reminder_visuals.dart';
 
 /// Notification delivery settings backed by the backend preferences endpoint.
 class NotificationSettingsScreen extends StatefulWidget {
@@ -28,116 +35,143 @@ class _NotificationSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
     final controller = context.watch<SettingsController>();
     final preferences = controller.preferences;
+    // Callers may wrap this in a Scaffold with its own AppBar.
+    final hasAppBar = Scaffold.maybeOf(context)?.hasAppBar ?? false;
+
+    void set(Future<void> Function() change) =>
+        change().then((_) => widget.onRefresh());
 
     return RefreshIndicator(
       onRefresh: _load,
-      child: controller.loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Reminders use this device and may be delayed by battery settings. '
-                    'The next 60 alerts are scheduled; medicine alerts cover the next 7 days. '
-                    'Open Blistra regularly to refresh them.',
-                  ),
-                ),
-                SwitchListTile(
-                  title: const Text('Enable notifications'),
-                  subtitle: const Text(
-                    'Master switch for all reminder delivery',
-                  ),
-                  value: preferences.enabled,
-                  onChanged: (value) {
-                    controller
-                        .update(enabled: value)
-                        .then((_) => widget.onRefresh());
-                  },
-                ),
-                const Divider(),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Text(
-                    'Categories',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                SwitchListTile(
-                  title: const Text('Medicine'),
-                  value: preferences.medicineEnabled,
-                  onChanged: (value) {
-                    controller
-                        .update(medicineEnabled: value)
-                        .then((_) => widget.onRefresh());
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Habits'),
-                  value: preferences.habitEnabled,
-                  onChanged: (value) {
-                    controller
-                        .update(habitEnabled: value)
-                        .then((_) => widget.onRefresh());
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Planner'),
-                  value: preferences.plannerEnabled,
-                  onChanged: (value) {
-                    controller
-                        .update(plannerEnabled: value)
-                        .then((_) => widget.onRefresh());
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Health'),
-                  value: preferences.healthEnabled,
-                  onChanged: (value) {
-                    controller
-                        .update(healthEnabled: value)
-                        .then((_) => widget.onRefresh());
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('General reminders'),
-                  value: preferences.generalEnabled,
-                  onChanged: (value) {
-                    controller
-                        .update(generalEnabled: value)
-                        .then((_) => widget.onRefresh());
-                  },
-                ),
-                const Divider(),
-                SwitchListTile(
-                  title: const Text('Hide sensitive content'),
-                  subtitle: const Text(
-                    'Show generic titles for medicine, health, habit and '
-                    'planner reminders on the lock screen',
-                  ),
-                  value: preferences.hideSensitiveContent,
-                  onChanged: (value) {
-                    controller
-                        .update(hideSensitiveContent: value)
-                        .then((_) => widget.onRefresh());
-                  },
-                ),
-                const SizedBox(height: 8),
-                if (controller.error != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      controller.error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 40),
+        children: [
+          if (!hasAppBar)
+            const BlistraPageHeader(
+              eyebrow: 'Notifications',
+              title: 'Settings',
+              showAvatar: false,
+            ),
+          if (controller.loading) ...[
+            const SizedBox(height: 16),
+            const SkeletonLoader(rows: 4),
+          ] else ...[
+            PagePad(
+              GlassCard(
+                radius: 18,
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        size: 18, color: colors.accentText),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Reminders use this device and may be delayed by battery settings. '
+                        'The next 60 alerts are scheduled; medicine alerts cover the next 7 days. '
+                        'Open Blistra regularly to refresh them.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.45,
+                          color: colors.muted,
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
+              top: 10,
             ),
+            const SizedBox(height: 14),
+            PagePad(GlassList(
+              children: [
+                SwitchRow(
+                  icon: Icons.notifications_active_outlined,
+                  title: 'Enable notifications',
+                  subtitle: 'Master switch for all reminder delivery',
+                  value: preferences.enabled,
+                  onChanged: (value) =>
+                      set(() => controller.update(enabled: value)),
+                ),
+              ],
+            )),
+            const SizedBox(height: 24),
+            const SectionHeader(title: 'Categories'),
+            PagePad(GlassList(
+              children: [
+                SwitchRow(
+                  icon: reminderIcon(ReminderType.medicine),
+                  color: reminderColor(context, ReminderType.medicine),
+                  title: 'Medicine',
+                  value: preferences.medicineEnabled,
+                  onChanged: (value) =>
+                      set(() => controller.update(medicineEnabled: value)),
+                ),
+                SwitchRow(
+                  icon: reminderIcon(ReminderType.habit),
+                  color: reminderColor(context, ReminderType.habit),
+                  title: 'Habits',
+                  value: preferences.habitEnabled,
+                  onChanged: (value) =>
+                      set(() => controller.update(habitEnabled: value)),
+                ),
+                SwitchRow(
+                  icon: reminderIcon(ReminderType.planner),
+                  color: reminderColor(context, ReminderType.planner),
+                  title: 'Planner',
+                  value: preferences.plannerEnabled,
+                  onChanged: (value) =>
+                      set(() => controller.update(plannerEnabled: value)),
+                ),
+                SwitchRow(
+                  icon: reminderIcon(ReminderType.health),
+                  color: reminderColor(context, ReminderType.health),
+                  title: 'Health',
+                  value: preferences.healthEnabled,
+                  onChanged: (value) =>
+                      set(() => controller.update(healthEnabled: value)),
+                ),
+                SwitchRow(
+                  icon: reminderIcon(ReminderType.general),
+                  color: reminderColor(context, ReminderType.general),
+                  title: 'General reminders',
+                  value: preferences.generalEnabled,
+                  onChanged: (value) =>
+                      set(() => controller.update(generalEnabled: value)),
+                ),
+              ],
+            )),
+            const SizedBox(height: 24),
+            const SectionHeader(title: 'Privacy'),
+            PagePad(GlassList(
+              children: [
+                SwitchRow(
+                  icon: Icons.visibility_off_outlined,
+                  title: 'Hide sensitive content',
+                  subtitle: 'Generic lock-screen titles for medicine, health, '
+                      'habit and planner reminders',
+                  value: preferences.hideSensitiveContent,
+                  onChanged: (value) =>
+                      set(() => controller.update(hideSensitiveContent: value)),
+                ),
+              ],
+            )),
+            if (controller.error != null)
+              PagePad(
+                Text(
+                  controller.error!,
+                  style: TextStyle(fontSize: 12, color: colors.danger),
+                ),
+                top: 12,
+              ),
+          ],
+        ],
+      ),
     );
   }
 }

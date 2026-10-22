@@ -6,6 +6,15 @@ import 'package:frontend/features/documents/upload_document_page.dart';
 import 'package:frontend/features/documents/document_detail_page.dart';
 import 'package:frontend/core/auth/auth_state.dart';
 
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/blistra_ui.dart';
+import '../../core/widgets/design_system.dart';
+import '../../core/widgets/glass.dart';
+import '../../core/widgets/page_header.dart';
+import 'widgets/document_visuals.dart';
+
+/// Documents home: search first, category chips, recent files as cards,
+/// then the full list. Upload is the primary action.
 class DocumentsPage extends StatefulWidget {
   const DocumentsPage({super.key});
 
@@ -15,6 +24,8 @@ class DocumentsPage extends StatefulWidget {
 
 class _DocumentsPageState extends State<DocumentsPage> {
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
+  String _query = '';
 
   @override
   void initState() {
@@ -28,6 +39,7 @@ class _DocumentsPageState extends State<DocumentsPage> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -43,175 +55,171 @@ class _DocumentsPageState extends State<DocumentsPage> {
     return Consumer<DocumentsProvider>(
       builder: (context, provider, _) {
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Documents'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.filter_list),
-                onPressed: _showCategoryFilter,
-                tooltip: 'Filter by category',
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            bottom: false,
+            child: RefreshIndicator(
+              onRefresh: () => provider.load(refresh: true),
+              child: ListView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 120),
+                children: [
+                  BlistraPageHeader(
+                    eyebrow: 'Documents',
+                    title: 'Your files',
+                    actions: [
+                      GlassIconButton(
+                        icon: Icons.upload_rounded,
+                        tooltip: 'Upload document',
+                        onTap: provider.isUploading ? null : _openUpload,
+                      ),
+                      _MoreMenu(onSignOut: _logout),
+                    ],
+                  ),
+                  PagePad(
+                    DocumentSearchField(
+                      controller: _searchController,
+                      onChanged: (v) => setState(() => _query = v.trim()),
+                    ),
+                    top: 8,
+                  ),
+                  const SizedBox(height: 12),
+                  _categoryChips(provider),
+                  ..._buildBody(provider),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: _logout,
-                tooltip: 'Sign out',
-              ),
-            ],
+            ),
           ),
-          body: _buildBody(provider),
-          floatingActionButton: FloatingActionButton.extended(
+          floatingActionButton: FloatingActionButton(
             onPressed: provider.isUploading ? null : _openUpload,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Document'),
+            tooltip: 'Upload document',
+            child: provider.isUploading
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: BlistraColors.resolve(context).onAccent,
+                    ),
+                  )
+                : const Icon(Icons.upload_rounded),
           ),
         );
       },
     );
   }
 
-  Widget _buildBody(DocumentsProvider provider) {
+  /// "All" plus one chip per category. Only the selected chip shows a count:
+  /// the backend reports a total for the active filter only.
+  Widget _categoryChips(DocumentsProvider provider) {
+    final selected = provider.selectedCategory;
+    final total = provider.isLoading ? null : provider.page?.totalElements;
+    String label(String name, bool on) =>
+        on && total != null ? '$name $total' : name;
+    return ChipRow(
+      labels: [
+        label('All', selected == null),
+        for (final c in DocumentCategory.values) label(c.label, selected == c),
+      ],
+      icons: [
+        Icons.folder_outlined,
+        for (final c in DocumentCategory.values) categoryIcon(c),
+      ],
+      selected: selected == null
+          ? 0
+          : DocumentCategory.values.indexOf(selected) + 1,
+      onSelected: (i) => provider.setCategoryFilter(
+        i == 0 ? null : DocumentCategory.values[i - 1],
+      ),
+    );
+  }
+
+  List<Widget> _buildBody(DocumentsProvider provider) {
     if (provider.isLoading && provider.documents.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const [SizedBox(height: 20), SkeletonLoader(rows: 4)];
     }
 
     if (provider.hasError && provider.documents.isEmpty) {
-      return _buildErrorState(provider);
+      return [
+        const SizedBox(height: 20),
+        PagePad(_ErrorCard(
+          message: provider.error ?? 'Unknown error',
+          onRetry: () => provider.load(refresh: true),
+        )),
+      ];
     }
 
     if (provider.documents.isEmpty) {
-      return _buildEmptyState();
+      final cat = provider.selectedCategory;
+      return [
+        const SizedBox(height: 20),
+        PagePad(EmptyCard(
+          message: cat == null
+              ? 'No documents yet. Upload your first one.'
+              : 'No ${cat.label.toLowerCase()} documents yet.',
+          action: 'Upload',
+          onAction: provider.isUploading ? null : _openUpload,
+        )),
+      ];
     }
 
-    return RefreshIndicator(
-      onRefresh: () => provider.load(refresh: true),
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(16),
-        itemCount: provider.documents.length + (provider.hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == provider.documents.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
-          final doc = provider.documents[index];
-          return _DocumentCard(
-            document: doc,
+    final footer = [
+      if (provider.hasMore)
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+    ];
+
+    if (_query.isNotEmpty) {
+      final words = _query.toLowerCase().split(RegExp(r'\s+'));
+      final matches = provider.documents.where((d) {
+        final text = '${d.originalFilename} ${d.description ?? ''} '
+                '${d.category.label}'
+            .toLowerCase();
+        return words.every(text.contains);
+      }).toList();
+      return [
+        const SizedBox(height: 24),
+        SectionHeader(title: 'Results', actionLabel: '${matches.length}'),
+        PagePad(matches.isEmpty
+            ? EmptyCard(message: 'No documents match "$_query".')
+            : _list(matches)),
+        ...footer,
+      ];
+    }
+
+    final recent = [...provider.documents]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final total = provider.page?.totalElements ?? provider.documents.length;
+    return [
+      const SizedBox(height: 24),
+      const SectionHeader(title: 'Recent'),
+      PagePad(_RecentGrid(
+        documents: recent.take(4).toList(),
+        onOpen: _openDetail,
+      )),
+      const SizedBox(height: 24),
+      SectionHeader(title: 'All', actionLabel: '$total'),
+      PagePad(_list(provider.documents)),
+      ...footer,
+    ];
+  }
+
+  Widget _list(List<AppDocument> documents) {
+    return GlassList(
+      children: [
+        for (final doc in documents)
+          GlassRow(
+            leading: FileTypeBadge(document: doc),
+            title: doc.originalFilename,
+            subtitle:
+                '${doc.category.label} · ${doc.formattedSize} · ${doc.formattedDate}',
             onTap: () => _openDetail(doc),
-            onDelete: () => _confirmDelete(doc),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.folder_open_outlined,
-            size: 80,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            trailing: _RowMenu(onDelete: () => _confirmDelete(doc)),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No documents yet',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tap the + button to add your first document',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState(DocumentsProvider provider) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Theme.of(context).colorScheme.error,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Failed to load documents',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            provider.error ?? 'Unknown error',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: () => provider.load(refresh: true),
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCategoryFilter() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Consumer<DocumentsProvider>(
-        builder: (context, provider, _) {
-          return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: Icon(
-                    provider.selectedCategory == null
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_unchecked,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  title: const Text('All Categories'),
-                  onTap: () {
-                    provider.setCategoryFilter(null);
-                    Navigator.pop(context);
-                  },
-                ),
-                const Divider(height: 1),
-                ...DocumentCategory.values.map(
-                  (cat) => ListTile(
-                    leading: Icon(
-                      provider.selectedCategory == cat
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_unchecked,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    title: Text(cat.label),
-                    onTap: () {
-                      provider.setCategoryFilter(cat);
-                      Navigator.pop(context);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+      ],
     );
   }
 
@@ -226,45 +234,21 @@ class _DocumentsPageState extends State<DocumentsPage> {
     );
   }
 
-  void _confirmDelete(AppDocument doc) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Document'),
-        content: Text(
+  Future<void> _confirmDelete(AppDocument doc) async {
+    final provider = context.read<DocumentsProvider>();
+    final confirmed = await confirmAction(
+      context,
+      title: 'Delete Document',
+      message:
           'Are you sure you want to delete "${doc.originalFilename}"? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                await context.read<DocumentsProvider>().delete(doc.id);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Document deleted')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to delete: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
+    if (!confirmed) return;
+    try {
+      await provider.delete(doc.id);
+      if (mounted) showAppMessage(context, 'Document deleted');
+    } catch (e) {
+      if (mounted) showAppMessage(context, 'Failed to delete: $e', error: true);
+    }
   }
 
   Future<void> _logout() async {
@@ -274,133 +258,166 @@ class _DocumentsPageState extends State<DocumentsPage> {
   }
 }
 
-class _DocumentCard extends StatelessWidget {
-  final AppDocument document;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
+/// Two-column grid of the newest files.
+class _RecentGrid extends StatelessWidget {
+  const _RecentGrid({required this.documents, required this.onOpen});
 
-  const _DocumentCard({
-    required this.document,
-    required this.onTap,
-    required this.onDelete,
-  });
+  final List<AppDocument> documents;
+  final ValueChanged<AppDocument> onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isImage = document.isImage;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Thumbnail / Icon
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: isImage
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          '', // Would need auth header for actual preview
-                          fit: BoxFit.cover,
-                          width: 56,
-                          height: 56,
-                          errorBuilder: (_, _, _) => _fileIcon(document),
-                        ),
-                      )
-                    : _fileIcon(document),
-              ),
-              const SizedBox(width: 16),
-              // Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      document.originalFilename,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        _CategoryChip(category: document.category),
-                        const SizedBox(width: 8),
-                        Text(
-                          document.formattedSize,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      document.formattedDate,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Delete button
-              IconButton(
-                icon: Icon(Icons.delete_outline, color: colorScheme.error),
-                onPressed: onDelete,
-                tooltip: 'Delete',
-              ),
-            ],
+    final rows = <Widget>[];
+    for (var i = 0; i < documents.length; i += 2) {
+      if (i > 0) rows.add(const SizedBox(height: 10));
+      rows.add(Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _RecentCard(document: documents[i], onOpen: onOpen)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: i + 1 < documents.length
+                ? _RecentCard(document: documents[i + 1], onOpen: onOpen)
+                : const SizedBox.shrink(),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _fileIcon(AppDocument doc) {
-    if (doc.isPdf) {
-      return const Icon(Icons.picture_as_pdf, size: 28);
-    } else if (doc.isImage) {
-      return const Icon(Icons.image, size: 28);
+        ],
+      ));
     }
-    return const Icon(Icons.insert_drive_file, size: 28);
+    return Column(children: rows);
   }
 }
 
-class _CategoryChip extends StatelessWidget {
-  final DocumentCategory category;
+class _RecentCard extends StatelessWidget {
+  const _RecentCard({required this.document, required this.onOpen});
 
-  const _CategoryChip({required this.category});
+  final AppDocument document;
+  final ValueChanged<AppDocument> onOpen;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
+    final colors = BlistraColors.resolve(context);
+    return GlassCard(
+      radius: 20,
+      padding: const EdgeInsets.all(12),
+      onTap: () => onOpen(document),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FileTypeBadge(
+            document: document,
+            width: double.infinity,
+            height: 64,
+            fontSize: 12,
+          ),
+          const SizedBox(height: 9),
+          Text(
+            document.originalFilename,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: colors.text,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${document.category.label} · ${document.formattedSize}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 10.5, color: colors.muted),
+          ),
+        ],
       ),
-      child: Text(
-        category.label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
+    );
+  }
+}
+
+/// Trailing "⋯" on a list row.
+class _RowMenu extends StatelessWidget {
+  const _RowMenu({required this.onDelete});
+
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return PopupMenuButton<String>(
+      tooltip: 'More',
+      icon: Icon(Icons.more_horiz_rounded, size: 20, color: colors.muted),
+      onSelected: (_) => onDelete(),
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'delete',
+          child: Text('Delete', style: TextStyle(color: colors.danger)),
         ),
+      ],
+    );
+  }
+}
+
+/// Header "⋯" menu holding Sign out.
+class _MoreMenu extends StatelessWidget {
+  const _MoreMenu({required this.onSignOut});
+
+  final VoidCallback onSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'More',
+      padding: EdgeInsets.zero,
+      onSelected: (_) => onSignOut(),
+      itemBuilder: (_) => const [
+        PopupMenuItem(value: 'logout', child: Text('Sign out')),
+      ],
+      child: const GlassIconButton(
+        icon: Icons.more_horiz_rounded,
+        tooltip: null,
+        onTap: null,
+      ),
+    );
+  }
+}
+
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BlistraColors.resolve(context);
+    return GlassCard(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Failed to load documents',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colors.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: colors.muted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Pill('Retry', onTap: onRetry),
+        ],
       ),
     );
   }
