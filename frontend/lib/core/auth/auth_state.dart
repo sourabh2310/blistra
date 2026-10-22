@@ -188,15 +188,17 @@ class AuthState extends ChangeNotifier {
     try {
       final AuthResponseDto response = await request();
       final json = response.userEmail;
-      _account = UserAccountDto(
-        id: '',
-        username: '',
-        email: json.isNotEmpty ? json : fallbackEmail,
-        emailVerified: true,
-        phoneVerified: true,
-        onboardingCompleted: true,
-        status: '',
-      );
+      _account = resumeOnboarding && response.user != null
+          ? response.user
+          : UserAccountDto(
+              id: '',
+              username: '',
+              email: json.isNotEmpty ? json : fallbackEmail,
+              emailVerified: true,
+              phoneVerified: true,
+              onboardingCompleted: true,
+              status: '',
+            );
       _userEmail = _account!.email;
       await _storage.saveSession(token: response.token, email: _userEmail);
       // Hydrate real flags immediately (drives verification/onboarding routing).
@@ -219,7 +221,8 @@ class AuthState extends ChangeNotifier {
       }
       _lastError = null;
       _status = AuthStatus.authenticated;
-      if (resumeOnboarding && !(_account?.onboardingCompleted ?? true)) {
+      if (resumeOnboarding &&
+          (response.newUser || !(_account?.onboardingCompleted ?? true))) {
         _justRegistered = true;
       }
       notifyListeners();
@@ -471,6 +474,42 @@ class AuthState extends ChangeNotifier {
       await cleanup;
     } catch (_) {
       /* Do not restore a failed session. */
+    }
+  }
+
+  /// Saves the Google registration form. Returns false with [lastError] set.
+  Future<bool> completeGoogleRegistration({
+    required String displayName,
+    required String username,
+    String? phone,
+  }) async {
+    try {
+      final profile = await apiClient.completeGoogleRegistration(
+        displayName: displayName,
+        username: username,
+        phone: phone,
+      );
+      _account = UserAccountDto(
+        id: profile.userId,
+        username: profile.username,
+        email: profile.email,
+        phone: profile.phone,
+        emailVerified: profile.emailVerified,
+        phoneVerified: profile.phoneVerified,
+        onboardingCompleted: profile.onboardingCompleted,
+        status: profile.status,
+      );
+      _lastError = null;
+      notifyListeners();
+      return true;
+    } on ApiException catch (error) {
+      _lastError = _safe(error);
+      notifyListeners();
+      return false;
+    } catch (error) {
+      _lastError = NetworkException(error);
+      notifyListeners();
+      return false;
     }
   }
 

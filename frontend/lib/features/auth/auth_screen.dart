@@ -26,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/app_dependencies.dart';
+import '../../core/api/api_client.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/auth/auth_state.dart';
 import '../../core/auth/google_sign_in_service.dart';
@@ -227,9 +228,7 @@ class _AuthScreenState extends State<AuthScreen> {
       _mode = _Mode.register;
       if (account != null && account.username.isEmpty) {
         // Google user resumed after an app restart — no username chosen yet.
-        _googleRegistration = true;
-        _email.text = account.email;
-        _reg = _Reg.singleForm;
+        _startGoogleRegistration(account, null);
       } else {
         _reg = _resumeStep();
         _prefillFromAccount();
@@ -358,12 +357,7 @@ class _AuthScreenState extends State<AuthScreen> {
       }
       if (_auth.justRegistered && _auth.needsOnboarding) {
         // Brand-new Google user — route to registration wizard (no email/password).
-        setState(() {
-          _googleRegistration = true;
-          _email.text = account.email;
-          _mode = _Mode.register;
-          _reg = _Reg.singleForm;
-        });
+        setState(() => _startGoogleRegistration(account, idToken));
         return;
       }
       setState(() => _finishing = true);
@@ -373,6 +367,29 @@ class _AuthScreenState extends State<AuthScreen> {
       if (mounted) setState(() => _loginError = error.message);
     } finally {
       if (mounted) setState(() => _googleBusy = false);
+    }
+  }
+
+  /// Pre-fills the Google registration form: email (read-only) and the
+  /// username the backend assigned, plus the name from the ID token.
+  void _startGoogleRegistration(UserAccountDto account, String? idToken) {
+    _googleRegistration = true;
+    _mode = _Mode.register;
+    _reg = _Reg.singleForm;
+    _email.text = account.email;
+    _username.text = account.username;
+    _usernameAvail = _Avail.idle;
+    if (idToken == null) return;
+    final claims = GoogleNameClaims.fromIdToken(idToken);
+    final given = claims.givenName;
+    final family = claims.familyName;
+    if (given != null || family != null) {
+      _firstNameCtrl.text = given ?? '';
+      _lastNameCtrl.text = family ?? '';
+    } else if (claims.name != null) {
+      final parts = claims.name!.split(RegExp(r'\s+'));
+      _firstNameCtrl.text = parts.first;
+      _lastNameCtrl.text = parts.skip(1).join(' ');
     }
   }
 
@@ -1711,25 +1728,28 @@ class _AuthScreenState extends State<AuthScreen> {
         '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
     if (!_checkName()) return;
     if (!_checkUsername()) return;
-    if (!await _ensureUsernameAvailable()) return;
+    // The backend already assigned the pre-filled username to this account,
+    // so the public availability check would report it as taken.
+    final keepsOwnUsername =
+        _username.text.trim().toLowerCase() ==
+        (_auth.account?.username ?? '').toLowerCase();
+    if (!keepsOwnUsername && !await _ensureUsernameAvailable()) return;
     if (!mounted) return;
-    _checkPhone(); // build _phone.text from _phoneLocal (allowEmpty = true)
+    // Builds _phone.text from _phoneLocal; empty is allowed.
+    if (!_checkPhone()) return;
     setState(() {
       _screenError = null;
       _saving = true;
     });
-    final ok = await widget.deps.profile.save({
-      'displayName': _displayName.text.trim(),
-      'username': _username.text.trim(),
-      if (_phone.text.trim().isNotEmpty) 'phone': _phone.text.trim(),
-    });
+    final ok = await _auth.completeGoogleRegistration(
+      displayName: _displayName.text.trim(),
+      username: _username.text.trim(),
+      phone: _phone.text.trim().isEmpty ? null : _phone.text.trim(),
+    );
     if (!mounted) return;
     setState(() => _saving = false);
     if (!ok) {
-      setState(
-        () => _screenError =
-            widget.deps.profile.error ?? 'Could not save. Please try again.',
-      );
+      setState(() => _screenError = _friendly(_auth.lastError));
       return;
     }
     // Email is already verified by Google — skip OTP, go straight to profile.

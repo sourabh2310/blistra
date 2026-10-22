@@ -7,6 +7,7 @@ import com.blistra.profile.application.AccountDeactivationService;
 import com.blistra.profile.application.ProfileAvatarService;
 import com.blistra.profile.application.ProfileService;
 import com.blistra.profile.dto.DeleteAccountRequest;
+import com.blistra.profile.dto.GoogleRegistrationRequest;
 import com.blistra.profile.dto.ProfileRequest;
 import com.blistra.profile.dto.ProfileResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,6 +52,15 @@ public class ProfileController {
     @Operation(summary = "Mark onboarding complete once verification + required profile exist")
     public ResponseEntity<ProfileResponse> completeOnboarding() {
         return ResponseEntity.ok(profileService.completeOnboarding());
+    }
+
+    @PostMapping("/google-registration")
+    @Operation(summary = "Finish a new Google signup (name, username, optional phone)",
+            description = "Only for Google-linked accounts that haven't finished onboarding. "
+                    + "Email comes from Google and there is no password.")
+    public ResponseEntity<ProfileResponse> completeGoogleRegistration(
+            @Valid @RequestBody GoogleRegistrationRequest request) {
+        return ResponseEntity.ok(profileService.completeGoogleRegistration(request));
     }
 
     @PostMapping("/identity")

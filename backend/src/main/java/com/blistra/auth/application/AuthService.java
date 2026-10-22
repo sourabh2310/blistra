@@ -259,10 +259,14 @@ public class AuthService {
             throw new InvalidCredentialsException("Google sign-in failed");
         }
 
+        boolean[] created = {false};
         User user = userRepository.findByGoogleSub(identity.subject())
                 .or(() -> userRepository.findByEmailIgnoreCase(email)
                         .map(existing -> linkGoogle(existing, identity)))
-                .orElseGet(() -> createGoogleUser(identity, email, request));
+                .orElseGet(() -> {
+                    created[0] = true;
+                    return createGoogleUser(identity, email, request);
+                });
         if (user.isBlocked()) {
             log.warn("Google sign-in for blocked account: {}", user.getId());
             throw new InvalidCredentialsException("Google sign-in failed");
@@ -275,6 +279,7 @@ public class AuthService {
                 .tokenType("Bearer")
                 .expiresIn(jwtExpirationMs / 1000)
                 .user(mapToUserResponse(user, null))
+                .newUser(created[0])
                 .build();
     }
 

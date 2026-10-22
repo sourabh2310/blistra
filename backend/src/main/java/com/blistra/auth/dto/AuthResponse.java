@@ -14,4 +14,6 @@ public class AuthResponse {
     private String tokenType;
     private long expiresIn;
     private UserResponse user;
+    /** True when this Google sign-in created the account (finish registration). */
+    private boolean newUser;
 }

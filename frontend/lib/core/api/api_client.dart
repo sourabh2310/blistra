@@ -16,16 +16,29 @@ import 'api_exception.dart';
 import 'api_interceptor.dart';
 
 class AuthResponseDto {
-  AuthResponseDto({required this.token, required this.userEmail});
+  AuthResponseDto({
+    required this.token,
+    required this.userEmail,
+    this.user,
+    this.newUser = false,
+  });
 
   final String token;
   final String userEmail;
+
+  /// The signed-in account as the auth response reports it.
+  final UserAccountDto? user;
+
+  /// Google sign-in only: true when this sign-in created the account.
+  final bool newUser;
 
   factory AuthResponseDto.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic>? user = json['user'] as Map<String, dynamic>?;
     return AuthResponseDto(
       token: json['token'] as String,
       userEmail: user?['email'] as String? ?? '',
+      user: user == null ? null : UserAccountDto.fromJson(user),
+      newUser: json['newUser'] as bool? ?? false,
     );
   }
 }
@@ -872,6 +885,25 @@ class ApiClient {
     final body = await put(
       '/api/v1/profile',
       body: Map<String, dynamic>.from(fields),
+      expectStatus: 200,
+    );
+    return UserProfileDto.fromJson(body);
+  }
+
+  /// Finishes a new Google signup: name, username and optional phone. Email
+  /// comes from Google and the account has no password.
+  Future<UserProfileDto> completeGoogleRegistration({
+    required String displayName,
+    required String username,
+    String? phone,
+  }) async {
+    final body = await post(
+      '/api/v1/profile/google-registration',
+      body: {
+        'displayName': displayName,
+        'username': username,
+        'phone': ?phone,
+      },
       expectStatus: 200,
     );
     return UserProfileDto.fromJson(body);

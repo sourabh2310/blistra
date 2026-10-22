@@ -6,6 +6,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Optional: google-services.json (untracked) supplies default_web_client_id,
+// the Google sign-in fallback when GOOGLE_SERVER_CLIENT_ID isn't dart-defined.
+// CI passes the dart-define and has no JSON, so only apply it when present.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.blistra.app"
     compileSdk = flutter.compileSdkVersion

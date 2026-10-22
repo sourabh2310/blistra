@@ -8,6 +8,7 @@ import com.blistra.auth.otp.VerificationOtp;
 import com.blistra.common.exception.BadRequestException;
 import com.blistra.common.exception.InvalidCredentialsException;
 import com.blistra.common.exception.ResourceAlreadyExistsException;
+import com.blistra.profile.dto.GoogleRegistrationRequest;
 import com.blistra.profile.dto.ProfileRequest;
 import com.blistra.profile.dto.ProfileResponse;
 import com.blistra.users.application.CurrentUserProvider;
@@ -119,6 +120,48 @@ public class ProfileService {
         if (request.getAllowFriendRequests() != null) {
             profile.setAllowFriendRequests(request.getAllowFriendRequests());
         }
+        profileRepository.save(profile);
+        return toResponse(user, profile);
+    }
+
+    /**
+     * Completes a new Google signup with the registration form's name,
+     * username and optional phone. No password exists to re-check, so this is
+     * only allowed for Google-linked accounts that haven't finished onboarding.
+     */
+    @Transactional
+    public ProfileResponse completeGoogleRegistration(GoogleRegistrationRequest request) {
+        User user = currentUserProvider.getCurrentUser();
+        userRepository.lockById(user.getId()).orElseThrow(() -> new com.blistra.common.exception.ResourceNotFoundException("Account not found"));
+        if (user.getGoogleSub() == null || user.isOnboardingCompleted()) {
+            throw new BadRequestException("Registration is already complete.");
+        }
+        String username = IdentityNormalizer.normalizeUsername(request.getUsername());
+        if (username == null || !IdentityNormalizer.isValidUsername(request.getUsername())) {
+            throw new BadRequestException("Username must be 3-30 characters of letters, digits, underscore or dot.");
+        }
+        if (!username.equalsIgnoreCase(user.getUsername())
+                && userRepository.existsByUsernameIgnoreCase(username)) {
+            throw new ResourceAlreadyExistsException("Username already taken");
+        }
+        user.setUsername(username);
+        String phone = request.getPhone() == null ? null : blankToNull(request.getPhone());
+        if (phone != null) {
+            if (!IdentityNormalizer.isValidPhone(phone)) {
+                throw new BadRequestException("Phone must be in international format, e.g. +919876543210.");
+            }
+            phone = IdentityNormalizer.normalizePhone(phone);
+            if (!phone.equals(user.getPhone())) {
+                if (userRepository.existsByPhone(phone)) {
+                    throw new ResourceAlreadyExistsException("Phone number already registered");
+                }
+                user.setPhone(phone);
+                user.setPhoneVerified(false);
+            }
+        }
+        userRepository.save(user);
+        UserProfile profile = profileFor(user.getId());
+        profile.setDisplayName(request.getDisplayName().trim());
         profileRepository.save(profile);
         return toResponse(user, profile);
     }

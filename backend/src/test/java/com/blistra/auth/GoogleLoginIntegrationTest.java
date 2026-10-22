@@ -193,6 +193,79 @@ class GoogleLoginIntegrationTest extends AuthFlowTest {
     }
 
     @Test
+    void flagsOnlyTheFirstSignInAsANewUser() throws Exception {
+        google("sub-1", "jane@example.com", true, "Jane");
+
+        assertThat(json(signIn(true)).get("newUser").asBoolean()).isTrue();
+        assertThat(json(signIn(null)).get("newUser").asBoolean()).isFalse();
+    }
+
+    @Test
+    void linkingAnExistingAccountIsNotANewUser() throws Exception {
+        MvcResult registered = registerFull("jane", "jane@example.com", null, "password1");
+        verify(tokenOf(registered), "email", devCode(tokenOf(registered), "EMAIL_VERIFY"));
+        google("sub-1", "jane@example.com", true, "Jane");
+
+        assertThat(json(signIn(true)).get("newUser").asBoolean()).isFalse();
+    }
+
+    private MvcResult completeRegistration(String bearer, String body) throws Exception {
+        return mockMvc.perform(post("/api/v1/profile/google-registration")
+                        .header("Authorization", "Bearer " + bearer)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andReturn();
+    }
+
+    @Test
+    void newGoogleUserCompletesRegistrationWithoutAPassword() throws Exception {
+        google("sub-1", "jane@example.com", true, "Jane");
+        String token = json(signIn(true)).get("token").asString();
+
+        MvcResult result = completeRegistration(token,
+                "{\"displayName\":\"Jane Doe\",\"username\":\"JaneD\",\"phone\":\"+919876543210\"}");
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+        JsonNode body = json(result);
+        assertThat(body.get("username").asString()).isEqualTo("janed");
+        assertThat(body.get("displayName").asString()).isEqualTo("Jane Doe");
+        assertThat(body.get("email").asString()).isEqualTo("jane@example.com");
+        assertThat(body.get("phone").asString()).isEqualTo("+919876543210");
+        assertThat(body.get("phoneVerified").asBoolean()).isFalse();
+    }
+
+    @Test
+    void googleRegistrationKeepsTheAssignedUsernameAndRejectsATakenOne() throws Exception {
+        registerFull("taken", "taken@example.com", null, "password1");
+        google("sub-1", "jane@example.com", true, "Jane");
+        JsonNode first = json(signIn(true));
+        String token = first.get("token").asString();
+        String assigned = first.get("user").get("username").asString();
+
+        assertThat(completeRegistration(token,
+                "{\"displayName\":\"Jane\",\"username\":\"taken\"}")
+                .getResponse().getStatus()).isEqualTo(409);
+        assertThat(completeRegistration(token,
+                "{\"displayName\":\"Jane\",\"username\":\"" + assigned + "\"}")
+                .getResponse().getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void googleRegistrationIsClosedForPasswordAccountsAndAfterOnboarding() throws Exception {
+        MvcResult registered = registerFull("jane", "jane@example.com", null, "password1");
+        assertThat(completeRegistration(tokenOf(registered),
+                "{\"displayName\":\"Jane\",\"username\":\"other\"}")
+                .getResponse().getStatus()).isEqualTo(400);
+
+        google("sub-2", "sam@example.com", true, "Sam");
+        String token = json(signIn(true)).get("token").asString();
+        jdbcTemplate.update("UPDATE users SET onboarding_completed = true WHERE google_sub = 'sub-2'");
+        assertThat(completeRegistration(token,
+                "{\"displayName\":\"Sam\",\"username\":\"sammy\"}")
+                .getResponse().getStatus()).isEqualTo(400);
+    }
+
+    @Test
     void reportsUnavailableWhenGoogleIsNotConfigured() throws Exception {
         when(verifier.isConfigured()).thenReturn(false);
 

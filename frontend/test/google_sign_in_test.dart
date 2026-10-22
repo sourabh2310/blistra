@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -53,11 +54,47 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   late List<http.Request> googleRequests;
+  late List<http.Request> registrationRequests;
   late int googleStatus;
+  // What the backend reports for the Google identity: a brand-new account
+  // (registration needed) or an existing, fully set-up one.
+  late bool newGoogleUser;
+
+  Map<String, dynamic> accountJson({required bool onboarded}) => {
+    'id': 'u-1',
+    'userId': 'u-1',
+    'username': 'jane.doe',
+    'email': 'jane@example.com',
+    'emailVerified': true,
+    'phoneVerified': false,
+    'onboardingCompleted': onboarded,
+    'status': 'ACTIVE',
+  };
 
   Future<AppDependencies> buildDeps(WidgetTester tester) async {
     googleRequests = [];
+    registrationRequests = [];
     final client = MockClient((request) async {
+      if (request.url.path == '/api/v1/profile' && request.method == 'GET') {
+        return http.Response(
+          jsonEncode(accountJson(onboarded: !newGoogleUser)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.url.path == '/api/v1/profile/google-registration') {
+        registrationRequests.add(request);
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            ...accountJson(onboarded: false),
+            'username': body['username'],
+            'displayName': body['displayName'],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
       if (request.url.path == '/api/v1/auth/google') {
         googleRequests.add(request);
         if (googleStatus != 200) {
@@ -71,7 +108,8 @@ void main() {
           jsonEncode({
             'token': 'jwt-token',
             'tokenType': 'Bearer',
-            'user': {'email': 'jane@example.com'},
+            'user': accountJson(onboarded: !newGoogleUser),
+            'newUser': newGoogleUser,
           }),
           200,
           headers: {'content-type': 'application/json'},
@@ -105,7 +143,97 @@ void main() {
     await tester.pump();
   }
 
-  setUp(() => googleStatus = 200);
+  setUp(() {
+    googleStatus = 200;
+    newGoogleUser = false;
+  });
+
+  // An unsigned ID token carrying Google's name claims (pre-fill only).
+  String idTokenWithName() {
+    String part(Map<String, Object> json) =>
+        base64Url.encode(utf8.encode(jsonEncode(json))).replaceAll('=', '');
+    return '${part({'alg': 'RS256'})}.'
+        '${part({'sub': '1', 'given_name': 'Jane', 'family_name': 'Doe'})}.sig';
+  }
+
+  testWidgets('a new Google user finishes registration without email or password', (
+    tester,
+  ) async {
+    newGoogleUser = true;
+    final deps = await buildDeps(tester);
+    final google = _FakeGoogle(token: idTokenWithName());
+    await tester.pumpWidget(
+      MaterialApp(home: AuthScreen(deps: deps, googleTokenProvider: google)),
+    );
+
+    await tapGoogle(tester, settled: () => deps.authState.isAuthenticated);
+    await tester.pumpAndSettle();
+
+    expect(deps.authState.justRegistered, isTrue);
+    expect(find.text('Just a few more details.'), findsOneWidget);
+    expect(find.text('Verified by Google'), findsOneWidget);
+    expect(find.text('jane@example.com'), findsOneWidget);
+    expect(find.text('PASSWORD'), findsNothing);
+    expect(find.text('CONFIRM PASSWORD'), findsNothing);
+    expect(find.widgetWithText(TextField, 'Jane'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Doe'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'jane.doe'), findsOneWidget);
+
+    final submit = find.text('Continue');
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    await tester.runAsync(() async {
+      for (var i = 0; i < 40 && registrationRequests.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+
+    expect(registrationRequests, hasLength(1));
+    expect(jsonDecode(registrationRequests.single.body), {
+      'displayName': 'Jane Doe',
+      'username': 'jane.doe',
+    });
+    expect(find.text('Complete profile →'), findsOneWidget);
+  });
+
+  testWidgets('a returning Google user skips registration', (tester) async {
+    final deps = await buildDeps(tester);
+    final google = _FakeGoogle(token: idTokenWithName());
+    await tester.pumpWidget(
+      MaterialApp(home: AuthScreen(deps: deps, googleTokenProvider: google)),
+    );
+
+    await tapGoogle(tester, settled: () => deps.authState.isAuthenticated);
+
+    expect(deps.authState.isAuthenticated, isTrue);
+    expect(deps.authState.justRegistered, isFalse);
+    expect(deps.authState.needsOnboarding, isFalse);
+    expect(find.text('Just a few more details.'), findsNothing);
+    expect(registrationRequests, isEmpty);
+  });
+
+  test('an OAuth client misconfiguration is not treated as a dismissal', () {
+    expect(
+      GoogleSignInService.isUserCancellation(
+        const GoogleSignInException(
+          code: GoogleSignInExceptionCode.canceled,
+          description: 'activity is cancelled by the user.',
+        ),
+      ),
+      isTrue,
+    );
+    expect(
+      GoogleSignInService.isUserCancellation(
+        const GoogleSignInException(
+          code: GoogleSignInExceptionCode.canceled,
+          description: '[16] Account reauth failed.',
+        ),
+      ),
+      isFalse,
+    );
+  });
 
   testWidgets('sends the Google ID token to the backend and signs in', (
     tester,
