@@ -27,12 +27,9 @@ class _LogFormScreenState extends State<LogFormScreen> {
 
   late DateTime _observedAt;
 
-  /// `null` means "no severity selected". Choosing a label sets the wire value;
-  /// the dropdown itself is driven by strings so "None" maps back to null.
+  /// `null` means "no severity selected" (the "None" segment).
   Severity? _severity;
   bool _saving = false;
-
-  static const String _noneLabel = 'None';
 
   @override
   void initState() {
@@ -61,10 +58,6 @@ class _LogFormScreenState extends State<LogFormScreen> {
     }
     return null;
   }
-
-  String get _severityLabel => _severity == null
-      ? _noneLabel
-      : severityLabels[_severity] ?? _severity!.wire;
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
@@ -108,66 +101,44 @@ class _LogFormScreenState extends State<LogFormScreen> {
   Widget build(BuildContext context) {
     return FormScaffold(
       title: widget.initial == null ? 'Add log' : 'Edit log',
+      heading: widget.initial == null ? 'How are you feeling?' : 'Update this log',
       saving: _saving,
       onSave: _save,
       child: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: formPadding,
           children: [
-            TextFormField(
+            HealthField(
               controller: _titleController,
               enabled: !_saving,
               maxLength: 120,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Title',
+              hint: 'e.g. Mild headache',
               validator: _validateTitle,
             ),
-            TextFormField(
+            HealthField(
               controller: _descriptionController,
               enabled: !_saving,
               maxLines: 3,
               maxLength: 1000,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Description (optional)',
             ),
-            const SizedBox(height: 8),
             DateTimeField(
               label: 'Observed at',
               value: _observedAt,
               onChanged: (value) => setState(() => _observedAt = value),
             ),
-            const SizedBox(height: 16),
-            LabeledDropdown<String>(
+            FormSegmented<Severity?>(
               label: 'Severity',
-              value: _severityLabel,
-              items: [
-                const DropdownMenuItem(value: _noneLabel, child: Text(_noneLabel)),
+              selected: _severity,
+              options: [
+                (null, 'None'),
                 for (final Severity severity in Severity.values)
-                  DropdownMenuItem(
-                    value: severityLabels[severity] ?? severity.wire,
-                    child: Text(severityLabels[severity] ?? severity.wire),
-                  ),
+                  (severity, severityLabels[severity] ?? severity.wire),
               ],
-              onChanged: (label) {
-                if (label == null) {
-                  return;
-                }
-                setState(() {
-                  _severity = label == _noneLabel
-                      ? null
-                      : Severity.values.firstWhere(
-                          (severity) =>
-                              (severityLabels[severity] ?? severity.wire) == label,
-                        );
-                });
-              },
+              onChanged: (value) => setState(() => _severity = value),
             ),
-            const SizedBox(height: 16),
             noteField(controller: _notesController, label: 'Notes (optional)'),
           ],
         ),

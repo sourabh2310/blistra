@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/widgets/blistra_ui.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import 'widgets.dart';
@@ -146,12 +147,15 @@ class _MeasurementFormScreenState extends State<MeasurementFormScreen> {
   Widget build(BuildContext context) {
     return FormScaffold(
       title: widget.initial == null ? 'Add measurement' : 'Edit measurement',
+      heading: widget.initial == null
+          ? 'What did you measure?'
+          : 'Update this reading',
       saving: _saving,
       onSave: _save,
       child: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: formPadding,
           children: [
             LabeledDropdown<MeasurementType>(
               label: 'Type',
@@ -165,68 +169,64 @@ class _MeasurementFormScreenState extends State<MeasurementFormScreen> {
               ],
               onChanged: _onTypeChanged,
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _valueController,
-              enabled: !_saving,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-              ],
-              decoration: InputDecoration(
-                labelText: _isBloodPressure ? 'Systolic' : 'Value',
-                border: const OutlineInputBorder(),
-              ),
-              validator: _validatePositive,
-            ),
-            if (_isBloodPressure) ...[
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _diastolicController,
-                enabled: !_saving,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                ],
-                decoration: const InputDecoration(
-                  labelText: 'Diastolic',
-                  border: OutlineInputBorder(),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: HealthField(
+                    controller: _valueController,
+                    enabled: !_saving,
+                    label: _isBloodPressure ? 'Systolic' : 'Value',
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
+                    validator: _validatePositive,
+                  ),
                 ),
-                validator: _validatePositive,
-              ),
-            ],
-            const SizedBox(height: 16),
-            LabeledDropdown<String>(
-              label: 'Unit',
-              value: _unit,
-              items: [
-                for (final String unit in unitsFor(_type))
-                  DropdownMenuItem(value: unit, child: Text(unit)),
+                if (_isBloodPressure) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: HealthField(
+                      controller: _diastolicController,
+                      enabled: !_saving,
+                      label: 'Diastolic',
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      validator: _validatePositive,
+                    ),
+                  ),
+                ],
               ],
-              onChanged: (unit) {
-                if (unit != null) {
-                  setState(() => _unit = unit);
-                }
-              },
             ),
-            const SizedBox(height: 16),
+            if (unitsFor(_type).length > 1)
+              FormSegmented<String>(
+                label: 'Unit',
+                selected: _unit,
+                options: [
+                  for (final String unit in unitsFor(_type))
+                    (unit, displayUnit(unit)),
+                ],
+                onChanged: (unit) => setState(() => _unit = unit),
+              )
+            else
+              FieldCard(label: 'Unit', child: Text(displayUnit(_unit))),
             DateTimeField(
               label: 'Measured at',
               value: _measuredAt,
               onChanged: (value) => setState(() => _measuredAt = value),
             ),
-            const SizedBox(height: 16),
-            TextFormField(
+            HealthField(
               controller: _sourceController,
               enabled: !_saving,
               maxLength: 50,
-              decoration: const InputDecoration(
-                labelText: 'Source (optional)',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Source (optional)',
+              hint: 'e.g. Home cuff, clinic',
             ),
-            const SizedBox(height: 8),
             noteField(controller: _notesController, label: 'Notes (optional)'),
           ],
         ),

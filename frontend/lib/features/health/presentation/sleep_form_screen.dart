@@ -85,37 +85,28 @@ class _SleepFormScreenState extends State<SleepFormScreen> {
   Widget build(BuildContext context) {
     return FormScaffold(
       title: widget.initial == null ? 'Add sleep' : 'Edit sleep',
+      heading: 'How did you sleep?',
       saving: _saving,
       onSave: _save,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: formPadding,
         children: [
           DateTimeField(
             label: 'Started at',
             value: _startedAt,
             onChanged: (value) => setState(() => _startedAt = value),
           ),
-          const SizedBox(height: 8),
           DateTimeField(
             label: 'Ended at',
             value: _endedAt,
             onChanged: (value) => setState(() => _endedAt = value),
           ),
-          const SizedBox(height: 16),
-          LabeledDropdown<int>(
+          FormSegmented<int>(
             label: 'Feeling on waking (1–5)',
-            value: _rating,
-            items: [
-              for (int i = 1; i <= 5; i++)
-                DropdownMenuItem(value: i, child: Text('$i')),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _rating = value);
-              }
-            },
+            selected: _rating,
+            options: [for (int i = 1; i <= 5; i++) (i, '$i')],
+            onChanged: (value) => setState(() => _rating = value),
           ),
-          const SizedBox(height: 16),
           noteField(controller: _notesController, label: 'Notes (optional)'),
         ],
       ),

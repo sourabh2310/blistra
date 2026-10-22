@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import 'measurement_form_screen.dart';
@@ -21,10 +22,11 @@ class MeasurementsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return RecordListScreen<HealthMeasurement>(
       title: 'Measurements',
-      emptyMessage: 'No measurements yet.\nTap + to record one.',
+      noun: 'reading',
+      emptyMessage: 'No measurements yet. Add your first reading.',
       load: repository.loadMeasurements,
       delete: (measurement) => repository.deleteMeasurement(measurement.id),
-      itemBuilder: (context, measurement) => _MeasurementTile(measurement),
+      itemBuilder: _row,
       formBuilder: (context, edited) => MeasurementFormScreen(
         repository: repository,
         initial: edited,
@@ -32,48 +34,20 @@ class MeasurementsScreen extends StatelessWidget {
       onChanged: onChanged,
     );
   }
-}
 
-class _MeasurementTile extends StatelessWidget {
-  const _MeasurementTile(this.measurement);
-
-  final HealthMeasurement measurement;
-
-  @override
-  Widget build(BuildContext context) {
+  static HealthRow _row(BuildContext context, HealthMeasurement measurement) {
     final MeasurementType type = measurement.type;
-    final String diastolic = measurement.valueDiastolic == null
-        ? ''
-        : ' / ${formatDouble(measurement.valueDiastolic)}';
-    final List<String> lines = [
-      '${formatDouble(measurement.value)}$diastolic ${measurement.unit}',
-      formatDateTime(measurement.measuredAt),
-    ];
-    if (measurement.source != null && measurement.source!.isNotEmpty) {
-      lines.add(measurement.source!);
-    }
-
-    return Row(
-      children: [
-        Icon(measurementTypeIcons[type] ?? Icons.monitor_heart_outlined),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                measurementTypeLabels[type] ?? type.name,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                lines.join(' · '),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-        ),
-      ],
+    final String when = relativeDay(measurement.measuredAt, DateTime.now());
+    final String source = measurement.source?.trim() ?? '';
+    return HealthRow(
+      icon: measurementTypeIcons[type] ?? Icons.monitor_heart_outlined,
+      color: measurementColor(BlistraColors.resolve(context), type),
+      title: measurementTypeLabels[type] ?? type.name,
+      subtitle: [
+        '${measurementNumber(measurement)} ${displayUnit(measurement.unit)}',
+        when,
+        if (source.isNotEmpty) source,
+      ].join(' · '),
     );
   }
 }

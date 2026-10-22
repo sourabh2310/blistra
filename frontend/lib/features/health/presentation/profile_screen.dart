@@ -80,27 +80,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return FormScaffold(
       title: 'Health profile',
+      heading: 'Your medical profile',
       saving: _saving,
       onSave: _save,
       child: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: formPadding,
           children: [
-            TextFormField(
+            HealthField(
               controller: _heightController,
               enabled: !_saving,
+              label: 'Height (cm)',
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
               ],
-              decoration: const InputDecoration(
-                labelText: 'Height (cm)',
-                border: OutlineInputBorder(),
-              ),
             ),
-            const SizedBox(height: 16),
             LabeledDropdown<BloodType>(
               label: 'Blood type',
               value: _bloodType,
@@ -117,7 +114,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
               },
             ),
-            const SizedBox(height: 16),
             DateField(
               label: 'Date of birth',
               value: _dateOfBirth,

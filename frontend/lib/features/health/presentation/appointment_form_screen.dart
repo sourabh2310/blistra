@@ -90,41 +90,36 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
   Widget build(BuildContext context) {
     return FormScaffold(
       title: widget.initial == null ? 'Add appointment' : 'Edit appointment',
+      heading: widget.initial == null
+          ? 'Who are you seeing?'
+          : 'Update this appointment',
       saving: _saving,
       onSave: _save,
       child: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: formPadding,
           children: [
-            TextFormField(
+            HealthField(
               controller: _titleController,
               enabled: !_saving,
               maxLength: 200,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Title',
+              hint: 'e.g. Dr. Mehta · General checkup',
               validator: (value) =>
                   (value ?? '').trim().isEmpty ? 'Title is required' : null,
             ),
-            const SizedBox(height: 16),
             DateTimeField(
               label: 'Scheduled at',
               value: _scheduledAt,
               onChanged: (value) => setState(() => _scheduledAt = value),
             ),
-            const SizedBox(height: 16),
-            TextFormField(
+            HealthField(
               controller: _locationController,
               enabled: !_saving,
               maxLength: 200,
-              decoration: const InputDecoration(
-                labelText: 'Location (optional)',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Location (optional)',
             ),
-            const SizedBox(height: 16),
             LabeledDropdown<AppointmentStatus>(
               label: 'Status',
               value: _status ?? AppointmentStatus.scheduled,
@@ -141,7 +136,6 @@ class _AppointmentFormScreenState extends State<AppointmentFormScreen> {
                 }
               },
             ),
-            const SizedBox(height: 16),
             noteField(controller: _notesController, label: 'Notes (optional)'),
           ],
         ),

@@ -1,22 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/blistra_ui.dart';
+import '../../../core/widgets/design_system.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/page_header.dart';
 import '../../app_scope.dart';
 import '../health_models.dart';
 import '../health_repository.dart';
 import '../overview_stats.dart';
+import 'activity_form_screen.dart';
 import 'activity_screen.dart';
+import 'appointment_form_screen.dart';
 import 'appointments_screen.dart';
+import 'event_form_screen.dart';
 import 'events_screen.dart';
+import 'log_form_screen.dart';
 import 'logs_screen.dart';
 import 'measurement_form_screen.dart';
 import 'measurements_screen.dart';
 import 'profile_screen.dart';
+import 'sleep_form_screen.dart';
 import 'sleep_screen.dart';
+import 'vital_detail_screen.dart';
 import 'widgets.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/page_header.dart';
 
+/// Health home: glanceable vitals first. Next appointment on top, then the
+/// latest measurements, sleep and activity, recent symptoms and events, and
+/// the medical profile. Every value comes from the user's own records.
 class HealthHomeScreen extends StatefulWidget {
   const HealthHomeScreen({
     super.key,
@@ -31,47 +43,43 @@ class HealthHomeScreen extends StatefulWidget {
   State<HealthHomeScreen> createState() => _HealthHomeScreenState();
 }
 
-class _ResourceEntry {
-  const _ResourceEntry(this.icon, this.label);
+class _SheetEntry {
+  const _SheetEntry(this.icon, this.label);
 
   final IconData icon;
   final String label;
 }
 
+/// Measurements shown in the 2×2 Vitals grid, in reading order.
+const List<MeasurementType> _vitalTypes = [
+  MeasurementType.weight,
+  MeasurementType.bloodPressure,
+  MeasurementType.heartRate,
+  MeasurementType.temperature,
+];
+
 class _HealthHomeScreenState extends State<HealthHomeScreen> {
-  static const List<_ResourceEntry> _resources = [
-    _ResourceEntry(Icons.person_outline, 'Profile'),
-    _ResourceEntry(Icons.monitor_weight_outlined, 'Measurements'),
-    _ResourceEntry(Icons.bedtime_outlined, 'Sleep'),
-    _ResourceEntry(Icons.directions_run, 'Activity'),
-    _ResourceEntry(Icons.assignment_outlined, 'Health logs'),
-    _ResourceEntry(Icons.event_note_outlined, 'Events'),
-    _ResourceEntry(Icons.calendar_month_outlined, 'Appointments'),
+  static const List<_SheetEntry> _resources = [
+    _SheetEntry(Icons.person_outline, 'Profile'),
+    _SheetEntry(Icons.monitor_weight_outlined, 'Measurements'),
+    _SheetEntry(Icons.bedtime_outlined, 'Sleep'),
+    _SheetEntry(Icons.directions_run, 'Activity'),
+    _SheetEntry(Icons.assignment_outlined, 'Health logs'),
+    _SheetEntry(Icons.event_note_outlined, 'Events'),
+    _SheetEntry(Icons.calendar_month_outlined, 'Appointments'),
   ];
 
-  static const List<String> _tabs = [
-    'Overview',
-    'Measurements',
-    'Trends',
-    'Goals',
-    'Insights',
+  static const List<_SheetEntry> _addOptions = [
+    _SheetEntry(Icons.monitor_heart_outlined, 'Measurement'),
+    _SheetEntry(Icons.bedtime_outlined, 'Sleep'),
+    _SheetEntry(Icons.directions_run, 'Activity'),
+    _SheetEntry(Icons.sick_outlined, 'Symptom'),
+    _SheetEntry(Icons.event_note_outlined, 'Event'),
+    _SheetEntry(Icons.calendar_month_outlined, 'Appointment'),
   ];
-
-  static Color get _green => ActiveColors.accentText;
-  static Color get _ink => ActiveColors.text;
-  static Color get _muted => ActiveColors.muted;
-  static Color get _mint => ActiveColors.soft(const Color(0xFFE4F5EE));
-  static Color get _blush => ActiveColors.soft(const Color(0xFFFFE7EC));
-  static Color get _blue => ActiveColors.soft(const Color(0xFFE5F3FD));
-  static Color get _lavender => ActiveColors.soft(const Color(0xFFF0E9FF));
-  static Color get _orange => ActiveColors.soft(const Color(0xFFFFE9D8));
-  static const Color _page = Colors.transparent;
 
   bool _loading = false;
   Object? _measurementsError;
-  int _selectedTab = 0;
-  int _trendDays = 30;
-  MeasurementType _historyType = MeasurementType.weight;
 
   HealthRepository get _repository => widget.repository;
 
@@ -125,25 +133,6 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
     }
   }
 
-  Future<void> _openMeasurementForm({
-    HealthMeasurement? initial,
-    MeasurementType? initialType,
-  }) async {
-    final bool? changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => MeasurementFormScreen(
-          repository: _repository,
-          initial: initial,
-          initialType: initialType,
-        ),
-      ),
-    );
-    if (changed == true && mounted) {
-      await _loadMeasurements();
-      await _refreshDashboard();
-    }
-  }
-
   Future<void> _loadMeasurements() async {
     if (mounted) {
       setState(() {
@@ -163,130 +152,129 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
     }
   }
 
-  Future<void> _confirmDeleteMeasurement(HealthMeasurement measurement) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete record'),
-        content: const Text('This record will be permanently removed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
+  Future<void> _openMeasurementForm({MeasurementType? initialType}) async {
+    final bool? changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => MeasurementFormScreen(
+          repository: _repository,
+          initialType: initialType,
+        ),
       ),
     );
-    if (confirmed != true || !mounted) {
-      return;
-    }
-    try {
-      await _repository.deleteMeasurement(measurement.id);
-      if (!mounted) {
-        return;
-      }
+    if (changed == true && mounted) {
       await _loadMeasurements();
       await _refreshDashboard();
-    } catch (error) {
-      if (mounted) {
-        showError(context, error);
+    }
+  }
+
+  /// Pushes a create/edit form and refreshes everything when it saved.
+  /// Appointments also feed Home, so they refresh the dashboard too.
+  Future<void> _openForm(Widget form, {bool dashboard = false}) async {
+    final bool? changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => form),
+    );
+    if (changed == true && mounted) {
+      await _refreshAll();
+      if (dashboard && mounted) {
+        await _refreshDashboard();
       }
     }
   }
 
+  Future<void> _openVital(MeasurementType type) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VitalDetailScreen(
+          repository: _repository,
+          type: type,
+          onChanged: _refreshDashboard,
+        ),
+      ),
+    );
+  }
+
   Future<void> _openResource(int index) async {
-    switch (index) {
-      case 0:
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ProfileScreen(repository: _repository),
-          ),
-        );
-        break;
-      case 1:
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => MeasurementsScreen(
-              repository: _repository,
-              onChanged: _refreshDashboard,
-            ),
-          ),
-        );
-        break;
-      case 2:
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => SleepScreen(repository: _repository),
-          ),
-        );
-        break;
-      case 3:
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ActivityScreen(repository: _repository),
-          ),
-        );
-        break;
-      case 4:
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => LogsScreen(repository: _repository),
-          ),
-        );
-        break;
-      case 5:
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => EventsScreen(repository: _repository),
-          ),
-        );
-        break;
-      case 6:
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => AppointmentsScreen(
-              repository: _repository,
-              onChanged: _refreshDashboard,
-            ),
-          ),
-        );
-        break;
-    }
+    final Widget page = switch (index) {
+      0 => ProfileScreen(repository: _repository),
+      1 => MeasurementsScreen(
+          repository: _repository,
+          onChanged: _refreshDashboard,
+        ),
+      2 => SleepScreen(repository: _repository),
+      3 => ActivityScreen(repository: _repository),
+      4 => LogsScreen(repository: _repository),
+      5 => EventsScreen(repository: _repository),
+      _ => AppointmentsScreen(
+          repository: _repository,
+          onChanged: _refreshDashboard,
+        ),
+    };
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
     if (mounted) {
       await _refreshAll();
     }
   }
 
-  Future<void> _showResourcePicker() async {
+  void _add(int index) {
+    switch (index) {
+      case 0:
+        _openMeasurementForm();
+      case 1:
+        _openForm(SleepFormScreen(repository: _repository));
+      case 2:
+        _openForm(ActivityFormScreen(repository: _repository));
+      case 3:
+        _openForm(LogFormScreen(repository: _repository));
+      case 4:
+        _openForm(EventFormScreen(repository: _repository));
+      default:
+        _openForm(
+          AppointmentFormScreen(repository: _repository),
+          dashboard: true,
+        );
+    }
+  }
+
+  Future<void> _showSheet({
+    required String title,
+    required String subtitle,
+    required List<_SheetEntry> entries,
+    required ValueChanged<int> onSelected,
+    List<String>? metas,
+  }) async {
+    final BlistraColors colors = BlistraColors.resolve(context);
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: colors.sheet,
       builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(kPageGutter, 0, kPageGutter, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Health resources',
-                style: Theme.of(context).textTheme.titleLarge,
+              Text(title, style: BlistraText.serif(20, colors.text)),
+              const SizedBox(height: 4),
+              Text(subtitle, style: TextStyle(fontSize: 12.5, color: colors.muted)),
+              const SizedBox(height: 14),
+              GlassList(
+                children: [
+                  for (int index = 0; index < entries.length; index++)
+                    GlassRow(
+                      leading: IconWell(entries[index].icon, color: colors.accentText),
+                      title: entries[index].label,
+                      trailing: RowMeta(
+                        metas == null ? '›' : '${metas[index]}  ›',
+                      ),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        onSelected(index);
+                      },
+                    ),
+                ],
               ),
-              const SizedBox(height: 8),
-              for (int index = 0; index < _resources.length; index++)
-                ListTile(
-                  leading: Icon(_resources[index].icon, color: _green),
-                  title: Text(_resources[index].label),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _openResource(index);
-                  },
-                ),
             ],
           ),
         ),
@@ -294,8 +282,30 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
     );
   }
 
-  void _selectTab(int index) {
-    setState(() => _selectedTab = index);
+  void _showAddSheet() => _showSheet(
+        title: 'Add',
+        subtitle: 'What would you like to log?',
+        entries: _addOptions,
+        onSelected: _add,
+      );
+
+  void _showResourcePicker() {
+    final DateTime now = DateTime.now();
+    _showSheet(
+      title: 'Health records',
+      subtitle: 'Everything you have logged.',
+      entries: _resources,
+      onSelected: _openResource,
+      metas: [
+        _repository.profile == null ? '' : 'View',
+        '${_repository.measurements.length}',
+        '${_repository.sleepRecords.length}',
+        '${_repository.activities.length}',
+        '${_repository.logs.length}',
+        '${_repository.events.length}',
+        '${_repository.appointments.where((a) => a.scheduledAt.isAfter(now)).length} upcoming',
+      ],
+    );
   }
 
   @override
@@ -303,46 +313,40 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
     return ListenableBuilder(
       listenable: _repository,
       builder: (context, _) {
+        final _HealthView view = _HealthView.from(
+          _repository,
+          DateTime.now(),
+          BlistraColors.resolve(context),
+        );
         return Scaffold(
-          backgroundColor: _page,
           body: SafeArea(
             bottom: false,
-            child: Column(
-              children: [
-                BlistraPageHeader(
-                  title: 'Health',
-                  subtitle: 'Track your health. Build a healthier you.',
-                  actions: [
-                    GlassIconButton(
-                      tooltip: 'Health resources',
-                      icon: Icons.search_rounded,
-                      onTap: _showResourcePicker,
-                    ),
-                    GlassIconButton(
-                      tooltip: 'Health logs',
-                      icon: Icons.notifications_none_rounded,
-                      onTap: () => _openResource(4),
-                    ),
-                    GlassIconButton(
-                      tooltip: 'Appointments',
-                      icon: Icons.calendar_today_outlined,
-                      onTap: () => _openResource(6),
-                    ),
-                  ],
-                ),
-                _HealthTabs(
-                  tabs: _tabs,
-                  selected: _selectedTab,
-                  onSelected: _selectTab,
-                ),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    switchInCurve: Curves.easeOutCubic,
-                    child: _buildSelectedPage(),
+            child: RefreshIndicator(
+              onRefresh: _refreshAll,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 112),
+                children: [
+                  BlistraPageHeader(
+                    eyebrow: 'Health',
+                    title: 'Your vitals',
+                    subtitle: view.subtitle,
+                    actions: [
+                      GlassIconButton(
+                        tooltip: 'Add to Health',
+                        icon: Icons.add_rounded,
+                        onTap: _showAddSheet,
+                      ),
+                      GlassIconButton(
+                        tooltip: 'Health records',
+                        icon: Icons.more_horiz_rounded,
+                        onTap: _showResourcePicker,
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  ..._sections(view),
+                ],
+              ),
             ),
           ),
         );
@@ -350,1828 +354,493 @@ class _HealthHomeScreenState extends State<HealthHomeScreen> {
     );
   }
 
-  Widget _buildSelectedPage() {
-    if (_loading && _repository.measurements.isEmpty) {
-      return Center(
-        key: ValueKey('loading'),
-        child: CircularProgressIndicator(color: _green),
-      );
-    }
-    if (_measurementsError != null && _repository.measurements.isEmpty) {
-      return _MeasurementError(
-        key: const ValueKey('error'),
-        message: errorMessage(_measurementsError!),
-        onRetry: _loadMeasurements,
-      );
-    }
-    return switch (_selectedTab) {
-      0 => _overviewPage(),
-      1 => _measurementsPage(),
-      2 => _trendsPage(),
-      3 => _goalsPage(),
-      _ => _insightsPage(),
-    };
-  }
-
-  Widget _pageShell({required Key key, required List<Widget> children}) {
-    return RefreshIndicator(
-      key: key,
-      color: _green,
-      onRefresh: _refreshAll,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 112),
-        children: children,
-      ),
-    );
-  }
-
-  Widget _overviewPage() {
-    final HealthRepository repository = _repository;
-    final List<HealthMeasurement> all = repository.measurements;
-    final Map<MeasurementType, HealthMeasurement> latest = latestPerType(all);
-    final List<HealthMeasurement> recent = mostRecent(all, count: 4);
-    return _pageShell(
-      key: const ValueKey('overview'),
-      children: [
-        _MetricGrid(
-          latest: latest,
-          history: historyFor(all, MeasurementType.weight, limit: 1000),
-          activity: _latestActivity(repository.activities),
-          onMeasurement: (type) {
-            setState(() {
-              _historyType = type;
-              _selectedTab = 2;
-            });
-          },
-          onActivity: () => _selectTab(4),
-        ),
-        const SizedBox(height: 14),
-        _WeightTrendCard(
-          history: _trendingHistory(
-            historyFor(all, MeasurementType.weight, limit: 1000),
+  List<Widget> _sections(_HealthView view) {
+    final bool measurementsMissing = _repository.measurements.isEmpty;
+    return [
+      if (view.appointment != null)
+        PagePad(
+          _NextAppointmentCard(
+            appointment: view.appointment!,
+            now: view.now,
+            onTap: () => _openResource(6),
           ),
-          selectedType: MeasurementType.weight,
-          trendDays: _trendDays,
-          onType: (type) {
-            setState(() {
-              _historyType = type;
-              _selectedTab = 2;
-            });
-          },
-          onRange: (days) => setState(() => _trendDays = days),
-          onAdd: () => _openMeasurementForm(initialType: _historyType),
+          top: 14,
         ),
-        const SizedBox(height: 14),
-        _TodayProgressCard(
-          measurements: todayOnly(all, DateTime.now()),
-          activities: _todayActivities(repository.activities),
-          sleep: _todaySleep(repository.sleepRecords),
-        ),
-        const SizedBox(height: 14),
-        _QuickLogCard(
-          onOpenResource: _showResourcePicker,
-          onMeasurement: (type) {
-            _openMeasurementForm(initialType: type);
-          },
-        ),
-        const SizedBox(height: 14),
-        _RecentMeasurementsCard(
-          measurements: recent,
-          onEdit: (measurement) => _openMeasurementForm(initial: measurement),
-          onDelete: _confirmDeleteMeasurement,
-          onSeeAll: () => _openResource(1),
-        ),
-      ],
-    );
-  }
-
-  Widget _measurementsPage() {
-    final List<HealthMeasurement> measurements = mostRecent(
-      _repository.measurements,
-    );
-    return _pageShell(
-      key: const ValueKey('measurements'),
-      children: [
-        _QuickLogCard(
-          onOpenResource: _showResourcePicker,
-          onMeasurement: (type) {
-            _openMeasurementForm(initialType: type);
-          },
-        ),
-        const SizedBox(height: 14),
-        _RecentMeasurementsCard(
-          measurements: measurements,
-          onEdit: (measurement) => _openMeasurementForm(initial: measurement),
-          onDelete: _confirmDeleteMeasurement,
-          onSeeAll: () => _openResource(1),
-        ),
-      ],
-    );
-  }
-
-  Widget _trendsPage() {
-    final List<HealthMeasurement> all = _repository.measurements;
-    final List<HealthMeasurement> history = historyFor(
-      all,
-      _historyType,
-      limit: 1000,
-    );
-    final List<HealthMeasurement> trendHistory =
-        _trendingHistory(history);
-    return _pageShell(
-      key: const ValueKey('trends'),
-      children: [
-        _WeightTrendCard(
-          history: trendHistory,
-          selectedType: _historyType,
-          trendDays: _trendDays,
-          onType: (type) => setState(() => _historyType = type),
-          onRange: (days) => setState(() => _trendDays = days),
-          onAdd: () => _openMeasurementForm(initialType: _historyType),
-        ),
-        const SizedBox(height: 14),
-        _TrendSummaryCard(
-          all: all,
-          selected: _historyType,
-          onSelect: (type) {
-            setState(() {
-              _historyType = type;
-              if (type == MeasurementType.weight && _trendDays > 365) {
-                _trendDays = 365;
-              }
-            });
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _goalsPage() {
-    final HealthRepository repository = _repository;
-    final Map<MeasurementType, HealthMeasurement> latest = latestPerType(
-      repository.measurements,
-    );
-    final List<HealthActivity> activities = _todayActivities(
-      repository.activities,
-    );
-    final List<HealthSleepRecord> sleep = _todaySleep(repository.sleepRecords);
-    return _pageShell(
-      key: const ValueKey('goals'),
-      children: [
-        const _Panel(child: _UnavailableGoalState()),
-        const SizedBox(height: 14),
-        _Panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _SectionTitle(
-                icon: Icons.flag_outlined,
-                title: 'Current baseline',
-              ),
-              const SizedBox(height: 14),
-              _SummaryLine(
-                label: 'Weight',
-                value: latest[MeasurementType.weight] == null
-                    ? 'Not recorded'
-                    : formatValue(latest[MeasurementType.weight]!),
-              ),
-              _SummaryLine(
-                label: 'Blood pressure',
-                value: latest[MeasurementType.bloodPressure] == null
-                    ? 'Not recorded'
-                    : formatValue(latest[MeasurementType.bloodPressure]!),
-              ),
-              _SummaryLine(
-                label: 'Today’s activity',
-                value: _activityDurationLabel(activities),
-              ),
-              _SummaryLine(
-                label: 'Today’s sleep',
-                value: _sleepDurationLabel(sleep),
-              ),
-              const SizedBox(height: 8),
-              Row(
+      const SizedBox(height: 24),
+      SectionHeader(
+        title: 'Vitals',
+        actionLabel: 'All ›',
+        onAction: () => _openResource(1),
+      ),
+      PagePad(
+        _loading && measurementsMissing
+            ? const SkeletonLoader(rows: 2, rowHeight: 92)
+            : _measurementsError != null && measurementsMissing
+                ? UnavailableCard(name: 'Vitals', onRetry: _loadMeasurements)
+                : _VitalsGrid(
+                    view: view,
+                    onOpen: _openVital,
+                    onAdd: (type) => _openMeasurementForm(initialType: type),
+                  ),
+      ),
+      const SizedBox(height: 24),
+      const SectionHeader(title: 'Sleep & activity', actionLabel: 'Last 7 days'),
+      StatStrip(
+        stats: [
+          for (final StatData stat in view.sleepAndActivity)
+            StatData(
+              label: stat.label,
+              value: stat.value,
+              unit: stat.unit,
+              sub: stat.sub,
+              onTap: () => _openResource(stat.label == 'Activity' ? 3 : 2),
+            ),
+        ],
+      ),
+      const SizedBox(height: 24),
+      SectionHeader(
+        title: 'Log',
+        actionLabel: 'Journal ›',
+        onAction: () => _openResource(4),
+      ),
+      PagePad(
+        view.log.isEmpty
+            ? EmptyCard(
+                message: 'No symptoms or events logged yet.',
+                action: 'Log',
+                onAction: () => _add(3),
+              )
+            : GlassList(
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _openResource(1),
-                      child: const Text('Measurements'),
+                  for (final _LogItem item in view.log)
+                    GlassRow(
+                      leading: IconWell(item.row.icon, color: item.row.color),
+                      title: item.row.title,
+                      subtitle: item.row.subtitle,
+                      onTap: () => _openForm(item.edit(_repository)),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _openResource(3),
-                      child: const Text('Activity'),
-                    ),
-                  ),
                 ],
               ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _insightsPage() {
-    final HealthRepository repository = _repository;
-    final List<HealthMeasurement> measurements = repository.measurements;
-    final List<HealthMeasurement> weightHistory = historyFor(
-      measurements,
-      MeasurementType.weight,
-      limit: 1000,
-    );
-    final List<HealthMeasurement> newestFirst = mostRecent(
-      measurements,
-      count: 100000,
-    );
-    final DateTime now = DateTime.now();
-    final List<HealthAppointment> upcoming =
-        repository.appointments
-            .where((appointment) => appointment.scheduledAt.isAfter(now))
-            .toList()
-          ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-    final int trackedTypes = latestPerType(measurements).length;
-    final String? weightChange = weightHistory.length >= 2
-        ? deltaText(weightHistory.first, weightHistory[1])
-        : null;
-    return _pageShell(
-      key: const ValueKey('insights'),
-      children: [
-        _Panel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _SectionTitle(
-                icon: Icons.auto_awesome_outlined,
-                title: 'Your health snapshot',
-              ),
-              const SizedBox(height: 14),
-              _SummaryLine(
-                label: 'Measurement records',
-                value: '${measurements.length}',
-              ),
-              _SummaryLine(
-                label: 'Measurement types tracked',
-                value: '$trackedTypes of ${overviewTypes.length}',
-              ),
-              _SummaryLine(
-                label: 'Latest measurement',
-                value: newestFirst.isEmpty
-                    ? 'Not available'
-                    : formatDateTime(newestFirst.first.measuredAt),
-              ),
-              _SummaryLine(
-                label: 'Latest weight change',
-                value: weightChange ?? 'Not enough history',
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Summaries use recorded values only and do not provide medical interpretation.',
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: _muted, height: 1.35),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        if (upcoming.isNotEmpty) ...[
-          _Panel(
-            child: _SummaryLine(
-              label: 'Next appointment',
-              value:
-                  '${upcoming.first.title.isEmpty ? 'Appointment' : upcoming.first.title} · '
-                  '${formatDateTime(upcoming.first.scheduledAt)}',
-            ),
-          ),
-          const SizedBox(height: 14),
-        ],
-        const _SectionTitle(
-          icon: Icons.folder_open_outlined,
-          title: 'Health records',
-        ),
-        const SizedBox(height: 10),
-        _ResourceGrid(
-          repository: repository,
-          resources: _resources,
-          onOpen: _openResource,
-        ),
-      ],
-    );
-  }
-
-  List<HealthMeasurement> _trendingHistory(List<HealthMeasurement> history) {
-    final DateTime cutoff = DateTime.now().subtract(Duration(days: _trendDays));
-    final List<HealthMeasurement> visible =
-        history
-            .where((measurement) => !measurement.measuredAt.isBefore(cutoff))
-            .toList()
-          ..sort((a, b) => a.measuredAt.compareTo(b.measuredAt));
-    return visible;
-  }
-
-  HealthActivity? _latestActivity(List<HealthActivity> values) {
-    if (values.isEmpty) {
-      return null;
-    }
-    final List<HealthActivity> sorted = List.of(values)
-      ..sort((a, b) => b.performedAt.compareTo(a.performedAt));
-    return sorted.first;
-  }
-
-  List<HealthActivity> _todayActivities(List<HealthActivity> values) {
-    final DateTime now = DateTime.now();
-    return values
-        .where((value) => isSameLocalDay(value.performedAt, now))
-        .toList()
-      ..sort((a, b) => b.performedAt.compareTo(a.performedAt));
-  }
-
-  List<HealthSleepRecord> _todaySleep(List<HealthSleepRecord> values) {
-    final DateTime now = DateTime.now();
-    return values
-        .where(
-          (value) =>
-              isSameLocalDay(value.startedAt, now) ||
-              isSameLocalDay(value.endedAt, now),
-        )
-        .toList()
-      ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
-  }
-}
-
-class _HealthTabs extends StatelessWidget {
-  const _HealthTabs({
-    required this.tabs,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final List<String> tabs;
-  final int selected;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 50,
-      margin: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: ActiveColors.glassFill,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: ActiveColors.glassBorder),
       ),
-      child: Row(
-        children: [
-          for (int index = 0; index < tabs.length; index++)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onSelected(index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: selected == index
-                        ? BlistraColors.resolve(context).accent.withValues(alpha: .2)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        tabs[index],
-                        style: TextStyle(
-                          color: _HealthHomeScreenState._ink,
-                          fontFamily: 'Sora',
-                          fontSize: 13,
-                          fontWeight: selected == index
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
+      const SizedBox(height: 24),
+      SectionHeader(
+        title: 'Profile',
+        actionLabel: 'Edit ›',
+        onAction: () => _openResource(0),
+      ),
+      PagePad(
+        view.profile.isEmpty
+            ? EmptyCard(
+                message: 'Add your blood group and height. They matter in an '
+                    'emergency.',
+                action: 'Add',
+                onAction: () => _openResource(0),
+              )
+            : GlassCard(
+                padding: const EdgeInsets.all(15),
+                onTap: () => _openResource(0),
+                child: Row(
+                  children: [
+                    for (final (String label, String value) in view.profile)
+                      Expanded(child: Figure(label: label, value: value)),
+                  ],
                 ),
               ),
-            ),
-        ],
       ),
-    );
+    ];
   }
 }
 
-class _MetricGrid extends StatelessWidget {
-  const _MetricGrid({
-    required this.latest,
-    required this.history,
-    required this.activity,
-    required this.onMeasurement,
-    required this.onActivity,
+// ───────────────────────────── view model ─────────────────────────────
+
+/// One row in the Log section with the form that edits it.
+class _LogItem {
+  const _LogItem(this.at, this.row, this.edit);
+
+  final DateTime at;
+  final HealthRow row;
+  final Widget Function(HealthRepository repository) edit;
+}
+
+/// Everything the home shows, derived from the repository's loaded records.
+class _HealthView {
+  const _HealthView({
+    required this.now,
+    required this.subtitle,
+    required this.appointment,
+    required this.histories,
+    required this.sleepAndActivity,
+    required this.log,
+    required this.profile,
   });
 
-  final Map<MeasurementType, HealthMeasurement> latest;
-  final List<HealthMeasurement> history;
-  final HealthActivity? activity;
-  final ValueChanged<MeasurementType> onMeasurement;
-  final VoidCallback onActivity;
+  factory _HealthView.from(
+    HealthRepository repository,
+    DateTime now,
+    BlistraColors colors,
+  ) {
+    final DateTime weekAgo = now.subtract(const Duration(days: 7));
 
-  @override
-  Widget build(BuildContext context) {
-    final HealthMeasurement? weight = latest[MeasurementType.weight];
-    final HealthMeasurement? previousWeight = history.length > 1
-        ? history[1]
-        : null;
-    final HealthMeasurement? pressure = latest[MeasurementType.bloodPressure];
-    final HealthMeasurement? heart = latest[MeasurementType.heartRate];
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.08,
-      children: [
-        _MetricCard(
-          color: _HealthHomeScreenState._mint,
-          icon: Icons.monitor_weight_outlined,
-          title: 'Weight',
-          value: weight == null ? '—' : formatDouble(weight.value),
-          unit: weight?.unit ?? '',
-          status: weight == null
-              ? 'Not recorded'
-              : deltaText(weight, previousWeight) ?? 'No prior reading',
-          statusColor: weight == null
-              ? _HealthHomeScreenState._muted
-              : _HealthHomeScreenState._green,
-          onTap: () => onMeasurement(MeasurementType.weight),
+    final List<HealthAppointment> upcoming = repository.appointments
+        .where((a) =>
+            a.scheduledAt.isAfter(now) &&
+            a.status != AppointmentStatus.cancelled)
+        .toList()
+      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+
+    final Map<MeasurementType, List<HealthMeasurement>> histories = {
+      for (final MeasurementType type in _vitalTypes)
+        type: historyFor(repository.measurements, type, limit: 2),
+    };
+    final List<HealthMeasurement> newest =
+        mostRecent(repository.measurements, count: 1);
+
+    // Sleep: the latest night, then the average over the last 7 days.
+    final List<HealthSleepRecord> sleep = List.of(repository.sleepRecords)
+      ..sort((a, b) => b.endedAt.compareTo(a.endedAt));
+    final List<StatData> stats = [];
+    if (sleep.isEmpty) {
+      stats.add(const StatData(label: 'Last night', value: '—', sub: 'No sleep logged'));
+    } else {
+      final HealthSleepRecord last = sleep.first;
+      final bool lastNight = isSameLocalDay(last.endedAt, now);
+      final DateFormat time = DateFormat('h:mm a');
+      stats.add(StatData(
+        label: lastNight ? 'Last night' : 'Last sleep',
+        value: durationText(sleepMinutes(last)),
+        sub: lastNight
+            ? '${time.format(last.startedAt.toLocal())} → '
+                '${time.format(last.endedAt.toLocal())}'
+            : relativeDay(last.endedAt, now),
+      ));
+      final List<HealthSleepRecord> week =
+          sleep.where((s) => s.endedAt.isAfter(weekAgo)).toList();
+      if (week.isNotEmpty) {
+        final int total = week.fold(0, (sum, s) => sum + sleepMinutes(s));
+        stats.add(StatData(
+          label: 'Avg sleep',
+          value: durationText(total ~/ week.length),
+          sub: '${week.length} night${week.length == 1 ? '' : 's'}',
+        ));
+      }
+    }
+    final List<HealthActivity> activities = repository.activities
+        .where((a) => a.performedAt.isAfter(weekAgo))
+        .toList();
+    final int minutes =
+        activities.fold(0, (sum, a) => sum + (a.durationMinutes ?? 0));
+    stats.add(StatData(
+      label: 'Activity',
+      value: '${activities.length}',
+      unit: activities.length == 1 ? 'session' : 'sessions',
+      sub: activities.isEmpty
+          ? 'Nothing logged'
+          : minutes > 0
+              ? '$minutes min this week'
+              : 'This week',
+    ));
+
+    final List<_LogItem> log = [
+      for (final HealthLogEntry entry in repository.logs)
+        _LogItem(
+          entry.observedAt,
+          logRow(colors, entry, now),
+          (r) => LogFormScreen(repository: r, initial: entry),
         ),
-        _MetricCard(
-          color: _HealthHomeScreenState._blush,
-          icon: Icons.favorite,
-          title: 'Blood pressure',
-          value: pressure == null
-              ? '—'
-              : pressure.valueDiastolic == null
-              ? formatDouble(pressure.value)
-              : '${formatDouble(pressure.value)} / ${formatDouble(pressure.valueDiastolic)}',
-          unit: pressure?.unit ?? '',
-          status: pressure == null
-              ? 'Not recorded'
-              : 'Updated ${formatDate(pressure.measuredAt)}',
-          statusColor: pressure == null ? _HealthHomeScreenState._muted : null,
-          onTap: () => onMeasurement(MeasurementType.bloodPressure),
+      for (final HealthEvent event in repository.events)
+        _LogItem(
+          event.occurredAt,
+          eventRow(colors, event, now),
+          (r) => EventFormScreen(repository: r, initial: event),
         ),
-        _MetricCard(
-          color: _HealthHomeScreenState._blue,
-          icon: Icons.water_drop_outlined,
-          title: 'Heart rate',
-          value: heart == null ? '—' : formatDouble(heart.value),
-          unit: heart?.unit ?? '',
-          status: heart == null
-              ? 'Not recorded'
-              : 'Updated ${formatDate(heart.measuredAt)}',
-          statusColor: heart == null ? _HealthHomeScreenState._muted : null,
-          onTap: () => onMeasurement(MeasurementType.heartRate),
-        ),
-        _MetricCard(
-          color: _HealthHomeScreenState._lavender,
-          icon: Icons.directions_run,
-          title: 'Activity',
-          value: activity?.durationMinutes == null
-              ? '—'
-              : _durationText(activity!.durationMinutes!),
-          unit: '',
-          status: activity == null
-              ? 'Not recorded'
-              : '${activity!.performedAt.toLocal().month}/${activity!.performedAt.toLocal().day} · latest activity',
-          statusColor: activity == null ? _HealthHomeScreenState._muted : null,
-          onTap: onActivity,
-        ),
-      ],
+    ]..sort((a, b) => b.at.compareTo(a.at));
+
+    final HealthProfile? p = repository.profile;
+    final List<(String, String)> profile = [
+      if (p?.bloodType != null && p!.bloodType != BloodType.unknown)
+        ('Blood group', _bloodShort(p.bloodType!)),
+      if (p?.heightCm != null) ('Height', '${formatDouble(p!.heightCm)} cm'),
+    ];
+
+    final List<String> parts = [
+      if (newest.isNotEmpty)
+        'Last reading ${relativeDay(newest.first.measuredAt, now).toLowerCase()}',
+      if (upcoming.isNotEmpty)
+        'next appointment ${_futureDay(upcoming.first.scheduledAt, now)}',
+    ];
+    final String subtitle = parts.isEmpty
+        ? 'Log a reading to see your vitals here.'
+        : '${parts.join(' · ')[0].toUpperCase()}${parts.join(' · ').substring(1)}';
+
+    return _HealthView(
+      now: now,
+      subtitle: subtitle,
+      appointment: upcoming.isEmpty ? null : upcoming.first,
+      histories: histories,
+      sleepAndActivity: stats,
+      log: log.take(4).toList(),
+      profile: profile,
     );
   }
+
+  final DateTime now;
+  final String subtitle;
+  final HealthAppointment? appointment;
+
+  /// Newest two readings per vital, newest first.
+  final Map<MeasurementType, List<HealthMeasurement>> histories;
+  final List<StatData> sleepAndActivity;
+  final List<_LogItem> log;
+  final List<(String, String)> profile;
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.color,
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.unit,
-    required this.status,
-    required this.statusColor,
+int _daysUntil(DateTime at, DateTime now) {
+  final DateTime local = at.toLocal();
+  return DateTime(local.year, local.month, local.day)
+      .difference(DateTime(now.year, now.month, now.day))
+      .inDays;
+}
+
+/// `today`, `tomorrow`, `Fri` within a week, otherwise `24 Oct`.
+String _futureDay(DateTime at, DateTime now) {
+  final int days = _daysUntil(at, now);
+  if (days <= 0) {
+    return 'today';
+  }
+  if (days == 1) {
+    return 'tomorrow';
+  }
+  return DateFormat(days < 7 ? 'EEEE' : 'd MMM').format(at.toLocal());
+}
+
+String _bloodShort(BloodType type) => switch (type) {
+      BloodType.aPositive => 'A+',
+      BloodType.aNegative => 'A−',
+      BloodType.bPositive => 'B+',
+      BloodType.bNegative => 'B−',
+      BloodType.abPositive => 'AB+',
+      BloodType.abNegative => 'AB−',
+      BloodType.oPositive => 'O+',
+      BloodType.oNegative => 'O−',
+      BloodType.unknown => 'Unknown',
+    };
+
+// ───────────────────────────── widgets ─────────────────────────────
+
+class _NextAppointmentCard extends StatelessWidget {
+  const _NextAppointmentCard({
+    required this.appointment,
+    required this.now,
     required this.onTap,
   });
 
-  final Color color;
-  final IconData icon;
-  final String title;
-  final String value;
-  final String unit;
-  final String status;
-  final Color? statusColor;
+  final HealthAppointment appointment;
+  final DateTime now;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 12, 11),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 39,
-                    height: 39,
-                    decoration: BoxDecoration(
-                      color: BlistraColors.resolve(context).glassFill,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      icon,
-                      color: _HealthHomeScreenState._ink,
-                      size: 22,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.chevron_right,
-                    color: _HealthHomeScreenState._ink,
-                  ),
-                ],
-              ),
-              const Spacer(),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: value),
-                      if (unit.isNotEmpty)
-                        TextSpan(
-                          text: ' $unit',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: _HealthHomeScreenState._muted,
-                          ),
-                        ),
-                    ],
-                  ),
+    final BlistraColors colors = BlistraColors.resolve(context);
+    final DateTime at = appointment.scheduledAt.toLocal();
+    final int days = _daysUntil(at, now);
+    final String when = days <= 0
+        ? 'Today'
+        : days == 1
+            ? 'Tomorrow'
+            : 'in $days days';
+    final String where = appointment.location?.trim() ?? '';
+    return GlassCard(
+      radius: 22,
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 50,
+            decoration: BoxDecoration(
+              color: colors.accentSoft,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${at.day}',
+                  style: BlistraText.serif(18, colors.accentText, height: 1),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  DateFormat('MMM').format(at).toUpperCase(),
                   style: TextStyle(
-                    color: _HealthHomeScreenState._ink,
-                    fontFamily: 'Sora',
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: colors.accentText,
                   ),
                 ),
-              ),
-              Text(
-                title,
-                style: TextStyle(
-                  color: _HealthHomeScreenState._muted,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                status,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: statusColor ?? _HealthHomeScreenState._ink,
-                  fontSize: 10.5,
-                  fontWeight: statusColor == null
-                      ? FontWeight.w400
-                      : FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Panel extends StatelessWidget {
-  const _Panel({required this.child}) : padding = const EdgeInsets.all(16);
-
-  final Widget child;
-  final EdgeInsets padding;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: ActiveColors.glassFill,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: _HealthHomeScreenState._ink.withValues(alpha: 0.045),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.icon, required this.title}) : trailing = null;
-
-  final IconData icon;
-  final String title;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: _HealthHomeScreenState._green, size: 25),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(
-              color: _HealthHomeScreenState._ink,
-              fontFamily: 'Sora',
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
+              ],
             ),
           ),
-        ),
-        ?trailing,
-      ],
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'NEXT APPOINTMENT',
+                  style: BlistraText.eyebrow(colors.accentText),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  appointment.title.isEmpty ? 'Appointment' : appointment.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: colors.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    DateFormat('EEE · h:mm a').format(at),
+                    if (where.isNotEmpty) where,
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: colors.muted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Pill(when, color: colors.accentText),
+        ],
+      ),
     );
   }
 }
 
-class _WeightTrendCard extends StatelessWidget {
-  const _WeightTrendCard({
-    required this.history,
-    required this.selectedType,
-    required this.trendDays,
-    required this.onType,
-    required this.onRange,
+class _VitalsGrid extends StatelessWidget {
+  const _VitalsGrid({
+    required this.view,
+    required this.onOpen,
     required this.onAdd,
   });
 
-  final List<HealthMeasurement> history;
-  final MeasurementType selectedType;
-  final int trendDays;
-  final ValueChanged<MeasurementType> onType;
-  final ValueChanged<int> onRange;
-  final VoidCallback onAdd;
+  final _HealthView view;
+  final ValueChanged<MeasurementType> onOpen;
+  final ValueChanged<MeasurementType> onAdd;
 
   @override
   Widget build(BuildContext context) {
-    final HealthMeasurement? latest = history.isEmpty ? null : history.last;
-    final String? change = history.length >= 2
-        ? deltaText(history.last, history[history.length - 2])
-        : null;
-    return _Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _SectionTitle(
-                  icon: Icons.show_chart,
-                  title:
-                      '${measurementTypeLabels[selectedType] ?? selectedType.name} trend',
-                ),
-              ),
-              for (final MapEntry<int, String> range in const [
-                MapEntry(7, '7D'),
-                MapEntry(30, '1M'),
-                MapEntry(90, '3M'),
-                MapEntry(365, '1Y'),
-              ])
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: GestureDetector(
-                    onTap: () => onRange(range.key),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 160),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: trendDays == range.key
-                            ? BlistraColors.resolve(context).accent.withValues(alpha: .2)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Text(
-                        range.value,
-                        style: TextStyle(
-                          color: _HealthHomeScreenState._muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 35,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (final MeasurementType type in overviewTypes)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      label: Text(measurementTypeLabels[type] ?? type.name),
-                      selected: selectedType == type,
-                      visualDensity: VisualDensity.compact,
-                      labelStyle: const TextStyle(fontSize: 10),
-                      onSelected: (_) => onType(type),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (latest == null)
-            Container(
-              height: 180,
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.timeline_outlined,
-                    color: _HealthHomeScreenState._muted.withValues(
-                      alpha: 0.55,
-                    ),
-                    size: 40,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'No ${(measurementTypeLabels[selectedType] ?? selectedType.name).toLowerCase()} data in this period',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _HealthHomeScreenState._muted,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: onAdd,
-                    child: const Text('Add a real record'),
-                  ),
-                ],
-              ),
-            )
-          else ...[
-            SizedBox(
-              height: 190,
-              width: double.infinity,
-              child: CustomPaint(
-                 painter: _MeasurementChartPainter(
-                   history: history,
-                   textDirection: Directionality.of(context),
-                 ),
-              ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    change ?? 'Only one record in this period',
-                    style: TextStyle(
-                      color: _HealthHomeScreenState._muted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                Text(
-                  formatValue(latest),
-                  style: TextStyle(
-                    color: _HealthHomeScreenState._ink,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MeasurementChartPainter extends CustomPainter {
-  const _MeasurementChartPainter({
-    required this.history,
-    required this.textDirection,
-  });
-
-  final List<HealthMeasurement> history;
-  final TextDirection textDirection;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (history.isEmpty || size.width < 80 || size.height < 80) {
-      return;
-    }
-    const double left = 39;
-    const double right = 10;
-    const double top = 12;
-    const double bottom = 30;
-    final double width = size.width - left - right;
-    final double height = size.height - top - bottom;
-    final List<double> values = history.map((item) => item.value).toList();
-    double minimum = values.reduce((a, b) => a < b ? a : b);
-    double maximum = values.reduce((a, b) => a > b ? a : b);
-    double spread = maximum - minimum;
-    if (spread < 1) {
-      spread = 1;
-      minimum -= 0.5;
-      maximum += 0.5;
-    } else {
-      final double padding = spread * 0.16;
-      minimum -= padding;
-      maximum += padding;
-    }
-    final Paint grid = Paint()
-      ..color = ActiveColors.scene(Color(0xFFDEE5E6))
-      ..strokeWidth = 1;
-    for (int index = 0; index < 4; index++) {
-      final double y = top + height * index / 3;
-      canvas.drawLine(Offset(left, y), Offset(size.width - right, y), grid);
-      final double value = maximum - (maximum - minimum) * index / 3;
-      _paintText(
-        canvas,
-        formatDouble(value),
-        Offset(0, y - 6),
-        TextStyle(color: ActiveColors.scene(Color(0xFF7A88A0)), fontSize: 9),
+    Widget tile(MeasurementType type) {
+      final List<HealthMeasurement> history = view.histories[type] ?? const [];
+      return Expanded(
+        child: _VitalTile(
+          type: type,
+          latest: history.isEmpty ? null : history.first,
+          previous: history.length > 1 ? history[1] : null,
+          now: view.now,
+          onTap: () => history.isEmpty ? onAdd(type) : onOpen(type),
+        ),
       );
     }
-    for (int index = 0; index < 4; index++) {
-      final double x = left + width * index / 3;
-      canvas.drawLine(Offset(x, top), Offset(x, top + height), grid);
-    }
-    final List<Offset> points = [
-      for (int index = 0; index < values.length; index++)
-        Offset(
-          history.length == 1
-              ? left + width / 2
-              : left + width * index / (values.length - 1),
-          top + height * (maximum - values[index]) / (maximum - minimum),
-        ),
-    ];
-    final Path fill = Path()..moveTo(points.first.dx, top + height);
-    for (final Offset point in points) {
-      fill.lineTo(point.dx, point.dy);
-    }
-    fill
-      ..lineTo(points.last.dx, top + height)
-      ..close();
-    canvas.drawPath(
-      fill,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [ActiveColors.scene(Color(0xFF4DBB8A)), ActiveColors.scene(Color(0x1A4DBB8A))],
-        ).createShader(Rect.fromLTWH(0, top, size.width, height)),
-    );
-    final Path line = Path()..moveTo(points.first.dx, points.first.dy);
-    for (final Offset point in points.skip(1)) {
-      line.lineTo(point.dx, point.dy);
-    }
-    canvas.drawPath(
-      line,
-      Paint()
-        ..color = ActiveColors.scene(Color(0xFF2B9D6D))
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-    for (final Offset point in points) {
-      canvas.drawCircle(point, 4.2, Paint()..color = ActiveColors.scene(Color(0xFF087A57)));
-      canvas.drawCircle(point, 1.6, Paint()..color = Colors.white);
-    }
-    final Set<int> indexes = {0, history.length ~/ 2, history.length - 1};
-    for (final int index in indexes) {
-      final String label = _shortDate(history[index].measuredAt);
-      final TextPainter painter = TextPainter(
-        text: TextSpan(
-          text: label,
-          style: TextStyle(color: ActiveColors.scene(Color(0xFF65758E)), fontSize: 9),
-        ),
-        textDirection: textDirection,
-      )..layout();
-      double dx = points[index].dx - painter.width / 2;
-      dx = dx.clamp(0, size.width - painter.width).toDouble();
-      painter.paint(canvas, Offset(dx, size.height - painter.height));
-    }
-  }
 
-  void _paintText(Canvas canvas, String text, Offset offset, TextStyle style) {
-    final TextPainter painter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: textDirection,
-    )..layout();
-    painter.paint(canvas, offset);
-  }
-
-  String _shortDate(DateTime date) {
-    const List<String> months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}';
-  }
-
-  @override
-  bool shouldRepaint(covariant _MeasurementChartPainter oldDelegate) => true;
-}
-
-class _TodayProgressCard extends StatelessWidget {
-  const _TodayProgressCard({
-    required this.measurements,
-    required this.activities,
-    required this.sleep,
-  });
-
-  final List<HealthMeasurement> measurements;
-  final List<HealthActivity> activities;
-  final List<HealthSleepRecord> sleep;
-
-  @override
-  Widget build(BuildContext context) {
-    final Set<MeasurementType> types = measurements
-        .map((item) => item.type)
-        .toSet();
-    final int recordedTypes = types.length;
-    final int durationMinutes = activities.fold(
-      0,
-      (total, item) => total + (item.durationMinutes ?? 0),
-    );
-    final int sleepMinutes = sleep.fold(
-      0,
-      (total, item) => total + _sleepMinutes(item),
-    );
-    return _Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionTitle(
-            icon: Icons.bar_chart_rounded,
-            title: 'Today’s progress',
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 5,
-                child: _ProgressItem(
-                  progress: overviewTypes.isEmpty
-                      ? 0.0
-                      : recordedTypes / overviewTypes.length,
-                  icon: Icons.check,
-                  value: '$recordedTypes / ${overviewTypes.length}',
-                  label: 'Types logged',
-                ),
-              ),
-              Expanded(
-                flex: 6,
-                child: _ProgressItem(
-                  progress: durationMinutes > 0 ? 1.0 : 0.0,
-                  color: const Color(0xFF35B779),
-                  icon: Icons.directions_run,
-                  value: activities.isEmpty ? '—' : '$durationMinutes min',
-                  label: '${activities.length} activities',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _ProgressItem(
-                  progress: sleepMinutes > 0 ? 1.0 : 0.0,
-                  color: const Color(0xFF7B63D9),
-                  icon: Icons.bedtime,
-                  value: sleepMinutes == 0 ? '—' : _durationText(sleepMinutes),
-                  label: '${sleep.length} sleep logs',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _ProgressItem(
-                  progress: measurements.isEmpty ? 0.0 : 1.0,
-                  color: const Color(0xFF1F9BCE),
-                  icon: Icons.favorite_outline,
-                  value: '${measurements.length}',
-                  label: 'Readings today',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProgressItem extends StatelessWidget {
-  const _ProgressItem({
-    required this.progress,
-    required this.icon,
-    required this.value,
-    required this.label,
-    this._color,
-  });
-
-  final double progress;
-  final Color? _color;
-  Color get color => _color ?? _HealthHomeScreenState._green;
-  final IconData icon;
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
     return Column(
       children: [
-        SizedBox(
-          width: 78,
-          height: 78,
-          child: CustomPaint(
-            painter: _ProgressRingPainter(
-              progress: progress.clamp(0, 1).toDouble(),
-              color: color,
-            ),
-            child: Icon(icon, color: color, size: 27),
-          ),
-        ),
-        const SizedBox(height: 7),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            value,
-            style: TextStyle(
-              color: _HealthHomeScreenState._ink,
-              fontFamily: 'Sora',
-              fontWeight: FontWeight.w800,
-              fontSize: 17,
+        for (int row = 0; row < _vitalTypes.length; row += 2) ...[
+          if (row > 0) const SizedBox(height: 10),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                tile(_vitalTypes[row]),
+                const SizedBox(width: 10),
+                tile(_vitalTypes[row + 1]),
+              ],
             ),
           ),
-        ),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: _HealthHomeScreenState._muted,
-            fontSize: 11,
-          ),
-        ),
+        ],
       ],
     );
   }
 }
 
-class _ProgressRingPainter extends CustomPainter {
-  const _ProgressRingPainter({required this.progress, required this.color});
-
-  final double progress;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Rect bounds = Offset.zero & size;
-    final Paint background = Paint()
-      ..color = ActiveColors.scene(Color(0xFFECEDEE))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 9
-      ..strokeCap = StrokeCap.round;
-    final Paint foreground = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 9
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(bounds.deflate(5), 0, 6.28318, false, background);
-    if (progress > 0) {
-      canvas.drawArc(
-        bounds.deflate(5),
-        -1.5708,
-        6.28318 * progress,
-        false,
-        foreground,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ProgressRingPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.color != color;
-  }
-}
-
-class _QuickLogCard extends StatelessWidget {
-  const _QuickLogCard({
-    required this.onOpenResource,
-    required this.onMeasurement,
-  });
-
-  final VoidCallback onOpenResource;
-  final ValueChanged<MeasurementType> onMeasurement;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: _SectionTitle(
-                  icon: Icons.bar_chart_rounded,
-                  title: 'Log a new measurement',
-                ),
-              ),
-              TextButton(
-                onPressed: onOpenResource,
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('See all'),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward, size: 17),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 92,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (int index = 0; index < overviewTypes.length; index++)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _QuickTypeButton(
-                      type: overviewTypes[index],
-                      color: _quickColor(index),
-                      onTap: () => onMeasurement(overviewTypes[index]),
-                    ),
-                  ),
-                _QuickMoreButton(onTap: onOpenResource),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _quickColor(int index) {
-    return [
-      _HealthHomeScreenState._mint,
-      _HealthHomeScreenState._blush,
-      _HealthHomeScreenState._blue,
-      _HealthHomeScreenState._orange,
-      _HealthHomeScreenState._lavender,
-    ][index];
-  }
-}
-
-class _QuickTypeButton extends StatelessWidget {
-  const _QuickTypeButton({
+class _VitalTile extends StatelessWidget {
+  const _VitalTile({
     required this.type,
-    required this.color,
+    required this.latest,
+    required this.previous,
+    required this.now,
     required this.onTap,
   });
 
   final MeasurementType type;
-  final Color color;
+  final HealthMeasurement? latest;
+  final HealthMeasurement? previous;
+  final DateTime now;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 102,
-      child: Material(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            child: Column(
-              children: [
-                Icon(
-                  measurementTypeIcons[type],
-                  color: _HealthHomeScreenState._ink,
-                  size: 25,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  measurementTypeLabels[type] ?? type.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _HealthHomeScreenState._ink,
-                    fontFamily: 'Sora',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Icon(
-                  Icons.chevron_right,
-                  size: 17,
-                  color: _HealthHomeScreenState._muted,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickMoreButton extends StatelessWidget {
-  const _QuickMoreButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 96,
-      child: Material(
-        color: softBg(context, Color(0xFFF1F1F5)),
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: EdgeInsets.all(10),
-            child: Column(
-              children: [
-                Icon(Icons.more_horiz, color: _HealthHomeScreenState._muted),
-                SizedBox(height: 13),
-                Text(
-                  'More',
-                  style: TextStyle(color: _HealthHomeScreenState._ink),
-                ),
-                SizedBox(height: 2),
-                Icon(
-                  Icons.chevron_right,
-                  size: 17,
-                  color: _HealthHomeScreenState._muted,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RecentMeasurementsCard extends StatelessWidget {
-  const _RecentMeasurementsCard({
-    required this.measurements,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onSeeAll,
-  });
-
-  final List<HealthMeasurement> measurements;
-  final ValueChanged<HealthMeasurement> onEdit;
-  final ValueChanged<HealthMeasurement> onDelete;
-  final VoidCallback onSeeAll;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: _SectionTitle(
-                  icon: Icons.schedule,
-                  title: 'Recent measurements',
-                ),
-              ),
-              TextButton(
-                onPressed: onSeeAll,
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('See all'),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward, size: 17),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          if (measurements.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              alignment: Alignment.center,
-              child: Text(
-                'No measurements recorded yet',
-                style: TextStyle(color: _HealthHomeScreenState._muted),
-              ),
-            )
-          else
-            for (final HealthMeasurement measurement in measurements) ...[
-              _MeasurementRow(
-                measurement: measurement,
-                onTap: () => onEdit(measurement),
-                onDelete: () => onDelete(measurement),
-              ),
-              if (measurement != measurements.last)
-                Divider(height: 1, color: softBg(context, Color(0xFFF0F0F0))),
-            ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MeasurementRow extends StatelessWidget {
-  const _MeasurementRow({
-    required this.measurement,
-    required this.onTap,
-    required this.onDelete,
-  });
-
-  final HealthMeasurement measurement;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final int index = overviewTypes.indexOf(measurement.type);
-    final Color color = [
-      _HealthHomeScreenState._mint,
-      _HealthHomeScreenState._blush,
-      _HealthHomeScreenState._blue,
-      _HealthHomeScreenState._orange,
-      _HealthHomeScreenState._lavender,
-    ][index < 0 ? 0 : index];
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              child: Icon(
-                measurementTypeIcons[measurement.type],
-                color: _HealthHomeScreenState._ink,
-                size: 21,
-              ),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              flex: 4,
-              child: Text(
-                measurementTypeLabels[measurement.type] ??
-                    measurement.type.name,
-                style: TextStyle(
-                  color: _HealthHomeScreenState._ink,
-                  fontFamily: 'Sora',
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 4,
-              child: Text(
-                formatValue(measurement),
-                style: TextStyle(
-                  color: _HealthHomeScreenState._ink,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 5,
-              child: Text(
-                formatDateTime(measurement.measuredAt),
-                textAlign: TextAlign.end,
-                maxLines: 2,
-                style: TextStyle(
-                  color: _HealthHomeScreenState._muted,
-                  fontSize: 10.5,
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.chevron_right, size: 20),
-              tooltip: 'Delete',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TrendSummaryCard extends StatelessWidget {
-  const _TrendSummaryCard({
-    required this.all,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  final List<HealthMeasurement> all;
-  final MeasurementType selected;
-  final ValueChanged<MeasurementType> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionTitle(
-            icon: Icons.insights_outlined,
-            title: 'Recorded trends',
-          ),
-          const SizedBox(height: 12),
-          for (final MeasurementType type in overviewTypes) ...[
-            Builder(
-              builder: (context) {
-                final List<HealthMeasurement> history = historyFor(
-                  all,
-                  type,
-                  limit: 1000,
-                );
-                return InkWell(
-                  onTap: () => onSelect(type),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: _HealthHomeScreenState._mint,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            measurementTypeIcons[type],
-                            color: _HealthHomeScreenState._ink,
-                            size: 21,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                measurementTypeLabels[type] ?? type.name,
-                                style: TextStyle(
-                                  color: _HealthHomeScreenState._ink,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Text(
-                                '${history.length} record${history.length == 1 ? '' : 's'}',
-                                style: TextStyle(
-                                  color: _HealthHomeScreenState._muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          history.isEmpty
-                              ? 'Unavailable'
-                              : formatValue(history.first),
-                          style: TextStyle(
-                            color: _HealthHomeScreenState._muted,
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (selected == type)
-                          Padding(
-                            padding: EdgeInsets.only(left: 8),
-                            child: Icon(
-                              Icons.check,
-                              color: _HealthHomeScreenState._green,
-                              size: 18,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-            if (type != overviewTypes.last) const Divider(height: 1),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _UnavailableGoalState extends StatelessWidget {
-  const _UnavailableGoalState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionTitle(icon: Icons.flag_outlined, title: 'Health goals'),
-        const SizedBox(height: 16),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: softBg(context, Color(0xFFF2F4F3)),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                Icons.track_changes,
-                size: 38,
-                color: _HealthHomeScreenState._muted,
-              ),
-              SizedBox(height: 9),
-              Text(
-                'No saved goal targets',
-                style: TextStyle(
-                  color: _HealthHomeScreenState._ink,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              SizedBox(height: 5),
-              Text(
-                'Goal data is not available in Health. The summaries below use your current records only.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _HealthHomeScreenState._muted,
-                  height: 1.35,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(color: _HealthHomeScreenState._muted),
-            ),
-          ),
-          const SizedBox(width: 18),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: TextStyle(
-                color: _HealthHomeScreenState._ink,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResourceGrid extends StatelessWidget {
-  const _ResourceGrid({
-    required this.repository,
-    required this.resources,
-    required this.onOpen,
-  });
-
-  final HealthRepository repository;
-  final List<_ResourceEntry> resources;
-  final ValueChanged<int> onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final DateTime now = DateTime.now();
-    final List<String> summaries = [
-      repository.profile == null ? 'Not loaded' : 'View details',
-      '${repository.measurements.length} records',
-      '${repository.sleepRecords.length} records',
-      '${repository.activities.length} records',
-      '${repository.logs.length} entries',
-      '${repository.events.length} entries',
-      '${repository.appointments.where((item) => item.scheduledAt.isAfter(now)).length} upcoming',
-    ];
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 2.1,
-      children: [
-        for (int index = 0; index < resources.length; index++)
-          Material(
-            color: softBg(context, Color(0xFFF2F4F3)),
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              onTap: () => onOpen(index),
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Icon(
-                      resources[index].icon,
-                      color: _HealthHomeScreenState._green,
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            resources[index].label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: _HealthHomeScreenState._ink,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            summaries[index],
-                            style: TextStyle(
-                              color: _HealthHomeScreenState._muted,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _MeasurementError extends StatelessWidget {
-  const _MeasurementError({
-    super.key,
-    required this.message,
-    required this.onRetry,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    final BlistraColors colors = BlistraColors.resolve(context);
+    final HealthMeasurement? m = latest;
+    final String label = measurementTypeLabels[type] ?? type.name;
+    final String sub;
+    if (m == null) {
+      sub = 'Tap to add';
+    } else {
+      final String when = relativeDay(m.measuredAt, now);
+      final String? change = shortChange(m, previous);
+      sub = change == null ? when : '$change · ${when.toLowerCase()}';
+    }
+    return Semantics(
+      button: true,
+      label: m == null ? 'Add $label' : label,
+      child: GlassCard(
+        radius: 20,
+        padding: const EdgeInsets.fromLTRB(13, 13, 13, 12),
+        onTap: onTap,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.cloud_off_outlined,
-              size: 44,
-              color: _HealthHomeScreenState._muted,
+            Text(label.toUpperCase(), style: BlistraText.caption(colors.muted)),
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text.rich(
+                TextSpan(
+                  text: m == null ? '—' : measurementNumber(m),
+                  children: [
+                    if (m != null)
+                      TextSpan(
+                        text: ' ${displayUnit(m.unit)}',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: colors.muted,
+                        ),
+                      ),
+                  ],
+                ),
+                style: BlistraText.serif(22, colors.text, height: 1.15),
+              ),
             ),
-            const SizedBox(height: 10),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+            const SizedBox(height: 3),
+            Text(
+              sub,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10.5, color: colors.muted),
             ),
           ],
         ),
       ),
     );
   }
-}
-
-String _activityDurationLabel(List<HealthActivity> activities) {
-  if (activities.isEmpty) {
-    return 'Not recorded';
-  }
-  final int minutes = activities.fold(
-    0,
-    (total, item) => total + (item.durationMinutes ?? 0),
-  );
-  return minutes == 0
-      ? '${activities.length} activities'
-      : _durationText(minutes);
-}
-
-String _sleepDurationLabel(List<HealthSleepRecord> records) {
-  if (records.isEmpty) {
-    return 'Not recorded';
-  }
-  final int minutes = records.fold(
-    0,
-    (total, item) => total + _sleepMinutes(item),
-  );
-  return minutes == 0 ? '${records.length} sleep logs' : _durationText(minutes);
-}
-
-int _sleepMinutes(HealthSleepRecord record) {
-  if (record.durationMinutes != null) {
-    return record.durationMinutes!;
-  }
-  final int minutes = record.endedAt.difference(record.startedAt).inMinutes;
-  return minutes < 0 ? 0 : minutes;
-}
-
-String _durationText(int minutes) {
-  final int hours = minutes ~/ 60;
-  final int remainder = minutes % 60;
-  if (hours == 0) {
-    return '${remainder}m';
-  }
-  if (remainder == 0) {
-    return '${hours}h';
-  }
-  return '${hours}h ${remainder}m';
 }

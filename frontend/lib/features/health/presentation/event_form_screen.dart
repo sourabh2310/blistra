@@ -84,12 +84,13 @@ class _EventFormScreenState extends State<EventFormScreen> {
   Widget build(BuildContext context) {
     return FormScaffold(
       title: widget.initial == null ? 'Add event' : 'Edit event',
+      heading: widget.initial == null ? 'What happened?' : 'Update this event',
       saving: _saving,
       onSave: _save,
       child: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: formPadding,
           children: [
             LabeledDropdown<EventType>(
               label: 'Type',
@@ -107,25 +108,20 @@ class _EventFormScreenState extends State<EventFormScreen> {
                 }
               },
             ),
-            const SizedBox(height: 16),
-            TextFormField(
+            HealthField(
               controller: _titleController,
               enabled: !_saving,
               maxLength: 200,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Title',
+              hint: 'e.g. Flu shot',
               validator: (value) =>
                   (value ?? '').trim().isEmpty ? 'Title is required' : null,
             ),
-            const SizedBox(height: 16),
             DateTimeField(
               label: 'Occurred at',
               value: _occurredAt,
               onChanged: (value) => setState(() => _occurredAt = value),
             ),
-            const SizedBox(height: 16),
             noteField(controller: _notesController, label: 'Notes (optional)'),
           ],
         ),
