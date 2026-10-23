@@ -239,7 +239,11 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   _Reg _resumeStep() {
-    return _auth.account == null ? _Reg.emailOtp : _Reg.profileWelcome;
+    final account = _auth.account;
+    if (account == null || (!account.emailVerified && !_emailOtpVerified)) {
+      return _Reg.emailOtp;
+    }
+    return _Reg.profileWelcome;
   }
 
   void _prefillFromAccount() {
@@ -1120,6 +1124,10 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() {
         _screenError = _friendly(_auth.lastError);
         _finishing = false;
+        if (_auth.account?.emailVerified == false && !_emailOtpVerified) {
+          _otp.clear();
+          _reg = _Reg.emailOtp;
+        }
       });
       return;
     }
@@ -1323,12 +1331,48 @@ class _AuthScreenState extends State<AuthScreen> {
           // Depend on the theme so the screen repaints when light/dark or the
           // accent changes (AuthColors reads the active theme).
           Theme.of(context);
-          if (_mode == _Mode.signIn) return _loginScreen();
-          if (_mode == _Mode.forgot) return _forgotScreen();
-          return _registerScreen();
+          final Widget body = switch (_mode) {
+            _Mode.signIn => _loginScreen(),
+            _Mode.forgot => _forgotScreen(),
+            _Mode.register => _registerScreen(),
+          };
+          return PopScope(
+            canPop: _mode == _Mode.signIn,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) _handleSystemBack();
+            },
+            child: body,
+          );
         },
       ),
     );
+  }
+
+  /// System Back mirrors the on-screen back arrow instead of leaving the app.
+  void _handleSystemBack() {
+    if (_busy) return;
+    setState(() {
+      _screenError = null;
+      if (_mode == _Mode.forgot) {
+        switch (_forgot) {
+          case _Forgot.identifier:
+          case _Forgot.success:
+            _mode = _Mode.signIn;
+          case _Forgot.channel:
+            _forgot = _Forgot.identifier;
+          case _Forgot.code:
+            _forgot = _Forgot.channel;
+          case _Forgot.reset:
+            _forgot = _Forgot.code;
+        }
+      } else if (_mode == _Mode.register) {
+        if (_reg == _Reg.welcome) {
+          _mode = _Mode.signIn;
+        } else if (_reg == _Reg.singleForm || _reg == _Reg.name) {
+          _reg = _Reg.welcome;
+        }
+      }
+    });
   }
 
   // ═══════════════════════ LOGIN ═══════════════════════
