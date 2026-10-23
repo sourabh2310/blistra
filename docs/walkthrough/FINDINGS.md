@@ -19,18 +19,18 @@ Severity: High = blocks a flow or loses data; Medium = wrong or confusing behavi
 F2 and F3 were re-verified on the emulator after a rebuild: Back from forgot-password and register returns to the
 previous step, and a fresh registration now lands on "Verify your email", then completes onboarding.
 
-## Open: auth, navigation, profile, dashboard (not fixed yet)
+## Auth, navigation, profile, dashboard: second pass
 
-| # | Screen | Steps | Expected | Actual | Sev |
-|---|--------|-------|----------|--------|-----|
-| A1 | Sign-in | Fail a sign-in, then edit the fields | Error clears while typing | "Your sign-in details don't match" stays until next submit | Low |
-| A2 | Register | Type a 2-char or invalid-character username | Inline message | No inline message; only the live "Available" check is silent | Medium |
-| A3 | Register | Enter `notanemail` or `123` as phone | Inline message / Send OTP disabled | No message; phone "Send OTP" enabled for `123` | Medium |
-| A4 | Register health step | Leave unit on ft/lbs, enter 175 | Client-side range check | Generic "We couldn't save your health details" from the server; default units are ft/lbs although country is India | Medium |
-| A5 | Register health step | Weight field | Numeric only | Accepts `abc` | Low |
-| A6 | "You're all set" | Read stat card | Matches Hub | Says "6 modules"; Hub has 8 | Low |
-| A7 | Sign-in (dark) | Disabled Sign in button | Readable label | Dark text on mid green, low contrast | Low |
-| A8 | Date picker (manual entry) | Type `01/01/2090` as birthday | Rejected as out of range | No visible message; value left unconfirmed | Low |
+| # | Screen | Steps | Expected | Actual | Sev | Status |
+|---|--------|-------|----------|--------|-----|--------|
+| A1 | Sign-in | Fail a sign-in, then edit the fields | Error clears while typing | "Your sign-in details don't match" stays until next submit | Low | Fixed |
+| A2 | Register | Type a 2-char or invalid-character username | Inline message | No inline message; only the live "Available" check is silent | Medium | Fixed |
+| A3 | Register | Enter `notanemail` or `123` as phone | Inline message / Send OTP disabled | No message; phone "Send OTP" enabled for `123` | Medium | Fixed |
+| A4 | Register health step | Leave unit on ft/lbs, enter 175 | Client-side range check | Generic "We couldn't save your health details" from the server; default units are ft/lbs although country is India | Medium | Fixed (unit-aware range check and message; toggle label now "in"; default unit still follows device locale) |
+| A5 | Register health step | Weight field | Numeric only | Accepts `abc` | Low | Fixed |
+| A6 | "You're all set" | Read stat card | Matches Hub | Says "6 modules"; Hub has 8 | Low | Fixed |
+| A7 | Sign-in (dark) | Disabled Sign in button | Readable label | Dark text on mid green, low contrast | Low | Open |
+| A8 | Date picker (manual entry) | Type `01/01/2090` as birthday | Rejected as out of range | No visible message; value left unconfirmed | Low | Open |
 
 ## Open: other modules (for their own sessions)
 

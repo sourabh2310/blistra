@@ -19,10 +19,10 @@ library;
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/app_dependencies.dart';
@@ -672,6 +672,25 @@ class _AuthScreenState extends State<AuthScreen> {
   /// Inline availability row: spinner while checking, green confirmation
   /// with icon when free, red message when taken. Idle renders nothing.
   /// Never color-only: icon + text always accompany the state.
+  Widget _formatError(String text, String? error) {
+    if (text.trim().isEmpty || error == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, size: 16, color: AuthColors.error),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              error,
+              style: TextStyle(fontSize: 13, color: AuthColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _availRow(_Avail state, {required String takenMessage}) {
     switch (state) {
       case _Avail.idle:
@@ -1062,13 +1081,27 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _saveHealth() async {
     final heightVal = double.tryParse(_height.text.trim());
-    if (heightVal == null || heightVal < 50 || heightVal > 300) {
-      setState(() => _screenError = 'Enter a valid height.');
+    final heightInInches = _heightUnit == 'IN';
+    final heightMin = heightInInches ? 20.0 : 50.0;
+    final heightMax = heightInInches ? 120.0 : 300.0;
+    if (heightVal == null || heightVal < heightMin || heightVal > heightMax) {
+      setState(
+        () => _screenError =
+            'Enter a height between ${heightMin.round()} and '
+            '${heightMax.round()} ${heightInInches ? 'in' : 'cm'}.',
+      );
       return;
     }
     final weightVal = double.tryParse(_weight.text.trim());
-    if (weightVal == null || weightVal < 5 || weightVal > 900) {
-      setState(() => _screenError = 'Enter a valid weight.');
+    final weightInPounds = _weightUnit == 'LB';
+    final weightMin = weightInPounds ? 10.0 : 5.0;
+    final weightMax = weightInPounds ? 1500.0 : 700.0;
+    if (weightVal == null || weightVal < weightMin || weightVal > weightMax) {
+      setState(
+        () => _screenError =
+            'Enter a weight between ${weightMin.round()} and '
+            '${weightMax.round()} ${weightInPounds ? 'lb' : 'kg'}.',
+      );
       return;
     }
     setState(() {
@@ -1415,6 +1448,9 @@ class _AuthScreenState extends State<AuthScreen> {
             hint: 'Enter your email or username',
             keyboardType: TextInputType.text,
             autofillHints: const ['username'],
+            onChanged: (_) {
+              if (_screenError != null) setState(() => _screenError = null);
+            },
             onSubmitted: (_) => _signIn(),
           ),
           const SizedBox(height: 10),
@@ -1424,6 +1460,9 @@ class _AuthScreenState extends State<AuthScreen> {
             hint: 'Enter your password',
             obscure: !_showSignInPw,
             autofillHints: const ['password'],
+            onChanged: (_) {
+              if (_screenError != null) setState(() => _screenError = null);
+            },
             onSubmitted: (_) => _signIn(),
             suffix: IconButton(
               tooltip: _showSignInPw ? 'Hide' : 'Show',
@@ -2482,7 +2521,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
             child: Row(
               children: [
-                _statItem('6', 'Modules', false),
+                _statItem('8', 'Modules', false),
                 Container(width: 1, height: 48, color: AuthColors.border),
                 _statItem('∞', 'Possibilities', true),
                 Container(width: 1, height: 48, color: AuthColors.border),
@@ -3103,6 +3142,7 @@ class _AuthScreenState extends State<AuthScreen> {
             onChanged: _scheduleUsernameCheck,
           ),
           _availRow(_usernameAvail, takenMessage: 'Username already taken.'),
+          _formatError(_username.text, validateUsername(_username.text)),
           const SizedBox(height: 24),
 
           // CONTACT
@@ -3142,6 +3182,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ],
             ),
             _availRow(_emailAvail, takenMessage: 'Email already registered.'),
+            _formatError(_email.text, validateEmail(_email.text)),
             if (_emailOtpSent && !_emailOtpVerified) ...[
               const SizedBox(height: 16),
               OtpInput(
@@ -3166,6 +3207,10 @@ class _AuthScreenState extends State<AuthScreen> {
             ],
             const SizedBox(height: 10),
             _phoneRow(),
+            _formatError(
+              _phoneLocal.text,
+              validatePhone('$_countryCode${_phoneLocal.text}'),
+            ),
             if (_phoneOtpSent && !_phoneOtpVerified) ...[
               const SizedBox(height: 16),
               OtpInput(
@@ -3364,7 +3409,9 @@ class _AuthScreenState extends State<AuthScreen> {
         _sendOtpButton(
           sent: _phoneOtpSent,
           verified: _phoneOtpVerified,
-          enabled: !_phoneOtpSent && _phoneLocal.text.trim().isNotEmpty,
+          enabled:
+              !_phoneOtpSent &&
+              validatePhone('$_countryCode${_phoneLocal.text}') == null,
           onTap: _sendPhoneOtpFromForm,
         ),
       ],
@@ -3921,8 +3968,8 @@ class _AuthScreenState extends State<AuthScreen> {
             hint: 'Enter height',
             unit: _heightUnit.toLowerCase(),
             unitA: 'cm',
-            unitB: 'ft',
-            activeUnit: _heightUnit == 'CM' ? 'cm' : 'ft',
+            unitB: 'in',
+            activeUnit: _heightUnit == 'CM' ? 'cm' : 'in',
             onToggle: (u) => setState(() {
               _heightUnit = u == 'cm' ? 'CM' : 'IN';
             }),
@@ -4023,6 +4070,9 @@ class _AuthScreenState extends State<AuthScreen> {
                 controller: controller,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
                 onChanged: (_) => setState(() {}),
                 style: TextStyle(
                   fontSize: 28,
