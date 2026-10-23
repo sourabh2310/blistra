@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:provider/provider.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/blistra_ui.dart';
 import '../../core/widgets/design_system.dart';
@@ -234,9 +235,19 @@ class _HubScreenState extends State<HubScreen> {
   List<_ToolData> _tools() => [
         _ToolData(
           title: 'Blistra AI',
-          subtitle: 'Ask, plan, or add entries by chat',
+          subtitle: AppConfig.aiEnabled
+              ? 'Ask, plan, or add entries by chat'
+              : 'Coming soon',
           icon: Icons.auto_awesome_rounded,
-          onTap: () => _openAi(context),
+          onTap: () {
+            if (AppConfig.aiEnabled) {
+              _openAi(context);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Blistra AI is coming soon.')),
+              );
+            }
+          },
         ),
         _ToolData(
           title: 'Customize Home',

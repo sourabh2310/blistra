@@ -365,8 +365,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (view.show(HomeWidgets.thisWeek) &&
           view.week != null &&
           !view.week!.unavailable) ...[
-        PagePad(const _SectionTitle('This week'), top: 26),
-        PagePad(_WeekCard(week: view.week!, now: view.now)),
+        PagePad(
+          _SectionTitle(
+            'This week',
+            action: 'Details ›',
+            onAction: () => _open('HOME/WEEK'),
+          ),
+          top: 26,
+        ),
+        PagePad(
+          _WeekCard(
+            week: view.week!,
+            now: view.now,
+            onTap: () => _open('HOME/WEEK'),
+          ),
+        ),
       ],
     ];
   }
@@ -2269,10 +2282,11 @@ class _SpendingCard extends StatelessWidget {
 /// Week strip and totals. The API reports how many days were active, not
 /// which ones, so the strip only marks past days and today.
 class _WeekCard extends StatelessWidget {
-  const _WeekCard({required this.week, required this.now});
+  const _WeekCard({required this.week, required this.now, this.onTap});
 
   final WeekSection week;
   final DateTime now;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -2312,6 +2326,7 @@ class _WeekCard extends StatelessWidget {
       ),
     );
     return GlassCard(
+      onTap: onTap,
       padding: const EdgeInsets.all(15),
       child: Column(
         children: [

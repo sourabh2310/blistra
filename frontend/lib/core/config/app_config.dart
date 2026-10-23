@@ -29,6 +29,10 @@ class AppConfig {
     'REQUIRE_PHONE_VERIFICATION',
   );
 
+  /// Blistra AI is parked until launch; build with `--dart-define=AI_ENABLED=true`
+  /// to turn the chat entry points back on.
+  static const bool aiEnabled = bool.fromEnvironment('AI_ENABLED');
+
   /// Shown in Profile > Help. Keep in step with `version:` in pubspec.yaml,
   /// or override with `--dart-define=APP_VERSION=...` in release builds.
   static const String appVersion = String.fromEnvironment(

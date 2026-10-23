@@ -9,6 +9,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../core/config/app_config.dart';
 import 'package:provider/provider.dart';
 
 import '../core/api/api_client.dart';
@@ -495,7 +496,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     );
   }
 
-  Widget _aiButton() => FloatingActionButton.small(
+  Widget? _aiButton() => !AppConfig.aiEnabled
+      ? null
+      : FloatingActionButton.small(
     heroTag: 'blistra-ai',
     tooltip: 'Blistra AI',
     onPressed: () {
