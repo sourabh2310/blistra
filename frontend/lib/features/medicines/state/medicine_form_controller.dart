@@ -78,8 +78,12 @@ class MedicineFormController {
     }
     if (_strength.isNotEmpty) {
       final double? val = double.tryParse(_strength.trim());
-      if (val == null || val < 0) {
-        _fieldErrors['strength'] = 'Strength cannot be negative';
+      if (val == null) {
+        _fieldErrors['strength'] = 'Enter a number';
+      } else if (val < 0) {
+        _fieldErrors['strength'] = 'Not negative';
+      } else if (val > 1000000) {
+        _fieldErrors['strength'] = 'Too large';
       }
     }
     if (_strengthUnit.trim().length > 25) {

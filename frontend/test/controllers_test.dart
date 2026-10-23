@@ -120,7 +120,7 @@ void main() {
       c.setName('Test');
       c.setStrength('-10');
       expect(c.validate(), isFalse);
-      expect(c.errorFor('strength'), 'Strength cannot be negative');
+      expect(c.errorFor('strength'), 'Not negative');
     });
 
     test('validate fails when end date before start date', () {

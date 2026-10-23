@@ -327,8 +327,8 @@ class AuthPrimaryButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: colors.accentText,
           foregroundColor: colors.onAccent,
-          disabledBackgroundColor: colors.accentText.withValues(alpha: 0.45),
-          disabledForegroundColor: colors.onAccent.withValues(alpha: 0.8),
+          disabledBackgroundColor: colors.accentText.withValues(alpha: 0.22),
+          disabledForegroundColor: colors.accentText.withValues(alpha: 0.75),
           shape: const StadiumBorder(),
           textStyle: const TextStyle(
               fontSize: 15, fontWeight: FontWeight.w700),

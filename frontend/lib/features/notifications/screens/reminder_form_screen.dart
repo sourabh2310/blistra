@@ -146,6 +146,41 @@ class _ReminderFormScreenState extends State<ReminderFormScreen> {
     }
   }
 
+  Future<void> _confirmCancel() async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final controller = context.read<RemindersController>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancel this reminder?'),
+        content: const Text('It will no longer notify you.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep it'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Cancel reminder'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _saving = true);
+    await controller.cancel(widget.existing!.id);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    final error = controller.error;
+    if (error != null) {
+      messenger.showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    messenger.showSnackBar(const SnackBar(content: Text('Reminder cancelled')));
+    navigator.pop(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = BlistraColors.resolve(context);
@@ -243,6 +278,17 @@ class _ReminderFormScreenState extends State<ReminderFormScreen> {
                             ? 'Keep the note under 500 characters'
                             : null,
                       ),
+                      if (_isEditing) ...[
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: _saving ? null : _confirmCancel,
+                          icon: const Icon(Icons.alarm_off_outlined),
+                          label: const Text('Cancel this reminder'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: colors.muted,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

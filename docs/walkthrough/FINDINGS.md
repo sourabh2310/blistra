@@ -29,25 +29,25 @@ previous step, and a fresh registration now lands on "Verify your email", then c
 | A4 | Register health step | Leave unit on ft/lbs, enter 175 | Client-side range check | Generic "We couldn't save your health details" from the server; default units are ft/lbs although country is India | Medium | Fixed (unit-aware range check and message; toggle label now "in"; default unit still follows device locale) |
 | A5 | Register health step | Weight field | Numeric only | Accepts `abc` | Low | Fixed |
 | A6 | "You're all set" | Read stat card | Matches Hub | Says "6 modules"; Hub has 8 | Low | Fixed |
-| A7 | Sign-in (dark) | Disabled Sign in button | Readable label | Dark text on mid green, low contrast | Low | Open |
-| A8 | Date picker (manual entry) | Type `01/01/2090` as birthday | Rejected as out of range | No visible message; value left unconfirmed | Low | Open |
+| A7 | Sign-in (dark) | Disabled Sign in button | Readable label | Dark text on mid green, low contrast | Low | Fixed (disabled button colours) |
+| A8 | Date picker (manual entry) | Type `01/01/2090` as birthday | Rejected as out of range | No visible message; value left unconfirmed | Low | Fixed (explicit messages, real-date and future-date checks; not re-run on device) |
 
-## Open: other modules (for their own sessions)
+## Other modules
 
-| # | Module | Screen | Steps | Expected | Actual | Sev |
-|---|--------|--------|-------|----------|--------|-----|
-| M1 | Medicines | Medicine detail | Add a medicine, open it from My medicines | Detail page | "This medicine couldn't load" with Retry; backend returned 200 for every call, so the failure is client-side (see `MedicineDetailPage`) | High |
-| M2 | Habits | New habit sheet | Name "Read book", Yes/no, Create habit | Habit created, sheet closes | Spinner forever; no `POST /api/v1/habits` reaches the backend (reproduced twice, also after fixing a validation error on Count target) | High |
-| M3 | Finance | New expense | Leave "What was it for?" empty, or amount empty / negative / 99999999999999, tap Save | Inline error | Save does nothing and shows no message | Medium |
-| M4 | Finance | New expense | Amount 99999999999999 | Upper bound | Accepted in the field | Low |
-| M5 | Diet | Add item | Calories 99999999 | Upper bound | No error | Low |
-| M6 | Diet | Meal item row | Add item with quantity 100 | "100 g" style | Shows `100, 350 kcal`, unit missing | Low |
-| M7 | Health | Add measurement | Systolic 300 / diastolic 400 | Plausible-range check | Only "Systolic must be greater than diastolic"; the error banner is nearly invisible | Medium |
-| M8 | Medicines | New medicine | Strength -5 | Readable message | Message truncated ("Strength cannot be neg...") | Low |
-| M9 | Reminders | New reminder | Open the form | Device timezone | Timezone dropdown defaults to UTC while time is local; confirm the stored instant is correct | Medium |
-| M10 | Reminders | Upcoming tab | Look for delete | Discoverable delete/undo | Only "Swipe a general reminder left to cancel it" on the All tab; no undo | Low |
-| M11 | Planner | Event form | Empty title, then Create event | Inline error | No message observed | Low |
-| M12 | Quick add | Add medicine / task | Save from Planner tab | Land on the new item or its module | Returns to Planner | Low |
+| # | Module | Screen | Steps | Expected | Actual | Sev | Status |
+|---|--------|--------|-------|----------|--------|-----|--------|
+| M1 | Medicines | Medicine detail | Add a medicine, open it from My medicines | Detail page | "This medicine couldn't load" with Retry; backend returned 200 for every call, so the failure is client-side (see `MedicineDetailPage`) | High | Fixed: refills endpoint returns a paged envelope, client now accepts it. Verified on emulator |
+| M2 | Habits | New habit sheet | Name "Read book", Yes/no, Create habit | Habit created, sheet closes | Spinner forever; no `POST /api/v1/habits` reaches the backend (reproduced twice, also after fixing a validation error on Count target) | High | Fixed: `showHabitFormSheet` built the sheet above `HabitsScope`, so `HabitsScope.of` threw after the spinner started. Verified on emulator |
+| M3 | Finance | New expense | Leave "What was it for?" empty, or amount empty / negative / 99999999999999, tap Save | Inline error | Save does nothing and shows no message | Medium | Fixed: errors also shown as a snackbar, amount must be > 0 and <= 1,000,000,000. Verified |
+| M4 | Finance | New expense | Amount 99999999999999 | Upper bound | Accepted in the field | Low | Fixed (same check) |
+| M5 | Diet | Add item | Calories 99999999 | Upper bound | No error | Low | Fixed: calories <= 20000, grams <= 5000, quantity <= 100000 |
+| M6 | Diet | Meal item row | Add item with quantity 100 | "100 g" style | Shows `100, 350 kcal`, unit missing | Low | Not a bug: unit was left empty in the test |
+| M7 | Health | Add measurement | Systolic 300 / diastolic 400 | Plausible-range check | Only "Systolic must be greater than diastolic"; the error banner is nearly invisible | Medium | Fixed: systolic/heart rate <= 300, diastolic <= 200. The faint banner was a snackbar caught mid-fade |
+| M8 | Medicines | New medicine | Strength -5 | Readable message | Message truncated ("Strength cannot be neg...") | Low | Fixed: shorter messages, non-numeric input says "Enter a number" |
+| M9 | Reminders | New reminder | Open the form | Device timezone | Timezone dropdown defaults to UTC while time is local; confirm the stored instant is correct | Medium | Not a bug: the emulator timezone is UTC and the stored instant is correct |
+| M10 | Reminders | Upcoming tab | Look for delete | Discoverable delete/undo | Only "Swipe a general reminder left to cancel it" on the All tab; no undo | Low | Fixed: "Cancel this reminder" button with confirmation in the edit form |
+| M11 | Planner | Event form | Empty title, then Create event | Inline error | No message observed | Low | Not a bug: button is disabled until a title is typed; end-before-start already shows a message |
+| M12 | Quick add | Add medicine / task | Save from Planner tab | Land on the new item or its module | Returns to Planner | Low | By design: quick add returns to the screen you were on |
 
 ## Verified working
 

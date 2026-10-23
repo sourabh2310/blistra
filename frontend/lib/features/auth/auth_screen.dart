@@ -4336,7 +4336,25 @@ class _DobSheetState extends State<_DobSheet> {
     final y = int.tryParse(parts[2]);
     if (d == null || m == null || y == null) return null;
     if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1900) return null;
-    try { return DateTime(y, m, d); } catch (_) { return null; }
+    final date = DateTime(y, m, d);
+    // DateTime rolls 31/02 over into March; reject dates that did not survive.
+    if (date.year != y || date.month != m || date.day != d) return null;
+    return date;
+  }
+
+  String? _manualError;
+
+  void _confirmManual() {
+    final date = _parseManual(_manualCtrl.text);
+    if (date == null) {
+      setState(() => _manualError = 'Enter a real date as DD/MM/YYYY.');
+      return;
+    }
+    if (date.isAfter(DateTime.now())) {
+      setState(() => _manualError = "Date of birth can't be in the future.");
+      return;
+    }
+    widget.onConfirm(date);
   }
 
   @override
@@ -4551,6 +4569,7 @@ class _DobSheetState extends State<_DobSheet> {
                 decoration: InputDecoration(
                   hintText: 'DD/MM/YYYY',
                   hintStyle: TextStyle(color: AuthColors.muted),
+                  errorText: _manualError,
                   enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: AuthColors.border),
                   ),
@@ -4558,7 +4577,7 @@ class _DobSheetState extends State<_DobSheet> {
                     borderSide: BorderSide(color: AuthColors.teal, width: 1.5),
                   ),
                 ),
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) => setState(() => _manualError = null),
               ),
               const Spacer(),
               SizedBox(
@@ -4570,10 +4589,7 @@ class _DobSheetState extends State<_DobSheet> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  onPressed: () {
-                    final date = _parseManual(_manualCtrl.text);
-                    if (date != null) widget.onConfirm(date);
-                  },
+                  onPressed: _confirmManual,
                   child: const Text(
                     'Confirm',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),

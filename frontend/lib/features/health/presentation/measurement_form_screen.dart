@@ -82,6 +82,14 @@ class _MeasurementFormScreenState extends State<MeasurementFormScreen> {
     if (parsed == null || parsed <= 0) {
       return 'Enter a value greater than zero';
     }
+    final double max = switch (_type) {
+      MeasurementType.bloodPressure => 300,
+      MeasurementType.heartRate => 300,
+      _ => 100000,
+    };
+    if (parsed > max) {
+      return 'Enter a value of ${max.toStringAsFixed(0)} or less';
+    }
     return null;
   }
 
@@ -96,6 +104,12 @@ class _MeasurementFormScreenState extends State<MeasurementFormScreen> {
     if (_isBloodPressure && (diastolic == null || diastolic <= 0)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Diastolic value must be greater than zero')),
+      );
+      return;
+    }
+    if (_isBloodPressure && diastolic! > 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Diastolic must be 200 or less')),
       );
       return;
     }

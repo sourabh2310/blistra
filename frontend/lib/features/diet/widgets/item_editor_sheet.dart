@@ -148,7 +148,7 @@ class _ItemEditorSheetState extends State<ItemEditorSheet> {
                       ),
                       const DietFormLabel('Nutrition (optional)'),
                       _number('Calories (kcal)', _caloriesKcal,
-                          Validators.nonNegativeNumber),
+                          Validators.calories),
                       pair(
                         _number('Protein (g)', _proteinG,
                             Validators.nonNegativeNumber),

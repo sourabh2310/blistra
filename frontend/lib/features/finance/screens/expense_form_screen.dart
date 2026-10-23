@@ -244,26 +244,42 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     });
   }
 
+  /// The inline error sits at the bottom of a long form, so also surface it
+  /// where the user is looking.
+  void _fail(String message) {
+    setState(() => _error = message);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _save() async {
     final me = _controller.me;
     final amount = normalizeAmount(_amount.text);
     if (amount == null) {
-      setState(() => _error = 'Enter an amount');
+      _fail('Enter an amount greater than zero');
+      return;
+    }
+    final numeric = double.tryParse(amount);
+    if (numeric == null || numeric <= 0) {
+      _fail('Enter an amount greater than zero');
+      return;
+    }
+    if (numeric > 1000000000) {
+      _fail('That amount is too large');
       return;
     }
     if (_description.text.trim().isEmpty) {
-      setState(() => _error = 'Add a short description, e.g. "Dinner"');
+      _fail('Add a short description, e.g. "Dinner"');
       return;
     }
     final problem = _splitProblem(me);
     if (problem != null) {
-      setState(() => _error = problem);
+      _fail(problem);
       return;
     }
     if (_split && me == null) {
-      setState(
-        () => _error = 'Still loading your friends. Try again in a moment.',
-      );
+      _fail('Still loading your friends. Try again in a moment.');
       return;
     }
     final people = _split ? _participants(me) : <UserSummary>[];
@@ -300,10 +316,9 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       await _controller.saveExpense(draft, id: widget.existing?.id);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      setState(() {
-        _saving = false;
-        _error = friendlyError(e);
-      });
+      if (!mounted) return;
+      setState(() => _saving = false);
+      _fail(friendlyError(e));
     }
   }
 

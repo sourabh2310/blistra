@@ -103,6 +103,10 @@ class MedicinesApiClient {
         'Expected a JSON array but received none.',
       );
     }
+    // Some endpoints (refills) return a paged envelope instead of a bare array.
+    if (decoded is Map<String, dynamic> && decoded['content'] is List<dynamic>) {
+      return decoded['content'] as List<dynamic>;
+    }
     if (decoded is! List<dynamic>) {
       throw ApiException(
         response.statusCode,

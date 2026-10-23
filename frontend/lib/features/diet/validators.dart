@@ -77,11 +77,20 @@ class Validators {
     if (parsed <= 0) {
       return 'Must be greater than 0';
     }
+    if (parsed > 100000) {
+      return 'That is too large';
+    }
     return null;
   }
 
-  /// Nutrition values must be zero or greater.
-  static String? nonNegativeNumber(String? value) {
+  /// Nutrition values must be zero or greater (grams: up to 5,000).
+  static String? nonNegativeNumber(String? value) =>
+      _nutrition(value, max: 5000);
+
+  /// Calories must be zero or greater and plausible for one item.
+  static String? calories(String? value) => _nutrition(value, max: 20000);
+
+  static String? _nutrition(String? value, {required double max}) {
     if (value == null || value.trim().isEmpty) {
       return null;
     }
@@ -91,6 +100,9 @@ class Validators {
     }
     if (parsed < 0) {
       return 'Cannot be negative';
+    }
+    if (parsed > max) {
+      return 'Must be ${max.toStringAsFixed(0)} or less';
     }
     return null;
   }

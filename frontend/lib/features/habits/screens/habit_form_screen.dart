@@ -12,10 +12,16 @@ import '../models.dart';
 
 /// Opens the habit form as a bottom sheet; edits [existingHabit] when set.
 Future<void> showHabitFormSheet(BuildContext context, {Habit? existingHabit}) {
+  // The sheet is built under the root navigator, above the page's HabitsScope,
+  // so hand the controller to it explicitly.
+  final HabitsController controller = HabitsScope.of(context);
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => HabitFormScreen(existingHabit: existingHabit),
+    builder: (_) => HabitsScope(
+      controller: controller,
+      child: HabitFormScreen(existingHabit: existingHabit),
+    ),
   );
 }
 
@@ -307,9 +313,9 @@ class _HabitFormScreenState extends State<HabitFormScreen> {
     }
 
     setState(() => _submitting = true);
-    final HabitsController controller = HabitsScope.of(context);
 
     try {
+      final HabitsController controller = HabitsScope.of(context);
       if (widget.existingHabit != null) {
         await controller.updateHabit(
           widget.existingHabit!.id,
